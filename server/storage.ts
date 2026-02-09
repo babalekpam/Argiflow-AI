@@ -1,14 +1,16 @@
 import {
-  leads, appointments, aiAgents, dashboardStats, admins, users,
+  leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
   type DashboardStats, type InsertDashboardStats,
   type Admin, type InsertAdmin,
   type User,
+  type UserSettings, type InsertUserSettings,
+  type AiChatMessage, type InsertAiChatMessage,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, asc } from "drizzle-orm";
 
 export interface IStorage {
   getUserById(id: string): Promise<User | undefined>;
@@ -30,6 +32,11 @@ export interface IStorage {
   getAllAppointments(): Promise<Appointment[]>;
   getAllAiAgents(): Promise<AiAgent[]>;
   getAllStats(): Promise<DashboardStats[]>;
+  getSettingsByUser(userId: string): Promise<UserSettings | undefined>;
+  upsertSettings(settings: InsertUserSettings): Promise<UserSettings>;
+  getChatMessages(userId: string): Promise<AiChatMessage[]>;
+  createChatMessage(message: InsertAiChatMessage): Promise<AiChatMessage>;
+  clearChatMessages(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -126,6 +133,38 @@ export class DatabaseStorage implements IStorage {
 
   async getAllStats(): Promise<DashboardStats[]> {
     return db.select().from(dashboardStats);
+  }
+
+  async getSettingsByUser(userId: string): Promise<UserSettings | undefined> {
+    const [result] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+    return result;
+  }
+
+  async upsertSettings(settings: InsertUserSettings): Promise<UserSettings> {
+    const existing = await this.getSettingsByUser(settings.userId);
+    if (existing) {
+      const [result] = await db
+        .update(userSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(userSettings.userId, settings.userId))
+        .returning();
+      return result;
+    }
+    const [result] = await db.insert(userSettings).values(settings).returning();
+    return result;
+  }
+
+  async getChatMessages(userId: string): Promise<AiChatMessage[]> {
+    return db.select().from(aiChatMessages).where(eq(aiChatMessages.userId, userId)).orderBy(asc(aiChatMessages.createdAt));
+  }
+
+  async createChatMessage(message: InsertAiChatMessage): Promise<AiChatMessage> {
+    const [result] = await db.insert(aiChatMessages).values(message).returning();
+    return result;
+  }
+
+  async clearChatMessages(userId: string): Promise<void> {
+    await db.delete(aiChatMessages).where(eq(aiChatMessages.userId, userId));
   }
 }
 

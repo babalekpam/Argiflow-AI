@@ -42,6 +42,35 @@ const isAdmin: RequestHandler = (req, res, next) => {
   next();
 };
 
+function generateAiResponse(userMessage: string): string {
+  const msg = userMessage.toLowerCase();
+  if (msg.includes("email") && (msg.includes("campaign") || msg.includes("send") || msg.includes("create"))) {
+    return "I'll set up an email campaign for you. I'm analyzing your lead segments to determine the best targeting. I'll draft personalized email sequences with A/B testing variants. The campaign will be ready for your review within minutes. Would you like me to focus on any specific audience segment?";
+  }
+  if (msg.includes("sms") || msg.includes("text")) {
+    return "I'll configure an SMS outreach campaign. I'll craft concise, engaging messages optimized for mobile. I can schedule them for optimal delivery times based on your leads' time zones. Should I prioritize warm leads or reach out to new prospects?";
+  }
+  if (msg.includes("lead") && (msg.includes("generate") || msg.includes("find") || msg.includes("get"))) {
+    return "I'm activating lead generation across your connected channels. I'll scan LinkedIn, website visitors, and social media engagement to identify high-potential prospects. I'll score and qualify each lead before adding them to your CRM. Expect new leads within the next few hours.";
+  }
+  if (msg.includes("appointment") || msg.includes("schedule") || msg.includes("book") || msg.includes("meeting")) {
+    return "I'll handle appointment scheduling for you. I'm checking your calendar availability and will reach out to qualified leads with booking links. I'll send reminders before each meeting and follow up with no-shows. How many appointments would you like me to target this week?";
+  }
+  if (msg.includes("follow") && msg.includes("up")) {
+    return "I'll create a follow-up sequence for your leads. I'll personalize each touchpoint based on their previous interactions and engagement level. The sequence will include email, SMS, and LinkedIn touches spread across the optimal timeline. Should I start with your most engaged leads?";
+  }
+  if (msg.includes("ad") || msg.includes("advertis") || msg.includes("campaign")) {
+    return "I'll optimize your ad campaigns. I'm analyzing your current performance metrics and audience targeting. I'll adjust bids, refine targeting parameters, and create new ad variations to improve your ROI. I'll provide a performance report within 24 hours.";
+  }
+  if (msg.includes("report") || msg.includes("analytics") || msg.includes("data") || msg.includes("performance")) {
+    return "I'm generating a comprehensive performance report for you. It will include lead generation metrics, conversion rates, appointment show-up rates, and revenue attribution. I'll highlight key trends and actionable insights. The report will be ready shortly.";
+  }
+  if (msg.includes("help") || msg.includes("what can you")) {
+    return "I can help you with:\n\n- Email & SMS campaigns (drafting, scheduling, A/B testing)\n- Lead generation and qualification\n- Appointment booking and follow-ups\n- Ad campaign optimization\n- Performance analytics and reporting\n- Automated nurture sequences\n\nJust tell me what you need, and I'll handle everything for you!";
+  }
+  return "Got it! I'm on it. I'll analyze your request and take the best course of action. I'll keep you updated on the progress. Is there anything specific you'd like me to prioritize?";
+}
+
 const seededUsers = new Set<string>();
 async function ensureSeeded(userId: string) {
   if (!seededUsers.has(userId)) {
@@ -197,6 +226,71 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching AI agents:", error);
       res.status(500).json({ message: "Failed to fetch AI agents" });
+    }
+  });
+
+  app.get("/api/settings", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      let settings = await storage.getSettingsByUser(userId);
+      if (!settings) {
+        settings = await storage.upsertSettings({ userId, emailNotifications: true, smsNotifications: false, aiAutoRespond: true, leadScoring: true, appointmentReminders: true, weeklyReport: true, darkMode: true, twoFactorAuth: false });
+      }
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.patch("/api/settings", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const settings = await storage.upsertSettings({ ...req.body, userId });
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  app.get("/api/chat/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const messages = await storage.getChatMessages(userId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching chat messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/chat/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { content } = req.body;
+      if (!content || typeof content !== "string") {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+      const userMessage = await storage.createChatMessage({ userId, role: "user", content });
+
+      const aiReply = generateAiResponse(content);
+      const aiMessage = await storage.createChatMessage({ userId, role: "assistant", content: aiReply });
+
+      res.json({ userMessage, aiMessage });
+    } catch (error) {
+      console.error("Error sending chat message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  app.delete("/api/chat/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      await storage.clearChatMessages(userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to clear messages" });
     }
   });
 

@@ -13,6 +13,10 @@ import DashboardPage from "./dashboard";
 import LeadsPage from "./leads";
 import AppointmentsPage from "./appointments";
 import AiAgentsPage from "./ai-agents";
+import EmailSmsPage from "./email-sms";
+import TrainingPage from "./training";
+import SettingsPage from "./settings";
+import { AiChatDialog } from "@/components/ai-chat-dialog";
 
 export default function DashboardLayout() {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -99,16 +103,17 @@ export default function DashboardLayout() {
               <Route path="/dashboard/leads" component={LeadsPage} />
               <Route path="/dashboard/appointments" component={AppointmentsPage} />
               <Route path="/dashboard/ai-agents" component={AiAgentsPage} />
+              <Route path="/dashboard/email" component={EmailSmsPage} />
+              <Route path="/dashboard/training" component={TrainingPage} />
+              <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
-                <div className="p-6 text-center text-muted-foreground">
-                  <p className="text-lg font-medium mb-2">Coming Soon</p>
-                  <p className="text-sm">This section is under development.</p>
-                </div>
+                <DashboardPage />
               </Route>
             </Switch>
           </main>
         </div>
       </div>
+      <AiChatDialog />
     </SidebarProvider>
   );
 }
