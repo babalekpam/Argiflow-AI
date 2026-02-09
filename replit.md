@@ -7,26 +7,41 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - **Frontend**: React + TypeScript with Vite, TailwindCSS, shadcn/ui components
 - **Backend**: Express.js with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
-- **Auth**: Replit Auth (OpenID Connect)
+- **Auth**: Email/password with session-based auth (scrypt hashing)
 
 ## Key Routes
-- `/` - Landing page (unauthenticated) or Dashboard redirect (authenticated)
+- `/` - Landing page (unauthenticated) or redirects to /dashboard (authenticated)
+- `/login` - User login page
+- `/signup` - User registration page
 - `/dashboard` - Main dashboard overview
 - `/dashboard/leads` - Leads & CRM management
 - `/dashboard/appointments` - Appointment scheduling
 - `/dashboard/ai-agents` - AI agent management
+- `/dashboard/email` - Email & SMS with AI chat campaign assistant
+- `/dashboard/training` - Training center with courses
+- `/dashboard/settings` - Settings with working toggles (persisted to DB)
 - `/admin` - Super admin login page
 - `/admin/dashboard` - Super admin dashboard (all data across users)
 
 ## API Endpoints
-### User Endpoints (Replit Auth)
+### User Auth Endpoints (email/password)
+- `POST /api/auth/register` - Register new user { email, password, firstName, lastName }
+- `POST /api/auth/login` - Login { email, password }
+- `POST /api/auth/logout` - Logout (destroys session)
 - `GET /api/auth/user` - Get authenticated user
+
+### Data Endpoints (session auth required)
 - `GET /api/stats` - Dashboard statistics
 - `GET /api/leads` - List user's leads
-- `POST /api/leads` - Create a new lead (validated with insertLeadSchema)
+- `POST /api/leads` - Create a new lead
 - `DELETE /api/leads/:id` - Delete a lead by ID
 - `GET /api/appointments` - List user's appointments
 - `GET /api/ai-agents` - List user's AI agents
+- `GET /api/settings` - Get user settings (auto-creates defaults)
+- `PATCH /api/settings` - Update user settings
+- `GET /api/chat/messages` - Get AI chat messages
+- `POST /api/chat/messages` - Send message, get AI reply { content }
+- `DELETE /api/chat/messages` - Clear chat history
 - All authenticated routes call ensureSeeded(userId) to populate sample data on first access
 
 ### Admin Endpoints (email/password auth)
@@ -39,11 +54,13 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `GET /api/admin/stats` - Aggregated admin stats
 
 ## Database Schema
-- `users` & `sessions` - Auth tables (Replit Auth)
+- `users` & `sessions` - Auth tables (email/password, session-based)
 - `leads` - Lead tracking with scoring
 - `appointments` - Scheduled meetings
 - `ai_agents` - AI automation agents
 - `dashboard_stats` - Aggregated metrics
+- `user_settings` - User preferences (notifications, AI, toggles)
+- `ai_chat_messages` - AI chat conversation history
 - `admins` - Super admin users (email/password auth, scrypt hashing)
 
 ## Design
@@ -53,5 +70,10 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 
 ## Recent Changes
 - Initial build: Landing page, Dashboard, Leads CRM, Appointments, AI Agents pages
-- Replit Auth integration
+- Replaced Replit Auth with email/password auth (register, login, logout)
+- Added Email & SMS page with AI chat campaign assistant
+- Added Settings page with working toggles (persisted to user_settings table)
+- Added Training center page
+- Added floating AI chat dialog accessible across all dashboard pages
+- Fixed dashboard routing (overview page now loads correctly)
 - PostgreSQL database with seed data
