@@ -23,6 +23,7 @@ export interface IStorage {
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   getAiAgentsByUser(userId: string): Promise<AiAgent[]>;
   createAiAgent(agent: InsertAiAgent): Promise<AiAgent>;
+  updateAiAgent(id: string, userId: string, data: Partial<Pick<AiAgent, "name" | "status" | "description" | "type">>): Promise<AiAgent | undefined>;
   getStatsByUser(userId: string): Promise<DashboardStats | undefined>;
   upsertStats(stats: InsertDashboardStats): Promise<DashboardStats>;
   getAdminByEmail(email: string): Promise<Admin | undefined>;
@@ -83,6 +84,11 @@ export class DatabaseStorage implements IStorage {
 
   async createAiAgent(agent: InsertAiAgent): Promise<AiAgent> {
     const [result] = await db.insert(aiAgents).values(agent).returning();
+    return result;
+  }
+
+  async updateAiAgent(id: string, userId: string, data: Partial<Pick<AiAgent, "name" | "status" | "description" | "type">>): Promise<AiAgent | undefined> {
+    const [result] = await db.update(aiAgents).set(data).where(and(eq(aiAgents.id, id), eq(aiAgents.userId, userId))).returning();
     return result;
   }
 

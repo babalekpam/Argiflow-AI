@@ -1,9 +1,28 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Bot,
   MessageSquare,
@@ -18,6 +37,8 @@ import {
   BarChart3,
   Clock,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { AiAgent } from "@shared/schema";
 
 const agentIcons: Record<string, any> = {
@@ -53,9 +74,76 @@ function AgentStatusBadge({ status }: { status: string }) {
 }
 
 export default function AiAgentsPage() {
+  const { toast } = useToast();
+  const [configAgent, setConfigAgent] = useState<AiAgent | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editType, setEditType] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+
   const { data: agents, isLoading } = useQuery<AiAgent[]>({
     queryKey: ["/api/ai-agents"],
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, string> }) => {
+      const res = await apiRequest("PATCH", `/api/ai-agents/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-agents"] });
+    },
+  });
+
+  const openConfig = (agent: AiAgent) => {
+    setConfigAgent(agent);
+    setEditName(agent.name);
+    setEditDescription(agent.description || "");
+    setEditType(agent.type);
+    setEditStatus(agent.status);
+  };
+
+  const saveConfig = () => {
+    if (!configAgent) return;
+    updateMutation.mutate(
+      {
+        id: configAgent.id,
+        data: {
+          name: editName,
+          description: editDescription,
+          type: editType,
+          status: editStatus,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Agent updated", description: `${editName} configuration saved.` });
+          setConfigAgent(null);
+        },
+        onError: () => {
+          toast({ title: "Error", description: "Failed to update agent.", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const togglePower = (agent: AiAgent) => {
+    const newStatus = agent.status === "active" ? "paused" : "active";
+    updateMutation.mutate(
+      { id: agent.id, data: { status: newStatus } },
+      {
+        onSuccess: () => {
+          toast({
+            title: newStatus === "active" ? "Agent activated" : "Agent paused",
+            description: `${agent.name} is now ${newStatus}.`,
+          });
+        },
+        onError: () => {
+          toast({ title: "Error", description: "Failed to toggle agent.", variant: "destructive" });
+        },
+      }
+    );
+  };
 
   const activeCount = agents?.filter((a) => a.status === "active").length || 0;
   const totalTasks = agents?.reduce((sum, a) => sum + (a.tasksCompleted || 0), 0) || 0;
@@ -177,12 +265,24 @@ export default function AiAgentsPage() {
                   </div>
 
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50">
-                    <Button variant="ghost" size="sm" className="flex-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex-1"
+                      data-testid={`button-configure-${agent.id}`}
+                      onClick={() => openConfig(agent)}
+                    >
                       <Settings className="w-3.5 h-3.5 mr-1.5" />
                       Configure
                     </Button>
-                    <Button variant="ghost" size="icon">
-                      <Power className="w-3.5 h-3.5" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      data-testid={`button-power-${agent.id}`}
+                      onClick={() => togglePower(agent)}
+                      disabled={updateMutation.isPending}
+                    >
+                      <Power className={`w-3.5 h-3.5 ${agent.status === "active" ? "text-emerald-400" : "text-muted-foreground"}`} />
                     </Button>
                   </div>
                 </Card>
@@ -199,6 +299,68 @@ export default function AiAgentsPage() {
           </p>
         </Card>
       )}
+
+      <Dialog open={!!configAgent} onOpenChange={(open) => !open && setConfigAgent(null)}>
+        <DialogContent data-testid="dialog-configure-agent">
+          <DialogHeader>
+            <DialogTitle>Configure Agent</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="agent-name">Name</Label>
+              <Input
+                id="agent-name"
+                data-testid="input-agent-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-type">Category</Label>
+              <Select value={editType} onValueChange={setEditType}>
+                <SelectTrigger data-testid="select-agent-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Lead Generation">Lead Generation</SelectItem>
+                  <SelectItem value="Nurturing">Nurturing</SelectItem>
+                  <SelectItem value="Scheduling">Scheduling</SelectItem>
+                  <SelectItem value="Communication">Communication</SelectItem>
+                  <SelectItem value="Marketing">Marketing</SelectItem>
+                  <SelectItem value="Retention">Retention</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-desc">Description</Label>
+              <Textarea
+                id="agent-desc"
+                data-testid="input-agent-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="agent-active">Active</Label>
+              <Switch
+                id="agent-active"
+                data-testid="switch-agent-status"
+                checked={editStatus === "active"}
+                onCheckedChange={(checked) => setEditStatus(checked ? "active" : "paused")}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfigAgent(null)} data-testid="button-cancel-config">
+              Cancel
+            </Button>
+            <Button onClick={saveConfig} disabled={updateMutation.isPending} data-testid="button-save-config">
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

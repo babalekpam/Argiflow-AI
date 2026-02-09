@@ -229,6 +229,27 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/ai-agents/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const id = req.params.id as string;
+      const { name, status, description, type } = req.body;
+      const data: Record<string, string> = {};
+      if (name !== undefined) data.name = name;
+      if (status !== undefined) data.status = status;
+      if (description !== undefined) data.description = description;
+      if (type !== undefined) data.type = type;
+      const result = await storage.updateAiAgent(id, userId, data);
+      if (!result) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating AI agent:", error);
+      res.status(500).json({ message: "Failed to update AI agent" });
+    }
+  });
+
   app.get("/api/settings", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
