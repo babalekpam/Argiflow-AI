@@ -44,7 +44,7 @@ const growthNav = [
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const initials = user
     ? `${(user.firstName || "")[0] || ""}${(user.lastName || "")[0] || ""}`.toUpperCase() || "U"
@@ -135,9 +135,9 @@ export function AppSidebar() {
               {user?.email || ""}
             </p>
           </div>
-          <a href="/api/logout" data-testid="button-logout">
+          <button onClick={() => logout()} data-testid="button-logout">
             <LogOut className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
-          </a>
+          </button>
         </div>
       </SidebarFooter>
     </Sidebar>

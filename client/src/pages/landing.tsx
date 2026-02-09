@@ -191,12 +191,12 @@ export default function LandingPage() {
             </a>
           </div>
           <div className="flex items-center gap-3">
-            <a href="/api/login" data-testid="button-login">
+            <a href="/login" data-testid="button-login">
               <Button variant="ghost" size="sm">
                 Sign In
               </Button>
             </a>
-            <a href="/api/login" data-testid="button-get-started">
+            <a href="/signup" data-testid="button-get-started">
               <Button size="sm">
                 Get Started
                 <ArrowRight className="w-4 h-4 ml-1" />
@@ -247,13 +247,13 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
-              <a href="/api/login" data-testid="button-hero-cta">
+              <a href="/signup" data-testid="button-hero-cta">
                 <Button size="lg" className="text-base px-8">
                   <Sparkles className="w-4 h-4 mr-2" />
                   Let AI Build My System
                 </Button>
               </a>
-              <a href="/api/login" data-testid="button-hero-signin">
+              <a href="/signup" data-testid="button-hero-signin">
                 <Button variant="outline" size="lg" className="text-base px-8">
                   <Play className="w-4 h-4 mr-2" />
                   Watch Demo
@@ -445,7 +445,7 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <a href="/api/login" className="block">
+                <a href="/signup" className="block">
                   <Button
                     className="w-full"
                     variant={plan.popular ? "default" : "outline"}
@@ -518,13 +518,13 @@ export default function LandingPage() {
               acquisition. Start your free 14-day trial today.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
-              <a href="/api/login" data-testid="button-cta-final">
+              <a href="/signup" data-testid="button-cta-final">
                 <Button size="lg" className="text-base px-8">
                   <Sparkles className="w-4 h-4 mr-2" />
                   Start Free Trial
                 </Button>
               </a>
-              <a href="/api/login" data-testid="button-cta-demo">
+              <a href="/signup" data-testid="button-cta-demo">
                 <Button variant="outline" size="lg" className="text-base px-8">
                   Schedule a Demo
                 </Button>

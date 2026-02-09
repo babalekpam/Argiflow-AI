@@ -1,15 +1,19 @@
 import {
-  leads, appointments, aiAgents, dashboardStats, admins,
+  leads, appointments, aiAgents, dashboardStats, admins, users,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
   type DashboardStats, type InsertDashboardStats,
   type Admin, type InsertAdmin,
+  type User,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
+  getUserById(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: { email: string; passwordHash: string; firstName: string; lastName: string }): Promise<User>;
   getLeadsByUser(userId: string): Promise<Lead[]>;
   createLead(lead: InsertLead): Promise<Lead>;
   deleteLead(id: string, userId: string): Promise<void>;
@@ -29,6 +33,21 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async getUserById(id: string): Promise<User | undefined> {
+    const [result] = await db.select().from(users).where(eq(users.id, id));
+    return result;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [result] = await db.select().from(users).where(eq(users.email, email));
+    return result;
+  }
+
+  async createUser(user: { email: string; passwordHash: string; firstName: string; lastName: string }): Promise<User> {
+    const [result] = await db.insert(users).values(user).returning();
+    return result;
+  }
+
   async getLeadsByUser(userId: string): Promise<Lead[]> {
     return db.select().from(leads).where(eq(leads.userId, userId)).orderBy(desc(leads.createdAt));
   }
