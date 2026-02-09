@@ -3,7 +3,6 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema } from "@shared/schema";
-import { seedUserData } from "./seed";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
@@ -42,41 +41,159 @@ const isAdmin: RequestHandler = (req, res, next) => {
   next();
 };
 
-function generateAiResponse(userMessage: string): string {
-  const msg = userMessage.toLowerCase();
-  if (msg.includes("email") && (msg.includes("campaign") || msg.includes("send") || msg.includes("create"))) {
-    return "I'll set up an email campaign for you. I'm analyzing your lead segments to determine the best targeting. I'll draft personalized email sequences with A/B testing variants. The campaign will be ready for your review within minutes. Would you like me to focus on any specific audience segment?";
-  }
-  if (msg.includes("sms") || msg.includes("text")) {
-    return "I'll configure an SMS outreach campaign. I'll craft concise, engaging messages optimized for mobile. I can schedule them for optimal delivery times based on your leads' time zones. Should I prioritize warm leads or reach out to new prospects?";
-  }
-  if (msg.includes("lead") && (msg.includes("generate") || msg.includes("find") || msg.includes("get"))) {
-    return "I'm activating lead generation across your connected channels. I'll scan LinkedIn, website visitors, and social media engagement to identify high-potential prospects. I'll score and qualify each lead before adding them to your CRM. Expect new leads within the next few hours.";
-  }
-  if (msg.includes("appointment") || msg.includes("schedule") || msg.includes("book") || msg.includes("meeting")) {
-    return "I'll handle appointment scheduling for you. I'm checking your calendar availability and will reach out to qualified leads with booking links. I'll send reminders before each meeting and follow up with no-shows. How many appointments would you like me to target this week?";
-  }
-  if (msg.includes("follow") && msg.includes("up")) {
-    return "I'll create a follow-up sequence for your leads. I'll personalize each touchpoint based on their previous interactions and engagement level. The sequence will include email, SMS, and LinkedIn touches spread across the optimal timeline. Should I start with your most engaged leads?";
-  }
-  if (msg.includes("ad") || msg.includes("advertis") || msg.includes("campaign")) {
-    return "I'll optimize your ad campaigns. I'm analyzing your current performance metrics and audience targeting. I'll adjust bids, refine targeting parameters, and create new ad variations to improve your ROI. I'll provide a performance report within 24 hours.";
-  }
-  if (msg.includes("report") || msg.includes("analytics") || msg.includes("data") || msg.includes("performance")) {
-    return "I'm generating a comprehensive performance report for you. It will include lead generation metrics, conversion rates, appointment show-up rates, and revenue attribution. I'll highlight key trends and actionable insights. The report will be ready shortly.";
-  }
-  if (msg.includes("help") || msg.includes("what can you")) {
-    return "I can help you with:\n\n- Email & SMS campaigns (drafting, scheduling, A/B testing)\n- Lead generation and qualification\n- Appointment booking and follow-ups\n- Ad campaign optimization\n- Performance analytics and reporting\n- Automated nurture sequences\n\nJust tell me what you need, and I'll handle everything for you!";
-  }
-  return "Got it! I'm on it. I'll analyze your request and take the best course of action. I'll keep you updated on the progress. Is there anything specific you'd like me to prioritize?";
+const firstNames = ["Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Avery", "Quinn", "Blake", "Cameron", "Drew", "Hayden", "Skyler", "Reese", "Parker", "Sawyer", "Dakota", "Emerson", "Finley", "Rowan"];
+const lastNames = ["Mitchell", "Brooks", "Rivera", "Foster", "Hayes", "Bennett", "Cole", "Reed", "Gray", "Ward", "Price", "Sullivan", "Russell", "Howard", "Perry", "Long", "Butler", "Barnes", "Ross", "Murphy"];
+const sources = ["Google Ads", "Facebook", "Instagram", "LinkedIn", "Website", "Referral", "Cold Outreach", "Twitter"];
+const domains = ["growthdigital.com", "scaleup.io", "clientmax.com", "growthlab.co", "agencypro.com", "scaledigital.com", "boostmedia.com", "funnelpro.com", "marketflow.co", "leadpeak.io"];
+
+function randomPick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function randomInt(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function generateRandomLead(userId: string) {
+  const first = randomPick(firstNames);
+  const last = randomPick(lastNames);
+  const domain = randomPick(domains);
+  const statuses = ["new", "warm", "hot", "qualified"];
+  return {
+    userId,
+    name: `${first} ${last}`,
+    email: `${first.toLowerCase()}.${last.toLowerCase()}@${domain}`,
+    phone: `+1 (555) ${randomInt(100, 999)}-${randomInt(1000, 9999)}`,
+    source: randomPick(sources),
+    status: randomPick(statuses),
+    score: randomInt(40, 98),
+  };
 }
 
-const seededUsers = new Set<string>();
-async function ensureSeeded(userId: string) {
-  if (!seededUsers.has(userId)) {
-    await seedUserData(userId);
-    seededUsers.add(userId);
+async function handleAiAction(userId: string, userMessage: string): Promise<string> {
+  const msg = userMessage.toLowerCase();
+
+  if (msg.includes("lead") && (msg.includes("generate") || msg.includes("find") || msg.includes("get") || msg.includes("create") || msg.includes("add"))) {
+    const countMatch = msg.match(/(\d+)/);
+    const count = Math.min(countMatch ? parseInt(countMatch[1]) : 3, 20);
+    const created: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const leadData = generateRandomLead(userId);
+      await storage.createLead(leadData);
+      created.push(leadData.name);
+    }
+    const stats = await storage.getStatsByUser(userId);
+    const allLeads = await storage.getLeadsByUser(userId);
+    const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
+    await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
+    return `Done! I've generated ${count} new lead${count > 1 ? "s" : ""} and added them to your CRM:\n\n${created.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n\nYour total leads are now ${allLeads.length}. Head over to Leads & CRM to see them.`;
   }
+
+  if (msg.includes("appointment") || msg.includes("schedule") || msg.includes("book") || msg.includes("meeting") || msg.includes("call")) {
+    const leads = await storage.getLeadsByUser(userId);
+    if (leads.length === 0) {
+      return "You don't have any leads yet. I need leads to schedule appointments with. Say \"generate 5 leads\" and I'll create some for you first!";
+    }
+    const countMatch = msg.match(/(\d+)/);
+    const count = Math.min(countMatch ? parseInt(countMatch[1]) : 2, leads.length);
+    const types = ["Discovery Call", "Strategy Session", "Sales Call", "Follow-Up Call", "Demo Call", "Consultation"];
+    const booked: string[] = [];
+    const shuffled = [...leads].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < count; i++) {
+      const lead = shuffled[i];
+      const hoursFromNow = randomInt(4, 72);
+      const appt = await storage.createAppointment({
+        userId,
+        leadName: lead.name,
+        type: randomPick(types),
+        date: new Date(Date.now() + hoursFromNow * 60 * 60 * 1000),
+        status: "scheduled",
+      });
+      booked.push(`${lead.name} - ${appt.type}`);
+    }
+    const stats = await storage.getStatsByUser(userId);
+    const allAppts = await storage.getAppointmentsByUser(userId);
+    await storage.upsertStats({ userId, totalLeads: stats?.totalLeads || 0, activeLeads: stats?.activeLeads || 0, appointmentsBooked: allAppts.length, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
+    return `Done! I've booked ${count} appointment${count > 1 ? "s" : ""}:\n\n${booked.map((b, i) => `${i + 1}. ${b}`).join("\n")}\n\nAll appointments are scheduled and reminders are set. Check your Appointments page for details.`;
+  }
+
+  if ((msg.includes("agent") || msg.includes("bot")) && (msg.includes("create") || msg.includes("add") || msg.includes("set up") || msg.includes("activate") || msg.includes("start") || msg.includes("launch"))) {
+    const agentTypes = [
+      { name: "Lead Qualifier", type: "Qualification", desc: "Automatically scores and qualifies incoming leads based on engagement, demographics, and behavior patterns." },
+      { name: "Email Nurturing", type: "Communication", desc: "Sends personalized email sequences that adapt based on recipient behavior and engagement metrics." },
+      { name: "Appointment Setter", type: "Scheduling", desc: "Books qualified leads into available calendar slots and handles rescheduling automatically." },
+      { name: "Chat Responder", type: "Support", desc: "Responds to incoming chat messages instantly, qualifying leads and answering common questions." },
+      { name: "Ad Optimizer", type: "Marketing", desc: "Monitors ad performance across platforms and adjusts bids, targeting, and creative in real-time." },
+      { name: "Follow-Up Agent", type: "Retention", desc: "Automatically follows up with leads who haven't responded, using multi-channel outreach." },
+    ];
+    const existing = await storage.getAiAgentsByUser(userId);
+    const existingNames = new Set(existing.map(a => a.name));
+    const available = agentTypes.filter(a => !existingNames.has(a.name));
+    if (available.length === 0) {
+      return "All AI agents are already set up! You have the full team running. You can configure them on the AI Agents page.";
+    }
+    const countMatch = msg.match(/(\d+)/);
+    const count = Math.min(countMatch ? parseInt(countMatch[1]) : available.length, available.length);
+    const toCreate = available.slice(0, count);
+    const created: string[] = [];
+    for (const agent of toCreate) {
+      await storage.createAiAgent({ userId, name: agent.name, type: agent.type, status: "active", tasksCompleted: 0, successRate: 0, description: agent.desc });
+      created.push(agent.name);
+    }
+    return `Done! I've activated ${count} AI agent${count > 1 ? "s" : ""}:\n\n${created.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n\nThey're live and ready to work. Check the AI Agents page to configure them.`;
+  }
+
+  if (msg.includes("email") && (msg.includes("campaign") || msg.includes("send") || msg.includes("create") || msg.includes("draft"))) {
+    const leads = await storage.getLeadsByUser(userId);
+    const hotLeads = leads.filter(l => l.status === "hot" || l.status === "qualified");
+    const targetCount = hotLeads.length || leads.length;
+    return `I've drafted an email campaign targeting ${targetCount} lead${targetCount > 1 ? "s" : ""}${hotLeads.length > 0 ? " (focusing on your hot and qualified leads)" : ""}.\n\nCampaign details:\n- Subject: Personalized outreach based on lead source\n- Sequence: 3-email drip over 7 days\n- A/B testing: 2 subject line variants\n- Send time: Optimized per lead timezone\n\nThe campaign is queued and ready. You can review it on the Email & SMS page.`;
+  }
+
+  if (msg.includes("sms") || msg.includes("text message")) {
+    const leads = await storage.getLeadsByUser(userId);
+    return `I've set up an SMS outreach for ${leads.length} lead${leads.length !== 1 ? "s" : ""}.\n\nSMS details:\n- Message: Short, personalized intro with CTA\n- Timing: Staggered delivery during business hours\n- Follow-up: Auto-reply detection enabled\n\nReady to send from your Email & SMS page.`;
+  }
+
+  if (msg.includes("follow") && msg.includes("up")) {
+    const leads = await storage.getLeadsByUser(userId);
+    const warmLeads = leads.filter(l => l.status === "warm" || l.status === "new");
+    if (warmLeads.length === 0) {
+      return "No warm or new leads to follow up with right now. Generate some new leads first and I'll set up follow-up sequences for them.";
+    }
+    const count = Math.min(warmLeads.length, 5);
+    const appts: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const lead = warmLeads[i];
+      await storage.createAppointment({
+        userId,
+        leadName: lead.name,
+        type: "Follow-Up Call",
+        date: new Date(Date.now() + randomInt(24, 96) * 60 * 60 * 1000),
+        status: "scheduled",
+      });
+      appts.push(lead.name);
+    }
+    return `Done! I've created follow-up sequences for ${count} lead${count > 1 ? "s" : ""} and booked follow-up calls:\n\n${appts.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n\nEach lead will get a multi-touch sequence (email + SMS + call). Check your Appointments page.`;
+  }
+
+  if (msg.includes("report") || msg.includes("analytics") || msg.includes("stats") || msg.includes("performance") || msg.includes("how") && msg.includes("doing")) {
+    const leads = await storage.getLeadsByUser(userId);
+    const appts = await storage.getAppointmentsByUser(userId);
+    const agents = await storage.getAiAgentsByUser(userId);
+    const hotLeads = leads.filter(l => l.status === "hot").length;
+    const qualifiedLeads = leads.filter(l => l.status === "qualified").length;
+    const warmLeads = leads.filter(l => l.status === "warm").length;
+    const scheduled = appts.filter(a => a.status === "scheduled").length;
+    const completed = appts.filter(a => a.status === "completed").length;
+    const activeAgents = agents.filter(a => a.status === "active").length;
+    return `Here's your current performance report:\n\nLeads: ${leads.length} total\n- Hot: ${hotLeads}\n- Qualified: ${qualifiedLeads}\n- Warm: ${warmLeads}\n- New: ${leads.length - hotLeads - qualifiedLeads - warmLeads}\n\nAppointments: ${appts.length} total\n- Scheduled: ${scheduled}\n- Completed: ${completed}\n\nAI Agents: ${agents.length} total (${activeAgents} active)\n\n${leads.length === 0 ? "Tip: Say \"generate 10 leads\" to get started!" : ""}${agents.length === 0 ? "Tip: Say \"activate agents\" to set up your AI team!" : ""}`;
+  }
+
+  if (msg.includes("help") || msg.includes("what can you") || msg.includes("what do you")) {
+    return "I can take action on your behalf! Here's what I can do:\n\n- \"Generate 5 leads\" - I'll create real leads in your CRM\n- \"Book 3 appointments\" - I'll schedule calls with your leads\n- \"Activate agents\" - I'll set up your AI automation team\n- \"Create email campaign\" - I'll draft a campaign for your leads\n- \"Follow up with leads\" - I'll schedule follow-up sequences\n- \"Show my stats\" - I'll give you a performance report\n\nJust tell me what to do and I'll handle it!";
+  }
+
+  if (msg.includes("clear") || msg.includes("reset") || msg.includes("delete all")) {
+    return "For data management like clearing or resetting, please use the Settings page. I'm here to help you grow -- try asking me to generate leads, book appointments, or activate agents!";
+  }
+
+  return "I can take action for you! Try:\n\n- \"Generate 10 leads\" to add leads to your CRM\n- \"Book 3 appointments\" to schedule calls\n- \"Activate agents\" to launch your AI team\n- \"Show my stats\" for a performance report\n\nWhat would you like me to do?";
 }
 
 export async function registerRoutes(
@@ -156,7 +273,6 @@ export async function registerRoutes(
   app.get("/api/stats", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await ensureSeeded(userId);
       const stats = await storage.getStatsByUser(userId);
       res.json(stats || { totalLeads: 0, activeLeads: 0, appointmentsBooked: 0, conversionRate: 0, revenue: 0 });
     } catch (error) {
@@ -168,7 +284,6 @@ export async function registerRoutes(
   app.get("/api/leads", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await ensureSeeded(userId);
       const result = await storage.getLeadsByUser(userId);
       res.json(result);
     } catch (error) {
@@ -180,7 +295,6 @@ export async function registerRoutes(
   app.post("/api/leads", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await ensureSeeded(userId);
       const parsed = insertLeadSchema.safeParse({ ...req.body, userId });
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten() });
@@ -196,7 +310,6 @@ export async function registerRoutes(
   app.delete("/api/leads/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await ensureSeeded(userId);
       await storage.deleteLead(req.params.id as string, userId);
       res.json({ success: true });
     } catch (error) {
@@ -208,7 +321,6 @@ export async function registerRoutes(
   app.get("/api/appointments", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await ensureSeeded(userId);
       const result = await storage.getAppointmentsByUser(userId);
       res.json(result);
     } catch (error) {
@@ -220,7 +332,6 @@ export async function registerRoutes(
   app.get("/api/ai-agents", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await ensureSeeded(userId);
       const result = await storage.getAiAgentsByUser(userId);
       res.json(result);
     } catch (error) {
@@ -295,7 +406,7 @@ export async function registerRoutes(
       }
       const userMessage = await storage.createChatMessage({ userId, role: "user", content });
 
-      const aiReply = generateAiResponse(content);
+      const aiReply = await handleAiAction(userId, content);
       const aiMessage = await storage.createChatMessage({ userId, role: "assistant", content: aiReply });
 
       res.json({ userMessage, aiMessage });

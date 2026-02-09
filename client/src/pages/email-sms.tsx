@@ -54,6 +54,10 @@ export default function EmailSmsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/chat/messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       setMessage("");
     },
   });
