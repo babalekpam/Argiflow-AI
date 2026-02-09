@@ -1,0 +1,145 @@
+import { useLocation, Link } from "wouter";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarHeader,
+  SidebarFooter,
+} from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Zap,
+  LayoutDashboard,
+  Users,
+  Calendar,
+  Bot,
+  Mail,
+  GraduationCap,
+  Settings,
+  LogOut,
+} from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+
+const mainNav = [
+  { title: "Overview", icon: LayoutDashboard, url: "/dashboard" },
+  { title: "Leads & CRM", icon: Users, url: "/dashboard/leads" },
+  { title: "Appointments", icon: Calendar, url: "/dashboard/appointments" },
+];
+
+const automationNav = [
+  { title: "AI Agents", icon: Bot, url: "/dashboard/ai-agents", badge: "LIVE" },
+  { title: "Email & SMS", icon: Mail, url: "/dashboard/email" },
+];
+
+const growthNav = [
+  { title: "Training", icon: GraduationCap, url: "/dashboard/training" },
+  { title: "Settings", icon: Settings, url: "/dashboard/settings" },
+];
+
+export function AppSidebar() {
+  const [location] = useLocation();
+  const { user } = useAuth();
+
+  const initials = user
+    ? `${(user.firstName || "")[0] || ""}${(user.lastName || "")[0] || ""}`.toUpperCase() || "U"
+    : "U";
+
+  return (
+    <Sidebar>
+      <SidebarHeader className="p-4">
+        <Link href="/" className="flex items-center gap-2" data-testid="link-sidebar-logo">
+          <Zap className="w-5 h-5 text-primary" />
+          <span className="font-bold gradient-text text-lg">ArgiFlow</span>
+        </Link>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {mainNav.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>AI Automation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {automationNav.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.title}</span>
+                      {item.badge && (
+                        <Badge className="ml-auto text-[10px] py-0 px-1.5 bg-chart-3/10 text-chart-3 border-chart-3/20">
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Growth</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {growthNav.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="p-4 border-t border-sidebar-border">
+        <div className="flex items-center gap-3">
+          <Avatar className="w-8 h-8">
+            <AvatarImage src={user?.profileImageUrl || ""} />
+            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate" data-testid="text-user-name">
+              {user?.firstName || "User"} {user?.lastName || ""}
+            </p>
+            <p className="text-xs text-muted-foreground truncate" data-testid="text-user-email">
+              {user?.email || ""}
+            </p>
+          </div>
+          <a href="/api/logout" data-testid="button-logout">
+            <LogOut className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+          </a>
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
