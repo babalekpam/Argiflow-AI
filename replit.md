@@ -15,8 +15,11 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `/dashboard/leads` - Leads & CRM management
 - `/dashboard/appointments` - Appointment scheduling
 - `/dashboard/ai-agents` - AI agent management
+- `/admin` - Super admin login page
+- `/admin/dashboard` - Super admin dashboard (all data across users)
 
 ## API Endpoints
+### User Endpoints (Replit Auth)
 - `GET /api/auth/user` - Get authenticated user
 - `GET /api/stats` - Dashboard statistics
 - `GET /api/leads` - List user's leads
@@ -26,12 +29,22 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `GET /api/ai-agents` - List user's AI agents
 - All authenticated routes call ensureSeeded(userId) to populate sample data on first access
 
+### Admin Endpoints (email/password auth)
+- `POST /api/admin/login` - Admin login with email/password
+- `POST /api/admin/logout` - Admin logout
+- `GET /api/admin/me` - Get current admin
+- `GET /api/admin/leads` - All leads across all users
+- `GET /api/admin/appointments` - All appointments across all users
+- `GET /api/admin/agents` - All agents across all users
+- `GET /api/admin/stats` - Aggregated admin stats
+
 ## Database Schema
 - `users` & `sessions` - Auth tables (Replit Auth)
 - `leads` - Lead tracking with scoring
 - `appointments` - Scheduled meetings
 - `ai_agents` - AI automation agents
 - `dashboard_stats` - Aggregated metrics
+- `admins` - Super admin users (email/password auth, scrypt hashing)
 
 ## Design
 - Dark theme with indigo/purple gradient accents

@@ -1,9 +1,10 @@
 import {
-  leads, appointments, aiAgents, dashboardStats,
+  leads, appointments, aiAgents, dashboardStats, admins,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
   type DashboardStats, type InsertDashboardStats,
+  type Admin, type InsertAdmin,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -18,6 +19,13 @@ export interface IStorage {
   createAiAgent(agent: InsertAiAgent): Promise<AiAgent>;
   getStatsByUser(userId: string): Promise<DashboardStats | undefined>;
   upsertStats(stats: InsertDashboardStats): Promise<DashboardStats>;
+  getAdminByEmail(email: string): Promise<Admin | undefined>;
+  createAdmin(admin: InsertAdmin): Promise<Admin>;
+  getAdminById(id: string): Promise<Admin | undefined>;
+  getAllLeads(): Promise<Lead[]>;
+  getAllAppointments(): Promise<Appointment[]>;
+  getAllAiAgents(): Promise<AiAgent[]>;
+  getAllStats(): Promise<DashboardStats[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -69,6 +77,36 @@ export class DatabaseStorage implements IStorage {
     }
     const [result] = await db.insert(dashboardStats).values(stats).returning();
     return result;
+  }
+  async getAdminByEmail(email: string): Promise<Admin | undefined> {
+    const [result] = await db.select().from(admins).where(eq(admins.email, email));
+    return result;
+  }
+
+  async createAdmin(admin: InsertAdmin): Promise<Admin> {
+    const [result] = await db.insert(admins).values(admin).returning();
+    return result;
+  }
+
+  async getAdminById(id: string): Promise<Admin | undefined> {
+    const [result] = await db.select().from(admins).where(eq(admins.id, id));
+    return result;
+  }
+
+  async getAllLeads(): Promise<Lead[]> {
+    return db.select().from(leads).orderBy(desc(leads.createdAt));
+  }
+
+  async getAllAppointments(): Promise<Appointment[]> {
+    return db.select().from(appointments).orderBy(desc(appointments.date));
+  }
+
+  async getAllAiAgents(): Promise<AiAgent[]> {
+    return db.select().from(aiAgents);
+  }
+
+  async getAllStats(): Promise<DashboardStats[]> {
+    return db.select().from(dashboardStats);
   }
 }
 
