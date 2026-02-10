@@ -1,64 +1,70 @@
 import { useState } from "react";
-import { useLocation, Link } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Zap, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [, setLocation] = useLocation();
+  const { login } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [form, setForm] = useState({ email: "", password: "" });
 
-  const loginMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/auth/login", { email, password });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(["/api/auth/user"], data);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await login(form);
       setLocation("/dashboard");
-    },
-    onError: () => {
-      toast({ title: "Invalid email or password", variant: "destructive" });
-    },
-  });
+    } catch (error: any) {
+      toast({
+        title: "Login failed",
+        description: error?.message || "Invalid email or password.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-            <LogIn className="w-7 h-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold" data-testid="text-login-title">Welcome Back</h1>
-          <p className="text-sm text-muted-foreground">Sign in to your ArgiFlow account</p>
+    <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-chart-4/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="text-center mb-8">
+          <a href="/" className="inline-flex items-center gap-2 mb-6" data-testid="link-login-home">
+            <Zap className="w-7 h-7 text-primary" />
+            <span className="text-2xl font-bold gradient-text">ArgiFlow</span>
+            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">AI</Badge>
+          </a>
+          <h1 className="text-2xl font-bold mb-2" data-testid="text-login-title">Client Portal</h1>
+          <p className="text-sm text-muted-foreground">
+            Sign in to your AI automation dashboard
+          </p>
         </div>
 
-        <Card className="p-6">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              loginMutation.mutate();
-            }}
-            className="space-y-4"
-          >
+        <Card className="p-6 gradient-border">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="john@company.com"
                 data-testid="input-login-email"
               />
             </div>
@@ -68,41 +74,41 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   required
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="Enter your password"
+                  className="pr-10"
                   data-testid="input-login-password"
                 />
-                <Button
+                <button
                   type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="absolute right-0 top-0"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPassword(!showPassword)}
                   data-testid="button-toggle-login-password"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
+                </button>
               </div>
             </div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loginMutation.isPending}
-              data-testid="button-login-submit"
-            >
-              {loginMutation.isPending ? "Signing in..." : "Sign In"}
+            <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-login-submit">
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
             </Button>
           </form>
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            Not a client yet?{" "}
+            <a href="/discovery" className="text-primary hover:underline" data-testid="link-discovery">
+              Book a discovery call
+            </a>
+          </div>
         </Card>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Link href="/signup" className="text-primary hover:underline" data-testid="link-signup">
-            Sign up
-          </Link>
-        </p>
       </div>
     </div>
   );

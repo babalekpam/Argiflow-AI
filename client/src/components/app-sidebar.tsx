@@ -23,6 +23,9 @@ import {
   GraduationCap,
   Settings,
   LogOut,
+  Phone,
+  MessageSquare,
+  Workflow,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -34,10 +37,13 @@ const mainNav = [
 
 const automationNav = [
   { title: "AI Agents", icon: Bot, url: "/dashboard/ai-agents", badge: "LIVE" },
+  { title: "Voice AI", icon: Phone, url: "/dashboard/ai-agents", badge: "NEW" },
+  { title: "Chatbots", icon: MessageSquare, url: "/dashboard/ai-agents" },
   { title: "Email & SMS", icon: Mail, url: "/dashboard/email" },
 ];
 
 const growthNav = [
+  { title: "Automations", icon: Workflow, url: "/dashboard/ai-agents" },
   { title: "Training", icon: GraduationCap, url: "/dashboard/training" },
   { title: "Settings", icon: Settings, url: "/dashboard/settings" },
 ];
@@ -56,6 +62,9 @@ export function AppSidebar() {
         <Link href="/" className="flex items-center gap-2" data-testid="link-sidebar-logo">
           <Zap className="w-5 h-5 text-primary" />
           <span className="font-bold gradient-text text-lg">ArgiFlow</span>
+          <Badge variant="outline" className="text-[9px] py-0 px-1.5 border-primary/30 text-primary ml-0.5">
+            AI
+          </Badge>
         </Link>
       </SidebarHeader>
       <SidebarContent>

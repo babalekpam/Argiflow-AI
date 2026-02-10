@@ -44,10 +44,26 @@ export function useAuth() {
     },
   });
 
+  const login = async (data: { email: string; password: string }) => {
+    const res = await apiRequest("POST", "/api/auth/login", data);
+    const userData = await res.json();
+    queryClient.setQueryData(["/api/auth/user"], userData);
+    return userData;
+  };
+
+  const register = async (data: { email: string; password: string; firstName: string; lastName: string }) => {
+    const res = await apiRequest("POST", "/api/auth/register", data);
+    const userData = await res.json();
+    queryClient.setQueryData(["/api/auth/user"], userData);
+    return userData;
+  };
+
   return {
     user,
     isLoading,
     isAuthenticated: !!user,
+    login,
+    register,
     logout: logoutMutation.mutate,
     isLoggingOut: logoutMutation.isPending,
   };

@@ -8,7 +8,7 @@ import {
   Calendar,
   Users,
   Mail,
-  Filter,
+  Phone,
   Target,
   TrendingUp,
   ArrowRight,
@@ -19,186 +19,195 @@ import {
   Shield,
   Clock,
   Sparkles,
+  MessageSquare,
+  Headphones,
+  Cog,
+  Workflow,
+  Brain,
+  Rocket,
+  ArrowDown,
+  Globe,
+  CheckCircle,
 } from "lucide-react";
 import { SiX, SiLinkedin, SiInstagram } from "react-icons/si";
 
-const features = [
+const services = [
   {
-    icon: Bot,
-    title: "AI-Powered Lead Nurturing",
+    icon: Phone,
+    number: "01",
+    title: "Voice AI Agents",
     description:
-      "Our AI agents automatically engage, qualify, and nurture leads through personalized conversations 24/7.",
+      "Custom voice AI agents that handle inbound and outbound calls, qualify leads, answer questions, and schedule appointments 24/7 — so you never miss an opportunity.",
   },
   {
-    icon: Filter,
-    title: "Smart Funnel Builder",
+    icon: Workflow,
+    number: "02",
+    title: "Process Automation",
     description:
-      "AI designs and optimizes your entire sales funnel, from ad copy to landing pages to follow-up sequences.",
+      "We audit your workflows and automate repetitive tasks across marketing, sales, and operations using custom AI solutions that save time and eliminate errors.",
   },
   {
-    icon: Calendar,
-    title: "Automated Appointment Booking",
+    icon: MessageSquare,
+    number: "03",
+    title: "Lead Gen Chatbots",
     description:
-      "Qualified leads are automatically booked into your calendar. No more back-and-forth scheduling.",
+      "AI chatbots for your website that engage visitors, answer questions, qualify leads, and book appointments while you focus on closing deals.",
   },
   {
-    icon: Mail,
-    title: "Email & SMS Automation",
+    icon: Headphones,
+    number: "04",
+    title: "AI Receptionists",
     description:
-      "Drip campaigns that adapt in real-time based on lead behavior and engagement patterns.",
-  },
-  {
-    icon: BarChart3,
-    title: "Real-Time Analytics",
-    description:
-      "Track every metric that matters. Conversion rates, ROI, lead quality scores, and pipeline value.",
+      "Virtual receptionists that handle calls, route inquiries, and schedule meetings — ensuring every customer gets instant, professional attention around the clock.",
   },
   {
     icon: Target,
-    title: "Multi-Channel Ads",
+    number: "05",
+    title: "CRM Integration",
     description:
-      "Launch and manage ads across Google, Facebook, and Instagram from one unified dashboard.",
+      "Seamless integration of AI solutions with your existing CRM — Salesforce, HubSpot, or custom — ensuring data flows efficiently across every business tool.",
+  },
+  {
+    icon: Brain,
+    number: "06",
+    title: "Bespoke AI Solutions",
+    description:
+      "Custom AI solutions engineered for your unique business challenges. From predictive analytics to intelligent document processing — we build what you need.",
   },
 ];
 
-const steps = [
+const process_steps = [
   {
     step: "01",
-    title: "Tell AI Your Demand",
+    title: "Book a Discovery Call",
     description:
-      "Describe your business, target audience, and goals. Our AI understands exactly what you need.",
+      "Tell us about your business, challenges, and goals. We'll identify the highest-ROI AI opportunities specific to your operations.",
+    icon: Calendar,
   },
   {
     step: "02",
-    title: "AI Builds Everything",
+    title: "Custom Solution Design",
     description:
-      "In minutes, AI creates your funnels, writes ad copy, sets up email sequences, and configures your CRM.",
+      "We design a tailored AI strategy — selecting the right technologies, integration points, and implementation plan for maximum impact.",
+    icon: Cog,
   },
   {
     step: "03",
-    title: "Launch & Scale",
+    title: "Build & Integrate",
     description:
-      "Go live instantly. AI continuously optimizes your campaigns, nurtures leads, and books appointments.",
+      "Our team builds and deploys your AI systems with seamless integration into existing workflows. We train your team to maximize results.",
+    icon: Rocket,
   },
 ];
 
 const testimonials = [
   {
-    name: "James Davidson",
-    company: "Ecom Boss",
-    initials: "JD",
+    name: "Marcus Chen",
+    company: "Apex Real Estate Group",
+    initials: "MC",
     quote:
-      "We went from $30k/month to $50k per WEEK in 3 months with ArgiFlow. The system just works.",
+      "ArgiFlow's voice AI agent handles 80% of our inbound calls now. We booked 3x more appointments in the first month without hiring a single person.",
     rating: 5,
+    result: "3x appointments",
   },
   {
-    name: "Sarah Lewis",
-    company: "Growth Agency",
-    initials: "SL",
+    name: "Sarah Williams",
+    company: "Pinnacle Legal",
+    initials: "SW",
     quote:
-      "I closed $25k in new business in my first 3 weeks using ArgiFlow. The ROI is incredible!",
+      "The process automation alone saved us 40+ hours per week. Our team went from drowning in admin to focused on billable work.",
     rating: 5,
+    result: "40hrs/week saved",
   },
   {
-    name: "Michael Torres",
-    company: "Scale Digital",
-    initials: "MT",
+    name: "David Park",
+    company: "ScaleUp Digital",
+    initials: "DP",
     quote:
-      "The AI agent booked 47 appointments in one month. I couldn't believe it was all automated.",
+      "Their chatbot qualified more leads in one week than our SDR team did in a month. The ROI was immediate and undeniable.",
     rating: 5,
+    result: "10x lead qualification",
   },
 ];
 
-const pricingPlans = [
+const targetAudiences = [
   {
-    name: "Starter",
-    price: "$97",
-    description: "Perfect for solo entrepreneurs",
-    features: [
-      "1 Sales Funnel",
-      "500 Leads/month",
-      "Basic AI Agent",
-      "Email Automation",
-      "Basic Analytics",
-    ],
+    title: "Startups",
+    subtitle: "Achieve PMF Faster",
+    description:
+      "Race to product-market fit with AI that makes your small team operate like a big one. Automate customer discovery, lead gen, and support from day one.",
+    icon: Rocket,
   },
   {
-    name: "Professional",
-    price: "$297",
-    description: "For growing agencies",
-    popular: true,
-    features: [
-      "5 Sales Funnels",
-      "5,000 Leads/month",
-      "Advanced AI Agents",
-      "Email + SMS Automation",
-      "Advanced Analytics",
-      "Priority Support",
-    ],
+    title: "SMBs",
+    subtitle: "Scale Without Hiring",
+    description:
+      "Implement AI in the most critical areas of your business. Reduce costs, increase output, and stay ahead of competitors who are still doing things manually.",
+    icon: TrendingUp,
   },
   {
-    name: "Enterprise",
-    price: "$697",
-    description: "For scaling businesses",
-    features: [
-      "Unlimited Funnels",
-      "Unlimited Leads",
-      "Custom AI Agents",
-      "Full Automation Suite",
-      "White-Label Option",
-      "Dedicated Account Manager",
-    ],
+    title: "Small Teams",
+    subtitle: "10x Your Output",
+    description:
+      "Every team member using AI daily becomes 10x more productive. We train your people and build the systems that multiply what they can accomplish.",
+    icon: Users,
+  },
+];
+
+const faqs = [
+  {
+    q: "How long does implementation take?",
+    a: "Most automations go live within 2-4 weeks. Complex, multi-system integrations may take 4-8 weeks. You'll see results fast.",
+  },
+  {
+    q: "Do I need technical knowledge?",
+    a: "Not at all. We handle everything — design, build, integration, and training. You just tell us your pain points and goals.",
+  },
+  {
+    q: "What if it doesn't work for my business?",
+    a: "We offer a 100% money-back guarantee on the Starter Package. If we can't deliver measurable value, you pay nothing.",
+  },
+  {
+    q: "Can you integrate with my existing tools?",
+    a: "Yes. We integrate with virtually any CRM, email platform, phone system, or business tool. If it has an API, we can connect it.",
   },
 ];
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
+      {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
           <a href="/" className="flex items-center gap-2" data-testid="link-home">
             <Zap className="w-6 h-6 text-primary" />
             <span className="text-xl font-bold gradient-text">ArgiFlow</span>
+            <Badge variant="outline" className="text-[10px] ml-1 border-primary/30 text-primary">AI</Badge>
           </a>
           <div className="hidden md:flex items-center gap-1">
-            <a
-              href="#features"
-              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md"
-              data-testid="link-features"
-            >
-              Features
+            <a href="#services" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
+              Services
             </a>
-            <a
-              href="#how-it-works"
-              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md"
-              data-testid="link-how-it-works"
-            >
+            <a href="#process" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
               How It Works
             </a>
-            <a
-              href="#pricing"
-              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md"
-              data-testid="link-pricing"
-            >
+            <a href="#pricing" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
               Pricing
             </a>
-            <a
-              href="#testimonials"
-              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md"
-              data-testid="link-testimonials"
-            >
-              Testimonials
+            <a href="#testimonials" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
+              Results
+            </a>
+            <a href="#faq" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
+              FAQ
             </a>
           </div>
           <div className="flex items-center gap-3">
             <a href="/login" data-testid="button-login">
-              <Button variant="ghost" size="sm">
-                Sign In
-              </Button>
+              <Button variant="ghost" size="sm">Client Login</Button>
             </a>
-            <a href="/signup" data-testid="button-get-started">
+            <a href="/discovery" data-testid="button-get-started">
               <Button size="sm">
-                Get Started
+                Book Discovery Call
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </a>
@@ -206,6 +215,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
+      {/* Hero Section */}
       <section className="relative min-h-screen flex items-center pt-24 pb-20 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/4 left-1/5 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
@@ -217,46 +227,45 @@ export default function LandingPage() {
           <div>
             <Badge variant="outline" className="mb-6 py-1.5 px-4 border-primary/30 bg-primary/5">
               <Sparkles className="w-3.5 h-3.5 mr-2 text-primary" />
-              Trusted by 500+ Agencies Worldwide
+              AI Automation Agency for Growing Businesses
             </Badge>
             <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
-              Drop Your Demand.{" "}
-              <span className="gradient-text">AI Handles Everything.</span>
+              Scale Your Business With{" "}
+              <span className="gradient-text">AI Automation</span>
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed">
-              Just tell our AI what you need. It automatically builds your funnels,
-              writes your ads, nurtures leads, books appointments, and optimizes
-              everything 24/7.
+              We help SMBs, startups, and small teams harness AI to slash costs,
+              scale revenue, and 10x output — without hiring additional staff.
             </p>
 
             <div className="flex flex-wrap items-center gap-6 mb-10">
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">$100M+</span>
-                <span className="text-sm text-muted-foreground">Revenue Generated</span>
+                <span className="text-3xl font-extrabold gradient-text">$2.4M+</span>
+                <span className="text-sm text-muted-foreground">Client Revenue Generated</span>
               </div>
               <div className="w-px h-10 bg-border" />
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">500+</span>
-                <span className="text-sm text-muted-foreground">Businesses Scaled</span>
+                <span className="text-3xl font-extrabold gradient-text">40hrs</span>
+                <span className="text-sm text-muted-foreground">Avg. Weekly Time Saved</span>
               </div>
               <div className="w-px h-10 bg-border" />
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">50K+</span>
-                <span className="text-sm text-muted-foreground">Appointments Booked</span>
+                <span className="text-3xl font-extrabold gradient-text">3.7x</span>
+                <span className="text-sm text-muted-foreground">Average Client ROI</span>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
-              <a href="/signup" data-testid="button-hero-cta">
+              <a href="/discovery" data-testid="button-hero-cta">
                 <Button size="lg" className="text-base px-8">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Let AI Build My System
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Book Your Discovery Call
                 </Button>
               </a>
-              <a href="/signup" data-testid="button-hero-signin">
+              <a href="#services">
                 <Button variant="outline" size="lg" className="text-base px-8">
-                  <Play className="w-4 h-4 mr-2" />
-                  Watch Demo
+                  <ArrowDown className="w-4 h-4 mr-2" />
+                  See Our Services
                 </Button>
               </a>
             </div>
@@ -264,98 +273,79 @@ export default function LandingPage() {
             <div className="mt-8 flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <Shield className="w-4 h-4 text-chart-3" />
-                <span>14-day free trial</span>
+                <span>100% Money-Back Guarantee</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-chart-3" />
-                <span>Setup in 5 minutes</span>
+                <span>Results in 2-4 Weeks</span>
               </div>
             </div>
           </div>
 
+          {/* Hero Card */}
           <div className="hidden lg:block">
             <Card className="p-6 glow-purple gradient-border">
-              <div className="flex items-center justify-between gap-4 mb-6">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">This Month</p>
-                  <p className="text-3xl font-bold">$127,450</p>
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
+                  <Bot className="w-8 h-8 text-primary" />
                 </div>
-                <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  +24%
-                </Badge>
+                <h3 className="text-lg font-bold mb-1">What AI Can Do For You</h3>
+                <p className="text-xs text-muted-foreground">Real results from real clients</p>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between gap-4 p-3 rounded-md bg-background/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-                      <Users className="w-4 h-4 text-primary" />
+              <div className="space-y-3">
+                {[
+                  { icon: Phone, label: "Voice AI answered", value: "12,847 calls", sub: "this quarter", color: "bg-primary/10 text-primary" },
+                  { icon: MessageSquare, label: "Chatbot qualified", value: "3,492 leads", sub: "this month", color: "bg-chart-3/10 text-chart-3" },
+                  { icon: Workflow, label: "Automated", value: "156 workflows", sub: "across clients", color: "bg-chart-4/10 text-chart-4" },
+                  { icon: Calendar, label: "AI booked", value: "847 appointments", sub: "last 30 days", color: "bg-chart-2/10 text-chart-2" },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center justify-between gap-4 p-3 rounded-md bg-background/50">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-md flex items-center justify-center ${item.color}`}>
+                        <item.icon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{item.label}</p>
+                        <p className="text-xs text-muted-foreground">{item.sub}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">New Leads</p>
-                      <p className="text-xs text-muted-foreground">This week</p>
-                    </div>
+                    <span className="text-sm font-semibold">{item.value}</span>
                   </div>
-                  <span className="text-sm font-semibold">1,284</span>
-                </div>
-                <div className="flex items-center justify-between gap-4 p-3 rounded-md bg-background/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-chart-3/10 flex items-center justify-center">
-                      <Calendar className="w-4 h-4 text-chart-3" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Appointments</p>
-                      <p className="text-xs text-muted-foreground">Booked today</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-semibold">28</span>
-                </div>
-                <div className="flex items-center justify-between gap-4 p-3 rounded-md bg-background/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-chart-4/10 flex items-center justify-center">
-                      <Bot className="w-4 h-4 text-chart-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">AI Tasks</p>
-                      <p className="text-xs text-muted-foreground">Completed today</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-semibold">342</span>
-                </div>
+                ))}
               </div>
             </Card>
           </div>
         </div>
       </section>
 
-      <section id="features" className="py-24 relative">
+      {/* Services Section */}
+      <section id="services" className="py-24 relative">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Features
+              Our AI Services
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Everything You Need to{" "}
-              <span className="gradient-text">Scale Fast</span>
+              Comprehensive AI Solutions to{" "}
+              <span className="gradient-text">Transform Your Business</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              One platform to automate your entire client acquisition process. From
-              first touch to booked appointment.
+              From voice AI to process automation — we build, integrate, and optimize
+              AI systems tailored to your exact needs.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature) => (
-              <Card
-                key={feature.title}
-                className="p-6 hover-elevate"
-                data-testid={`card-feature-${feature.title.toLowerCase().replace(/\s+/g, "-")}`}
-              >
-                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center mb-4">
-                  <feature.icon className="w-5 h-5 text-primary" />
+            {services.map((service) => (
+              <Card key={service.title} className="p-6 hover-elevate group relative overflow-hidden">
+                <div className="absolute top-4 right-4 text-4xl font-extrabold text-foreground/5 group-hover:text-primary/10 transition-colors">
+                  {service.number}
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center mb-4">
+                  <service.icon className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">{service.title}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
-                  {feature.description}
+                  {service.description}
                 </p>
               </Card>
             ))}
@@ -363,34 +353,69 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="how-it-works" className="py-24 relative">
+      {/* Who We Serve */}
+      <section className="py-24 relative">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 right-0 w-96 h-96 bg-chart-4/5 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
+              Who We Serve
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4">
+              Built for Teams That Want to{" "}
+              <span className="gradient-text">Scale Fast</span>
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {targetAudiences.map((audience) => (
+              <Card key={audience.title} className="p-8 text-center hover-elevate">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
+                  <audience.icon className="w-7 h-7 text-primary" />
+                </div>
+                <h3 className="text-2xl font-bold mb-1">{audience.title}</h3>
+                <p className="text-primary text-sm font-medium mb-4">{audience.subtitle}</p>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {audience.description}
+                </p>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works / Process */}
+      <section id="process" className="py-24 relative">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/2 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         </div>
         <div className="relative max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              How It Works
+              Our Process
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Three Steps to{" "}
-              <span className="gradient-text">Automated Growth</span>
+              How We Implement{" "}
+              <span className="gradient-text">AI for Your Business</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Get up and running in minutes, not months. Our AI does the heavy
-              lifting.
+              A proven 3-step process for delivering AI automation that actually works.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            {steps.map((step, index) => (
-              <div key={step.step} className="relative" data-testid={`step-${step.step}`}>
-                {index < steps.length - 1 && (
+            {process_steps.map((step, index) => (
+              <div key={step.step} className="relative">
+                {index < process_steps.length - 1 && (
                   <div className="hidden md:block absolute top-12 left-full w-full h-px bg-gradient-to-r from-primary/30 to-transparent -translate-x-1/2 z-0" />
                 )}
                 <Card className="p-6 text-center relative z-10">
                   <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
-                    <span className="text-lg font-bold gradient-text">{step.step}</span>
+                    <step.icon className="w-5 h-5 text-primary" />
                   </div>
+                  <Badge variant="outline" className="mb-3 border-primary/30 text-primary text-xs">
+                    Step {step.step}
+                  </Badge>
                   <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
                     {step.description}
@@ -399,68 +424,150 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+          <div className="text-center mt-12">
+            <a href="/discovery">
+              <Button size="lg" className="text-base px-8">
+                <Calendar className="w-4 h-4 mr-2" />
+                Start With a Free Discovery Call
+              </Button>
+            </a>
+          </div>
         </div>
       </section>
 
+      {/* Pricing Section */}
       <section id="pricing" className="py-24 relative">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
+          <div className="text-center mb-6">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Pricing
+              Packages & Pricing
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Simple, <span className="gradient-text">Transparent Pricing</span>
+              Invest in <span className="gradient-text">Real Growth</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Start free, scale when you're ready. No hidden fees.
+              Every engagement starts with a discovery call. These packages are starting points — 
+              we customize based on your specific needs.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {pricingPlans.map((plan) => (
-              <Card
-                key={plan.name}
-                className={`p-6 relative ${plan.popular ? "border-primary/40 glow-purple" : ""}`}
-                data-testid={`card-pricing-${plan.name.toLowerCase()}`}
-              >
-                {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
-                    Most Popular
-                  </Badge>
-                )}
-                <div className="text-center mb-6 pt-2">
-                  <h3 className="text-lg font-semibold mb-1">{plan.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {plan.description}
-                  </p>
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-extrabold">{plan.price}</span>
-                    <span className="text-muted-foreground">/mo</span>
-                  </div>
+            {/* Starter Package */}
+            <Card className="p-6 relative">
+              <div className="text-center mb-6 pt-2">
+                <h3 className="text-lg font-semibold mb-1">Starter Package</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  One-time project to get you started
+                </p>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-4xl font-extrabold">$4,950</span>
+                  <span className="text-muted-foreground">one-time</span>
                 </div>
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-3 text-sm">
-                      <Check className="w-4 h-4 text-chart-3 shrink-0" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <a href="/signup" className="block">
-                  <Button
-                    className="w-full"
-                    variant={plan.popular ? "default" : "outline"}
-                    data-testid={`button-plan-${plan.name.toLowerCase()}`}
-                  >
-                    Start Free Trial
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </a>
-              </Card>
-            ))}
+              </div>
+              <ul className="space-y-3 mb-6">
+                {[
+                  "AI & automation audit of your business",
+                  "One full automation build (sales, marketing, or support)",
+                  "Up to 45 min/week for calls",
+                  "Unlimited questions via Slack/Telegram",
+                  "Basic team training on automations we build",
+                  "No-code & AI platform implementation",
+                  "100% money-back guarantee",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-3 text-sm">
+                    <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <a href="/discovery" className="block">
+                <Button className="w-full" variant="outline">
+                  Book Discovery Call
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </a>
+            </Card>
+
+            {/* Ongoing Package */}
+            <Card className="p-6 relative border-primary/40 glow-purple">
+              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
+                Most Popular
+              </Badge>
+              <div className="text-center mb-6 pt-2">
+                <h3 className="text-lg font-semibold mb-1">Ongoing Growth</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Continuous automation & systems development
+                </p>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-4xl font-extrabold">$2,497</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+              </div>
+              <ul className="space-y-3 mb-6">
+                {[
+                  "Full AI & automation audit",
+                  "Up to 2 systems automated simultaneously",
+                  "Ongoing updates for all past implementations",
+                  "Up to 1 hour/week for strategy calls",
+                  "Priority support via your preferred channel",
+                  "Weekly analytics report",
+                  "Unlimited questions via Slack/Telegram",
+                  "Pause or cancel anytime",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-3 text-sm">
+                    <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <a href="/discovery" className="block">
+                <Button className="w-full">
+                  Book Discovery Call
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </a>
+            </Card>
+
+            {/* Custom Package */}
+            <Card className="p-6 relative">
+              <div className="text-center mb-6 pt-2">
+                <h3 className="text-lg font-semibold mb-1">Enterprise / Custom</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Custom AI agents, integrations & more
+                </p>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-4xl font-extrabold">Custom</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Quoted per project</p>
+              </div>
+              <ul className="space-y-3 mb-6">
+                {[
+                  "Everything in Ongoing Growth",
+                  "Custom AI agent development",
+                  "Voice AI & telephony systems",
+                  "Advanced CRM integrations",
+                  "Multi-system automation",
+                  "Dedicated project manager",
+                  "Custom reporting & analytics",
+                  "White-label options available",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-3 text-sm">
+                    <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <a href="/discovery" className="block">
+                <Button className="w-full" variant="outline">
+                  Let's Talk
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </a>
+            </Card>
           </div>
         </div>
       </section>
 
+      {/* Testimonials */}
       <section id="testimonials" className="py-24 relative">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-chart-4/5 rounded-full blur-3xl" />
@@ -468,26 +575,24 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Testimonials
+              Client Results
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Loved by <span className="gradient-text">500+ Businesses</span>
+              Real Businesses, <span className="gradient-text">Real Results</span>
             </h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {testimonials.map((t) => (
-              <Card
-                key={t.name}
-                className="p-6"
-                data-testid={`card-testimonial-${t.initials.toLowerCase()}`}
-              >
-                <div className="flex items-center gap-1 mb-4">
-                  {Array.from({ length: t.rating }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className="w-4 h-4 fill-yellow-400 text-yellow-400"
-                    />
-                  ))}
+              <Card key={t.name} className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: t.rating }).map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20 text-xs">
+                    {t.result}
+                  </Badge>
                 </div>
                 <p className="text-sm mb-6 leading-relaxed italic text-foreground/90">
                   "{t.quote}"
@@ -507,94 +612,113 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section id="faq" className="py-24 relative">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
+              FAQ
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4">
+              Common <span className="gradient-text">Questions</span>
+            </h2>
+          </div>
+          <div className="space-y-4">
+            {faqs.map((faq, i) => (
+              <Card key={i} className="p-6">
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-primary shrink-0" />
+                  {faq.q}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed pl-6">
+                  {faq.a}
+                </p>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
       <section className="py-24 relative">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <Card className="p-12 gradient-border glow-purple">
             <h2 className="text-4xl font-bold mb-4">
-              Ready to <span className="gradient-text">Scale Your Business?</span>
+              Ready to <span className="gradient-text">Scale with AI?</span>
             </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-              Join 500+ businesses that trust ArgiFlow to automate their client
-              acquisition. Start your free 14-day trial today.
+              Schedule a free discovery call. We'll audit your business, identify the
+              highest-ROI opportunities, and show you exactly how AI can transform your operations.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <a href="/signup" data-testid="button-cta-final">
+            <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
+              <a href="/discovery" data-testid="button-cta-final">
                 <Button size="lg" className="text-base px-8">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Start Free Trial
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Book Your Free Discovery Call
                 </Button>
               </a>
-              <a href="/signup" data-testid="button-cta-demo">
+              <a href="mailto:abel@argilette.com">
                 <Button variant="outline" size="lg" className="text-base px-8">
-                  Schedule a Demo
+                  <Mail className="w-4 h-4 mr-2" />
+                  Email Us
                 </Button>
               </a>
             </div>
+            <p className="text-xs text-muted-foreground">
+              No commitment required. 100% money-back guarantee on Starter Package.
+            </p>
           </Card>
         </div>
       </section>
 
+      {/* Footer */}
       <footer className="border-t border-border/50 py-16">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
                 <Zap className="w-5 h-5 text-primary" />
-                <span className="font-bold gradient-text">ArgiFlow</span>
+                <span className="font-bold gradient-text">ArgiFlow AI</span>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                Scale your business with automated client acquisition.
+                AI Automation Agency helping businesses scale with intelligent automation.
               </p>
               <div className="flex items-center gap-3">
-                <Button size="icon" variant="ghost">
-                  <SiX className="w-4 h-4" />
-                </Button>
-                <Button size="icon" variant="ghost">
-                  <SiLinkedin className="w-4 h-4" />
-                </Button>
-                <Button size="icon" variant="ghost">
-                  <SiInstagram className="w-4 h-4" />
-                </Button>
+                <Button size="icon" variant="ghost"><SiX className="w-4 h-4" /></Button>
+                <Button size="icon" variant="ghost"><SiLinkedin className="w-4 h-4" /></Button>
+                <Button size="icon" variant="ghost"><SiInstagram className="w-4 h-4" /></Button>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold text-sm mb-4">Product</h4>
+              <h4 className="font-semibold text-sm mb-4">Services</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#features" className="hover:text-foreground transition-colors">Features</a></li>
-                <li><a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Integrations</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Changelog</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-sm mb-4">Resources</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Case Studies</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Help Center</a></li>
+                <li><a href="#services" className="hover:text-foreground transition-colors">Voice AI Agents</a></li>
+                <li><a href="#services" className="hover:text-foreground transition-colors">Process Automation</a></li>
+                <li><a href="#services" className="hover:text-foreground transition-colors">Lead Gen Chatbots</a></li>
+                <li><a href="#services" className="hover:text-foreground transition-colors">CRM Integration</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-sm mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Careers</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Contact</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Partners</a></li>
+                <li><a href="#process" className="hover:text-foreground transition-colors">How It Works</a></li>
+                <li><a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
+                <li><a href="#testimonials" className="hover:text-foreground transition-colors">Results</a></li>
+                <li><a href="#faq" className="hover:text-foreground transition-colors">FAQ</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-sm mb-4">Legal</h4>
+              <h4 className="font-semibold text-sm mb-4">Contact</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><a href="/discovery" className="hover:text-foreground transition-colors">Book a Call</a></li>
+                <li><a href="mailto:abel@argilette.com" className="hover:text-foreground transition-colors">abel@argilette.com</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Cookie Policy</a></li>
               </ul>
             </div>
           </div>
           <div className="pt-8 border-t border-border/50 text-center text-sm text-muted-foreground">
-            <p>&copy; 2025 ArgiFlow. All rights reserved. Built for ARGILETTE.</p>
+            <p>&copy; 2025 ArgiFlow AI. All rights reserved. An ARGILETTE company.</p>
           </div>
         </div>
       </footer>
