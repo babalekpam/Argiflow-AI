@@ -15,28 +15,11 @@ import {
   User,
   Trash2,
   Sparkles,
-  TrendingUp,
   Clock,
-  CheckCircle,
   BarChart3,
 } from "lucide-react";
 import type { AiChatMessage } from "@shared/schema";
 
-function StatCard({ title, value, icon: Icon, color }: { title: string; value: string; icon: any; color: string }) {
-  return (
-    <Card className="p-4">
-      <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-md flex items-center justify-center ${color}`}>
-          <Icon className="w-4 h-4" />
-        </div>
-        <div>
-          <p className="text-xl font-bold">{value}</p>
-          <p className="text-xs text-muted-foreground">{title}</p>
-        </div>
-      </div>
-    </Card>
-  );
-}
 
 export default function EmailSmsPage() {
   const [message, setMessage] = useState("");
@@ -109,13 +92,6 @@ export default function EmailSmsPage() {
             AI Powered
           </Badge>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Emails Sent" value="1,284" icon={Mail} color="bg-primary/10 text-primary" />
-        <StatCard title="SMS Delivered" value="456" icon={MessageSquare} color="bg-chart-2/10 text-chart-2" />
-        <StatCard title="Open Rate" value="68%" icon={TrendingUp} color="bg-chart-3/10 text-chart-3" />
-        <StatCard title="Response Rate" value="24%" icon={CheckCircle} color="bg-emerald-500/10 text-emerald-400" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -250,26 +226,9 @@ export default function EmailSmsPage() {
               <BarChart3 className="w-4 h-4 text-chart-2" />
               Recent Campaigns
             </h3>
-            <div className="space-y-3">
-              {[
-                { name: "Welcome Sequence", type: "Email", status: "Active", sent: 234 },
-                { name: "Re-engagement", type: "SMS", status: "Completed", sent: 89 },
-                { name: "Product Launch", type: "Email", status: "Scheduled", sent: 0 },
-              ].map((campaign, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 p-2 rounded-md bg-background/50">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{campaign.name}</p>
-                    <p className="text-xs text-muted-foreground">{campaign.type} - {campaign.sent} sent</p>
-                  </div>
-                  <Badge className={
-                    campaign.status === "Active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                    campaign.status === "Completed" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                    "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                  }>
-                    {campaign.status}
-                  </Badge>
-                </div>
-              ))}
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              <Mail className="w-6 h-6 mx-auto mb-2 opacity-50" />
+              No campaigns yet. Ask the AI to create one.
             </div>
           </Card>
 
@@ -278,16 +237,9 @@ export default function EmailSmsPage() {
               <Clock className="w-4 h-4 text-muted-foreground" />
               Scheduled
             </h3>
-            <div className="space-y-2">
-              {[
-                { text: "Newsletter blast", time: "Tomorrow, 9:00 AM" },
-                { text: "Follow-up SMS", time: "Wed, 2:00 PM" },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 p-2 rounded-md bg-background/50">
-                  <p className="text-sm truncate">{item.text}</p>
-                  <p className="text-xs text-muted-foreground whitespace-nowrap">{item.time}</p>
-                </div>
-              ))}
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              <Clock className="w-6 h-6 mx-auto mb-2 opacity-50" />
+              No scheduled campaigns.
             </div>
           </Card>
         </div>

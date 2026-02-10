@@ -8,11 +8,7 @@ import {
   Calendar,
   TrendingUp,
   DollarSign,
-  ArrowUpRight,
-  ArrowDownRight,
   Bot,
-  Clock,
-  Phone,
   Video,
   MoreVertical,
 } from "lucide-react";
@@ -21,38 +17,20 @@ import type { Lead, Appointment, DashboardStats } from "@shared/schema";
 function StatCard({
   title,
   value,
-  change,
   icon: Icon,
-  trend,
   color,
 }: {
   title: string;
   value: string;
-  change: string;
   icon: any;
-  trend: "up" | "down";
   color: string;
 }) {
   return (
     <Card className="p-5" data-testid={`stat-${title.toLowerCase().replace(/\s+/g, "-")}`}>
-      <div className="flex items-center justify-between gap-4 mb-3">
+      <div className="flex items-center gap-3 mb-3">
         <div className={`w-10 h-10 rounded-md flex items-center justify-center ${color}`}>
           <Icon className="w-5 h-5" />
         </div>
-        <Badge
-          className={`text-xs ${
-            trend === "up"
-              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-              : "bg-red-500/10 text-red-400 border-red-500/20"
-          }`}
-        >
-          {trend === "up" ? (
-            <ArrowUpRight className="w-3 h-3 mr-0.5" />
-          ) : (
-            <ArrowDownRight className="w-3 h-3 mr-0.5" />
-          )}
-          {change}
-        </Badge>
       </div>
       <p className="text-2xl font-bold mb-0.5">{value}</p>
       <p className="text-sm text-muted-foreground">{title}</p>
@@ -117,33 +95,25 @@ export default function DashboardPage() {
             <StatCard
               title="Total Leads"
               value={stats?.totalLeads?.toLocaleString() || "0"}
-              change="+12%"
               icon={Users}
-              trend="up"
               color="bg-primary/10 text-primary"
             />
             <StatCard
               title="Active Leads"
               value={stats?.activeLeads?.toLocaleString() || "0"}
-              change="+8%"
               icon={TrendingUp}
-              trend="up"
               color="bg-chart-2/10 text-chart-2"
             />
             <StatCard
               title="Appointments"
               value={stats?.appointmentsBooked?.toLocaleString() || "0"}
-              change="+24%"
               icon={Calendar}
-              trend="up"
               color="bg-chart-3/10 text-chart-3"
             />
             <StatCard
               title="Revenue"
               value={`$${(stats?.revenue || 0).toLocaleString()}`}
-              change="+18%"
               icon={DollarSign}
-              trend="up"
               color="bg-chart-4/10 text-chart-4"
             />
           </>
@@ -276,27 +246,9 @@ export default function DashboardPage() {
             Live
           </Badge>
         </div>
-        <div className="space-y-3">
-          {[
-            { action: "Qualified lead", detail: "Sarah Johnson scored 92/100", time: "2 min ago", icon: Users },
-            { action: "Appointment booked", detail: "David Park - Strategy Session", time: "15 min ago", icon: Calendar },
-            { action: "Follow-up sent", detail: "Email sequence to 12 leads", time: "1 hr ago", icon: Bot },
-            { action: "Lead nurturing", detail: "SMS campaign active for 45 leads", time: "2 hrs ago", icon: Phone },
-          ].map((activity, i) => (
-            <div key={i} className="flex items-center gap-3 p-3 rounded-md bg-background/50">
-              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-                <activity.icon className="w-4 h-4 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{activity.action}</p>
-                <p className="text-xs text-muted-foreground">{activity.detail}</p>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="w-3 h-3" />
-                {activity.time}
-              </div>
-            </div>
-          ))}
+        <div className="text-center py-8 text-muted-foreground text-sm">
+          <Bot className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          No activity yet. Your AI agents will log actions here.
         </div>
       </Card>
     </div>
