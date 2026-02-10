@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import {
   Bot,
   Copy,
@@ -390,6 +393,21 @@ export default function ResourcesPage() {
     setInstalledItems((prev) => ({ ...prev, [key]: true }));
   };
 
+  const installAgentMutation = useMutation({
+    mutationFn: async (data: { name: string; type: string; description: string }) => {
+      const res = await apiRequest("POST", "/api/ai-agents", {
+        name: data.name,
+        type: data.type,
+        description: data.description,
+        status: "active",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-agents"] });
+    },
+  });
+
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "Copied", description: `${label} copied to clipboard.` });
@@ -446,7 +464,7 @@ export default function ResourcesPage() {
                     <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-emerald-500/10">
                       <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
                       <p className="text-xs text-emerald-400">
-                        Installed — Go to <span className="font-semibold">AI Agents</span> to configure and activate this bot.
+                        AI agent created and active — View it in <span className="font-semibold">AI Agents</span> to manage settings.
                       </p>
                     </div>
                   )}
@@ -481,19 +499,33 @@ export default function ResourcesPage() {
                         {installed ? (
                           <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" data-testid={`badge-installed-bot-${i}`}>
                             <CheckCircle className="w-3 h-3 mr-1.5" />
-                            Installed
+                            Installed & Active
                           </Badge>
                         ) : (
                           <Button
                             size="sm"
                             data-testid={`button-install-bot-${i}`}
-                            onClick={() => {
-                              markInstalled(key);
-                              toast({ title: `${template.name} installed`, description: `Go to AI Agents to configure and activate your new ${template.industry} bot.` });
+                            disabled={installAgentMutation.isPending}
+                            onClick={async () => {
+                              try {
+                                await installAgentMutation.mutateAsync({
+                                  name: template.name,
+                                  type: "Chat Responder",
+                                  description: `${template.industry} bot: ${template.description} Features: ${template.features.join(", ")}`,
+                                });
+                                markInstalled(key);
+                                toast({ title: `${template.name} is live`, description: `AI agent created and activated. View it in AI Agents.` });
+                              } catch {
+                                toast({ title: "Installation failed", description: "Something went wrong. Please try again.", variant: "destructive" });
+                              }
                             }}
                           >
-                            <Download className="w-3.5 h-3.5 mr-1.5" />
-                            Install Template
+                            {installAgentMutation.isPending ? (
+                              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5 mr-1.5" />
+                            )}
+                            {installAgentMutation.isPending ? "Installing..." : "Install Template"}
                           </Button>
                         )}
                       </div>
