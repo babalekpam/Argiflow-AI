@@ -5,14 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -38,8 +30,15 @@ import {
   Search,
   Mail,
   Phone,
-  Calendar,
   Trash2,
+  ChevronDown,
+  ChevronRight,
+  Target,
+  Send,
+  Building2,
+  FileText,
+  Copy,
+  Check,
 } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { useState } from "react";
@@ -126,10 +125,30 @@ export default function LeadsPage() {
     },
   });
 
+  const [expandedLeads, setExpandedLeads] = useState<Set<string>>(new Set());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const toggleExpand = (id: string) => {
+    setExpandedLeads(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const copyOutreach = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+    toast({ title: "Outreach email copied to clipboard" });
+  };
+
   const filteredLeads = (leads || []).filter(
     (l) =>
       l.name.toLowerCase().includes(search.toLowerCase()) ||
-      l.email.toLowerCase().includes(search.toLowerCase())
+      l.email.toLowerCase().includes(search.toLowerCase()) ||
+      (l.company || "").toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -295,52 +314,134 @@ export default function LeadsPage() {
             <p className="text-sm">Add your first lead to get started.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLeads.map((lead) => (
-                  <TableRow key={lead.id} data-testid={`lead-row-${lead.id}`}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-                          {lead.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                        </div>
-                        <span className="font-medium text-sm">{lead.name}</span>
+          <div className="space-y-3">
+            {filteredLeads.map((lead) => {
+              const isExpanded = expandedLeads.has(lead.id);
+              const hasDetails = lead.outreach || lead.intentSignal || lead.notes;
+              return (
+                <div
+                  key={lead.id}
+                  className="border rounded-md overflow-visible"
+                  data-testid={`lead-row-${lead.id}`}
+                >
+                  <div
+                    className={`flex items-center gap-3 p-3 ${hasDetails ? "cursor-pointer hover-elevate" : ""}`}
+                    onClick={() => hasDetails && toggleExpand(lead.id)}
+                    data-testid={`lead-header-${lead.id}`}
+                  >
+                    {hasDetails && (
+                      <div className="text-muted-foreground">
+                        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{lead.email}</TableCell>
-                    <TableCell className="text-sm">{lead.source}</TableCell>
-                    <TableCell><LeadStatusBadge status={lead.status} /></TableCell>
-                    <TableCell className="text-sm font-medium">{lead.score}/100</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : ""}
-                    </TableCell>
-                    <TableCell>
+                    )}
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                      {lead.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm" data-testid={`text-lead-name-${lead.id}`}>{lead.name}</span>
+                        {lead.company && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-lead-company-${lead.id}`}>
+                            <Building2 className="w-3 h-3" />
+                            {lead.company}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                        {lead.email && (
+                          <span className="flex items-center gap-1" data-testid={`text-lead-email-${lead.id}`}>
+                            <Mail className="w-3 h-3" />
+                            {lead.email}
+                          </span>
+                        )}
+                        {lead.phone && (
+                          <span className="flex items-center gap-1" data-testid={`text-lead-phone-${lead.id}`}>
+                            <Phone className="w-3 h-3" />
+                            {lead.phone}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                      {lead.intentSignal && (
+                        <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-400 border-purple-500/20">
+                          <Target className="w-3 h-3 mr-1" />
+                          Intent
+                        </Badge>
+                      )}
+                      {lead.outreach && (
+                        <Badge variant="outline" className="text-xs bg-sky-500/10 text-sky-400 border-sky-500/20">
+                          <Send className="w-3 h-3 mr-1" />
+                          Outreach Ready
+                        </Badge>
+                      )}
+                      <span data-testid={`badge-lead-status-${lead.id}`}><LeadStatusBadge status={lead.status} /></span>
+                      <span className="text-xs font-medium w-10 text-right" data-testid={`text-lead-score-${lead.id}`}>{lead.score}/100</span>
+                      <span className="text-xs text-muted-foreground w-20 text-right" data-testid={`text-lead-date-${lead.id}`}>
+                        {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : ""}
+                      </span>
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => deleteMutation.mutate(lead.id)}
+                        onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(lead.id); }}
                         disabled={deleteMutation.isPending}
                         data-testid={`button-delete-lead-${lead.id}`}
                       >
                         <Trash2 className="w-4 h-4 text-muted-foreground" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  </div>
+
+                  {isExpanded && hasDetails && (
+                    <div className="border-t p-4 space-y-3 bg-muted/30" data-testid={`lead-details-${lead.id}`}>
+                      {lead.intentSignal && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Target className="w-4 h-4 text-purple-400" />
+                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Intent Signal</span>
+                          </div>
+                          <p className="text-sm pl-6" data-testid={`text-intent-${lead.id}`}>{lead.intentSignal}</p>
+                        </div>
+                      )}
+                      {lead.notes && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <FileText className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Research Notes</span>
+                          </div>
+                          <p className="text-sm pl-6" data-testid={`text-notes-${lead.id}`}>{lead.notes}</p>
+                        </div>
+                      )}
+                      {lead.outreach && (
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-2">
+                              <Send className="w-4 h-4 text-sky-400" />
+                              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Outreach Email Draft</span>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => copyOutreach(lead.id, lead.outreach!)}
+                              data-testid={`button-copy-outreach-${lead.id}`}
+                            >
+                              {copiedId === lead.id ? (
+                                <><Check className="w-3 h-3 mr-1" /> Copied</>
+                              ) : (
+                                <><Copy className="w-3 h-3 mr-1" /> Copy Email</>
+                              )}
+                            </Button>
+                          </div>
+                          <div className="pl-6 p-3 rounded-md bg-background border text-sm whitespace-pre-wrap" data-testid={`text-outreach-${lead.id}`}>
+                            {lead.outreach}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>

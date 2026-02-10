@@ -11,9 +11,13 @@ export const leads = pgTable("leads", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
+  company: text("company"),
   source: text("source").notNull(),
   status: text("status").notNull().default("new"),
   score: integer("score").default(0),
+  notes: text("notes"),
+  outreach: text("outreach"),
+  intentSignal: text("intent_signal"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

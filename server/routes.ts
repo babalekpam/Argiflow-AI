@@ -80,9 +80,13 @@ async function executeAction(userId: string, action: string, params: any): Promi
           name: lead.name || "Unknown",
           email: lead.email || "",
           phone: lead.phone || "",
+          company: lead.company || "",
           source: lead.source || "Web Research",
           status: lead.status || "new",
           score: lead.score || randomInt(50, 85),
+          notes: lead.notes || "",
+          outreach: lead.outreach || "",
+          intentSignal: lead.intentSignal || lead.intent_signal || "",
         };
         await storage.createLead(leadRecord);
         created.push(`${leadRecord.name}${lead.company ? ` (${lead.company})` : ""}`);
@@ -339,6 +343,13 @@ LEAD GENERATION RULES (CRITICAL):
    - 40-59: Fits the target profile but no clear active-search signal yet
 7. If the user doesn't specify an industry or location, use their company profile information
 8. When presenting leads, explain WHY each lead is a good prospect — what intent signal did you find? Why might they need the client's service right now?
+9. For EVERY lead, you MUST generate a personalized outreach email draft (3-5 sentences). The outreach should:
+   - Reference their specific situation or pain point you discovered
+   - Mention a relevant benefit of the client's service
+   - Include a clear call-to-action (e.g., "Would you be open to a 15-minute call this week?")
+   - Sound human, warm, and consultative — not salesy or spammy
+10. Also include an intent_signal field describing what buying signal you found (e.g., "Posted looking for billing help", "New practice opening", "Switching providers")
+11. Include research notes about each prospect — what you learned about their business, size, challenges
 
 COMMUNICATION STANDARDS:
 - Use **bold** for key terms, metrics, and action items
@@ -379,7 +390,7 @@ COMMUNICATION STANDARDS:
         properties: {
           leads: {
             type: "array",
-            description: "Array of real leads found via web search",
+            description: "Array of real leads found via web search, each with personalized outreach",
             items: {
               type: "object",
               properties: {
@@ -389,7 +400,10 @@ COMMUNICATION STANDARDS:
                 company: { type: "string", description: "Company/business name" },
                 source: { type: "string", description: "Where found: 'Web Research', 'Google', 'LinkedIn', 'Directory', etc." },
                 status: { type: "string", description: "Lead status: 'new'" },
-                score: { type: "number", description: "Lead score 1-100 based on relevance to user's business" },
+                score: { type: "number", description: "Lead score 1-100 based on intent signals" },
+                intent_signal: { type: "string", description: "What buying signal was detected — e.g. 'Posted RFP for billing services', 'Complained about current provider on Reddit', 'New practice opening Q1 2025'" },
+                notes: { type: "string", description: "Research notes about this prospect — why they're a good fit, what you learned about their situation" },
+                outreach: { type: "string", description: "A personalized outreach email draft (3-5 sentences) referencing their specific situation, pain point, or intent signal. Include a clear call-to-action like booking a call." },
               },
               required: ["name"],
             },
