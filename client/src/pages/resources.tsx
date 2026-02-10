@@ -383,7 +383,12 @@ const sopCategories = [
 
 export default function ResourcesPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("bot-templates");
+  const [installedItems, setInstalledItems] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
+
+  const markInstalled = (key: string) => {
+    setInstalledItems((prev) => ({ ...prev, [key]: true }));
+  };
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -432,47 +437,71 @@ export default function ResourcesPage() {
             </Badge>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
-            {botTemplates.map((template, i) => (
-              <Card key={i} className="p-5" data-testid={`card-bot-template-${i}`}>
-                <div className="flex items-start gap-4">
-                  <div className="w-11 h-11 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                    <template.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-                      <h3 className="font-semibold text-sm">{template.name}</h3>
-                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">
-                        {template.conversations} conversations
-                      </Badge>
+            {botTemplates.map((template, i) => {
+              const key = `bot-${i}`;
+              const installed = installedItems[key];
+              return (
+                <Card key={i} className={`p-5 ${installed ? "border-emerald-500/30" : ""}`} data-testid={`card-bot-template-${i}`}>
+                  {installed && (
+                    <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-emerald-500/10">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <p className="text-xs text-emerald-400">
+                        Installed — Go to <span className="font-semibold">AI Agents</span> to configure and activate this bot.
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-1">{template.industry}</p>
-                    <p className="text-xs text-muted-foreground mb-3">{template.description}</p>
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {template.features.map((f, fi) => (
-                        <Badge key={fi} variant="outline" className="text-[10px] py-0 px-1.5">
-                          {f}
+                  )}
+                  <div className="flex items-start gap-4">
+                    <div className={`w-11 h-11 rounded-md flex items-center justify-center shrink-0 ${installed ? "bg-emerald-500/10" : "bg-primary/10"}`}>
+                      {installed ? (
+                        <CheckCircle className="w-5 h-5 text-emerald-400" />
+                      ) : (
+                        <template.icon className="w-5 h-5 text-primary" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+                        <h3 className="font-semibold text-sm">{template.name}</h3>
+                        <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">
+                          {template.conversations} conversations
                         </Badge>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <span className="text-xs text-muted-foreground">
-                        Charge clients <span className="text-foreground font-semibold">{template.price}</span>
-                      </span>
-                      <Button
-                        size="sm"
-                        data-testid={`button-install-bot-${i}`}
-                        onClick={() => {
-                          toast({ title: `${template.name} installed`, description: `The ${template.industry} bot template has been added to your AI Agents. Configure it in AI Agents settings.` });
-                        }}
-                      >
-                        <Download className="w-3.5 h-3.5 mr-1.5" />
-                        Install Template
-                      </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">{template.industry}</p>
+                      <p className="text-xs text-muted-foreground mb-3">{template.description}</p>
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {template.features.map((f, fi) => (
+                          <Badge key={fi} variant="outline" className="text-[10px] py-0 px-1.5">
+                            {f}
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-xs text-muted-foreground">
+                          Charge clients <span className="text-foreground font-semibold">{template.price}</span>
+                        </span>
+                        {installed ? (
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" data-testid={`badge-installed-bot-${i}`}>
+                            <CheckCircle className="w-3 h-3 mr-1.5" />
+                            Installed
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            data-testid={`button-install-bot-${i}`}
+                            onClick={() => {
+                              markInstalled(key);
+                              toast({ title: `${template.name} installed`, description: `Go to AI Agents to configure and activate your new ${template.industry} bot.` });
+                            }}
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1.5" />
+                            Install Template
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
@@ -489,52 +518,72 @@ export default function ResourcesPage() {
             </Badge>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
-            {adTemplates.map((ad, i) => (
-              <Card key={i} className="p-5" data-testid={`card-ad-template-${i}`}>
-                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                  <div>
-                    <h3 className="font-semibold text-sm">{ad.name}</h3>
-                    <p className="text-xs text-muted-foreground">{ad.type}</p>
+            {adTemplates.map((ad, i) => {
+              const key = `ad-${i}`;
+              const used = installedItems[key];
+              return (
+                <Card key={i} className={`p-5 ${used ? "border-emerald-500/30" : ""}`} data-testid={`card-ad-template-${i}`}>
+                  {used && (
+                    <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-emerald-500/10">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <p className="text-xs text-emerald-400">
+                        Copied to clipboard — Paste into your ad manager to launch this campaign.
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                    <div>
+                      <h3 className="font-semibold text-sm">{ad.name}</h3>
+                      <p className="text-xs text-muted-foreground">{ad.type}</p>
+                    </div>
+                    {used ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Copied
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                        {ad.roi} ROI
+                      </Badge>
+                    )}
                   </div>
-                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                    {ad.roi} ROI
-                  </Badge>
-                </div>
-                <div className="bg-secondary/30 rounded-md p-3 mb-3">
-                  <p className="text-xs text-muted-foreground mb-1">Hook / Headline:</p>
-                  <p className="text-sm font-medium italic">"{ad.hook}"</p>
-                </div>
-                <p className="text-xs text-muted-foreground mb-3">{ad.description}</p>
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-3 flex-wrap">
-                  <span>Spend: <span className="text-foreground font-medium">{ad.spend}</span></span>
-                  <span>Revenue: <span className="text-emerald-400 font-medium">{ad.revenue}</span></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    data-testid={`button-copy-ad-${i}`}
-                    onClick={() => handleCopy(ad.hook, "Ad hook")}
-                  >
-                    <Copy className="w-3.5 h-3.5 mr-1.5" />
-                    Copy Hook
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    data-testid={`button-use-ad-${i}`}
-                    onClick={() => {
-                      handleCopy(`${ad.hook}\n\n${ad.description}`, "Ad template");
-                      toast({ title: `${ad.name} copied`, description: "Full ad copy and hook have been copied to your clipboard. Paste into your ad manager." });
-                    }}
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                    Use Template
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                  <div className="bg-secondary/30 rounded-md p-3 mb-3">
+                    <p className="text-xs text-muted-foreground mb-1">Hook / Headline:</p>
+                    <p className="text-sm font-medium italic">"{ad.hook}"</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">{ad.description}</p>
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-3 flex-wrap">
+                    <span>Spend: <span className="text-foreground font-medium">{ad.spend}</span></span>
+                    <span>Revenue: <span className="text-emerald-400 font-medium">{ad.revenue}</span></span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      data-testid={`button-copy-ad-${i}`}
+                      onClick={() => handleCopy(ad.hook, "Ad hook")}
+                    >
+                      <Copy className="w-3.5 h-3.5 mr-1.5" />
+                      Copy Hook
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      data-testid={`button-use-ad-${i}`}
+                      onClick={() => {
+                        markInstalled(key);
+                        handleCopy(`${ad.hook}\n\n${ad.description}`, "Ad template");
+                        toast({ title: `${ad.name} copied`, description: "Full ad copy and hook are in your clipboard. Paste into your Facebook/Instagram ad manager." });
+                      }}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+                      Use Template
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
@@ -551,42 +600,69 @@ export default function ResourcesPage() {
             </Badge>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
-            {funnelTemplates.map((funnel, i) => (
-              <Card key={i} className="p-5" data-testid={`card-funnel-${i}`}>
-                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                  <h3 className="font-semibold text-sm">{funnel.name}</h3>
-                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                    {funnel.conversionRate} conversion
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mb-4">{funnel.description}</p>
-                <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-3">
-                  {funnel.steps.map((step, si) => (
-                    <div key={si} className="flex items-center gap-1 shrink-0">
-                      <div className="px-2.5 py-1.5 rounded-md text-[10px] font-medium bg-primary/10 text-primary">
-                        {step}
-                      </div>
-                      {si < funnel.steps.length - 1 && (
-                        <ArrowRight className="w-3 h-3 text-muted-foreground/50 shrink-0" />
-                      )}
+            {funnelTemplates.map((funnel, i) => {
+              const key = `funnel-${i}`;
+              const imported = installedItems[key];
+              return (
+                <Card key={i} className={`p-5 ${imported ? "border-emerald-500/30" : ""}`} data-testid={`card-funnel-${i}`}>
+                  {imported && (
+                    <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-emerald-500/10">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <p className="text-xs text-emerald-400">
+                        Imported — Go to <span className="font-semibold">Sales Funnels</span> to customize pages and launch.
+                      </p>
                     </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-xs text-muted-foreground">{funnel.pages} pages included</span>
-                  <Button
-                    size="sm"
-                    data-testid={`button-import-funnel-${i}`}
-                    onClick={() => {
-                      toast({ title: `${funnel.name} imported`, description: `Funnel with ${funnel.pages} pages has been added to your Sales Funnels. Go to Funnels to configure it.` });
-                    }}
-                  >
-                    <Download className="w-3.5 h-3.5 mr-1.5" />
-                    Import Funnel
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                  )}
+                  <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                    <h3 className="font-semibold text-sm">{funnel.name}</h3>
+                    {imported ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Imported
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                        {funnel.conversionRate} conversion
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-4">{funnel.description}</p>
+                  <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-3">
+                    {funnel.steps.map((step, si) => (
+                      <div key={si} className="flex items-center gap-1 shrink-0">
+                        <div className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium ${imported ? "bg-emerald-500/10 text-emerald-400" : "bg-primary/10 text-primary"}`}>
+                          {step}
+                        </div>
+                        {si < funnel.steps.length - 1 && (
+                          <ArrowRight className="w-3 h-3 text-muted-foreground/50 shrink-0" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-xs text-muted-foreground">{funnel.pages} pages included</span>
+                    {imported ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" data-testid={`badge-imported-funnel-${i}`}>
+                        <CheckCircle className="w-3 h-3 mr-1.5" />
+                        Imported
+                      </Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        data-testid={`button-import-funnel-${i}`}
+                        onClick={() => {
+                          markInstalled(key);
+                          toast({ title: `${funnel.name} imported`, description: `Go to Sales Funnels to customize your ${funnel.pages}-page funnel and launch it.` });
+                        }}
+                      >
+                        <Download className="w-3.5 h-3.5 mr-1.5" />
+                        Import Funnel
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
@@ -679,31 +755,57 @@ export default function ResourcesPage() {
           </Card>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sopCategories.map((cat, i) => (
-              <Card key={i} className="p-5" data-testid={`card-sop-category-${i}`}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
-                    <cat.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-sm">{cat.title}</h3>
-                    <p className="text-xs text-muted-foreground">{cat.count} procedures</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {cat.items.map((item, ii) => (
-                    <div key={ii} className="flex items-center gap-2 text-xs">
-                      <CheckCircle className="w-3 h-3 text-chart-3 shrink-0" />
-                      <span className="text-muted-foreground">{item}</span>
+            {sopCategories.map((cat, i) => {
+              const key = `sop-${i}`;
+              const viewed = installedItems[key];
+              return (
+                <Card key={i} className={`p-5 ${viewed ? "border-emerald-500/30" : ""}`} data-testid={`card-sop-category-${i}`}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`w-10 h-10 rounded-md flex items-center justify-center ${viewed ? "bg-emerald-500/10" : "bg-primary/10"}`}>
+                      {viewed ? (
+                        <CheckCircle className="w-5 h-5 text-emerald-400" />
+                      ) : (
+                        <cat.icon className="w-5 h-5 text-primary" />
+                      )}
                     </div>
-                  ))}
-                </div>
-                <Button variant="outline" size="sm" className="w-full mt-4" data-testid={`button-view-sops-${i}`}>
-                  <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-                  View SOPs
-                </Button>
-              </Card>
-            ))}
+                    <div>
+                      <h3 className="font-semibold text-sm">{cat.title}</h3>
+                      <p className="text-xs text-muted-foreground">{cat.count} procedures</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {cat.items.map((item, ii) => (
+                      <div key={ii} className="flex items-center gap-2 text-xs">
+                        <CheckCircle className="w-3 h-3 text-chart-3 shrink-0" />
+                        <span className="text-muted-foreground">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {viewed ? (
+                    <div className="flex items-center gap-2 mt-4 px-3 py-2 rounded-md bg-emerald-500/10">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <p className="text-xs text-emerald-400">
+                        SOPs accessed — Follow each checklist step-by-step for best results.
+                      </p>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-4"
+                      data-testid={`button-view-sops-${i}`}
+                      onClick={() => {
+                        markInstalled(key);
+                        toast({ title: `${cat.title} accessed`, description: `${cat.count} procedures ready. Follow each checklist step-by-step for best results.` });
+                      }}
+                    >
+                      <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+                      View SOPs
+                    </Button>
+                  )}
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
