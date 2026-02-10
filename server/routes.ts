@@ -1,6 +1,8 @@
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { leads, appointments, aiAgents, dashboardStats, aiChatMessages } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -426,6 +428,7 @@ export async function registerRoutes(
     }
   });
 
+  await clearOldSeedData();
   await seedSuperAdmin();
 
   app.post("/api/admin/login", async (req, res) => {
@@ -513,6 +516,25 @@ export async function registerRoutes(
   });
 
   return httpServer;
+}
+
+async function clearOldSeedData() {
+  try {
+    const { eq, and, inArray } = await import("drizzle-orm");
+    const knownSeedNames = ["Sarah Johnson", "Robert Chen", "Emma Wilson", "David Park", "Lisa Anderson", "Michael Torres", "Jennifer Kim", "Alex Rivera"];
+    const knownAgentNames = ["Lead Qualifier", "Email Nurturing", "Appointment Setter", "Chat Responder", "Ad Optimizer", "Follow-Up Agent"];
+    const seedLeads = await db.select().from(leads).where(inArray(leads.name, knownSeedNames));
+    if (seedLeads.length > 0) {
+      await db.delete(aiChatMessages);
+      await db.delete(appointments);
+      await db.delete(aiAgents);
+      await db.delete(leads);
+      await db.delete(dashboardStats);
+      console.log("Cleared old seed data from all tables");
+    }
+  } catch (error) {
+    console.error("Error clearing seed data:", error);
+  }
 }
 
 async function seedSuperAdmin() {
