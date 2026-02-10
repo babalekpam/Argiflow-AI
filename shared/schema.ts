@@ -110,6 +110,47 @@ export const insertMarketingStrategySchema = createInsertSchema(marketingStrateg
 export type MarketingStrategy = typeof marketingStrategies.$inferSelect;
 export type InsertMarketingStrategy = z.infer<typeof insertMarketingStrategySchema>;
 
+export const funnels = pgTable("funnels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const funnelStages = pgTable("funnel_stages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  funnelId: varchar("funnel_id").notNull(),
+  name: text("name").notNull(),
+  position: integer("position").notNull(),
+  color: text("color").notNull().default("#6366f1"),
+});
+
+export const funnelDeals = pgTable("funnel_deals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  funnelId: varchar("funnel_id").notNull(),
+  stageId: varchar("stage_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  contactName: text("contact_name").notNull(),
+  contactEmail: text("contact_email"),
+  value: real("value").default(0),
+  status: text("status").notNull().default("open"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertFunnelSchema = createInsertSchema(funnels).omit({ id: true, createdAt: true });
+export type Funnel = typeof funnels.$inferSelect;
+export type InsertFunnel = z.infer<typeof insertFunnelSchema>;
+
+export const insertFunnelStageSchema = createInsertSchema(funnelStages).omit({ id: true });
+export type FunnelStage = typeof funnelStages.$inferSelect;
+export type InsertFunnelStage = z.infer<typeof insertFunnelStageSchema>;
+
+export const insertFunnelDealSchema = createInsertSchema(funnelDeals).omit({ id: true, createdAt: true });
+export type FunnelDeal = typeof funnelDeals.$inferSelect;
+export type InsertFunnelDeal = z.infer<typeof insertFunnelDealSchema>;
+
 export const insertAdminSchema = createInsertSchema(admins).omit({ id: true, createdAt: true });
 export type Admin = typeof admins.$inferSelect;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;
