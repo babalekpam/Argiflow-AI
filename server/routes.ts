@@ -465,6 +465,12 @@ LEAD GENERATION RULES (CRITICAL):
    - Mention a relevant benefit of the client's service
    - Include a clear call-to-action with a booking link if available. ${bookingLink ? `ALWAYS include this booking link in the outreach: ${bookingLink} — e.g., "I'd love to chat — you can book a quick call here: ${bookingLink}"` : 'Use a generic CTA like "Would you be open to a 15-minute call this week?"'}
    - Sound human, warm, and consultative — not salesy or spammy
+   - ALWAYS end the email with this exact signature block:
+     Best regards,
+     Clara Motena
+     Client Acquisition Director
+     Track-Med Billing Solutions
+     +1(615)482-6768 / (636) 244-8246
 10. Also include an intent_signal field describing what buying signal you found (e.g., "Posted looking for billing help", "New practice opening", "Switching providers")
 11. Include research notes about each prospect — what you learned about their business, size, challenges
 
