@@ -138,6 +138,24 @@ const botTemplates = [
     description: "Books treatments, handles consultation requests, promotes packages. Built for med spas and aesthetic clinics.",
     features: ["Treatment booking", "Consultation intake", "Package upsells", "Aftercare guidance"],
   },
+  {
+    name: "Medical Billing Assistant",
+    industry: "Medical Billing",
+    icon: DollarSign,
+    conversations: "9,800+",
+    price: "$7,500",
+    description: "Handles patient billing inquiries, payment plans, insurance claim status, and collections follow-up. Reduces AR days and improves cash flow.",
+    features: ["Claim status lookup", "Payment plan setup", "Balance inquiries", "Insurance verification"],
+  },
+  {
+    name: "Revenue Cycle Manager",
+    industry: "Revenue Cycle Management",
+    icon: Briefcase,
+    conversations: "7,600+",
+    price: "$7,500",
+    description: "End-to-end RCM automation: eligibility checks, prior authorizations, denial management, and patient statement follow-up. Built for healthcare practices and billing companies.",
+    features: ["Eligibility verification", "Prior auth tracking", "Denial follow-up", "Payment reminders"],
+  },
 ];
 
 const adTemplates = [
@@ -406,8 +424,8 @@ export default function ResourcesPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-sm text-muted-foreground">
-              10 proven bot templates. Each one handled thousands of real conversations.
-              Pick template, install in 15 minutes, charge $5,000.
+              12 proven bot templates. Each one handled thousands of real conversations.
+              Pick a template, install in 15 minutes, and start delivering results.
             </p>
             <Badge className="bg-primary/10 text-primary border-primary/20">
               {botTemplates.length} Templates
