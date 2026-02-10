@@ -1,6 +1,6 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
-  funnels, funnelStages, funnelDeals,
+  funnels, funnelStages, funnelDeals, websiteProfiles,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
@@ -13,6 +13,7 @@ import {
   type Funnel, type InsertFunnel,
   type FunnelStage, type InsertFunnelStage,
   type FunnelDeal, type InsertFunnelDeal,
+  type WebsiteProfile, type InsertWebsiteProfile,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc } from "drizzle-orm";
@@ -59,6 +60,8 @@ export interface IStorage {
   updateFunnelDeal(id: string, data: Partial<Pick<FunnelDeal, "stageId" | "contactName" | "contactEmail" | "value" | "status">>): Promise<FunnelDeal | undefined>;
   deleteFunnelDeal(id: string, userId: string): Promise<void>;
   deleteFunnelDeals(funnelId: string): Promise<void>;
+  getWebsiteProfile(userId: string): Promise<WebsiteProfile | undefined>;
+  upsertWebsiteProfile(profile: InsertWebsiteProfile): Promise<WebsiteProfile>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -273,6 +276,25 @@ export class DatabaseStorage implements IStorage {
 
   async deleteFunnelDeals(funnelId: string): Promise<void> {
     await db.delete(funnelDeals).where(eq(funnelDeals.funnelId, funnelId));
+  }
+
+  async getWebsiteProfile(userId: string): Promise<WebsiteProfile | undefined> {
+    const [result] = await db.select().from(websiteProfiles).where(eq(websiteProfiles.userId, userId));
+    return result;
+  }
+
+  async upsertWebsiteProfile(profile: InsertWebsiteProfile): Promise<WebsiteProfile> {
+    const existing = await this.getWebsiteProfile(profile.userId);
+    if (existing) {
+      const [result] = await db
+        .update(websiteProfiles)
+        .set(profile)
+        .where(eq(websiteProfiles.userId, profile.userId))
+        .returning();
+      return result;
+    }
+    const [result] = await db.insert(websiteProfiles).values(profile).returning();
+    return result;
   }
 }
 

@@ -293,17 +293,36 @@ async function handleAiAction(userId: string, userMessage: string, chatHistory: 
   const allLeads = await storage.getLeadsByUser(userId);
   const allAppts = await storage.getAppointmentsByUser(userId);
   const allAgents = await storage.getAiAgentsByUser(userId);
+  const websiteProfile = await storage.getWebsiteProfile(userId);
+  const user = await storage.getUserById(userId);
+
+  const websiteKnowledgeBlock = websiteProfile?.status === "trained"
+    ? `\n\nCLIENT WEBSITE KNOWLEDGE (learned from ${websiteProfile.websiteUrl}):
+- Services: ${websiteProfile.services || "N/A"}
+- Value Propositions: ${websiteProfile.valuePropositions || "N/A"}
+- Target Audience: ${websiteProfile.targetAudience || "N/A"}
+- Pricing: ${websiteProfile.pricing || "N/A"}
+- FAQs: ${websiteProfile.faqs || "N/A"}
+- Contact Info: ${websiteProfile.contactInfo || "N/A"}
+- Business Summary: ${websiteProfile.rawSummary || "N/A"}
+
+Use this knowledge when advising the client. Reference their actual services, pricing, and target audience in your recommendations. This makes your advice specific and actionable rather than generic.`
+    : "";
+
+  const companyBlock = user?.companyName
+    ? `\nCLIENT COMPANY: ${user.companyName} (${user.industry || "unknown industry"})${user.website ? ` | ${user.website}` : ""}${user.companyDescription ? `\nAbout: ${user.companyDescription}` : ""}`
+    : "";
 
   const systemPrompt = `You are ArgiFlow AI — the senior AI strategist and automation expert at ArgiFlow, a premium AI Automation Agency specializing in Voice AI, Process Automation, Lead Generation Chatbots, AI Receptionists, and CRM Integration.
 
 You are a trusted business advisor, not a generic chatbot. Communicate with the authority and polish of a top-tier marketing consultant. Be direct, data-driven, and action-oriented.
-
+${companyBlock}
 CURRENT CLIENT DATA:
 - Leads: ${allLeads.length} total (${allLeads.filter(l => l.status === "hot").length} hot, ${allLeads.filter(l => l.status === "qualified").length} qualified, ${allLeads.filter(l => l.status === "warm").length} warm, ${allLeads.filter(l => l.status === "new").length} new)
 - Appointments: ${allAppts.length} total (${allAppts.filter(a => a.status === "scheduled").length} scheduled, ${allAppts.filter(a => a.status === "completed").length} completed)
 - AI Agents: ${allAgents.length} deployed (${allAgents.filter(a => a.status === "active").length} active)
 ${allLeads.length > 0 ? `- Pipeline: ${allLeads.slice(0, 5).map(l => `${l.name} (${l.status}, score: ${l.score})`).join(", ")}` : "- Pipeline is empty — ready for lead generation"}
-${allAgents.length > 0 ? `- Active agents: ${allAgents.map(a => `${a.name} (${a.status})`).join(", ")}` : "- No agents deployed yet"}
+${allAgents.length > 0 ? `- Active agents: ${allAgents.map(a => `${a.name} (${a.status})`).join(", ")}` : "- No agents deployed yet"}${websiteKnowledgeBlock}
 
 CAPABILITIES:
 You have CRM management tools and web search at your disposal. Use them proactively:
@@ -790,6 +809,176 @@ export async function registerRoutes(
     }
   });
 
+  // ---- WEBSITE TRAINING ----
+
+  app.get("/api/website-profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const profile = await storage.getWebsiteProfile(userId);
+      res.json(profile || null);
+    } catch (error) {
+      console.error("Error fetching website profile:", error);
+      res.status(500).json({ message: "Failed to fetch website profile" });
+    }
+  });
+
+  app.post("/api/website-train", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      const websiteUrl = req.body.websiteUrl || user?.website;
+
+      if (!websiteUrl) {
+        return res.status(400).json({ message: "No website URL provided. Add your website in Company Profile first." });
+      }
+
+      try {
+        new URL(websiteUrl);
+      } catch {
+        return res.status(400).json({ message: "Invalid website URL. Please enter a valid URL starting with https://" });
+      }
+
+      await storage.upsertWebsiteProfile({
+        userId,
+        websiteUrl,
+        status: "training",
+      });
+
+      res.json({ status: "training", message: "Website analysis started" });
+
+      (async () => {
+        try {
+          const searchPrompt = `Visit and analyze this business website thoroughly: ${websiteUrl}
+
+Search for and visit the website. Analyze ALL pages you can find including the homepage, about, services, pricing, contact, and any other relevant pages.
+
+After analyzing the website, return your findings in EXACTLY this format with these section headers. Each section should have detailed, specific content extracted from the website:
+
+===SERVICES===
+List every service/product offered with brief descriptions. Be specific — use the actual service names from the website.
+
+===VALUE_PROPOSITIONS===
+What makes this business unique? What benefits do they emphasize? What problems do they solve?
+
+===TARGET_AUDIENCE===
+Who are their ideal customers? What industries or demographics do they serve?
+
+===PRICING===
+Any pricing information found on the website. If no pricing is listed, say "Not publicly listed on website."
+
+===FAQS===
+Common questions and answers found on the website. If none found, generate 5 relevant FAQs based on the services.
+
+===CONTACT_INFO===
+Phone numbers, email addresses, physical address, scheduling links, social media — everything you find.
+
+===SUMMARY===
+A comprehensive 3-4 paragraph summary of this business that an AI agent could use to represent the company professionally. Include the company name, what they do, who they serve, and what makes them different.`;
+
+          const response = await anthropic.messages.create({
+            model: "claude-sonnet-4-5",
+            max_tokens: 4000,
+            system: "You are a business analyst. Your job is to thoroughly analyze business websites and extract structured information that will be used to train AI agents. Be thorough, specific, and use actual information from the website — never make things up.",
+            messages: [{ role: "user", content: searchPrompt }],
+            tools: [
+              {
+                type: "web_search_20250305" as any,
+                name: "web_search",
+              } as any,
+            ],
+          });
+
+          let currentResponse = response;
+          let messages: Anthropic.MessageParam[] = [{ role: "user", content: searchPrompt }];
+          let loops = 0;
+
+          while (currentResponse.stop_reason === "tool_use" && loops < 8) {
+            loops++;
+            messages.push({ role: "assistant", content: currentResponse.content as any });
+
+            const toolUses = currentResponse.content.filter(
+              (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+            );
+
+            const results: Anthropic.ToolResultBlockParam[] = toolUses.map(tu => ({
+              type: "tool_result" as const,
+              tool_use_id: tu.id,
+              content: "Search completed.",
+            }));
+
+            messages.push({ role: "user", content: results as any });
+
+            currentResponse = await anthropic.messages.create({
+              model: "claude-sonnet-4-5",
+              max_tokens: 4000,
+              system: "You are a business analyst extracting structured information from a website. Return your findings in the exact section format requested.",
+              messages,
+              tools: [
+                {
+                  type: "web_search_20250305" as any,
+                  name: "web_search",
+                } as any,
+              ],
+            });
+          }
+
+          const fullText = currentResponse.content
+            .filter((b): b is Anthropic.TextBlock => b.type === "text")
+            .map(b => b.text)
+            .join("\n");
+
+          const extractSection = (text: string, marker: string): string => {
+            const patterns = [
+              new RegExp(`===${marker}===\\s*([\\s\\S]*?)(?====\\w|$)`),
+              new RegExp(`===\\s*${marker}\\s*===\\s*([\\s\\S]*?)(?====|$)`),
+              new RegExp(`\\*\\*${marker.replace(/_/g, "[_ ]")}\\*\\*[:\\s]*([\\s\\S]*?)(?=\\*\\*[A-Z]|===|$)`, "i"),
+              new RegExp(`#+\\s*${marker.replace(/_/g, "[_ ]")}[:\\s]*([\\s\\S]*?)(?=#+\\s|===|$)`, "i"),
+            ];
+            for (const regex of patterns) {
+              const match = text.match(regex);
+              if (match && match[1]?.trim()) return match[1].trim();
+            }
+            return "";
+          };
+
+          const services = extractSection(fullText, "SERVICES");
+          const valuePropositions = extractSection(fullText, "VALUE_PROPOSITIONS");
+          const targetAudience = extractSection(fullText, "TARGET_AUDIENCE");
+          const pricing = extractSection(fullText, "PRICING");
+          const faqs = extractSection(fullText, "FAQS");
+          const contactInfo = extractSection(fullText, "CONTACT_INFO");
+          const rawSummary = extractSection(fullText, "SUMMARY") || fullText;
+
+          await storage.upsertWebsiteProfile({
+            userId,
+            websiteUrl,
+            services: services || null,
+            valuePropositions: valuePropositions || null,
+            targetAudience: targetAudience || null,
+            pricing: pricing || null,
+            faqs: faqs || null,
+            contactInfo: contactInfo || null,
+            rawSummary: rawSummary || null,
+            status: "trained",
+            trainedAt: new Date(),
+          });
+
+          console.log(`Website training completed for user ${userId}: ${websiteUrl}`);
+        } catch (trainError) {
+          console.error("Website training failed:", trainError);
+          await storage.upsertWebsiteProfile({
+            userId,
+            websiteUrl,
+            status: "failed",
+          });
+        }
+      })();
+    } catch (error) {
+      console.error("Error starting website training:", error);
+      res.status(500).json({ message: "Failed to start website training" });
+    }
+  });
+
   // ---- LEADS ----
 
   app.get("/api/leads", isAuthenticated, async (req, res) => {
@@ -890,6 +1079,20 @@ export async function registerRoutes(
         const companyDescription = user?.companyDescription || "";
         const website = user?.website || "";
 
+        const websiteProfile = await storage.getWebsiteProfile(userId);
+        const websiteKnowledge = websiteProfile?.status === "trained"
+          ? `\n\nWEBSITE KNOWLEDGE (learned from ${websiteProfile.websiteUrl}):
+- Services: ${websiteProfile.services || "N/A"}
+- Value Propositions: ${websiteProfile.valuePropositions || "N/A"}
+- Target Audience: ${websiteProfile.targetAudience || "N/A"}
+- Pricing: ${websiteProfile.pricing || "N/A"}
+- FAQs: ${websiteProfile.faqs || "N/A"}
+- Contact Info: ${websiteProfile.contactInfo || "N/A"}
+- Business Summary: ${websiteProfile.rawSummary || "N/A"}
+
+IMPORTANT: Use the website knowledge above to make the bot script hyper-specific. Reference actual service names, real pricing, actual FAQs, and real contact details from the website. The bot should sound like it truly knows this business inside and out.`
+          : "";
+
         const scriptPrompt = `You are an expert AI automation consultant. Generate a professional, ready-to-deploy conversational script for an AI bot.
 
 BOT ROLE: ${name}
@@ -901,7 +1104,7 @@ CLIENT BUSINESS:
 - Company: ${companyName}
 - Industry: ${industry}
 - Website: ${website}
-- Description: ${companyDescription}
+- Description: ${companyDescription}${websiteKnowledge}
 
 Generate TWO things in your response, separated by the exact delimiter "---WORKFLOW_STEPS---":
 

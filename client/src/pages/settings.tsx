@@ -34,6 +34,15 @@ import {
   Globe,
   Sparkles,
   Loader2,
+  GraduationCap,
+  RefreshCw,
+  BookOpen,
+  Users,
+  DollarSign,
+  HelpCircle,
+  MapPin,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -44,7 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SiTwilio } from "react-icons/si";
-import type { UserSettings } from "@shared/schema";
+import type { UserSettings, WebsiteProfile } from "@shared/schema";
 
 type SettingKey = keyof Omit<UserSettings, "id" | "userId" | "updatedAt">;
 
@@ -285,6 +294,30 @@ export default function SettingsPage() {
     },
   });
 
+  const [websiteExpanded, setWebsiteExpanded] = useState(false);
+
+  const { data: websiteProfile, isLoading: websiteLoading } = useQuery<WebsiteProfile | null>({
+    queryKey: ["/api/website-profile"],
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      return data && (data as WebsiteProfile | null)?.status === "training" ? 3000 : false;
+    },
+  });
+
+  const trainMutation = useMutation({
+    mutationFn: async (websiteUrl?: string) => {
+      const res = await apiRequest("POST", "/api/website-train", websiteUrl ? { websiteUrl } : {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/website-profile"] });
+      toast({ title: "Website analysis started", description: "Our AI is reading your website now. This usually takes 30-60 seconds." });
+    },
+    onError: () => {
+      toast({ title: "Training failed", description: "Could not analyze your website. Please check the URL and try again.", variant: "destructive" });
+    },
+  });
+
   const { data: settings, isLoading } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
   });
@@ -460,6 +493,165 @@ export default function SettingsPage() {
               {companyMutation.isPending ? "Saving..." : "Save Company Profile"}
             </Button>
           </div>
+        </Card>
+      </div>
+
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
+          <GraduationCap className="w-4 h-4" />
+          Website Training
+        </h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Let AI read your website and learn about your services, pricing, and target audience. This knowledge is used to configure your AI agents so they can represent your business accurately and generate leads.
+        </p>
+        <Card className="p-5" data-testid="card-website-training">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 rounded-md bg-chart-2/10 flex items-center justify-center shrink-0">
+              <Globe className="w-5 h-5 text-chart-2" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-semibold text-sm">AI Website Analysis</h3>
+                {websiteProfile?.status === "trained" && (
+                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" data-testid="badge-trained">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Trained
+                  </Badge>
+                )}
+                {websiteProfile?.status === "training" && (
+                  <Badge className="bg-primary/10 text-primary border-primary/20" data-testid="badge-training">
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    Analyzing...
+                  </Badge>
+                )}
+                {websiteProfile?.status === "failed" && (
+                  <Badge className="bg-red-500/10 text-red-400 border-red-500/20" data-testid="badge-failed">
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    Failed
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {websiteProfile?.status === "trained"
+                  ? `Last trained from ${websiteProfile.websiteUrl}${websiteProfile.trainedAt ? ` on ${new Date(websiteProfile.trainedAt).toLocaleDateString()}` : ""}`
+                  : websiteProfile?.status === "training"
+                  ? "AI is currently reading and analyzing your website. This usually takes 30-60 seconds..."
+                  : "Click the button below to have AI analyze your website and learn about your business."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              onClick={() => {
+                const url = companyProfile.website || (user as any)?.website;
+                if (!url) {
+                  toast({ title: "No website URL", description: "Please enter your website URL in the Company Profile section above first.", variant: "destructive" });
+                  return;
+                }
+                trainMutation.mutate(url);
+              }}
+              disabled={trainMutation.isPending || websiteProfile?.status === "training"}
+              data-testid="button-train-website"
+            >
+              {trainMutation.isPending || websiteProfile?.status === "training" ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : websiteProfile?.status === "trained" ? (
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+              ) : (
+                <GraduationCap className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              {websiteProfile?.status === "training"
+                ? "Analyzing..."
+                : websiteProfile?.status === "trained"
+                ? "Re-train from Website"
+                : "Train AI from My Website"}
+            </Button>
+            {websiteProfile?.status === "trained" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setWebsiteExpanded(!websiteExpanded)}
+                data-testid="button-toggle-knowledge"
+              >
+                {websiteExpanded ? (
+                  <ChevronUp className="w-3.5 h-3.5 mr-1.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                {websiteExpanded ? "Hide Knowledge" : "View Learned Knowledge"}
+              </Button>
+            )}
+          </div>
+
+          {websiteExpanded && websiteProfile?.status === "trained" && (
+            <div className="mt-4 space-y-3" data-testid="website-knowledge-panel">
+              {websiteProfile.services && (
+                <div className="rounded-md bg-secondary/30 p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Services Offered</h4>
+                  </div>
+                  <p className="text-sm whitespace-pre-line" data-testid="text-services">{websiteProfile.services}</p>
+                </div>
+              )}
+              {websiteProfile.valuePropositions && (
+                <div className="rounded-md bg-secondary/30 p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Sparkles className="w-4 h-4 text-chart-2" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Value Propositions</h4>
+                  </div>
+                  <p className="text-sm whitespace-pre-line" data-testid="text-value-props">{websiteProfile.valuePropositions}</p>
+                </div>
+              )}
+              {websiteProfile.targetAudience && (
+                <div className="rounded-md bg-secondary/30 p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Users className="w-4 h-4 text-chart-3" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Target Audience</h4>
+                  </div>
+                  <p className="text-sm whitespace-pre-line" data-testid="text-target-audience">{websiteProfile.targetAudience}</p>
+                </div>
+              )}
+              {websiteProfile.pricing && (
+                <div className="rounded-md bg-secondary/30 p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <DollarSign className="w-4 h-4 text-chart-4" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pricing</h4>
+                  </div>
+                  <p className="text-sm whitespace-pre-line" data-testid="text-pricing">{websiteProfile.pricing}</p>
+                </div>
+              )}
+              {websiteProfile.faqs && (
+                <div className="rounded-md bg-secondary/30 p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">FAQs</h4>
+                  </div>
+                  <p className="text-sm whitespace-pre-line" data-testid="text-faqs">{websiteProfile.faqs}</p>
+                </div>
+              )}
+              {websiteProfile.contactInfo && (
+                <div className="rounded-md bg-secondary/30 p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Contact Information</h4>
+                  </div>
+                  <p className="text-sm whitespace-pre-line" data-testid="text-contact-info">{websiteProfile.contactInfo}</p>
+                </div>
+              )}
+              {websiteProfile.rawSummary && (
+                <div className="rounded-md bg-secondary/30 p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Bot className="w-4 h-4 text-chart-2" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI Summary</h4>
+                  </div>
+                  <p className="text-sm whitespace-pre-line" data-testid="text-summary">{websiteProfile.rawSummary}</p>
+                </div>
+              )}
+            </div>
+          )}
         </Card>
       </div>
 

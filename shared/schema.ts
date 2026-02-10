@@ -153,6 +153,26 @@ export const insertFunnelDealSchema = createInsertSchema(funnelDeals).omit({ id:
 export type FunnelDeal = typeof funnelDeals.$inferSelect;
 export type InsertFunnelDeal = z.infer<typeof insertFunnelDealSchema>;
 
+export const websiteProfiles = pgTable("website_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  websiteUrl: text("website_url").notNull(),
+  services: text("services"),
+  valuePropositions: text("value_propositions"),
+  targetAudience: text("target_audience"),
+  pricing: text("pricing"),
+  faqs: text("faqs"),
+  contactInfo: text("contact_info"),
+  rawSummary: text("raw_summary"),
+  status: text("status").notNull().default("training"),
+  trainedAt: timestamp("trained_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWebsiteProfileSchema = createInsertSchema(websiteProfiles).omit({ id: true, createdAt: true });
+export type WebsiteProfile = typeof websiteProfiles.$inferSelect;
+export type InsertWebsiteProfile = z.infer<typeof insertWebsiteProfileSchema>;
+
 export const insertAdminSchema = createInsertSchema(admins).omit({ id: true, createdAt: true });
 export type Admin = typeof admins.$inferSelect;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;

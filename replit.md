@@ -120,3 +120,9 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - Bot template installation now auto-generates professional AI scripts via Claude based on client's business info
 - AI Agents page shows expandable workflow diagrams and bot scripts per agent (script + workflowSteps columns)
 - Schema: `ai_agents` table has `script` (text) and `workflow_steps` (text/JSON) columns
+- Website Training: AI analyzes user's website via Claude web_search to extract services, value props, target audience, pricing, FAQs, contact info
+- `website_profiles` table stores extracted website knowledge per user (userId unique)
+- POST /api/website-train triggers async analysis; GET /api/website-profile returns status/results
+- Website knowledge injected into AI agent script generation and AI chat system prompt for hyper-personalized responses
+- Settings page has "Website Training" section with Train button, status badges, expandable knowledge panels
+- "Medical Billing / RCM" added to industry dropdown options
