@@ -1,10 +1,28 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Phone,
   PhoneCall,
@@ -18,8 +36,47 @@ import {
   Power,
   Mic,
   Volume2,
+  Plus,
+  Bot,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { AiAgent } from "@shared/schema";
+
+const voiceAgentTemplates = [
+  {
+    name: "AI Receptionist",
+    type: "Voice AI",
+    description: "Answers inbound calls 24/7, qualifies leads, and books appointments automatically.",
+    icon: PhoneIncoming,
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+  },
+  {
+    name: "Outbound Caller",
+    type: "Voice AI",
+    description: "Makes automated follow-up calls, appointment reminders, and lead outreach campaigns.",
+    icon: PhoneOutgoing,
+    color: "text-chart-4",
+    bgColor: "bg-chart-4/10",
+  },
+  {
+    name: "IVR Navigator",
+    type: "Voice AI",
+    description: "Intelligent call routing with natural language understanding — no more press-1 menus.",
+    icon: Phone,
+    color: "text-chart-2",
+    bgColor: "bg-chart-2/10",
+  },
+  {
+    name: "Survey Caller",
+    type: "Voice AI",
+    description: "Conducts automated customer satisfaction surveys and collects structured feedback.",
+    icon: Mic,
+    color: "text-chart-3",
+    bgColor: "bg-chart-3/10",
+  },
+];
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "active") {
@@ -45,13 +102,116 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function VoiceAiPage() {
-  const { data: agents, isLoading } = useQuery<AiAgent[]>({
+  const { toast } = useToast();
+  const [showDeploy, setShowDeploy] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<typeof voiceAgentTemplates[0] | null>(null);
+  const [configAgent, setConfigAgent] = useState<AiAgent | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+  const [deployName, setDeployName] = useState("");
+  const [deployDesc, setDeployDesc] = useState("");
+
+  const { data: allAgents, isLoading } = useQuery<AiAgent[]>({
     queryKey: ["/api/ai-agents"],
   });
 
-  const voiceAgents = agents?.filter(
-    (a) => a.type === "Communication" || a.name === "Chat Responder" || a.name === "Follow-Up Agent"
-  ) || [];
+  const voiceAgents = allAgents?.filter((a) => a.type === "Voice AI") || [];
+
+  const createMutation = useMutation({
+    mutationFn: async (data: { name: string; type: string; description: string; status: string }) => {
+      const res = await apiRequest("POST", "/api/ai-agents", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-agents"] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, string> }) => {
+      const res = await apiRequest("PATCH", `/api/ai-agents/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-agents"] });
+    },
+  });
+
+  const openDeployDialog = (template: typeof voiceAgentTemplates[0]) => {
+    setSelectedTemplate(template);
+    setDeployName(template.name);
+    setDeployDesc(template.description);
+    setShowDeploy(true);
+  };
+
+  const deployAgent = () => {
+    if (!selectedTemplate || !deployName.trim()) return;
+    createMutation.mutate(
+      {
+        name: deployName,
+        type: "Voice AI",
+        description: deployDesc,
+        status: "active",
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Voice Agent Deployed", description: `${deployName} is now live and handling calls.` });
+          setShowDeploy(false);
+          setSelectedTemplate(null);
+          setDeployName("");
+          setDeployDesc("");
+        },
+        onError: () => {
+          toast({ title: "Error", description: "Failed to deploy agent.", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const openConfig = (agent: AiAgent) => {
+    setConfigAgent(agent);
+    setEditName(agent.name);
+    setEditDescription(agent.description || "");
+    setEditStatus(agent.status);
+  };
+
+  const saveConfig = () => {
+    if (!configAgent) return;
+    updateMutation.mutate(
+      {
+        id: configAgent.id,
+        data: { name: editName, description: editDescription, status: editStatus },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Agent updated", description: `${editName} configuration saved.` });
+          setConfigAgent(null);
+        },
+        onError: () => {
+          toast({ title: "Error", description: "Failed to update agent.", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const togglePower = (agent: AiAgent) => {
+    const newStatus = agent.status === "active" ? "paused" : "active";
+    updateMutation.mutate(
+      { id: agent.id, data: { status: newStatus } },
+      {
+        onSuccess: () => {
+          toast({
+            title: newStatus === "active" ? "Agent activated" : "Agent paused",
+            description: `${agent.name} is now ${newStatus}.`,
+          });
+        },
+        onError: () => {
+          toast({ title: "Error", description: "Failed to toggle agent.", variant: "destructive" });
+        },
+      }
+    );
+  };
 
   const activeCount = voiceAgents.filter((a) => a.status === "active").length;
   const totalCalls = voiceAgents.reduce((sum, a) => sum + (a.tasksCompleted || 0), 0);
@@ -60,18 +220,20 @@ export default function VoiceAiPage() {
       ? (voiceAgents.reduce((sum, a) => sum + (a.successRate || 0), 0) / voiceAgents.length).toFixed(1)
       : "0";
 
+  const deployedNames = voiceAgents.map((a) => a.name);
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-voice-ai-title">Voice AI</h1>
           <p className="text-muted-foreground text-sm">
-            AI-powered voice agents handling calls and conversations 24/7.
+            Deploy and manage AI-powered voice agents that handle calls 24/7.
           </p>
         </div>
         <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20">
           <Mic className="w-3 h-3 mr-1.5" />
-          NEW
+          {activeCount} Live
         </Badge>
       </div>
 
@@ -98,102 +260,147 @@ export default function VoiceAiPage() {
             </div>
           </div>
         </Card>
-        <Card className="p-5" data-testid="stat-voice-inbound">
+        <Card className="p-5" data-testid="stat-voice-success">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-md bg-chart-3/10 flex items-center justify-center">
-              <PhoneIncoming className="w-5 h-5 text-chart-3" />
+              <Activity className="w-5 h-5 text-chart-3" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{Math.round(totalCalls * 0.6)}</p>
-              <p className="text-sm text-muted-foreground">Inbound</p>
+              <p className="text-2xl font-bold">{avgSuccess}%</p>
+              <p className="text-sm text-muted-foreground">Success Rate</p>
             </div>
           </div>
         </Card>
-        <Card className="p-5" data-testid="stat-voice-outbound">
+        <Card className="p-5" data-testid="stat-voice-agents">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-md bg-chart-4/10 flex items-center justify-center">
-              <PhoneOutgoing className="w-5 h-5 text-chart-4" />
+              <Bot className="w-5 h-5 text-chart-4" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{Math.round(totalCalls * 0.4)}</p>
-              <p className="text-sm text-muted-foreground">Outbound</p>
+              <p className="text-2xl font-bold">{voiceAgents.length}</p>
+              <p className="text-sm text-muted-foreground">Total Agents</p>
             </div>
           </div>
         </Card>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <Card className="p-6" data-testid="card-voice-receptionist">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center">
-              <PhoneIncoming className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-semibold">AI Receptionist</h3>
-                <StatusBadge status={voiceAgents[0]?.status || "inactive"} />
-              </div>
-              <p className="text-sm text-muted-foreground">Handles inbound calls, qualifies leads, books appointments</p>
-            </div>
+      {voiceAgents.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3">Your Voice Agents</h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {voiceAgents.map((agent) => (
+              <Card key={agent.id} className="p-5" data-testid={`voice-agent-card-${agent.id}`}>
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
+                      {agent.name.includes("Receptionist") ? (
+                        <PhoneIncoming className="w-5 h-5 text-primary" />
+                      ) : agent.name.includes("Outbound") ? (
+                        <PhoneOutgoing className="w-5 h-5 text-chart-4" />
+                      ) : agent.name.includes("IVR") ? (
+                        <Phone className="w-5 h-5 text-chart-2" />
+                      ) : (
+                        <Mic className="w-5 h-5 text-chart-3" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">{agent.name}</p>
+                      <p className="text-xs text-muted-foreground">{agent.type}</p>
+                    </div>
+                  </div>
+                  <StatusBadge status={agent.status} />
+                </div>
+                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                  {agent.description}
+                </p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">Success Rate</span>
+                    <span className="font-medium">{agent.successRate}%</span>
+                  </div>
+                  <Progress value={agent.successRate || 0} className="h-1.5" />
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Zap className="w-3 h-3" />
+                      {agent.tasksCompleted} calls handled
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      24/7
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1"
+                    data-testid={`button-configure-voice-${agent.id}`}
+                    onClick={() => openConfig(agent)}
+                  >
+                    <Settings className="w-3.5 h-3.5 mr-1.5" />
+                    Configure
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    data-testid={`button-power-voice-${agent.id}`}
+                    onClick={() => togglePower(agent)}
+                    disabled={updateMutation.isPending}
+                  >
+                    <Power className={`w-3.5 h-3.5 ${agent.status === "active" ? "text-emerald-400" : "text-muted-foreground"}`} />
+                  </Button>
+                </div>
+              </Card>
+            ))}
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-muted-foreground">Call Success Rate</span>
-              <span className="font-medium">{avgSuccess}%</span>
-            </div>
-            <Progress value={Number(avgSuccess)} className="h-1.5" />
-            <div className="grid grid-cols-3 gap-3 pt-2">
-              <div className="text-center">
-                <p className="text-lg font-bold">&lt;3s</p>
-                <p className="text-xs text-muted-foreground">Avg Pickup</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold">24/7</p>
-                <p className="text-xs text-muted-foreground">Availability</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold">5+</p>
-                <p className="text-xs text-muted-foreground">Languages</p>
-              </div>
-            </div>
-          </div>
-        </Card>
+        </div>
+      )}
 
-        <Card className="p-6" data-testid="card-voice-outreach">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-md bg-chart-4/10 flex items-center justify-center">
-              <PhoneOutgoing className="w-6 h-6 text-chart-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-semibold">Outbound Caller</h3>
-                <StatusBadge status={voiceAgents[1]?.status || "inactive"} />
-              </div>
-              <p className="text-sm text-muted-foreground">Automated follow-ups, reminders, and lead outreach</p>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-muted-foreground">Connection Rate</span>
-              <span className="font-medium">{voiceAgents[1]?.successRate || 0}%</span>
-            </div>
-            <Progress value={voiceAgents[1]?.successRate || 0} className="h-1.5" />
-            <div className="grid grid-cols-3 gap-3 pt-2">
-              <div className="text-center">
-                <p className="text-lg font-bold">Smart</p>
-                <p className="text-xs text-muted-foreground">Call Timing</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold">Auto</p>
-                <p className="text-xs text-muted-foreground">Retry Logic</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold">CRM</p>
-                <p className="text-xs text-muted-foreground">Synced</p>
-              </div>
-            </div>
-          </div>
-        </Card>
+      <div>
+        <h2 className="text-lg font-semibold mb-3">
+          {voiceAgents.length > 0 ? "Deploy More Agents" : "Deploy Your First Voice Agent"}
+        </h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {voiceAgentTemplates.map((template) => {
+            const alreadyDeployed = deployedNames.includes(template.name);
+            return (
+              <Card
+                key={template.name}
+                className="p-5 hover-elevate cursor-pointer"
+                data-testid={`template-${template.name.toLowerCase().replace(/\s+/g, "-")}`}
+                onClick={() => !alreadyDeployed && openDeployDialog(template)}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-md ${template.bgColor} flex items-center justify-center`}>
+                    <template.icon className={`w-5 h-5 ${template.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{template.name}</p>
+                    {alreadyDeployed && (
+                      <p className="text-xs text-emerald-400">Deployed</p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">{template.description}</p>
+                <Button
+                  variant={alreadyDeployed ? "outline" : "default"}
+                  size="sm"
+                  className="w-full"
+                  disabled={alreadyDeployed}
+                  data-testid={`button-deploy-${template.name.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  {alreadyDeployed ? "Already Deployed" : (
+                    <>
+                      <Plus className="w-3.5 h-3.5 mr-1.5" />
+                      Deploy Agent
+                    </>
+                  )}
+                </Button>
+              </Card>
+            );
+          })}
+        </div>
       </div>
 
       <Card className="p-6" data-testid="card-voice-capabilities">
@@ -223,15 +430,97 @@ export default function VoiceAiPage() {
         </div>
       </Card>
 
-      {voiceAgents.length === 0 && !isLoading && (
-        <Card className="p-12 text-center">
-          <Phone className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-          <h3 className="text-lg font-semibold mb-2">No Voice AI Agents Yet</h3>
-          <p className="text-muted-foreground text-sm mb-4">
-            Your Voice AI agents will appear here once configured by the ArgiFlow team.
-          </p>
-        </Card>
-      )}
+      <Dialog open={showDeploy} onOpenChange={(open) => !open && setShowDeploy(false)}>
+        <DialogContent data-testid="dialog-deploy-voice">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedTemplate && <selectedTemplate.icon className={`w-5 h-5 ${selectedTemplate.color}`} />}
+              Deploy {selectedTemplate?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="deploy-name">Agent Name</Label>
+              <Input
+                id="deploy-name"
+                data-testid="input-deploy-name"
+                value={deployName}
+                onChange={(e) => setDeployName(e.target.value)}
+                placeholder="e.g. AI Receptionist"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="deploy-desc">Description</Label>
+              <Textarea
+                id="deploy-desc"
+                data-testid="input-deploy-desc"
+                value={deployDesc}
+                onChange={(e) => setDeployDesc(e.target.value)}
+                rows={3}
+                placeholder="What should this agent do?"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeploy(false)} data-testid="button-cancel-deploy">
+              Cancel
+            </Button>
+            <Button
+              onClick={deployAgent}
+              disabled={createMutation.isPending || !deployName.trim()}
+              data-testid="button-confirm-deploy"
+            >
+              {createMutation.isPending ? "Deploying..." : "Deploy Now"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!configAgent} onOpenChange={(open) => !open && setConfigAgent(null)}>
+        <DialogContent data-testid="dialog-configure-voice">
+          <DialogHeader>
+            <DialogTitle>Configure Voice Agent</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="voice-name">Name</Label>
+              <Input
+                id="voice-name"
+                data-testid="input-voice-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="voice-desc">Description</Label>
+              <Textarea
+                id="voice-desc"
+                data-testid="input-voice-desc"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="voice-active">Active (Live)</Label>
+              <Switch
+                id="voice-active"
+                data-testid="switch-voice-status"
+                checked={editStatus === "active"}
+                onCheckedChange={(checked) => setEditStatus(checked ? "active" : "paused")}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfigAgent(null)} data-testid="button-cancel-voice-config">
+              Cancel
+            </Button>
+            <Button onClick={saveConfig} disabled={updateMutation.isPending} data-testid="button-save-voice-config">
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

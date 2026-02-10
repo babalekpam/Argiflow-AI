@@ -661,6 +661,29 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/ai-agents", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { name, type, description, status } = req.body;
+      if (!name || !type) {
+        return res.status(400).json({ message: "Name and type are required" });
+      }
+      const agent = await storage.createAiAgent({
+        userId,
+        name,
+        type,
+        status: status || "active",
+        tasksCompleted: 0,
+        successRate: 0,
+        description: description || "",
+      });
+      res.json(agent);
+    } catch (error) {
+      console.error("Error creating AI agent:", error);
+      res.status(500).json({ message: "Failed to create AI agent" });
+    }
+  });
+
   app.patch("/api/ai-agents/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
