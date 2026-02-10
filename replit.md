@@ -16,6 +16,7 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `/signup` - User registration page
 - `/dashboard` - Main dashboard overview
 - `/dashboard/leads` - Leads & CRM management
+- `/dashboard/funnels` - Sales funnels with Kanban pipeline
 - `/dashboard/appointments` - Appointment scheduling
 - `/dashboard/ai-agents` - AI agent management
 - `/dashboard/email` - Email & SMS with AI chat campaign assistant
@@ -48,6 +49,14 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `POST /api/chat/messages` - Send message, get AI reply { content }
 - `DELETE /api/chat/messages` - Clear chat history
 - AI chat uses Claude for intelligent conversation with action execution (generates leads, books appointments, etc.)
+- `GET /api/funnels` - List user's sales funnels
+- `POST /api/funnels` - Create a funnel with stages { name, description, stages: [{name, color}] }
+- `DELETE /api/funnels/:id` - Delete a funnel and all its data
+- `GET /api/funnels/:id/stages` - Get funnel stages
+- `GET /api/funnels/:id/deals` - Get funnel deals
+- `POST /api/funnels/:id/deals` - Create a deal { stageId, contactName, contactEmail, value }
+- `PATCH /api/deals/:id` - Move/update a deal { stageId, status, etc. }
+- `DELETE /api/deals/:id` - Delete a deal
 
 ### Admin Endpoints (email/password auth)
 - `POST /api/admin/login` - Admin login with email/password
@@ -68,6 +77,9 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `ai_chat_messages` - AI chat conversation history
 - `marketing_strategies` - AI-generated marketing strategies per user
 - `admins` - Super admin users (email/password auth, scrypt hashing)
+- `funnels` - Sales funnels per user
+- `funnel_stages` - Pipeline stages within funnels (position-ordered, with colors)
+- `funnel_deals` - Deals/contacts moving through funnel stages
 
 ## Design
 - Dark theme with indigo/purple gradient accents
@@ -99,3 +111,4 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - Added Resources page with Bot Templates (10 industries), Ad Templates (9x ROI), VSL Funnels, Organic Client Blueprint, and Agency SOPs
 - Added Demos & Install page with 1-Click Voice Demo Builder, 1-Click AI Demo Builder, 15-Minute Installation Checklist, and Lifetime Updates
 - Added Automation Arsenal section to Automations page
+- Added Sales Funnels page with Kanban pipeline, templates, deal management, and stage analytics

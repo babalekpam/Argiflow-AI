@@ -46,6 +46,7 @@ export interface IStorage {
   updateUser(id: string, data: Partial<Pick<User, "companyName" | "industry" | "website" | "companyDescription" | "onboardingCompleted">>): Promise<User | undefined>;
   getMarketingStrategy(userId: string): Promise<MarketingStrategy | undefined>;
   upsertMarketingStrategy(strategy: InsertMarketingStrategy): Promise<MarketingStrategy>;
+  getFunnelById(id: string): Promise<Funnel | undefined>;
   getFunnelsByUser(userId: string): Promise<Funnel[]>;
   createFunnel(funnel: InsertFunnel): Promise<Funnel>;
   deleteFunnel(id: string, userId: string): Promise<void>;
@@ -213,6 +214,11 @@ export class DatabaseStorage implements IStorage {
       return result;
     }
     const [result] = await db.insert(marketingStrategies).values(strategy).returning();
+    return result;
+  }
+
+  async getFunnelById(id: string): Promise<Funnel | undefined> {
+    const [result] = await db.select().from(funnels).where(eq(funnels.id, id));
     return result;
   }
 

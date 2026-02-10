@@ -29,6 +29,7 @@ import {
   Sparkles,
   Library,
   Wand2,
+  Filter,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -36,6 +37,7 @@ const mainNav = [
   { title: "Overview", icon: LayoutDashboard, url: "/dashboard" },
   { title: "Strategy", icon: Sparkles, url: "/dashboard/strategy", badge: "AI" },
   { title: "Leads & CRM", icon: Users, url: "/dashboard/leads" },
+  { title: "Sales Funnels", icon: Filter, url: "/dashboard/funnels" },
   { title: "Appointments", icon: Calendar, url: "/dashboard/appointments" },
 ];
 

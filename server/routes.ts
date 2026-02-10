@@ -1145,9 +1145,11 @@ export async function registerRoutes(
   app.delete("/api/funnels/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await storage.deleteFunnelDeals(req.params.id);
-      await storage.deleteFunnelStages(req.params.id);
-      await storage.deleteFunnel(req.params.id, userId);
+      const funnel = await storage.getFunnelById(req.params.id as string);
+      if (!funnel || funnel.userId !== userId) return res.status(404).json({ message: "Funnel not found" });
+      await storage.deleteFunnelDeals(funnel.id);
+      await storage.deleteFunnelStages(funnel.id);
+      await storage.deleteFunnel(funnel.id, userId);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete funnel" });
@@ -1156,7 +1158,10 @@ export async function registerRoutes(
 
   app.get("/api/funnels/:id/stages", isAuthenticated, async (req, res) => {
     try {
-      const stages = await storage.getFunnelStages(req.params.id);
+      const userId = req.session.userId!;
+      const funnel = await storage.getFunnelById(req.params.id as string);
+      if (!funnel || funnel.userId !== userId) return res.status(404).json({ message: "Funnel not found" });
+      const stages = await storage.getFunnelStages(funnel.id);
       res.json(stages);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch stages" });
@@ -1165,7 +1170,10 @@ export async function registerRoutes(
 
   app.get("/api/funnels/:id/deals", isAuthenticated, async (req, res) => {
     try {
-      const deals = await storage.getFunnelDeals(req.params.id);
+      const userId = req.session.userId!;
+      const funnel = await storage.getFunnelById(req.params.id as string);
+      if (!funnel || funnel.userId !== userId) return res.status(404).json({ message: "Funnel not found" });
+      const deals = await storage.getFunnelDeals(funnel.id);
       res.json(deals);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch deals" });
@@ -1175,12 +1183,14 @@ export async function registerRoutes(
   app.post("/api/funnels/:id/deals", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
+      const funnel = await storage.getFunnelById(req.params.id as string);
+      if (!funnel || funnel.userId !== userId) return res.status(404).json({ message: "Funnel not found" });
       const { stageId, contactName, contactEmail, value } = req.body;
       if (!stageId || !contactName) {
         return res.status(400).json({ message: "Stage and contact name are required" });
       }
       const deal = await storage.createFunnelDeal({
-        funnelId: req.params.id,
+        funnelId: funnel.id,
         stageId,
         userId,
         contactName,
@@ -1196,15 +1206,16 @@ export async function registerRoutes(
 
   app.patch("/api/deals/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = req.session.userId!;
       const { stageId, contactName, contactEmail, value, status } = req.body;
-      const updated = await storage.updateFunnelDeal(req.params.id, {
+      const updated = await storage.updateFunnelDeal(req.params.id as string, {
         ...(stageId && { stageId }),
         ...(contactName && { contactName }),
         ...(contactEmail !== undefined && { contactEmail }),
         ...(value !== undefined && { value }),
         ...(status && { status }),
       });
-      if (!updated) return res.status(404).json({ message: "Deal not found" });
+      if (!updated || updated.userId !== userId) return res.status(404).json({ message: "Deal not found" });
       res.json(updated);
     } catch (error) {
       res.status(500).json({ message: "Failed to update deal" });
@@ -1214,7 +1225,7 @@ export async function registerRoutes(
   app.delete("/api/deals/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await storage.deleteFunnelDeal(req.params.id, userId);
+      await storage.deleteFunnelDeal(req.params.id as string, userId);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete deal" });

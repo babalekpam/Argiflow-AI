@@ -21,6 +21,7 @@ import SettingsPage from "./settings";
 import StrategyPage from "./strategy";
 import ResourcesPage from "./resources";
 import DemoBuilderPage from "./demo-builder";
+import SalesFunnelsPage from "./sales-funnels";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 
 export default function DashboardLayout() {
@@ -107,6 +108,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard" component={DashboardPage} />
               <Route path="/dashboard/strategy" component={StrategyPage} />
               <Route path="/dashboard/leads" component={LeadsPage} />
+              <Route path="/dashboard/funnels" component={SalesFunnelsPage} />
               <Route path="/dashboard/appointments" component={AppointmentsPage} />
               <Route path="/dashboard/ai-agents" component={AiAgentsPage} />
               <Route path="/dashboard/voice-ai" component={VoiceAiPage} />
