@@ -456,10 +456,10 @@ export default function LandingPage() {
               <div className="text-center mb-6 pt-2">
                 <h3 className="text-lg font-semibold mb-1">Starter Package</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  One-time project to get you started
+                  One-time setup to launch your first AI system
                 </p>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-extrabold">$4,950</span>
+                  <span className="text-4xl font-extrabold">$1,497</span>
                   <span className="text-muted-foreground">one-time</span>
                 </div>
               </div>
@@ -467,11 +467,11 @@ export default function LandingPage() {
                 {[
                   "AI & automation audit of your business",
                   "One full automation build (sales, marketing, or support)",
-                  "Up to 45 min/week for calls",
+                  "Up to 30 min/week for calls",
                   "Unlimited questions via Slack/Telegram",
                   "Basic team training on automations we build",
                   "No-code & AI platform implementation",
-                  "100% money-back guarantee",
+                  "30-day money-back guarantee",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-3 text-sm">
                     <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
@@ -495,10 +495,10 @@ export default function LandingPage() {
               <div className="text-center mb-6 pt-2">
                 <h3 className="text-lg font-semibold mb-1">Ongoing Growth</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Continuous automation & systems development
+                  Continuous automation & optimization
                 </p>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-extrabold">$2,497</span>
+                  <span className="text-4xl font-extrabold">$997</span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
               </div>
@@ -507,7 +507,7 @@ export default function LandingPage() {
                   "Full AI & automation audit",
                   "Up to 2 systems automated simultaneously",
                   "Ongoing updates for all past implementations",
-                  "Up to 1 hour/week for strategy calls",
+                  "Up to 45 min/week for strategy calls",
                   "Priority support via your preferred channel",
                   "Weekly analytics report",
                   "Unlimited questions via Slack/Telegram",
