@@ -153,6 +153,24 @@ export const insertFunnelDealSchema = createInsertSchema(funnelDeals).omit({ id:
 export type FunnelDeal = typeof funnelDeals.$inferSelect;
 export type InsertFunnelDeal = z.infer<typeof insertFunnelDealSchema>;
 
+export const automations = pgTable("automations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  templateKey: text("template_key").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  steps: text("steps").notNull(),
+  status: text("status").notNull().default("inactive"),
+  runs: integer("runs").default(0),
+  successRate: real("success_rate").default(0),
+  lastRunAt: timestamp("last_run_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAutomationSchema = createInsertSchema(automations).omit({ id: true, createdAt: true });
+export type Automation = typeof automations.$inferSelect;
+export type InsertAutomation = z.infer<typeof insertAutomationSchema>;
+
 export const websiteProfiles = pgTable("website_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique(),

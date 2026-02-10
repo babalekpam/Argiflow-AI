@@ -1,6 +1,6 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
-  funnels, funnelStages, funnelDeals, websiteProfiles,
+  funnels, funnelStages, funnelDeals, websiteProfiles, automations,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
@@ -14,6 +14,7 @@ import {
   type FunnelStage, type InsertFunnelStage,
   type FunnelDeal, type InsertFunnelDeal,
   type WebsiteProfile, type InsertWebsiteProfile,
+  type Automation, type InsertAutomation,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc } from "drizzle-orm";
@@ -62,6 +63,10 @@ export interface IStorage {
   deleteFunnelDeals(funnelId: string): Promise<void>;
   getWebsiteProfile(userId: string): Promise<WebsiteProfile | undefined>;
   upsertWebsiteProfile(profile: InsertWebsiteProfile): Promise<WebsiteProfile>;
+  getAutomationsByUser(userId: string): Promise<Automation[]>;
+  createAutomation(automation: InsertAutomation): Promise<Automation>;
+  updateAutomation(id: string, userId: string, data: Partial<Pick<Automation, "status" | "runs" | "successRate" | "lastRunAt">>): Promise<Automation | undefined>;
+  deleteAutomation(id: string, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -295,6 +300,24 @@ export class DatabaseStorage implements IStorage {
     }
     const [result] = await db.insert(websiteProfiles).values(profile).returning();
     return result;
+  }
+
+  async getAutomationsByUser(userId: string): Promise<Automation[]> {
+    return db.select().from(automations).where(eq(automations.userId, userId)).orderBy(desc(automations.createdAt));
+  }
+
+  async createAutomation(automation: InsertAutomation): Promise<Automation> {
+    const [result] = await db.insert(automations).values(automation).returning();
+    return result;
+  }
+
+  async updateAutomation(id: string, userId: string, data: Partial<Pick<Automation, "status" | "runs" | "successRate" | "lastRunAt">>): Promise<Automation | undefined> {
+    const [result] = await db.update(automations).set(data).where(and(eq(automations.id, id), eq(automations.userId, userId))).returning();
+    return result;
+  }
+
+  async deleteAutomation(id: string, userId: string): Promise<void> {
+    await db.delete(automations).where(and(eq(automations.id, id), eq(automations.userId, userId)));
   }
 }
 

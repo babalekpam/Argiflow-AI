@@ -57,6 +57,10 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `POST /api/funnels/:id/deals` - Create a deal { stageId, contactName, contactEmail, value }
 - `PATCH /api/deals/:id` - Move/update a deal { stageId, status, etc. }
 - `DELETE /api/deals/:id` - Delete a deal
+- `GET /api/automations` - List user's automations
+- `POST /api/automations` - Create/activate an automation { templateKey, title, description, steps }
+- `PATCH /api/automations/:id` - Update automation status { status: active|paused|inactive }
+- `DELETE /api/automations/:id` - Delete an automation
 
 ### Admin Endpoints (email/password auth)
 - `POST /api/admin/login` - Admin login with email/password
@@ -80,6 +84,7 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `funnels` - Sales funnels per user
 - `funnel_stages` - Pipeline stages within funnels (position-ordered, with colors)
 - `funnel_deals` - Deals/contacts moving through funnel stages
+- `automations` - User workflow automations with status, runs tracking, and template keys
 
 ## Design
 - Dark theme with sky blue gradient accents
@@ -102,7 +107,7 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - Fallback mode: actions still work even if Claude API is temporarily unavailable
 - Added web search capability via Claude's native web_search tool
 - Added Voice AI page with agent deployment, configuration, and stats
-- Added Automations page with workflow templates
+- Added Automations page with workflow templates - fully functional activate/pause/resume/delete with DB persistence
 - Added Integrations section to Settings (SendGrid, Twilio, Grasshopper, Calendar, Webhook)
 - Two-step signup flow: Step 1 account details, Step 2 company info (name, industry, website, description)
 - AI auto-generates a full marketing strategy on signup using Claude

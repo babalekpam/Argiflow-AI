@@ -1324,6 +1324,67 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
     }
   });
 
+  // ---- AUTOMATIONS ----
+
+  app.get("/api/automations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const results = await storage.getAutomationsByUser(userId);
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch automations" });
+    }
+  });
+
+  app.post("/api/automations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const { templateKey, title, description, steps } = req.body;
+      if (!templateKey || !title || !steps) {
+        return res.status(400).json({ message: "templateKey, title, and steps are required" });
+      }
+      const automation = await storage.createAutomation({
+        userId,
+        templateKey,
+        title,
+        description: description || null,
+        steps: JSON.stringify(steps),
+        status: "active",
+        runs: 0,
+        successRate: 0,
+        lastRunAt: null,
+      });
+      res.json(automation);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create automation" });
+    }
+  });
+
+  app.patch("/api/automations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const { status } = req.body;
+      if (!status || !["active", "paused", "inactive"].includes(status)) {
+        return res.status(400).json({ message: "Valid status required (active, paused, inactive)" });
+      }
+      const updated = await storage.updateAutomation(req.params.id as string, userId, { status });
+      if (!updated) return res.status(404).json({ message: "Automation not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update automation" });
+    }
+  });
+
+  app.delete("/api/automations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      await storage.deleteAutomation(req.params.id as string, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete automation" });
+    }
+  });
+
   // ---- ADMIN ----
 
   await clearOldSeedData();
