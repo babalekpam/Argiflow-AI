@@ -9,43 +9,16 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import Anthropic from "@anthropic-ai/sdk";
 
-async function tavilySearch(query: string, options: { maxResults?: number; topic?: string } = {}): Promise<{ answer?: string; results: { title: string; url: string; content: string }[] }> {
-  const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) {
-    return { results: [], answer: "Web search is not configured. Please add a TAVILY_API_KEY." };
-  }
-  try {
-    const res = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: apiKey,
-        query,
-        max_results: options.maxResults || 5,
-        topic: options.topic || "general",
-        include_answer: true,
-        include_raw_content: false,
-      }),
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("Tavily API error:", errText);
-      return { results: [], answer: "Search failed. Please try again." };
-    }
-    const data = await res.json() as any;
-    return {
-      answer: data.answer || undefined,
-      results: (data.results || []).map((r: any) => ({
-        title: r.title || "",
-        url: r.url || "",
-        content: r.content || "",
-      })),
-    };
-  } catch (err) {
-    console.error("Tavily search error:", err);
-    return { results: [], answer: "Search temporarily unavailable." };
-  }
-}
+// ============================================================
+// ANTHROPIC CLAUDE — SINGLE AI PROVIDER FOR EVERYTHING
+// No Tavily, no OpenAI, no other providers.
+// Claude handles: chat, web search, actions, research
+// ============================================================
+
+const anthropic = new Anthropic({
+  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+});
 
 const scryptAsync = promisify(scrypt);
 
@@ -82,6 +55,10 @@ const isAdmin: RequestHandler = (req, res, next) => {
   next();
 };
 
+// ============================================================
+// LEAD GENERATION HELPERS
+// ============================================================
+
 const firstNames = ["Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Avery", "Quinn", "Blake", "Cameron", "Drew", "Hayden", "Skyler", "Reese", "Parker", "Sawyer", "Dakota", "Emerson", "Finley", "Rowan"];
 const lastNames = ["Mitchell", "Brooks", "Rivera", "Foster", "Hayes", "Bennett", "Cole", "Reed", "Gray", "Ward", "Price", "Sullivan", "Russell", "Howard", "Perry", "Long", "Butler", "Barnes", "Ross", "Murphy"];
 const sources = ["Google Ads", "Facebook", "Instagram", "LinkedIn", "Website", "Referral", "Cold Outreach", "Twitter"];
@@ -106,10 +83,9 @@ function generateRandomLead(userId: string) {
   };
 }
 
-const anthropic = new Anthropic({
-  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-});
+// ============================================================
+// CRM ACTION EXECUTOR (called by Claude via tool_use)
+// ============================================================
 
 async function executeAction(userId: string, action: string, params: any): Promise<string> {
   switch (action) {
@@ -125,11 +101,11 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const stats = await storage.getStatsByUser(userId);
       const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
       await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
-      return `ACTIONS_COMPLETED: Created ${count} leads: ${created.join(", ")}. Total leads now: ${allLeads.length}.`;
+      return `Created ${count} leads: ${created.join(", ")}. Total leads now: ${allLeads.length}.`;
     }
     case "book_appointments": {
       const userLeads = await storage.getLeadsByUser(userId);
-      if (userLeads.length === 0) return "NO_LEADS: User has no leads yet.";
+      if (userLeads.length === 0) return "ERROR: User has no leads yet. Generate leads first.";
       const count = Math.min(params.count || 2, userLeads.length);
       const types = ["Discovery Call", "Strategy Session", "Sales Call", "Follow-Up Call", "Demo Call", "Consultation"];
       const booked: string[] = [];
@@ -143,7 +119,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const stats = await storage.getStatsByUser(userId);
       const allAppts = await storage.getAppointmentsByUser(userId);
       await storage.upsertStats({ userId, totalLeads: stats?.totalLeads || 0, activeLeads: stats?.activeLeads || 0, appointmentsBooked: allAppts.length, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
-      return `ACTIONS_COMPLETED: Booked ${count} appointments: ${booked.join("; ")}.`;
+      return `Booked ${count} appointments: ${booked.join("; ")}.`;
     }
     case "activate_agents": {
       const agentTypes = [
@@ -153,11 +129,13 @@ async function executeAction(userId: string, action: string, params: any): Promi
         { name: "Chat Responder", type: "Support", desc: "Responds to incoming chat messages instantly, qualifying leads and answering common questions." },
         { name: "Ad Optimizer", type: "Marketing", desc: "Monitors ad performance across platforms and adjusts bids, targeting, and creative in real-time." },
         { name: "Follow-Up Agent", type: "Retention", desc: "Automatically follows up with leads who haven't responded, using multi-channel outreach." },
+        { name: "Voice AI Agent", type: "Voice", desc: "Handles inbound and outbound phone calls, qualifies prospects, and books appointments via voice." },
+        { name: "Social Media Agent", type: "Social", desc: "Monitors social channels, responds to mentions and DMs, and generates engagement automatically." },
       ];
       const existing = await storage.getAiAgentsByUser(userId);
       const existingNames = new Set(existing.map(a => a.name));
       const available = agentTypes.filter(a => !existingNames.has(a.name));
-      if (available.length === 0) return "ALL_AGENTS_EXIST: All 6 AI agents are already set up.";
+      if (available.length === 0) return "All AI agents are already set up and running.";
       const count = Math.min(params.count || available.length, available.length);
       const toCreate = available.slice(0, count);
       const created: string[] = [];
@@ -165,12 +143,12 @@ async function executeAction(userId: string, action: string, params: any): Promi
         await storage.createAiAgent({ userId, name: agent.name, type: agent.type, status: "active", tasksCompleted: 0, successRate: 0, description: agent.desc });
         created.push(agent.name);
       }
-      return `ACTIONS_COMPLETED: Activated ${count} agents: ${created.join(", ")}.`;
+      return `Activated ${count} agents: ${created.join(", ")}.`;
     }
     case "follow_up_leads": {
       const userLeads = await storage.getLeadsByUser(userId);
       const warmLeads = userLeads.filter(l => l.status === "warm" || l.status === "new");
-      if (warmLeads.length === 0) return "NO_WARM_LEADS: No warm or new leads to follow up with.";
+      if (warmLeads.length === 0) return "No warm or new leads to follow up with right now.";
       const count = Math.min(params.count || warmLeads.length, 5);
       const appts: string[] = [];
       for (let i = 0; i < count; i++) {
@@ -178,7 +156,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
         await storage.createAppointment({ userId, leadName: lead.name, type: "Follow-Up Call", date: new Date(Date.now() + randomInt(24, 96) * 60 * 60 * 1000), status: "scheduled" });
         appts.push(lead.name);
       }
-      return `ACTIONS_COMPLETED: Created follow-up calls for ${count} leads: ${appts.join(", ")}.`;
+      return `Created follow-up calls for ${count} leads: ${appts.join(", ")}.`;
     }
     case "get_stats": {
       const userLeads = await storage.getLeadsByUser(userId);
@@ -190,157 +168,205 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const scheduled = appts.filter(a => a.status === "scheduled").length;
       const completed = appts.filter(a => a.status === "completed").length;
       const activeAgents = agents.filter(a => a.status === "active").length;
-      return `STATS: Leads: ${userLeads.length} total (${hot} hot, ${qualified} qualified, ${warm} warm, ${userLeads.length - hot - qualified - warm} new). Appointments: ${appts.length} total (${scheduled} scheduled, ${completed} completed). AI Agents: ${agents.length} total (${activeAgents} active).`;
-    }
-    case "web_search": {
-      const query = params.query || params.q || "";
-      if (!query) return "SEARCH_ERROR: No search query provided.";
-      const topic = params.topic || "general";
-      const maxResults = Math.min(params.max_results || 5, 10);
-      const searchResult = await tavilySearch(query, { maxResults, topic });
-      let formatted = `SEARCH_RESULTS for "${query}":\n`;
-      if (searchResult.answer) {
-        formatted += `\nSummary: ${searchResult.answer}\n`;
-      }
-      if (searchResult.results.length > 0) {
-        formatted += `\nSources:\n`;
-        searchResult.results.forEach((r, i) => {
-          formatted += `${i + 1}. ${r.title}\n   ${r.url}\n   ${r.content.slice(0, 300)}\n\n`;
-        });
-      }
-      return formatted;
+      return `Leads: ${userLeads.length} total (${hot} hot, ${qualified} qualified, ${warm} warm, ${userLeads.length - hot - qualified - warm} new). Appointments: ${appts.length} total (${scheduled} scheduled, ${completed} completed). AI Agents: ${agents.length} total (${activeAgents} active).`;
     }
     default:
-      return "NO_ACTION";
+      return `Unknown action: ${action}`;
   }
 }
+
+// ============================================================
+// CLAUDE-POWERED AI HANDLER
+// Uses Claude for EVERYTHING: chat, web search, CRM actions
+// Web search via Claude's built-in web_search tool
+// CRM actions via custom tools that call executeAction()
+// ============================================================
 
 async function handleAiAction(userId: string, userMessage: string, chatHistory: { role: string; content: string }[] = []): Promise<string> {
   const allLeads = await storage.getLeadsByUser(userId);
   const allAppts = await storage.getAppointmentsByUser(userId);
   const allAgents = await storage.getAiAgentsByUser(userId);
 
-  const systemPrompt = `You are ArgiFlow AI, an intelligent assistant for automated client acquisition. You help business owners manage leads, appointments, AI agents, and marketing campaigns. You have access to the internet and can research anything for the user.
+  const systemPrompt = `You are ArgiFlow AI, the intelligent automation assistant for ArgiFlow — an AI Automation Agency that helps businesses scale with AI.
+
+You help business owners manage leads, appointments, AI agents, and marketing campaigns. You can also search the web for real-time information using your built-in web search capability.
 
 CURRENT USER DATA:
 - Leads: ${allLeads.length} total (${allLeads.filter(l => l.status === "hot").length} hot, ${allLeads.filter(l => l.status === "qualified").length} qualified, ${allLeads.filter(l => l.status === "warm").length} warm, ${allLeads.filter(l => l.status === "new").length} new)
 - Appointments: ${allAppts.length} total (${allAppts.filter(a => a.status === "scheduled").length} scheduled, ${allAppts.filter(a => a.status === "completed").length} completed)
 - AI Agents: ${allAgents.length} total (${allAgents.filter(a => a.status === "active").length} active)
-${allLeads.length > 0 ? `- Recent leads: ${allLeads.slice(0, 5).map(l => `${l.name} (${l.status}, score: ${l.score})`).join(", ")}` : ""}
-${allAgents.length > 0 ? `- Agents: ${allAgents.map(a => `${a.name} (${a.status})`).join(", ")}` : ""}
+${allLeads.length > 0 ? `- Recent leads: ${allLeads.slice(0, 5).map(l => `${l.name} (${l.status}, score: ${l.score})`).join(", ")}` : "- No leads yet"}
+${allAgents.length > 0 ? `- Agents: ${allAgents.map(a => `${a.name} (${a.status})`).join(", ")}` : "- No agents activated yet"}
 
-AVAILABLE ACTIONS:
-You can perform real actions in the user's account AND search the internet. When you want to perform an action, include an ACTION block in your response using this exact format:
-
-[ACTION:generate_leads:{"count":5}]
-[ACTION:book_appointments:{"count":3}]
-[ACTION:activate_agents:{"count":6}]
-[ACTION:follow_up_leads:{"count":3}]
-[ACTION:get_stats:{}]
-[ACTION:web_search:{"query":"your search query here"}]
-[ACTION:web_search:{"query":"latest news topic","topic":"news"}]
-
-WEB SEARCH CAPABILITY:
-- You can search the internet for ANY topic the user asks about
-- Use web_search when the user asks you to research, look up, find information, or when you need current data
-- The topic parameter can be "general" (default) or "news" for recent news
-- You will receive search results with summaries and source links - use them to provide informed, cited answers
-- ALWAYS use web_search when the user asks questions about current events, market trends, competitors, industry data, best practices, tools, or anything that requires up-to-date information
-- You can combine web search with other actions (e.g., research a topic AND generate leads)
-
-Include the ACTION block naturally within your response. You can include multiple actions. The system will execute them and the results will be visible immediately on the user's dashboard.
+CAPABILITIES:
+You have access to tools for managing the user's CRM and searching the web. Use them proactively:
+- When the user asks to generate leads, book appointments, activate agents, follow up, or get stats — use the appropriate CRM tool
+- When the user asks about market trends, competitors, news, best practices, or anything requiring current info — use the web_search tool
+- You can combine multiple tools in a single response
 
 GUIDELINES:
 - Be conversational, helpful, and proactive
-- Give strategic advice about lead generation, sales, and marketing
-- When the user asks to do something, DO IT by including the action block
-- When the user asks a question that needs research, SEARCH THE WEB for them
-- After receiving search results, summarize the findings clearly and cite sources when relevant
-- Provide context about what you did and next steps
+- Give strategic advice about lead generation, sales, AI automation, and marketing
+- When the user asks to do something, DO IT using the tools
 - If the user has no leads yet, suggest generating some first
 - Be specific with numbers and recommendations
-- Keep responses concise but informative`;
+- Keep responses concise but informative
+- You represent ArgiFlow — an AI Automation Agency, not just a chatbot`;
 
-  const claudeMessages: { role: "user" | "assistant"; content: string }[] = chatHistory
+  // Build message history for Claude
+  const claudeMessages: Anthropic.MessageParam[] = chatHistory
     .filter(m => m.role === "user" || m.role === "assistant")
     .slice(-20)
     .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-  if (claudeMessages.length === 0 || claudeMessages[claudeMessages.length - 1].content !== userMessage) {
+  if (claudeMessages.length === 0 || (claudeMessages[claudeMessages.length - 1] as any).content !== userMessage) {
     claudeMessages.push({ role: "user", content: userMessage });
   }
 
+  // Define tools: Claude's built-in web search + our CRM action tools
+  const tools: Anthropic.Tool[] = [
+    // Claude's native web search — replaces Tavily entirely
+    {
+      type: "web_search_20250305" as any,
+      name: "web_search",
+    } as any,
+    // CRM Tools
+    {
+      name: "generate_leads",
+      description: "Generate new leads and add them to the user's CRM. Use when the user asks to create, generate, or add leads.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          count: { type: "number", description: "Number of leads to generate (1-20)", default: 5 },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "book_appointments",
+      description: "Book appointments with the user's existing leads. Use when the user asks to book, schedule, or create appointments.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          count: { type: "number", description: "Number of appointments to book (1-10)", default: 3 },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "activate_agents",
+      description: "Activate AI automation agents (Lead Qualifier, Email Nurturing, Appointment Setter, Chat Responder, Ad Optimizer, Follow-Up Agent, Voice AI Agent, Social Media Agent). Use when the user asks to set up, activate, or deploy AI agents.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          count: { type: "number", description: "Number of agents to activate", default: 8 },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "follow_up_leads",
+      description: "Create follow-up calls for warm and new leads. Use when the user asks to follow up with leads.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          count: { type: "number", description: "Number of leads to follow up with (1-5)", default: 3 },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "get_stats",
+      description: "Get the user's current dashboard statistics including leads, appointments, and agent counts. Use when the user asks for stats, reports, performance, or an overview.",
+      input_schema: {
+        type: "object" as const,
+        properties: {},
+        required: [],
+      },
+    },
+  ];
+
   try {
-    const response = await anthropic.messages.create({
+    // First Claude call — may use tools
+    let response = await anthropic.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 1024,
+      max_tokens: 2048,
       system: systemPrompt,
       messages: claudeMessages,
+      tools,
     });
 
-    let aiText = response.content[0].type === "text" ? response.content[0].text : "";
+    // Agentic loop — process tool calls until Claude gives a final text response
+    let loopCount = 0;
+    const maxLoops = 10;
+    let currentMessages = [...claudeMessages];
 
-    const actionRegex = /\[ACTION:(\w+):\{([^}]*)\}\]/g;
-    let match;
-    const actionResults: string[] = [];
-    const searchResults: string[] = [];
+    while (response.stop_reason === "tool_use" && loopCount < maxLoops) {
+      loopCount++;
 
-    while ((match = actionRegex.exec(aiText)) !== null) {
-      const actionName = match[1];
-      let params: any = {};
-      try { params = JSON.parse(`{${match[2]}}`); } catch {}
-      const result = await executeAction(userId, actionName, params);
-      actionResults.push(result);
-      if (actionName === "web_search") {
-        searchResults.push(result);
-      }
-    }
+      // Collect all tool uses from the response
+      const toolUseBlocks = response.content.filter(
+        (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
+      );
 
-    aiText = aiText.replace(/\[ACTION:\w+:\{[^}]*\}\]/g, "").trim();
+      if (toolUseBlocks.length === 0) break;
 
-    if (searchResults.length > 0) {
-      const searchContext = searchResults.join("\n\n");
-      const followUpMessages = [
-        ...claudeMessages,
-        { role: "assistant" as const, content: aiText || "Let me search for that information." },
-        { role: "user" as const, content: `Here are the web search results. Please summarize and present the key findings to the user in a clear, helpful way. Include relevant source links when appropriate.\n\n${searchContext}` },
-      ];
-      try {
-        const followUp = await anthropic.messages.create({
-          model: "claude-haiku-4-5",
-          max_tokens: 1500,
-          system: systemPrompt,
-          messages: followUpMessages,
+      // Add assistant response to message chain
+      currentMessages.push({ role: "assistant", content: response.content as any });
+
+      // Process each tool call and build results
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+      for (const toolUse of toolUseBlocks) {
+        let result: string;
+
+        if (toolUse.name === "web_search") {
+          // Claude's built-in web search handles itself — we don't manually process it
+          // The SDK handles web_search_20250305 automatically in the agentic loop
+          result = "Web search completed.";
+        } else {
+          // CRM action tools
+          result = await executeAction(userId, toolUse.name, toolUse.input || {});
+        }
+
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: toolUse.id,
+          content: result,
         });
-        const followUpText = followUp.content[0].type === "text" ? followUp.content[0].text : "";
-        aiText = followUpText.replace(/\[ACTION:\w+:\{[^}]*\}\]/g, "").trim() || aiText;
-      } catch (err) {
-        console.error("Follow-up Claude call failed:", err);
-        aiText = aiText ? `${aiText}\n\n${searchContext}` : searchContext;
       }
+
+      // Add tool results to message chain
+      currentMessages.push({ role: "user", content: toolResults as any });
+
+      // Call Claude again with updated context
+      response = await anthropic.messages.create({
+        model: "claude-haiku-4-5",
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages: currentMessages,
+        tools,
+      });
     }
 
-    const failedResults = actionResults.filter(r => r.startsWith("NO_LEADS") || r.startsWith("NO_WARM_LEADS") || r.startsWith("ALL_AGENTS_EXIST"));
-    if (failedResults.length > 0) {
-      const notes = failedResults.map(r => {
-        if (r.startsWith("NO_LEADS")) return "You don't have any leads yet. Try asking me to generate some leads first.";
-        if (r.startsWith("NO_WARM_LEADS")) return "No warm or new leads to follow up with right now.";
-        if (r.startsWith("ALL_AGENTS_EXIST")) return "All AI agents are already set up and running.";
-        return "";
-      }).filter(Boolean);
-      aiText = aiText ? `${aiText}\n\nNote: ${notes.join(" ")}` : notes.join("\n");
-    }
+    // Extract final text from Claude's response
+    const textBlocks = response.content.filter(
+      (block): block is Anthropic.TextBlock => block.type === "text"
+    );
 
-    if (!aiText && actionResults.length > 0) {
-      aiText = "Done! I've completed the actions. Check your dashboard to see the updates.";
-    }
+    const finalText = textBlocks.map(b => b.text).join("\n").trim();
 
-    return aiText || "I'm here to help! Ask me anything about lead generation, appointments, or marketing strategies.";
+    return finalText || "Done! I've completed the actions. Check your dashboard to see the updates.";
   } catch (error: any) {
-    console.error("Anthropic API error:", error);
+    console.error("Claude API error:", error);
     return fallbackResponse(userId, userMessage);
   }
 }
+
+// ============================================================
+// FALLBACK — runs if Claude API is temporarily down
+// Basic keyword matching to still execute CRM actions
+// ============================================================
 
 async function fallbackResponse(userId: string, msg: string): Promise<string> {
   const lower = msg.toLowerCase();
@@ -348,35 +374,138 @@ async function fallbackResponse(userId: string, msg: string): Promise<string> {
     const countMatch = lower.match(/(\d+)/);
     const count = Math.min(countMatch ? parseInt(countMatch[1]) : 3, 20);
     const result = await executeAction(userId, "generate_leads", { count });
-    return `I'm running in basic mode right now, but I still got things done! ${result.replace("ACTIONS_COMPLETED: ", "")}`;
+    return `Running in fallback mode, but got it done! ${result}`;
   }
   if (lower.includes("appointment") || lower.includes("book")) {
     const countMatch = lower.match(/(\d+)/);
     const count = countMatch ? parseInt(countMatch[1]) : 2;
     const result = await executeAction(userId, "book_appointments", { count });
-    if (result.startsWith("NO_LEADS")) return "You don't have any leads yet. Ask me to generate some leads first!";
-    return `Running in basic mode, but done! ${result.replace("ACTIONS_COMPLETED: ", "")}`;
+    return `Running in fallback mode, but done! ${result}`;
   }
   if (lower.includes("agent") || lower.includes("activate")) {
     const result = await executeAction(userId, "activate_agents", {});
-    return `Running in basic mode, but done! ${result.replace("ACTIONS_COMPLETED: ", "").replace("ALL_AGENTS_EXIST: ", "")}`;
+    return `Running in fallback mode, but done! ${result}`;
   }
   if (lower.includes("stat") || lower.includes("report") || lower.includes("performance")) {
     const result = await executeAction(userId, "get_stats", {});
-    return result.replace("STATS: ", "Here's your current status:\n\n");
+    return `Here's your current status:\n\n${result}`;
   }
-  if (lower.includes("search") || lower.includes("research") || lower.includes("look up") || lower.includes("find out") || lower.includes("what is") || lower.includes("who is") || lower.includes("how to")) {
-    const result = await executeAction(userId, "web_search", { query: msg });
-    if (result.startsWith("SEARCH_RESULTS")) {
-      return `I ran a quick search for you (basic mode):\n\n${result.replace("SEARCH_RESULTS", "Results")}`;
-    }
-    return result;
+  if (lower.includes("follow") && lower.includes("up")) {
+    const result = await executeAction(userId, "follow_up_leads", {});
+    return `Running in fallback mode, but done! ${result}`;
   }
   if (lower.includes("help")) {
-    return "I can help you with:\n\n- Generating new leads for your CRM\n- Booking appointments with your leads\n- Activating AI automation agents\n- Creating email/SMS campaigns\n- Following up with warm leads\n- Showing your performance stats\n- Searching the internet for research and information\n\nJust tell me what you need!";
+    return "I can help you with:\n\n- Generating new leads for your CRM\n- Booking appointments with your leads\n- Activating AI automation agents\n- Following up with warm leads\n- Showing your performance stats\n- Researching markets, competitors, and trends\n- Writing emails, ad copy, and marketing content\n\nPowered 100% by Anthropic Claude. Just tell me what you need!";
   }
-  return "I'm experiencing a temporary issue connecting to my AI engine. Please try again in a moment. You can still ask me to generate leads, book appointments, activate agents, or search the web - those actions still work!";
+  return "I'm experiencing a temporary issue connecting to Claude. Please try again in a moment. In the meantime, you can still ask me to generate leads, book appointments, or activate agents — those actions still work!";
 }
+
+// ============================================================
+// CLAUDE-POWERED WEB SEARCH ENDPOINT
+// Standalone endpoint for web research (used by frontend)
+// ============================================================
+
+async function claudeWebSearch(query: string): Promise<string> {
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 1500,
+      system: "You are a helpful research assistant. Search the web and provide a clear, concise summary of the findings. Include relevant source URLs when available.",
+      messages: [{ role: "user", content: query }],
+      tools: [
+        {
+          type: "web_search_20250305" as any,
+          name: "web_search",
+        } as any,
+      ],
+    });
+
+    // Agentic loop for search
+    let currentResponse = response;
+    let messages: Anthropic.MessageParam[] = [{ role: "user", content: query }];
+    let loops = 0;
+
+    while (currentResponse.stop_reason === "tool_use" && loops < 5) {
+      loops++;
+      messages.push({ role: "assistant", content: currentResponse.content as any });
+
+      const toolUses = currentResponse.content.filter(
+        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+      );
+
+      const results: Anthropic.ToolResultBlockParam[] = toolUses.map(tu => ({
+        type: "tool_result" as const,
+        tool_use_id: tu.id,
+        content: "Search completed.",
+      }));
+
+      messages.push({ role: "user", content: results as any });
+
+      currentResponse = await anthropic.messages.create({
+        model: "claude-haiku-4-5",
+        max_tokens: 1500,
+        system: "You are a helpful research assistant. Provide a clear, concise summary of your web search findings.",
+        messages,
+        tools: [
+          {
+            type: "web_search_20250305" as any,
+            name: "web_search",
+          } as any,
+        ],
+      });
+    }
+
+    const text = currentResponse.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map(b => b.text)
+      .join("\n");
+
+    return text || "No results found.";
+  } catch (error) {
+    console.error("Claude web search error:", error);
+    return "Search temporarily unavailable. Please try again.";
+  }
+}
+
+// ============================================================
+// CLAUDE CONTENT GENERATION ENDPOINT
+// Write emails, ad copy, social posts, etc.
+// ============================================================
+
+async function claudeGenerate(prompt: string, type: string = "general"): Promise<string> {
+  const systemPrompts: Record<string, string> = {
+    email: "You are an expert email copywriter for B2B businesses. Write compelling, conversion-focused emails that drive action. Keep them concise and professional.",
+    ad: "You are an expert advertising copywriter. Write attention-grabbing ad copy optimized for the specified platform. Include headlines, body copy, and CTAs.",
+    social: "You are a social media content expert. Write engaging posts optimized for the specified platform. Include relevant hashtags and CTAs.",
+    sms: "You are an SMS marketing expert. Write concise, compelling text messages under 160 characters that drive immediate action.",
+    blog: "You are a content marketing expert. Write informative, SEO-friendly blog content that positions the business as an authority.",
+    script: "You are a sales script expert. Write natural, conversational scripts that qualify leads and move them toward a booking.",
+    general: "You are a helpful AI assistant for ArgiFlow, an AI Automation Agency. Help the user with whatever they need.",
+  };
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 2048,
+      system: systemPrompts[type] || systemPrompts.general,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map(b => b.text)
+      .join("\n");
+
+    return text || "Unable to generate content. Please try again.";
+  } catch (error) {
+    console.error("Claude generate error:", error);
+    return "Content generation temporarily unavailable.";
+  }
+}
+
+// ============================================================
+// EXPRESS ROUTES
+// ============================================================
 
 export async function registerRoutes(
   httpServer: Server,
@@ -384,6 +513,8 @@ export async function registerRoutes(
 ): Promise<Server> {
   app.set("trust proxy", 1);
   app.use(getSession());
+
+  // ---- AUTH ----
 
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -452,6 +583,8 @@ export async function registerRoutes(
     }
   });
 
+  // ---- DASHBOARD STATS ----
+
   app.get("/api/stats", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -462,6 +595,8 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to fetch stats" });
     }
   });
+
+  // ---- LEADS ----
 
   app.get("/api/leads", isAuthenticated, async (req, res) => {
     try {
@@ -500,6 +635,8 @@ export async function registerRoutes(
     }
   });
 
+  // ---- APPOINTMENTS ----
+
   app.get("/api/appointments", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -510,6 +647,8 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to fetch appointments" });
     }
   });
+
+  // ---- AI AGENTS ----
 
   app.get("/api/ai-agents", isAuthenticated, async (req, res) => {
     try {
@@ -543,6 +682,8 @@ export async function registerRoutes(
     }
   });
 
+  // ---- SETTINGS ----
+
   app.get("/api/settings", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -567,6 +708,8 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update settings" });
     }
   });
+
+  // ---- CHAT (Claude-powered) ----
 
   app.get("/api/chat/messages", isAuthenticated, async (req, res) => {
     try {
@@ -610,6 +753,66 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to clear messages" });
     }
   });
+
+  // ---- CLAUDE WEB SEARCH ENDPOINT (new) ----
+
+  app.post("/api/ai/search", isAuthenticated, async (req, res) => {
+    try {
+      const { query } = req.body;
+      if (!query || typeof query !== "string") {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+      const result = await claudeWebSearch(query);
+      res.json({ result });
+    } catch (error) {
+      console.error("Error in AI search:", error);
+      res.status(500).json({ message: "Search failed" });
+    }
+  });
+
+  // ---- CLAUDE CONTENT GENERATION ENDPOINT (new) ----
+
+  app.post("/api/ai/generate", isAuthenticated, async (req, res) => {
+    try {
+      const { prompt, type } = req.body;
+      if (!prompt || typeof prompt !== "string") {
+        return res.status(400).json({ message: "Prompt is required" });
+      }
+      const result = await claudeGenerate(prompt, type || "general");
+      res.json({ result });
+    } catch (error) {
+      console.error("Error in AI generate:", error);
+      res.status(500).json({ message: "Generation failed" });
+    }
+  });
+
+  // ---- DISCOVERY CALL SUBMISSIONS (new) ----
+
+  app.post("/api/discovery", async (req, res) => {
+    try {
+      const { firstName, lastName, email, phone, company, website, teamSize, revenue, challenge, interest } = req.body;
+      if (!firstName || !lastName || !email || !company) {
+        return res.status(400).json({ message: "Required fields: firstName, lastName, email, company" });
+      }
+      // Store as a lead for admin to see
+      const lead = await storage.createLead({
+        userId: "discovery", // special marker for discovery calls
+        name: `${firstName} ${lastName}`,
+        email,
+        phone: phone || "",
+        source: "Discovery Call",
+        status: "new",
+        score: 85, // high intent — they booked a call
+      });
+      console.log(`New discovery call submission: ${firstName} ${lastName} (${email}) from ${company}`);
+      res.json({ success: true, message: "Discovery call request received" });
+    } catch (error) {
+      console.error("Error saving discovery call:", error);
+      res.status(500).json({ message: "Failed to save discovery call" });
+    }
+  });
+
+  // ---- ADMIN ----
 
   await clearOldSeedData();
   await seedSuperAdmin();
@@ -701,11 +904,14 @@ export async function registerRoutes(
   return httpServer;
 }
 
+// ============================================================
+// DATABASE SEED / CLEANUP
+// ============================================================
+
 async function clearOldSeedData() {
   try {
     const { eq, and, inArray } = await import("drizzle-orm");
     const knownSeedNames = ["Sarah Johnson", "Robert Chen", "Emma Wilson", "David Park", "Lisa Anderson", "Michael Torres", "Jennifer Kim", "Alex Rivera"];
-    const knownAgentNames = ["Lead Qualifier", "Email Nurturing", "Appointment Setter", "Chat Responder", "Ad Optimizer", "Follow-Up Agent"];
     const seedLeads = await db.select().from(leads).where(inArray(leads.name, knownSeedNames));
     if (seedLeads.length > 0) {
       await db.delete(aiChatMessages);
