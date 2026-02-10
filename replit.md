@@ -83,3 +83,6 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - Added "thinking" animation to chat UIs while waiting for AI response
 - Chat history (last 20 messages) passed to Claude for conversational context
 - Fallback mode: actions still work even if Claude API is temporarily unavailable
+- Added web search capability via Tavily API - AI agent can research any topic on the internet
+- Two-phase search: Claude triggers search, results fetched from Tavily, then Claude summarizes findings with citations
+- Web search also works in fallback mode when Claude API is unavailable
