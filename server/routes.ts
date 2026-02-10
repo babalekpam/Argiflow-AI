@@ -769,8 +769,17 @@ export async function registerRoutes(
   app.get("/api/stats", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const stats = await storage.getStatsByUser(userId);
-      res.json(stats || { totalLeads: 0, activeLeads: 0, appointmentsBooked: 0, conversionRate: 0, revenue: 0 });
+      const allLeads = await storage.getLeadsByUser(userId);
+      const allAppts = await storage.getAppointmentsByUser(userId);
+      const activeCount = allLeads.filter(l => l.status === "new" || l.status === "warm" || l.status === "hot" || l.status === "qualified").length;
+      const cachedStats = await storage.getStatsByUser(userId);
+      res.json({
+        totalLeads: allLeads.length,
+        activeLeads: activeCount,
+        appointmentsBooked: allAppts.length,
+        conversionRate: cachedStats?.conversionRate || 0,
+        revenue: cachedStats?.revenue || 0,
+      });
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ message: "Failed to fetch stats" });
@@ -813,6 +822,17 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting lead:", error);
       res.status(500).json({ message: "Failed to delete lead" });
+    }
+  });
+
+  app.delete("/api/leads", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      await storage.deleteAllLeadsByUser(userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting all leads:", error);
+      res.status(500).json({ message: "Failed to delete leads" });
     }
   });
 

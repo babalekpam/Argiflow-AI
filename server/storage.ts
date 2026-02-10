@@ -24,6 +24,7 @@ export interface IStorage {
   getLeadsByUser(userId: string): Promise<Lead[]>;
   createLead(lead: InsertLead): Promise<Lead>;
   deleteLead(id: string, userId: string): Promise<void>;
+  deleteAllLeadsByUser(userId: string): Promise<void>;
   getAppointmentsByUser(userId: string): Promise<Appointment[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   getAiAgentsByUser(userId: string): Promise<AiAgent[]>;
@@ -87,6 +88,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLead(id: string, userId: string): Promise<void> {
     await db.delete(leads).where(and(eq(leads.id, id), eq(leads.userId, userId)));
+  }
+
+  async deleteAllLeadsByUser(userId: string): Promise<void> {
+    await db.delete(leads).where(eq(leads.userId, userId));
   }
 
   async getAppointmentsByUser(userId: string): Promise<Appointment[]> {

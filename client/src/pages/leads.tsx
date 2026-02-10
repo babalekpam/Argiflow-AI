@@ -112,6 +112,20 @@ export default function LeadsPage() {
     },
   });
 
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", "/api/leads");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({ title: "All leads cleared" });
+    },
+    onError: () => {
+      toast({ title: "Failed to clear leads", variant: "destructive" });
+    },
+  });
+
   const filteredLeads = (leads || []).filter(
     (l) =>
       l.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -127,13 +141,30 @@ export default function LeadsPage() {
             Manage and track all your leads in one place.
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-lead">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Lead
+        <div className="flex items-center gap-2">
+          {(leads?.length || 0) > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (confirm("Are you sure you want to delete all leads? This cannot be undone.")) {
+                  deleteAllMutation.mutate();
+                }
+              }}
+              disabled={deleteAllMutation.isPending}
+              data-testid="button-clear-all-leads"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {deleteAllMutation.isPending ? "Clearing..." : "Clear All"}
             </Button>
-          </DialogTrigger>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-lead">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Lead
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Lead</DialogTitle>
@@ -230,6 +261,7 @@ export default function LeadsPage() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card className="p-4">

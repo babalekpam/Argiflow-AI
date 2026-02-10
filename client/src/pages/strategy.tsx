@@ -310,8 +310,20 @@ export default function StrategyPage() {
           <Sparkles className="w-12 h-12 text-primary mx-auto mb-4 opacity-50" />
           <h2 className="text-lg font-semibold mb-2">No Marketing Strategy Yet</h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Complete your company profile to get a custom AI-generated marketing strategy.
+            Generate a custom AI-powered marketing strategy based on your company profile.
           </p>
+          <Button
+            onClick={() => regenerateMutation.mutate()}
+            disabled={regenerateMutation.isPending}
+            data-testid="button-generate-strategy"
+          >
+            {regenerateMutation.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4 mr-2" />
+            )}
+            {regenerateMutation.isPending ? "Generating..." : "Generate Strategy"}
+          </Button>
         </Card>
       </div>
     );
