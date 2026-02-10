@@ -181,12 +181,13 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const settings = await storage.getSettingsByUser(userId);
       const user = await storage.getUserById(userId);
 
-      if (!settings?.sendgridApiKey) {
+      const sgKey = settings?.sendgridApiKey || process.env.SENDGRID_API_KEY;
+      if (!sgKey) {
         return "SendGrid API key not configured. Tell the user to go to Settings > Integrations and add their SendGrid API key to enable direct email sending.";
       }
 
-      sgMail.setApiKey(settings.sendgridApiKey);
-      const senderEmail = user?.email || "noreply@argiflow.com";
+      sgMail.setApiKey(sgKey);
+      const senderEmail = "info@track-med.com";
       const senderName = user?.companyName
         ? `${user.firstName || ""} from ${user.companyName}`.trim()
         : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "ArgiFlow";
@@ -1168,14 +1169,14 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       return { success: false, error: "Lead has no email or outreach draft" };
     }
 
-    const sendgridKey = userSettings?.sendgridApiKey;
+    const sendgridKey = userSettings?.sendgridApiKey || process.env.SENDGRID_API_KEY;
     if (!sendgridKey) {
       return { success: false, error: "SendGrid API key not configured. Go to Settings > Integrations to add it." };
     }
 
     sgMail.setApiKey(sendgridKey);
 
-    const senderEmail = user?.email || "noreply@argiflow.com";
+    const senderEmail = "info@track-med.com";
     const senderName = user?.companyName
       ? `${user.firstName || ""} from ${user.companyName}`.trim()
       : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "ArgiFlow";
