@@ -38,8 +38,12 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `DELETE /api/leads/:id` - Delete a lead by ID
 - `GET /api/appointments` - List user's appointments
 - `GET /api/ai-agents` - List user's AI agents
+- `POST /api/ai-agents` - Create an AI agent
 - `GET /api/settings` - Get user settings (auto-creates defaults)
-- `PATCH /api/settings` - Update user settings
+- `PATCH /api/settings` - Update user settings (notifications, integrations)
+- `POST /api/onboarding` - Save company info and trigger AI strategy generation
+- `GET /api/strategy` - Get user's AI-generated marketing strategy
+- `POST /api/strategy/regenerate` - Regenerate the marketing strategy
 - `GET /api/chat/messages` - Get AI chat messages
 - `POST /api/chat/messages` - Send message, get AI reply { content }
 - `DELETE /api/chat/messages` - Clear chat history
@@ -55,13 +59,14 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `GET /api/admin/stats` - Aggregated admin stats
 
 ## Database Schema
-- `users` & `sessions` - Auth tables (email/password, session-based)
+- `users` & `sessions` - Auth tables (email/password, session-based, includes company info fields)
 - `leads` - Lead tracking with scoring
 - `appointments` - Scheduled meetings
 - `ai_agents` - AI automation agents
 - `dashboard_stats` - Aggregated metrics
-- `user_settings` - User preferences (notifications, AI, toggles)
+- `user_settings` - User preferences (notifications, AI, toggles, integration API keys)
 - `ai_chat_messages` - AI chat conversation history
+- `marketing_strategies` - AI-generated marketing strategies per user
 - `admins` - Super admin users (email/password auth, scrypt hashing)
 
 ## Design
@@ -83,6 +88,11 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - Added "thinking" animation to chat UIs while waiting for AI response
 - Chat history (last 20 messages) passed to Claude for conversational context
 - Fallback mode: actions still work even if Claude API is temporarily unavailable
-- Added web search capability via Tavily API - AI agent can research any topic on the internet
-- Two-phase search: Claude triggers search, results fetched from Tavily, then Claude summarizes findings with citations
-- Web search also works in fallback mode when Claude API is unavailable
+- Added web search capability via Claude's native web_search tool
+- Added Voice AI page with agent deployment, configuration, and stats
+- Added Automations page with workflow templates
+- Added Integrations section to Settings (SendGrid, Twilio, Grasshopper, Calendar, Webhook)
+- Two-step signup flow: Step 1 account details, Step 2 company info (name, industry, website, description)
+- AI auto-generates a full marketing strategy on signup using Claude
+- Strategy page at /dashboard/strategy with markdown rendering, regenerate button, and auto-polling
+- Competitive pricing: Starter $1,497 one-time, Ongoing Growth $997/mo, Enterprise custom

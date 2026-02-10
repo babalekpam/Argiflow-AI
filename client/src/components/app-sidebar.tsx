@@ -26,11 +26,13 @@ import {
   Phone,
   MessageSquare,
   Workflow,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const mainNav = [
   { title: "Overview", icon: LayoutDashboard, url: "/dashboard" },
+  { title: "Strategy", icon: Sparkles, url: "/dashboard/strategy", badge: "AI" },
   { title: "Leads & CRM", icon: Users, url: "/dashboard/leads" },
   { title: "Appointments", icon: Calendar, url: "/dashboard/appointments" },
 ];
@@ -78,6 +80,11 @@ export function AppSidebar() {
                     <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
                       <item.icon className="w-4 h-4" />
                       <span>{item.title}</span>
+                      {item.badge && (
+                        <Badge className="ml-auto text-[10px] py-0 px-1.5 bg-primary/10 text-primary border-primary/20">
+                          {item.badge}
+                        </Badge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -18,6 +18,7 @@ import AutomationsPage from "./automations";
 import EmailSmsPage from "./email-sms";
 import TrainingPage from "./training";
 import SettingsPage from "./settings";
+import StrategyPage from "./strategy";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 
 export default function DashboardLayout() {
@@ -102,6 +103,7 @@ export default function DashboardLayout() {
           <main className="flex-1 overflow-auto">
             <Switch>
               <Route path="/dashboard" component={DashboardPage} />
+              <Route path="/dashboard/strategy" component={StrategyPage} />
               <Route path="/dashboard/leads" component={LeadsPage} />
               <Route path="/dashboard/appointments" component={AppointmentsPage} />
               <Route path="/dashboard/ai-agents" component={AiAgentsPage} />

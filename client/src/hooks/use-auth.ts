@@ -7,6 +7,9 @@ interface AuthUser {
   firstName: string | null;
   lastName: string | null;
   profileImageUrl: string | null;
+  companyName: string | null;
+  industry: string | null;
+  onboardingCompleted: string | null;
 }
 
 async function fetchUser(): Promise<AuthUser | null> {

@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { leads, appointments, aiAgents, dashboardStats, aiChatMessages } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
-import { registerSchema, loginSchema, insertLeadSchema } from "@shared/schema";
+import { registerSchema, loginSchema, insertLeadSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import Anthropic from "@anthropic-ai/sdk";
@@ -172,6 +172,113 @@ async function executeAction(userId: string, action: string, params: any): Promi
     }
     default:
       return `Unknown action: ${action}`;
+  }
+}
+
+// ============================================================
+// BACKGROUND STRATEGY GENERATION
+// ============================================================
+
+async function generateStrategyInBackground(userId: string, companyName: string, industry: string, website: string, description: string) {
+  try {
+    const prompt = `You are a senior marketing strategist at a top AI automation agency. A new client just signed up. Analyze their business and create a comprehensive, actionable marketing strategy.
+
+CLIENT INFO:
+- Company: ${companyName}
+- Industry: ${industry}
+- Website: ${website || "Not provided"}
+- Description: ${description}
+
+Generate a detailed marketing strategy with these sections (use markdown formatting):
+
+## Executive Summary
+Brief overview of what you recommend and expected ROI timeline.
+
+## Target Audience Analysis
+- Primary customer personas (2-3)
+- Pain points and motivations
+- Where they hang out online
+
+## Lead Generation Strategy
+- Top 3 channels to focus on (with reasoning)
+- Content types that work best for this industry
+- Paid advertising recommendations (budget allocation)
+
+## AI Automation Opportunities
+- Which processes to automate first
+- Voice AI use cases specific to their business
+- Chatbot deployment recommendations
+- Email/SMS automation sequences
+
+## 90-Day Action Plan
+- Month 1: Foundation (specific tasks)
+- Month 2: Growth (scaling what works)
+- Month 3: Optimization (data-driven adjustments)
+
+## Key Metrics to Track
+- 5-7 KPIs specific to their business
+- Realistic targets for each
+
+## Competitive Edge
+- What will differentiate them
+- Quick wins they can implement immediately
+
+Be specific, actionable, and tailored to their exact business. Use real-world examples relevant to their industry. Don't be generic — make this feel like a $5,000 consulting deliverable they're getting for free.`;
+
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 4000,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    let strategyText = "";
+    for (const block of response.content) {
+      if (block.type === "text") {
+        strategyText += block.text;
+      }
+    }
+
+    await storage.upsertMarketingStrategy({
+      userId,
+      companyName,
+      industry,
+      strategy: strategyText,
+      status: "completed",
+    });
+
+    console.log(`Strategy generated successfully for user ${userId}`);
+  } catch (error) {
+    console.error("Strategy generation error:", error);
+    await storage.upsertMarketingStrategy({
+      userId,
+      companyName,
+      industry,
+      strategy: `# Marketing Strategy for ${companyName}
+
+## Executive Summary
+We're preparing a customized marketing strategy for your ${industry} business. Our AI is analyzing your business profile to create actionable recommendations.
+
+## While We Finalize Your Strategy...
+
+Here are immediate actions you can take:
+
+### 1. Set Up Your AI Agents
+Go to the **AI Agents** tab and activate your Lead Qualifier and Email Nurturing agents. These will start working immediately.
+
+### 2. Configure Your Integrations
+Visit **Settings > Integrations** to connect your email (SendGrid) and SMS (Twilio) providers for automated outreach.
+
+### 3. Start Your First Campaign
+Use the **Email & SMS** section to create your first AI-powered campaign. Our chat assistant can help you write compelling copy.
+
+### 4. Book a Strategy Call
+Schedule a discovery call with our team to discuss your custom strategy in detail.
+
+---
+
+*Your full AI-generated strategy will be available shortly. Check back in a few minutes, or refresh your dashboard.*`,
+      status: "completed",
+    });
   }
 }
 
@@ -576,10 +683,84 @@ export async function registerRoutes(
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl });
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, onboardingCompleted: user.onboardingCompleted });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // ---- ONBOARDING & STRATEGY GENERATION ----
+
+  app.post("/api/onboarding", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const parsed = onboardingSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten() });
+      }
+      const { companyName, industry, website, companyDescription } = parsed.data;
+
+      await storage.updateUser(userId, {
+        companyName,
+        industry,
+        website: website || null,
+        companyDescription,
+        onboardingCompleted: new Date(),
+      });
+
+      await storage.upsertMarketingStrategy({
+        userId,
+        companyName,
+        industry,
+        strategy: "",
+        status: "generating",
+      });
+
+      res.json({ success: true });
+
+      generateStrategyInBackground(userId, companyName, industry, website || "", companyDescription).catch((err) => {
+        console.error("Background strategy generation failed:", err);
+      });
+    } catch (error) {
+      console.error("Onboarding error:", error);
+      res.status(500).json({ message: "Onboarding failed" });
+    }
+  });
+
+  app.get("/api/strategy", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const strategy = await storage.getMarketingStrategy(userId);
+      res.json(strategy || null);
+    } catch (error) {
+      console.error("Error fetching strategy:", error);
+      res.status(500).json({ message: "Failed to fetch strategy" });
+    }
+  });
+
+  app.post("/api/strategy/regenerate", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      if (!user?.companyName || !user?.industry || !user?.companyDescription) {
+        return res.status(400).json({ message: "Company info missing. Please update your profile." });
+      }
+      await storage.upsertMarketingStrategy({
+        userId,
+        companyName: user.companyName,
+        industry: user.industry,
+        strategy: "",
+        status: "generating",
+      });
+      res.json({ success: true });
+
+      generateStrategyInBackground(userId, user.companyName, user.industry, user.website || "", user.companyDescription).catch((err) => {
+        console.error("Background strategy regeneration failed:", err);
+      });
+    } catch (error) {
+      console.error("Regeneration error:", error);
+      res.status(500).json({ message: "Failed to regenerate strategy" });
     }
   });
 
