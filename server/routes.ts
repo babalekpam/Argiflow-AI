@@ -226,7 +226,7 @@ Brief overview of what you recommend and expected ROI timeline.
 Be specific, actionable, and tailored to their exact business. Use real-world examples relevant to their industry. Don't be generic — make this feel like a $5,000 consulting deliverable they're getting for free.`;
 
     const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
+      model: "claude-sonnet-4-5",
       max_tokens: 4000,
       messages: [{ role: "user", content: prompt }],
     });
@@ -294,31 +294,35 @@ async function handleAiAction(userId: string, userMessage: string, chatHistory: 
   const allAppts = await storage.getAppointmentsByUser(userId);
   const allAgents = await storage.getAiAgentsByUser(userId);
 
-  const systemPrompt = `You are ArgiFlow AI, the intelligent automation assistant for ArgiFlow — an AI Automation Agency that helps businesses scale with AI.
+  const systemPrompt = `You are ArgiFlow AI — the senior AI strategist and automation expert at ArgiFlow, a premium AI Automation Agency specializing in Voice AI, Process Automation, Lead Generation Chatbots, AI Receptionists, and CRM Integration.
 
-You help business owners manage leads, appointments, AI agents, and marketing campaigns. You can also search the web for real-time information using your built-in web search capability.
+You are a trusted business advisor, not a generic chatbot. Communicate with the authority and polish of a top-tier marketing consultant. Be direct, data-driven, and action-oriented.
 
-CURRENT USER DATA:
+CURRENT CLIENT DATA:
 - Leads: ${allLeads.length} total (${allLeads.filter(l => l.status === "hot").length} hot, ${allLeads.filter(l => l.status === "qualified").length} qualified, ${allLeads.filter(l => l.status === "warm").length} warm, ${allLeads.filter(l => l.status === "new").length} new)
 - Appointments: ${allAppts.length} total (${allAppts.filter(a => a.status === "scheduled").length} scheduled, ${allAppts.filter(a => a.status === "completed").length} completed)
-- AI Agents: ${allAgents.length} total (${allAgents.filter(a => a.status === "active").length} active)
-${allLeads.length > 0 ? `- Recent leads: ${allLeads.slice(0, 5).map(l => `${l.name} (${l.status}, score: ${l.score})`).join(", ")}` : "- No leads yet"}
-${allAgents.length > 0 ? `- Agents: ${allAgents.map(a => `${a.name} (${a.status})`).join(", ")}` : "- No agents activated yet"}
+- AI Agents: ${allAgents.length} deployed (${allAgents.filter(a => a.status === "active").length} active)
+${allLeads.length > 0 ? `- Pipeline: ${allLeads.slice(0, 5).map(l => `${l.name} (${l.status}, score: ${l.score})`).join(", ")}` : "- Pipeline is empty — ready for lead generation"}
+${allAgents.length > 0 ? `- Active agents: ${allAgents.map(a => `${a.name} (${a.status})`).join(", ")}` : "- No agents deployed yet"}
 
 CAPABILITIES:
-You have access to tools for managing the user's CRM and searching the web. Use them proactively:
-- When the user asks to generate leads, book appointments, activate agents, follow up, or get stats — use the appropriate CRM tool
-- When the user asks about market trends, competitors, news, best practices, or anything requiring current info — use the web_search tool
-- You can combine multiple tools in a single response
+You have CRM management tools and web search at your disposal. Use them proactively:
+- **CRM Tools**: Generate leads, book appointments, activate AI agents, follow up with prospects, pull performance stats
+- **Web Search**: Research market trends, competitors, industry data, and real-time information
+- Combine multiple tools in a single response when beneficial
 
-GUIDELINES:
-- Be conversational, helpful, and proactive
-- Give strategic advice about lead generation, sales, AI automation, and marketing
-- When the user asks to do something, DO IT using the tools
-- If the user has no leads yet, suggest generating some first
-- Be specific with numbers and recommendations
-- Keep responses concise but informative
-- You represent ArgiFlow — an AI Automation Agency, not just a chatbot`;
+COMMUNICATION STANDARDS:
+- Use **bold** for key terms, metrics, and action items
+- Use bullet points and numbered lists for clarity
+- Structure longer responses with clear sections
+- Lead with insights and recommendations, not just data
+- Be concise but thorough — every sentence should add value
+- When presenting data, provide context and actionable takeaways
+- Proactively suggest next steps and strategic recommendations
+- Use professional business language appropriate for C-suite executives
+- When the user asks to do something, execute it immediately using the tools — then summarize what was done and recommend next steps
+- If the pipeline is empty, recommend a strategic approach to lead generation
+- Reference specific ArgiFlow capabilities (Voice AI, RCM automation, lead gen chatbots) where relevant`;
 
   // Build message history for Claude
   const claudeMessages: Anthropic.MessageParam[] = chatHistory
@@ -396,8 +400,8 @@ GUIDELINES:
   try {
     // First Claude call — may use tools
     let response = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 2048,
+      model: "claude-sonnet-4-5",
+      max_tokens: 4096,
       system: systemPrompt,
       messages: claudeMessages,
       tools,
@@ -448,8 +452,8 @@ GUIDELINES:
 
       // Call Claude again with updated context
       response = await anthropic.messages.create({
-        model: "claude-haiku-4-5",
-        max_tokens: 2048,
+        model: "claude-sonnet-4-5",
+        max_tokens: 4096,
         system: systemPrompt,
         messages: currentMessages,
         tools,
@@ -515,7 +519,7 @@ async function fallbackResponse(userId: string, msg: string): Promise<string> {
 async function claudeWebSearch(query: string): Promise<string> {
   try {
     const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
+      model: "claude-sonnet-4-5",
       max_tokens: 1500,
       system: "You are a helpful research assistant. Search the web and provide a clear, concise summary of the findings. Include relevant source URLs when available.",
       messages: [{ role: "user", content: query }],
@@ -549,7 +553,7 @@ async function claudeWebSearch(query: string): Promise<string> {
       messages.push({ role: "user", content: results as any });
 
       currentResponse = await anthropic.messages.create({
-        model: "claude-haiku-4-5",
+        model: "claude-sonnet-4-5",
         max_tokens: 1500,
         system: "You are a helpful research assistant. Provide a clear, concise summary of your web search findings.",
         messages,
@@ -592,7 +596,7 @@ async function claudeGenerate(prompt: string, type: string = "general"): Promise
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
+      model: "claude-sonnet-4-5",
       max_tokens: 2048,
       system: systemPrompts[type] || systemPrompts.general,
       messages: [{ role: "user", content: prompt }],

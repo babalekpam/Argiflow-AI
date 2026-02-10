@@ -4,8 +4,59 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, Send, User, X, Trash2, MessageCircle } from "lucide-react";
+import { Bot, Send, User, X, Trash2, MessageCircle, Sparkles } from "lucide-react";
 import type { AiChatMessage } from "@shared/schema";
+
+function formatChatMarkdown(text: string): string {
+  const escapeHtml = (str: string): string =>
+    str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const lines = text.split("\n");
+  const result: string[] = [];
+  let inList = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("### ")) {
+      if (inList) { result.push("</ul>"); inList = false; }
+      const heading = escapeHtml(trimmed.slice(4));
+      result.push(`<p class="font-semibold text-foreground mt-2 mb-0.5">${heading}</p>`);
+    } else if (trimmed.startsWith("## ")) {
+      if (inList) { result.push("</ul>"); inList = false; }
+      const heading = escapeHtml(trimmed.slice(3));
+      result.push(`<p class="font-semibold text-foreground mt-2 mb-0.5">${heading}</p>`);
+    } else if (trimmed.startsWith("# ")) {
+      if (inList) { result.push("</ul>"); inList = false; }
+      const heading = escapeHtml(trimmed.slice(2));
+      result.push(`<p class="font-bold text-foreground mt-2 mb-0.5">${heading}</p>`);
+    } else if (/^[-*]\s/.test(trimmed)) {
+      if (!inList) { result.push('<ul class="space-y-0.5 my-1 ml-2">'); inList = true; }
+      const item = escapeHtml(trimmed.replace(/^[-*]\s+/, ""));
+      result.push(`<li class="flex items-start gap-1.5"><span class="text-primary mt-0.5 shrink-0">&bull;</span><span>${applyInline(item)}</span></li>`);
+    } else if (/^\d+\.\s/.test(trimmed)) {
+      if (!inList) { result.push('<ul class="space-y-0.5 my-1 ml-2">'); inList = true; }
+      const num = trimmed.match(/^(\d+)\./)?.[1] || "1";
+      const item = escapeHtml(trimmed.replace(/^\d+\.\s+/, ""));
+      result.push(`<li class="flex items-start gap-1.5"><span class="text-primary font-medium shrink-0">${num}.</span><span>${applyInline(item)}</span></li>`);
+    } else if (trimmed === "") {
+      if (inList) { result.push("</ul>"); inList = false; }
+      result.push('<div class="h-1.5"></div>');
+    } else {
+      if (inList) { result.push("</ul>"); inList = false; }
+      result.push(`<p>${applyInline(escapeHtml(trimmed))}</p>`);
+    }
+  }
+  if (inList) result.push("</ul>");
+  return result.join("");
+}
+
+function applyInline(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-foreground font-semibold">$1</strong>')
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>")
+    .replace(/`([^`]+)`/g, '<code class="bg-muted px-1 py-0.5 rounded text-[10px]">$1</code>');
+}
 
 export function AiChatDialog() {
   const [isOpen, setIsOpen] = useState(false);
@@ -70,18 +121,18 @@ export function AiChatDialog() {
 
       {isOpen && (
         <div
-          className="fixed bottom-24 right-6 z-50 w-96 max-w-[calc(100vw-3rem)] bg-card border border-border rounded-md shadow-xl flex flex-col"
-          style={{ height: "480px" }}
+          className="fixed bottom-24 right-6 z-50 w-[420px] max-w-[calc(100vw-3rem)] bg-card border border-border rounded-md shadow-xl flex flex-col"
+          style={{ height: "520px" }}
           data-testid="ai-chat-dialog"
         >
           <div className="flex items-center justify-between gap-2 p-3 border-b border-border/50">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-primary" />
+                <Sparkles className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <p className="text-sm font-semibold">ArgiFlow AI</p>
-                <p className="text-xs text-emerald-400">Online</p>
+                <p className="text-[10px] text-emerald-400 font-medium">Powered by Anthropic Claude</p>
               </div>
             </div>
             {messages && messages.length > 0 && (
@@ -111,13 +162,20 @@ export function AiChatDialog() {
                       </AvatarFallback>
                     </Avatar>
                     <div
-                      className={`max-w-[80%] rounded-md p-2.5 text-xs whitespace-pre-wrap leading-relaxed ${
+                      className={`max-w-[85%] rounded-md p-2.5 text-xs leading-relaxed ${
                         msg.role === "user"
-                          ? "bg-primary/10 text-foreground"
-                          : "bg-secondary/50 text-foreground"
+                          ? "bg-primary/10 text-foreground whitespace-pre-wrap"
+                          : "bg-secondary/50 text-muted-foreground"
                       }`}
                     >
-                      {msg.content}
+                      {msg.role === "assistant" ? (
+                        <div
+                          className="chat-markdown"
+                          dangerouslySetInnerHTML={{ __html: formatChatMarkdown(msg.content) }}
+                        />
+                      ) : (
+                        msg.content
+                      )}
                     </div>
                   </div>
                 ))}
@@ -128,11 +186,15 @@ export function AiChatDialog() {
                         <Bot className="w-3.5 h-3.5" />
                       </AvatarFallback>
                     </Avatar>
-                    <div className="max-w-[80%] rounded-md p-2.5 bg-secondary/50 text-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <div className="max-w-[85%] rounded-md p-2.5 bg-secondary/50 text-foreground">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-3 h-3 text-primary animate-pulse" />
+                        <span className="text-[10px] text-muted-foreground">Thinking...</span>
+                        <div className="flex gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -140,11 +202,25 @@ export function AiChatDialog() {
               </>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                <Bot className="w-10 h-10 text-primary/50 mb-3" />
-                <p className="text-sm font-medium mb-1">How can I help?</p>
-                <p className="text-xs text-muted-foreground">
-                  Ask me to create campaigns, generate leads, schedule appointments, or anything else.
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                  <Sparkles className="w-6 h-6 text-primary" />
+                </div>
+                <p className="text-sm font-semibold mb-1">ArgiFlow AI Strategist</p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Your AI-powered business advisor. Ask me anything about lead generation, marketing strategy, or automation.
                 </p>
+                <div className="flex flex-wrap gap-1.5 justify-center">
+                  {["Generate leads", "Marketing strategy", "Book appointments"].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => { setMessage(s); }}
+                      className="text-[10px] px-2 py-1 rounded-md bg-primary/5 text-primary border border-primary/10 transition-colors"
+                      data-testid={`button-quick-${s.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -156,7 +232,7 @@ export function AiChatDialog() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Tell me what you need..."
+                placeholder="Ask your AI strategist..."
                 disabled={sendMutation.isPending}
                 className="text-sm"
                 data-testid="input-dialog-chat-message"
