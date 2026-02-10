@@ -138,3 +138,7 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - AI agent has `send_outreach` tool to auto-engage prospects when user asks to "engage", "email", or "contact" leads
 - Leads page UI: "Engage All" button for bulk sends, per-lead "Send Email" button, sent/ready status badges
 - Requires SendGrid API key configured in Settings > Integrations
+- Twilio integration via Replit Connectors for SMS sending (server/twilio.ts utility)
+- POST /api/sms/send - Send SMS to any phone number { to, body }
+- POST /api/leads/:id/send-sms - Send SMS to a specific lead { body }
+- AI agent has `send_sms` tool to text leads via chat ("text", "SMS", "message" triggers)

@@ -226,6 +226,56 @@ async function executeAction(userId: string, action: string, params: any): Promi
       }
       return result;
     }
+    case "send_sms": {
+      const allLeads = await storage.getLeadsByUser(userId);
+      const targetPhone = params.phone;
+      const smsBody = params.message;
+
+      if (!smsBody) {
+        return "Please specify the message to send via SMS.";
+      }
+
+      try {
+        const { sendSMS } = await import("./twilio");
+
+        if (targetPhone) {
+          const msg = await sendSMS(targetPhone, smsBody);
+          return `SMS sent successfully to ${targetPhone} (SID: ${msg.sid}).`;
+        }
+
+        const leadId = params.lead_id;
+        if (leadId) {
+          const lead = allLeads.find(l => l.id === leadId);
+          if (!lead) return "Lead not found.";
+          if (!lead.phone) return `Lead ${lead.name} has no phone number on file.`;
+          const msg = await sendSMS(lead.phone, smsBody);
+          return `SMS sent to ${lead.name} at ${lead.phone} (SID: ${msg.sid}).`;
+        }
+
+        const leadsWithPhone = allLeads.filter(l => l.phone);
+        if (leadsWithPhone.length === 0) {
+          return "No leads with phone numbers found. Add phone numbers to your leads first.";
+        }
+
+        let sentCount = 0;
+        const sentNames: string[] = [];
+        for (const lead of leadsWithPhone) {
+          try {
+            await sendSMS(lead.phone!, smsBody);
+            sentCount++;
+            sentNames.push(lead.name);
+          } catch (err: any) {
+            console.error(`Failed to SMS ${lead.name}:`, err.message);
+          }
+        }
+        return `SMS sent to ${sentCount} lead${sentCount !== 1 ? "s" : ""}: ${sentNames.join(", ")}.`;
+      } catch (err: any) {
+        if (err.message?.includes("Twilio not connected")) {
+          return "Twilio is not connected. Ask the user to set up their Twilio integration in the project settings.";
+        }
+        return `Failed to send SMS: ${err.message}`;
+      }
+    }
     default:
       return `Unknown action: ${action}`;
   }
@@ -384,6 +434,7 @@ CAPABILITIES:
 You have CRM management tools and web search at your disposal. Use them proactively:
 - **Lead Generation**: When the user asks for leads, you MUST use web_search FIRST to find REAL businesses and contacts. Search for real companies in their industry, extract actual names, emails, phone numbers, and website URLs from public directories, business listings, and company websites. Then save them using the generate_leads tool. NEVER make up fictional contact information — every lead must come from actual web search results.
 - **Direct Outreach**: After generating leads, if the user says to "engage", "reach out", "email", "send", or "contact" them, IMMEDIATELY use the send_outreach tool to send the personalized outreach emails directly. You can also use this when the user asks you to follow up or engage existing leads.
+- **SMS Messaging**: If the user asks to "text", "SMS", or "send a text" to leads or a phone number, use the send_sms tool. You can text individual leads by ID, a direct phone number, or all leads with phone numbers at once.
 - **CRM Tools**: Book appointments, activate AI agents, follow up with prospects, pull performance stats
 - **Web Search**: Research market trends, competitors, industry data, real-time information, and find real business contacts
 - Combine multiple tools in a single response when beneficial. For example, generate leads AND send outreach in the same flow when the user asks to "find and engage prospects".
@@ -534,6 +585,28 @@ COMMUNICATION STANDARDS:
           },
         },
         required: [],
+      },
+    },
+    {
+      name: "send_sms",
+      description: "Send an SMS text message to a lead or phone number using Twilio. Use when the user asks to 'text', 'SMS', 'message', or 'send a text' to leads or a phone number.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          phone: {
+            type: "string",
+            description: "Direct phone number to send to (e.g. +15551234567). Use this OR lead_id, not both.",
+          },
+          lead_id: {
+            type: "string",
+            description: "ID of a specific lead to send SMS to. The lead must have a phone number on file.",
+          },
+          message: {
+            type: "string",
+            description: "The SMS message body to send.",
+          },
+        },
+        required: ["message"],
       },
     },
   ];
@@ -1190,6 +1263,46 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     } catch (error) {
       console.error("Error sending bulk outreach:", error);
       res.status(500).json({ message: "Failed to send outreach emails" });
+    }
+  });
+
+  // ---- SMS (Twilio) ----
+
+  app.post("/api/sms/send", isAuthenticated, async (req, res) => {
+    try {
+      const { to, body } = req.body;
+      if (!to || !body) {
+        return res.status(400).json({ message: "Phone number (to) and message body are required" });
+      }
+      const { sendSMS } = await import("./twilio");
+      const message = await sendSMS(to, body);
+      res.json({ success: true, sid: message.sid, status: message.status });
+    } catch (error: any) {
+      console.error("Error sending SMS:", error);
+      res.status(500).json({ message: error.message || "Failed to send SMS" });
+    }
+  });
+
+  app.post("/api/leads/:id/send-sms", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const lead = await storage.getLeadById(req.params.id as string);
+      if (!lead || lead.userId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      if (!lead.phone) {
+        return res.status(400).json({ message: "Lead has no phone number" });
+      }
+      const { body } = req.body;
+      if (!body) {
+        return res.status(400).json({ message: "Message body is required" });
+      }
+      const { sendSMS } = await import("./twilio");
+      const message = await sendSMS(lead.phone, body);
+      res.json({ success: true, sid: message.sid, status: message.status, leadName: lead.name });
+    } catch (error: any) {
+      console.error("Error sending SMS to lead:", error);
+      res.status(500).json({ message: error.message || "Failed to send SMS" });
     }
   });
 
