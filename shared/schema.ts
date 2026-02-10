@@ -18,6 +18,7 @@ export const leads = pgTable("leads", {
   notes: text("notes"),
   outreach: text("outreach"),
   intentSignal: text("intent_signal"),
+  outreachSentAt: timestamp("outreach_sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
