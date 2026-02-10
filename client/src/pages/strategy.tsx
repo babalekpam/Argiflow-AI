@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
 import {
   Sparkles,
   RefreshCw,
@@ -16,8 +17,146 @@ import {
   TrendingUp,
   CheckCircle,
   Loader2,
+  Building2,
+  Search,
+  Globe,
+  BrainCircuit,
+  FileText,
+  Rocket,
+  ArrowRight,
 } from "lucide-react";
 import type { MarketingStrategy } from "@shared/schema";
+
+const workflowSteps = [
+  { icon: Building2, label: "Analyzing Business Profile", description: "Reading your company details and goals" },
+  { icon: Search, label: "Researching Industry Trends", description: "Scanning market data for your sector" },
+  { icon: Globe, label: "Mapping Competitor Strategies", description: "Identifying gaps and opportunities" },
+  { icon: Target, label: "Building Lead Gen Plan", description: "Designing your acquisition funnel" },
+  { icon: BrainCircuit, label: "Crafting AI Automation", description: "Selecting the best AI agent workflows" },
+  { icon: FileText, label: "Finalizing Your Strategy", description: "Compiling the full marketing plan" },
+];
+
+function WorkflowVisual() {
+  const [activeStep, setActiveStep] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveStep((prev) => (prev < workflowSteps.length - 1 ? prev + 1 : prev));
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const progress = ((activeStep + 1) / workflowSteps.length) * 100;
+
+  return (
+    <Card className="p-6" data-testid="card-workflow-visual">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="relative">
+          <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
+            <Rocket className="w-5 h-5 text-primary" />
+          </div>
+          <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-400 animate-pulse" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold">Building Your Strategy</h3>
+          <p className="text-xs text-muted-foreground">
+            Step {activeStep + 1} of {workflowSteps.length}
+          </p>
+        </div>
+        <Badge className="ml-auto bg-amber-500/10 text-amber-400 border-amber-500/20 no-default-hover-elevate no-default-active-elevate">
+          <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+          Processing
+        </Badge>
+      </div>
+
+      <div className="w-full h-1.5 bg-muted rounded-full mb-8 overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-primary to-chart-3 rounded-full transition-all duration-1000 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <div className="grid gap-3">
+        {workflowSteps.map((step, i) => {
+          const Icon = step.icon;
+          const isActive = i === activeStep;
+          const isComplete = i < activeStep;
+          const isPending = i > activeStep;
+
+          return (
+            <div
+              key={i}
+              className={`flex items-center gap-4 p-3 rounded-md transition-all duration-500 ${
+                isActive
+                  ? "bg-primary/5 border border-primary/20"
+                  : isComplete
+                  ? "bg-muted/30"
+                  : "opacity-40"
+              }`}
+              data-testid={`workflow-step-${i}`}
+            >
+              <div
+                className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 transition-colors duration-500 ${
+                  isActive
+                    ? "bg-primary/15 text-primary"
+                    : isComplete
+                    ? "bg-chart-3/10 text-chart-3"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {isComplete ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : isActive ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Icon className="w-4 h-4" />
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <p
+                  className={`text-sm font-medium transition-colors duration-500 ${
+                    isActive
+                      ? "text-foreground"
+                      : isComplete
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/60"
+                  }`}
+                >
+                  {step.label}
+                </p>
+                {(isActive || isComplete) && (
+                  <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
+                )}
+              </div>
+
+              {isActive && (
+                <div className="flex gap-1 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+              )}
+              {isComplete && (
+                <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20 text-[10px] no-default-hover-elevate no-default-active-elevate">
+                  Done
+                </Badge>
+              )}
+              {isPending && (
+                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 pt-4 border-t border-border/50 flex items-center gap-2 text-xs text-muted-foreground">
+        <Sparkles className="w-3.5 h-3.5 text-primary" />
+        <span>Powered by AI &mdash; your custom strategy is almost ready</span>
+      </div>
+    </Card>
+  );
+}
 
 function renderMarkdown(text: string) {
   const lines = text.split("\n");
@@ -218,20 +357,7 @@ export default function StrategyPage() {
       </div>
 
       {isGenerating ? (
-        <Card className="p-8">
-          <div className="flex flex-col items-center justify-center py-8">
-            <div className="relative mb-6">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <Sparkles className="w-8 h-8 text-primary" />
-              </div>
-              <div className="absolute inset-0 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">AI is analyzing your business...</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-md">
-              Our AI is researching your industry, analyzing competitor strategies, and building a customized marketing plan. This usually takes 15-30 seconds.
-            </p>
-          </div>
-        </Card>
+        <WorkflowVisual />
       ) : (
         <Card className="p-6" data-testid="card-strategy-content">
           <div className="prose-sm">
