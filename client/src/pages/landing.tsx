@@ -205,9 +205,9 @@ export default function LandingPage() {
             <a href="/login" data-testid="button-login">
               <Button variant="ghost" size="sm">Client Login</Button>
             </a>
-            <a href="/discovery" data-testid="button-get-started">
+            <a href="/signup" data-testid="button-get-started">
               <Button size="sm">
-                Book Discovery Call
+                Get Started
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </a>
@@ -240,26 +240,26 @@ export default function LandingPage() {
 
             <div className="flex flex-wrap items-center gap-6 mb-10">
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">$2.4M+</span>
-                <span className="text-sm text-muted-foreground">Client Revenue Generated</span>
+                <span className="text-3xl font-extrabold gradient-text">24/7</span>
+                <span className="text-sm text-muted-foreground">AI Working For You</span>
               </div>
               <div className="w-px h-10 bg-border" />
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">40hrs</span>
-                <span className="text-sm text-muted-foreground">Avg. Weekly Time Saved</span>
+                <span className="text-3xl font-extrabold gradient-text">10x</span>
+                <span className="text-sm text-muted-foreground">Team Productivity</span>
               </div>
               <div className="w-px h-10 bg-border" />
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">3.7x</span>
-                <span className="text-sm text-muted-foreground">Average Client ROI</span>
+                <span className="text-3xl font-extrabold gradient-text">2-4 Wks</span>
+                <span className="text-sm text-muted-foreground">To See Results</span>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
-              <a href="/discovery" data-testid="button-hero-cta">
+              <a href="/signup" data-testid="button-hero-cta">
                 <Button size="lg" className="text-base px-8">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Book Your Discovery Call
+                  <Rocket className="w-4 h-4 mr-2" />
+                  Get Started Free
                 </Button>
               </a>
               <a href="#services">
@@ -290,14 +290,14 @@ export default function LandingPage() {
                   <Bot className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-lg font-bold mb-1">What AI Can Do For You</h3>
-                <p className="text-xs text-muted-foreground">Real results from real clients</p>
+                <p className="text-xs text-muted-foreground">Capabilities built for growing businesses</p>
               </div>
               <div className="space-y-3">
                 {[
-                  { icon: Phone, label: "Voice AI answered", value: "12,847 calls", sub: "this quarter", color: "bg-primary/10 text-primary" },
-                  { icon: MessageSquare, label: "Chatbot qualified", value: "3,492 leads", sub: "this month", color: "bg-chart-3/10 text-chart-3" },
-                  { icon: Workflow, label: "Automated", value: "156 workflows", sub: "across clients", color: "bg-chart-4/10 text-chart-4" },
-                  { icon: Calendar, label: "AI booked", value: "847 appointments", sub: "last 30 days", color: "bg-chart-2/10 text-chart-2" },
+                  { icon: Phone, label: "Voice AI Agents", value: "24/7 Coverage", sub: "Inbound & outbound calls", color: "bg-primary/10 text-primary" },
+                  { icon: MessageSquare, label: "Lead Gen Chatbots", value: "Always On", sub: "Qualify & convert visitors", color: "bg-chart-3/10 text-chart-3" },
+                  { icon: Workflow, label: "Process Automation", value: "End-to-End", sub: "Sales, marketing & ops", color: "bg-chart-4/10 text-chart-4" },
+                  { icon: Calendar, label: "Smart Scheduling", value: "Automated", sub: "AI-powered booking", color: "bg-chart-2/10 text-chart-2" },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center justify-between gap-4 p-3 rounded-md bg-background/50">
                     <div className="flex items-center gap-3">
@@ -425,10 +425,10 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="text-center mt-12">
-            <a href="/discovery">
+            <a href="/signup">
               <Button size="lg" className="text-base px-8">
-                <Calendar className="w-4 h-4 mr-2" />
-                Start With a Free Discovery Call
+                <Rocket className="w-4 h-4 mr-2" />
+                Get Started Now
               </Button>
             </a>
           </div>
@@ -479,9 +479,9 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="/discovery" className="block">
+              <a href="/signup" className="block">
                 <Button className="w-full" variant="outline">
-                  Book Discovery Call
+                  Get Started
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </a>
@@ -519,9 +519,9 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="/discovery" className="block">
+              <a href="/signup" className="block">
                 <Button className="w-full">
-                  Book Discovery Call
+                  Get Started
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </a>
@@ -556,7 +556,7 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="/discovery" className="block">
+              <a href="/signup" className="block">
                 <Button className="w-full" variant="outline">
                   Let's Talk
                   <ChevronRight className="w-4 h-4 ml-1" />
@@ -647,14 +647,14 @@ export default function LandingPage() {
               Ready to <span className="gradient-text">Scale with AI?</span>
             </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-              Schedule a free discovery call. We'll audit your business, identify the
-              highest-ROI opportunities, and show you exactly how AI can transform your operations.
+              Sign up for free and explore how AI can transform your business operations.
+              We'll help you identify the highest-ROI opportunities and get started fast.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
-              <a href="/discovery" data-testid="button-cta-final">
+              <a href="/signup" data-testid="button-cta-final">
                 <Button size="lg" className="text-base px-8">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Book Your Free Discovery Call
+                  <Rocket className="w-4 h-4 mr-2" />
+                  Get Started Free
                 </Button>
               </a>
               <a href="mailto:abel@argilette.com">
@@ -710,7 +710,7 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold text-sm mb-4">Contact</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="/discovery" className="hover:text-foreground transition-colors">Book a Call</a></li>
+                <li><a href="/signup" className="hover:text-foreground transition-colors">Get Started</a></li>
                 <li><a href="mailto:abel@argilette.com" className="hover:text-foreground transition-colors">abel@argilette.com</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Terms of Service</a></li>
@@ -718,7 +718,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="pt-8 border-t border-border/50 text-center text-sm text-muted-foreground">
-            <p>&copy; 2025 ArgiFlow AI. All rights reserved. An ARGILETTE company.</p>
+            <p>&copy; 2026 ArgiFlow AI. All rights reserved. An ARGILETTE company.</p>
           </div>
         </div>
       </footer>
