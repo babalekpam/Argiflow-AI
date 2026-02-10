@@ -37,13 +37,13 @@ const mainNav = [
 
 const automationNav = [
   { title: "AI Agents", icon: Bot, url: "/dashboard/ai-agents", badge: "LIVE" },
-  { title: "Voice AI", icon: Phone, url: "/dashboard/ai-agents", badge: "NEW" },
+  { title: "Voice AI", icon: Phone, url: "/dashboard/voice-ai", badge: "NEW" },
   { title: "Chatbots", icon: MessageSquare, url: "/dashboard/ai-agents" },
   { title: "Email & SMS", icon: Mail, url: "/dashboard/email" },
 ];
 
 const growthNav = [
-  { title: "Automations", icon: Workflow, url: "/dashboard/ai-agents" },
+  { title: "Automations", icon: Workflow, url: "/dashboard/automations" },
   { title: "Training", icon: GraduationCap, url: "/dashboard/training" },
   { title: "Settings", icon: Settings, url: "/dashboard/settings" },
 ];

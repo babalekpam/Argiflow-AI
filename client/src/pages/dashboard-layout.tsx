@@ -13,6 +13,8 @@ import DashboardPage from "./dashboard";
 import LeadsPage from "./leads";
 import AppointmentsPage from "./appointments";
 import AiAgentsPage from "./ai-agents";
+import VoiceAiPage from "./voice-ai";
+import AutomationsPage from "./automations";
 import EmailSmsPage from "./email-sms";
 import TrainingPage from "./training";
 import SettingsPage from "./settings";
@@ -103,6 +105,8 @@ export default function DashboardLayout() {
               <Route path="/dashboard/leads" component={LeadsPage} />
               <Route path="/dashboard/appointments" component={AppointmentsPage} />
               <Route path="/dashboard/ai-agents" component={AiAgentsPage} />
+              <Route path="/dashboard/voice-ai" component={VoiceAiPage} />
+              <Route path="/dashboard/automations" component={AutomationsPage} />
               <Route path="/dashboard/email" component={EmailSmsPage} />
               <Route path="/dashboard/training" component={TrainingPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
