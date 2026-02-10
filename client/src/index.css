@@ -17,27 +17,27 @@
   --sidebar: 240 14% 8%;
   --sidebar-foreground: 220 20% 90%;
   --sidebar-border: 240 12% 14%;
-  --sidebar-primary: 245 75% 60%;
+  --sidebar-primary: 197 85% 55%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 240 12% 14%;
   --sidebar-accent-foreground: 220 20% 90%;
-  --sidebar-ring: 245 75% 60%;
+  --sidebar-ring: 197 85% 55%;
   --popover: 240 14% 10%;
   --popover-foreground: 220 20% 95%;
   --popover-border: 240 12% 16%;
-  --primary: 245 75% 60%;
+  --primary: 197 85% 55%;
   --primary-foreground: 0 0% 100%;
   --secondary: 240 12% 14%;
   --secondary-foreground: 220 20% 90%;
   --muted: 240 10% 18%;
   --muted-foreground: 220 10% 55%;
-  --accent: 245 40% 16%;
+  --accent: 197 40% 16%;
   --accent-foreground: 220 20% 95%;
   --destructive: 0 75% 50%;
   --destructive-foreground: 0 0% 100%;
   --input: 240 12% 25%;
-  --ring: 245 75% 60%;
-  --chart-1: 245 75% 60%;
+  --ring: 197 85% 55%;
+  --chart-1: 197 85% 55%;
   --chart-2: 180 70% 45%;
   --chart-3: 145 70% 45%;
   --chart-4: 280 70% 60%;
@@ -88,30 +88,30 @@
   --sidebar: 240 14% 8%;
   --sidebar-foreground: 220 20% 90%;
   --sidebar-border: 240 12% 14%;
-  --sidebar-primary: 245 75% 60%;
+  --sidebar-primary: 197 85% 55%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 240 12% 14%;
   --sidebar-accent-foreground: 220 20% 90%;
-  --sidebar-ring: 245 75% 60%;
+  --sidebar-ring: 197 85% 55%;
   --popover: 240 14% 10%;
   --popover-foreground: 220 20% 95%;
   --popover-border: 240 12% 16%;
-  --primary: 245 75% 60%;
+  --primary: 197 85% 55%;
   --primary-foreground: 0 0% 100%;
   --secondary: 240 12% 14%;
   --secondary-foreground: 220 20% 90%;
   --muted: 240 10% 18%;
   --muted-foreground: 220 10% 55%;
-  --accent: 245 40% 16%;
+  --accent: 197 40% 16%;
   --accent-foreground: 220 20% 95%;
   --destructive: 0 75% 50%;
   --destructive-foreground: 0 0% 100%;
   --input: 240 12% 25%;
-  --ring: 245 75% 60%;
-  --chart-1: 245 75% 65%;
+  --ring: 197 85% 55%;
+  --chart-1: 197 85% 60%;
   --chart-2: 180 70% 50%;
   --chart-3: 145 70% 50%;
-  --chart-4: 280 70% 65%;
+  --chart-4: 210 70% 65%;
   --chart-5: 340 75% 60%;
   --shadow-2xs: 0px 2px 4px rgba(0,0,0,0.3);
   --shadow-xs: 0px 2px 4px rgba(0,0,0,0.3);
@@ -219,25 +219,25 @@
   }
 
   .gradient-text {
-    background: linear-gradient(135deg, hsl(245 75% 60%), hsl(280 70% 60%), hsl(200 80% 55%));
+    background: linear-gradient(135deg, hsl(197 85% 55%), hsl(210 80% 60%), hsl(185 75% 50%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .gradient-bg {
-    background: linear-gradient(135deg, hsl(245 75% 60% / 0.15), hsl(280 70% 60% / 0.1), hsl(200 80% 55% / 0.1));
+    background: linear-gradient(135deg, hsl(197 85% 55% / 0.15), hsl(210 80% 60% / 0.1), hsl(185 75% 50% / 0.1));
   }
 
   .gradient-border {
     border: 1px solid transparent;
-    background-image: linear-gradient(hsl(var(--card)), hsl(var(--card))), linear-gradient(135deg, hsl(245 75% 60% / 0.3), hsl(280 70% 60% / 0.2));
+    background-image: linear-gradient(hsl(var(--card)), hsl(var(--card))), linear-gradient(135deg, hsl(197 85% 55% / 0.3), hsl(210 80% 60% / 0.2));
     background-origin: border-box;
     background-clip: padding-box, border-box;
   }
 
   .glow-purple {
-    box-shadow: 0 0 40px hsl(245 75% 60% / 0.15), 0 0 80px hsl(280 70% 60% / 0.08);
+    box-shadow: 0 0 40px hsl(197 85% 55% / 0.15), 0 0 80px hsl(210 80% 60% / 0.08);
   }
 
   .glow-green {

@@ -82,9 +82,9 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `funnel_deals` - Deals/contacts moving through funnel stages
 
 ## Design
-- Dark theme with indigo/purple gradient accents
+- Dark theme with sky blue gradient accents
 - Font: Inter
-- Color scheme: Deep dark backgrounds (240 15% 6%) with purple primary (245 75% 60%)
+- Color scheme: Deep dark backgrounds (240 15% 6%) with sky blue primary (197 85% 55%)
 
 ## Recent Changes
 - Initial build: Landing page, Dashboard, Leads CRM, Appointments, AI Agents pages
