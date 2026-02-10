@@ -59,29 +59,8 @@ const isAdmin: RequestHandler = (req, res, next) => {
 // LEAD GENERATION HELPERS
 // ============================================================
 
-const firstNames = ["Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Avery", "Quinn", "Blake", "Cameron", "Drew", "Hayden", "Skyler", "Reese", "Parker", "Sawyer", "Dakota", "Emerson", "Finley", "Rowan"];
-const lastNames = ["Mitchell", "Brooks", "Rivera", "Foster", "Hayes", "Bennett", "Cole", "Reed", "Gray", "Ward", "Price", "Sullivan", "Russell", "Howard", "Perry", "Long", "Butler", "Barnes", "Ross", "Murphy"];
-const sources = ["Google Ads", "Facebook", "Instagram", "LinkedIn", "Website", "Referral", "Cold Outreach", "Twitter"];
-const domains = ["growthdigital.com", "scaleup.io", "clientmax.com", "growthlab.co", "agencypro.com", "scaledigital.com", "boostmedia.com", "funnelpro.com", "marketflow.co", "leadpeak.io"];
-
 function randomPick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 function randomInt(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-
-function generateRandomLead(userId: string) {
-  const first = randomPick(firstNames);
-  const last = randomPick(lastNames);
-  const domain = randomPick(domains);
-  const statuses = ["new", "warm", "hot", "qualified"];
-  return {
-    userId,
-    name: `${first} ${last}`,
-    email: `${first.toLowerCase()}.${last.toLowerCase()}@${domain}`,
-    phone: `+1 (555) ${randomInt(100, 999)}-${randomInt(1000, 9999)}`,
-    source: randomPick(sources),
-    status: randomPick(statuses),
-    score: randomInt(40, 98),
-  };
-}
 
 // ============================================================
 // CRM ACTION EXECUTOR (called by Claude via tool_use)
@@ -90,18 +69,29 @@ function generateRandomLead(userId: string) {
 async function executeAction(userId: string, action: string, params: any): Promise<string> {
   switch (action) {
     case "generate_leads": {
-      const count = Math.min(params.count || 3, 20);
+      const leadsData = params.leads || [];
+      if (!Array.isArray(leadsData) || leadsData.length === 0) {
+        return "ERROR: No lead data provided. Use web_search first to find real businesses, then pass their details to this tool.";
+      }
       const created: string[] = [];
-      for (let i = 0; i < count; i++) {
-        const leadData = generateRandomLead(userId);
-        await storage.createLead(leadData);
-        created.push(leadData.name);
+      for (const lead of leadsData.slice(0, 20)) {
+        const leadRecord = {
+          userId,
+          name: lead.name || "Unknown",
+          email: lead.email || "",
+          phone: lead.phone || "",
+          source: lead.source || "Web Research",
+          status: lead.status || "new",
+          score: lead.score || randomInt(50, 85),
+        };
+        await storage.createLead(leadRecord);
+        created.push(`${leadRecord.name}${lead.company ? ` (${lead.company})` : ""}`);
       }
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);
       const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
       await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
-      return `Created ${count} leads: ${created.join(", ")}. Total leads now: ${allLeads.length}.`;
+      return `Saved ${created.length} real leads to CRM: ${created.join(", ")}. Total leads now: ${allLeads.length}.`;
     }
     case "book_appointments": {
       const userLeads = await storage.getLeadsByUser(userId);
@@ -326,9 +316,19 @@ ${allAgents.length > 0 ? `- Active agents: ${allAgents.map(a => `${a.name} (${a.
 
 CAPABILITIES:
 You have CRM management tools and web search at your disposal. Use them proactively:
-- **CRM Tools**: Generate leads, book appointments, activate AI agents, follow up with prospects, pull performance stats
-- **Web Search**: Research market trends, competitors, industry data, and real-time information
+- **Lead Generation**: When the user asks for leads, you MUST use web_search FIRST to find REAL businesses and contacts. Search for real companies in their industry, extract actual names, emails, phone numbers, and website URLs from public directories, business listings, and company websites. Then save them using the generate_leads tool. NEVER make up fictional contact information — every lead must come from actual web search results.
+- **CRM Tools**: Book appointments, activate AI agents, follow up with prospects, pull performance stats
+- **Web Search**: Research market trends, competitors, industry data, real-time information, and find real business contacts
 - Combine multiple tools in a single response when beneficial
+
+LEAD GENERATION RULES (CRITICAL):
+1. ALWAYS search the web first before generating leads
+2. Search for real businesses using queries like "[industry] companies in [location]", "[industry] businesses near [city]", "top [industry] firms directory"
+3. Extract REAL contact details: actual business names, real email addresses, real phone numbers from their websites
+4. If you can't find an email, look for the company's contact page or use common patterns (info@company.com, contact@company.com)
+5. Include the company name and source (where you found them) for each lead
+6. Score leads based on how relevant they are to the user's business
+7. If the user doesn't specify an industry or location, use their company profile information
 
 COMMUNICATION STANDARDS:
 - Use **bold** for key terms, metrics, and action items
@@ -363,13 +363,29 @@ COMMUNICATION STANDARDS:
     // CRM Tools
     {
       name: "generate_leads",
-      description: "Generate new leads and add them to the user's CRM. Use when the user asks to create, generate, or add leads.",
+      description: "Save researched leads to the CRM. IMPORTANT: You MUST use web_search FIRST to find real businesses/contacts before calling this tool. Search for real companies in the user's industry and location. Extract real names, emails, phone numbers, and company names from search results. NEVER invent or fabricate contact information.",
       input_schema: {
         type: "object" as const,
         properties: {
-          count: { type: "number", description: "Number of leads to generate (1-20)", default: 5 },
+          leads: {
+            type: "array",
+            description: "Array of real leads found via web search",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Real contact name (person or business name)" },
+                email: { type: "string", description: "Real email address found from website or directory" },
+                phone: { type: "string", description: "Real phone number found from website or directory" },
+                company: { type: "string", description: "Company/business name" },
+                source: { type: "string", description: "Where found: 'Web Research', 'Google', 'LinkedIn', 'Directory', etc." },
+                status: { type: "string", description: "Lead status: 'new'" },
+                score: { type: "number", description: "Lead score 1-100 based on relevance to user's business" },
+              },
+              required: ["name"],
+            },
+          },
         },
-        required: [],
+        required: ["leads"],
       },
     },
     {
@@ -494,11 +510,8 @@ COMMUNICATION STANDARDS:
 
 async function fallbackResponse(userId: string, msg: string): Promise<string> {
   const lower = msg.toLowerCase();
-  if (lower.includes("lead") && (lower.includes("generate") || lower.includes("create"))) {
-    const countMatch = lower.match(/(\d+)/);
-    const count = Math.min(countMatch ? parseInt(countMatch[1]) : 3, 20);
-    const result = await executeAction(userId, "generate_leads", { count });
-    return `Running in fallback mode, but got it done! ${result}`;
+  if (lower.includes("lead") && (lower.includes("generate") || lower.includes("create") || lower.includes("find"))) {
+    return "I need the AI engine to search the web for real leads. The fallback system can't do web searches — please try again in a moment and I'll find real businesses for you.";
   }
   if (lower.includes("appointment") || lower.includes("book")) {
     const countMatch = lower.match(/(\d+)/);
