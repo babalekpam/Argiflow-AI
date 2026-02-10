@@ -30,6 +30,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { SiX, SiLinkedin, SiInstagram } from "react-icons/si";
+import { CompactFlowchart } from "@/components/animated-flowchart";
 
 const services = [
   {
@@ -348,6 +349,43 @@ export default function LandingPage() {
                   {service.description}
                 </p>
               </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* AI Pipeline Flowchart */}
+      <section className="py-24 relative" data-testid="section-pipeline">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-primary/3 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-5xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
+              The AI Pipeline
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4">
+              Your Automated{" "}
+              <span className="gradient-text">Client Acquisition Engine</span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+              Watch how AI agents work together to find, qualify, nurture, and convert leads into paying clients — fully automated, 24/7.
+            </p>
+          </div>
+          <Card className="p-8" data-testid="card-landing-pipeline">
+            <CompactFlowchart />
+          </Card>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
+            {[
+              { value: "10x", label: "More Leads Generated", color: "text-primary" },
+              { value: "24/7", label: "AI Working Non-Stop", color: "text-chart-3" },
+              { value: "80%", label: "Lower Acquisition Cost", color: "text-chart-4" },
+              { value: "5x", label: "Faster Response Time", color: "text-amber-400" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </div>
             ))}
           </div>
         </div>

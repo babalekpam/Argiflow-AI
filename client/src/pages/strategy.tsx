@@ -42,6 +42,7 @@ import {
   Bot,
   Save,
 } from "lucide-react";
+import { AnimatedFlowchart } from "@/components/animated-flowchart";
 import type { MarketingStrategy } from "@shared/schema";
 
 const industries = [
@@ -60,120 +61,6 @@ const workflowSteps = [
   { icon: FileText, label: "Finalizing Your Strategy", description: "Compiling the full marketing plan" },
 ];
 
-const fullWorkflowPipeline = [
-  {
-    icon: Globe,
-    label: "Traffic & Awareness",
-    description: "Paid ads, SEO, social media, and cold outreach drive prospects to your funnel",
-    color: "text-chart-2",
-    bg: "bg-chart-2/10",
-  },
-  {
-    icon: Target,
-    label: "Lead Capture",
-    description: "Landing pages, forms, and chatbots capture visitor info and qualify interest",
-    color: "text-primary",
-    bg: "bg-primary/10",
-  },
-  {
-    icon: Bot,
-    label: "AI Nurturing",
-    description: "Voice AI, SMS, and email bots engage leads 24/7 with personalized follow-ups",
-    color: "text-chart-4",
-    bg: "bg-chart-4/10",
-  },
-  {
-    icon: Calendar,
-    label: "Appointment Booking",
-    description: "AI agents qualify and book meetings directly on your calendar automatically",
-    color: "text-chart-3",
-    bg: "bg-chart-3/10",
-  },
-  {
-    icon: Phone,
-    label: "Sales Handoff",
-    description: "Hot leads get routed to your sales team with full context and lead score",
-    color: "text-amber-400",
-    bg: "bg-amber-400/10",
-  },
-  {
-    icon: TrendingUp,
-    label: "Close & Retain",
-    description: "CRM tracks deals through pipeline, AI handles post-sale onboarding and upsells",
-    color: "text-emerald-400",
-    bg: "bg-emerald-400/10",
-  },
-];
-
-function FullWorkflowGraph() {
-  return (
-    <Card className="p-6" data-testid="card-workflow-pipeline">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
-          <Zap className="w-5 h-5 text-primary" />
-        </div>
-        <div>
-          <h3 className="text-base font-semibold">AI Client Acquisition Pipeline</h3>
-          <p className="text-xs text-muted-foreground">End-to-end automated workflow from first touch to closed deal</p>
-        </div>
-      </div>
-
-      <div className="grid gap-3">
-        {fullWorkflowPipeline.map((step, i) => {
-          const Icon = step.icon;
-          return (
-            <div key={i}>
-              <div
-                className="flex items-center gap-4 p-3 rounded-md bg-secondary/20 border border-border/30"
-                data-testid={`pipeline-step-${i}`}
-              >
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-xs font-bold text-muted-foreground w-5 text-right">{i + 1}</span>
-                  <div className={`w-9 h-9 rounded-md ${step.bg} flex items-center justify-center`}>
-                    <Icon className={`w-4 h-4 ${step.color}`} />
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{step.label}</p>
-                  <p className="text-xs text-muted-foreground">{step.description}</p>
-                </div>
-                {i === fullWorkflowPipeline.length - 1 ? (
-                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] no-default-hover-elevate no-default-active-elevate shrink-0">
-                    Revenue
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-[10px] shrink-0 no-default-hover-elevate no-default-active-elevate">
-                    Auto
-                  </Badge>
-                )}
-              </div>
-              {i < fullWorkflowPipeline.length - 1 && (
-                <div className="flex justify-center py-1">
-                  <ArrowDown className="w-4 h-4 text-muted-foreground/40" />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-6 pt-4 border-t border-border/50 grid grid-cols-3 gap-3 text-center">
-        <div>
-          <p className="text-lg font-bold text-primary">24/7</p>
-          <p className="text-[10px] text-muted-foreground">Always Active</p>
-        </div>
-        <div>
-          <p className="text-lg font-bold text-chart-3">5x</p>
-          <p className="text-[10px] text-muted-foreground">More Appointments</p>
-        </div>
-        <div>
-          <p className="text-lg font-bold text-emerald-400">80%</p>
-          <p className="text-[10px] text-muted-foreground">Less Manual Work</p>
-        </div>
-      </div>
-    </Card>
-  );
-}
 
 function WorkflowVisual() {
   const [activeStep, setActiveStep] = useState(0);
@@ -418,7 +305,7 @@ function CompanyInfoForm({ onSuccess }: { onSuccess: () => void }) {
           </div>
         </Card>
 
-        <FullWorkflowGraph />
+        <AnimatedFlowchart />
       </div>
     </div>
   );
@@ -614,7 +501,7 @@ export default function StrategyPage() {
               {regenerateMutation.isPending ? "Generating..." : "Generate Strategy"}
             </Button>
           </Card>
-          <FullWorkflowGraph />
+          <AnimatedFlowchart />
         </div>
       </div>
     );
@@ -662,11 +549,11 @@ export default function StrategyPage() {
       {isGenerating ? (
         <div className="grid lg:grid-cols-2 gap-6">
           <WorkflowVisual />
-          <FullWorkflowGraph />
+          <AnimatedFlowchart />
         </div>
       ) : (
         <div className="space-y-6">
-          <FullWorkflowGraph />
+          <AnimatedFlowchart />
           <Card className="p-6" data-testid="card-strategy-content">
             <div className="prose-sm">
               {renderMarkdown(strategy.strategy)}
