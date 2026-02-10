@@ -426,7 +426,6 @@ COMMUNICATION STANDARDS:
       tools,
     });
 
-    // Agentic loop — process tool calls until Claude gives a final text response
     let loopCount = 0;
     const maxLoops = 10;
     let currentMessages = [...claudeMessages];
@@ -434,31 +433,28 @@ COMMUNICATION STANDARDS:
     while (response.stop_reason === "tool_use" && loopCount < maxLoops) {
       loopCount++;
 
-      // Collect all tool uses from the response
       const toolUseBlocks = response.content.filter(
         (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
       );
 
-      if (toolUseBlocks.length === 0) break;
+      const crmToolUses = toolUseBlocks.filter(t => t.name !== "web_search");
 
-      // Add assistant response to message chain
+      if (crmToolUses.length === 0) {
+        const textContent = response.content
+          .filter((b): b is Anthropic.TextBlock => b.type === "text")
+          .map(b => b.text)
+          .join("\n")
+          .trim();
+        if (textContent) return textContent;
+        break;
+      }
+
       currentMessages.push({ role: "assistant", content: response.content as any });
 
-      // Process each tool call and build results
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
-      for (const toolUse of toolUseBlocks) {
-        let result: string;
-
-        if (toolUse.name === "web_search") {
-          // Claude's built-in web search handles itself — we don't manually process it
-          // The SDK handles web_search_20250305 automatically in the agentic loop
-          result = "Web search completed.";
-        } else {
-          // CRM action tools
-          result = await executeAction(userId, toolUse.name, toolUse.input || {});
-        }
-
+      for (const toolUse of crmToolUses) {
+        const result = await executeAction(userId, toolUse.name, toolUse.input || {});
         toolResults.push({
           type: "tool_result",
           tool_use_id: toolUse.id,
@@ -466,10 +462,8 @@ COMMUNICATION STANDARDS:
         });
       }
 
-      // Add tool results to message chain
       currentMessages.push({ role: "user", content: toolResults as any });
 
-      // Call Claude again with updated context
       response = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
         max_tokens: 4096,
@@ -539,53 +533,19 @@ async function claudeWebSearch(query: string): Promise<string> {
   try {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 1500,
+      max_tokens: 4000,
       system: "You are a helpful research assistant. Search the web and provide a clear, concise summary of the findings. Include relevant source URLs when available.",
       messages: [{ role: "user", content: query }],
       tools: [
         {
           type: "web_search_20250305" as any,
           name: "web_search",
+          max_uses: 5,
         } as any,
       ],
     });
 
-    // Agentic loop for search
-    let currentResponse = response;
-    let messages: Anthropic.MessageParam[] = [{ role: "user", content: query }];
-    let loops = 0;
-
-    while (currentResponse.stop_reason === "tool_use" && loops < 5) {
-      loops++;
-      messages.push({ role: "assistant", content: currentResponse.content as any });
-
-      const toolUses = currentResponse.content.filter(
-        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-      );
-
-      const results: Anthropic.ToolResultBlockParam[] = toolUses.map(tu => ({
-        type: "tool_result" as const,
-        tool_use_id: tu.id,
-        content: "Search completed.",
-      }));
-
-      messages.push({ role: "user", content: results as any });
-
-      currentResponse = await anthropic.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 1500,
-        system: "You are a helpful research assistant. Provide a clear, concise summary of your web search findings.",
-        messages,
-        tools: [
-          {
-            type: "web_search_20250305" as any,
-            name: "web_search",
-          } as any,
-        ],
-      });
-    }
-
-    const text = currentResponse.content
+    const text = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map(b => b.text)
       .join("\n");
@@ -848,9 +808,9 @@ export async function registerRoutes(
 
       (async () => {
         try {
-          const searchPrompt = `Visit and analyze this business website thoroughly: ${websiteUrl}
+          const searchPrompt = `Search the web for and analyze this business website thoroughly: ${websiteUrl}
 
-Search for and visit the website. Analyze ALL pages you can find including the homepage, about, services, pricing, contact, and any other relevant pages.
+Find the website and analyze ALL pages you can including the homepage, about, services, pricing, contact, and any other relevant pages.
 
 After analyzing the website, return your findings in EXACTLY this format with these section headers. Each section should have detailed, specific content extracted from the website:
 
@@ -877,55 +837,24 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
           const response = await anthropic.messages.create({
             model: "claude-sonnet-4-5",
-            max_tokens: 4000,
-            system: "You are a business analyst. Your job is to thoroughly analyze business websites and extract structured information that will be used to train AI agents. Be thorough, specific, and use actual information from the website — never make things up.",
+            max_tokens: 8000,
+            system: "You are a business analyst. Your job is to thoroughly analyze business websites and extract structured information that will be used to train AI agents. Be thorough, specific, and use actual information from the website — never make things up. Always search the web to find real data from the website.",
             messages: [{ role: "user", content: searchPrompt }],
             tools: [
               {
                 type: "web_search_20250305" as any,
                 name: "web_search",
+                max_uses: 10,
               } as any,
             ],
           });
 
-          let currentResponse = response;
-          let messages: Anthropic.MessageParam[] = [{ role: "user", content: searchPrompt }];
-          let loops = 0;
-
-          while (currentResponse.stop_reason === "tool_use" && loops < 8) {
-            loops++;
-            messages.push({ role: "assistant", content: currentResponse.content as any });
-
-            const toolUses = currentResponse.content.filter(
-              (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-            );
-
-            const results: Anthropic.ToolResultBlockParam[] = toolUses.map(tu => ({
-              type: "tool_result" as const,
-              tool_use_id: tu.id,
-              content: "Search completed.",
-            }));
-
-            messages.push({ role: "user", content: results as any });
-
-            currentResponse = await anthropic.messages.create({
-              model: "claude-sonnet-4-5",
-              max_tokens: 4000,
-              system: "You are a business analyst extracting structured information from a website. Return your findings in the exact section format requested.",
-              messages,
-              tools: [
-                {
-                  type: "web_search_20250305" as any,
-                  name: "web_search",
-                } as any,
-              ],
-            });
-          }
-
-          const fullText = currentResponse.content
+          const fullText = response.content
             .filter((b): b is Anthropic.TextBlock => b.type === "text")
             .map(b => b.text)
             .join("\n");
+
+          console.log(`Website training raw response length: ${fullText.length} chars for ${websiteUrl}`);
 
           const extractSection = (text: string, marker: string): string => {
             const patterns = [
@@ -949,6 +878,17 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
           const contactInfo = extractSection(fullText, "CONTACT_INFO");
           const rawSummary = extractSection(fullText, "SUMMARY") || fullText;
 
+          if (!fullText || fullText.length < 50) {
+            console.error(`Website training got empty/short response for ${websiteUrl}: "${fullText}"`);
+            await storage.upsertWebsiteProfile({
+              userId,
+              websiteUrl,
+              status: "failed",
+              rawSummary: "AI could not retrieve meaningful content from this website. The site may be blocking automated access, or the URL may be incorrect. Please check the URL and try again.",
+            });
+            return;
+          }
+
           await storage.upsertWebsiteProfile({
             userId,
             websiteUrl,
@@ -963,7 +903,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
             trainedAt: new Date(),
           });
 
-          console.log(`Website training completed for user ${userId}: ${websiteUrl}`);
+          console.log(`Website training completed for user ${userId}: ${websiteUrl} (${fullText.length} chars)`);
         } catch (trainError) {
           console.error("Website training failed:", trainError);
           await storage.upsertWebsiteProfile({

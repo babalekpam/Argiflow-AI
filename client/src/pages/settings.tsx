@@ -536,6 +536,8 @@ export default function SettingsPage() {
                   ? `Last trained from ${websiteProfile.websiteUrl}${websiteProfile.trainedAt ? ` on ${new Date(websiteProfile.trainedAt).toLocaleDateString()}` : ""}`
                   : websiteProfile?.status === "training"
                   ? "AI is currently reading and analyzing your website. This usually takes 30-60 seconds..."
+                  : websiteProfile?.status === "failed"
+                  ? (websiteProfile.rawSummary || "Training failed. Please check your website URL and try again.")
                   : "Click the button below to have AI analyze your website and learn about your business."}
               </p>
             </div>
