@@ -131,3 +131,10 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - Website knowledge injected into AI agent script generation and AI chat system prompt for hyper-personalized responses
 - Settings page has "Website Training" section with Train button, status badges, expandable knowledge panels
 - "Medical Billing / RCM" added to industry dropdown options
+- Direct prospect engagement: AI agent can send outreach emails immediately after finding leads via SendGrid
+- `outreachSentAt` timestamp on leads tracks which prospects have been emailed
+- POST /api/leads/:id/send-outreach - Send outreach to individual lead
+- POST /api/leads/send-all-outreach - Bulk send all unsent outreach emails
+- AI agent has `send_outreach` tool to auto-engage prospects when user asks to "engage", "email", or "contact" leads
+- Leads page UI: "Engage All" button for bulk sends, per-lead "Send Email" button, sent/ready status badges
+- Requires SendGrid API key configured in Settings > Integrations

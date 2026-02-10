@@ -1130,7 +1130,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
   app.post("/api/leads/:id/send-outreach", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const lead = await storage.getLeadById(req.params.id);
+      const lead = await storage.getLeadById(req.params.id as string);
       if (!lead || lead.userId !== userId) {
         return res.status(404).json({ message: "Lead not found" });
       }

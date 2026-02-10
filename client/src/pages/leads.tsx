@@ -39,6 +39,8 @@ import {
   FileText,
   Copy,
   Check,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { useState } from "react";
@@ -125,6 +127,43 @@ export default function LeadsPage() {
     },
   });
 
+  const sendOutreachMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      const res = await apiRequest("POST", `/api/leads/${leadId}/send-outreach`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: data.message || "Outreach email sent" });
+    },
+    onError: async (error: any) => {
+      let message = "Failed to send outreach";
+      try {
+        if (error?.message) message = error.message;
+      } catch {}
+      toast({ title: message, variant: "destructive" });
+    },
+  });
+
+  const sendAllOutreachMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/leads/send-all-outreach");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      const msg = `Sent ${data.sent} email${data.sent !== 1 ? "s" : ""}${data.failed > 0 ? `, ${data.failed} failed` : ""}`;
+      toast({ title: msg });
+    },
+    onError: async (error: any) => {
+      let message = "Failed to send outreach emails";
+      try {
+        if (error?.message) message = error.message;
+      } catch {}
+      toast({ title: message, variant: "destructive" });
+    },
+  });
+
   const [expandedLeads, setExpandedLeads] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -151,6 +190,8 @@ export default function LeadsPage() {
       (l.company || "").toLowerCase().includes(search.toLowerCase())
   );
 
+  const unsentCount = (leads || []).filter(l => l.outreach && l.email && !l.outreachSentAt).length;
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -160,7 +201,22 @@ export default function LeadsPage() {
             Manage and track all your leads in one place.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {unsentCount > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => sendAllOutreachMutation.mutate()}
+              disabled={sendAllOutreachMutation.isPending}
+              data-testid="button-send-all-outreach"
+            >
+              {sendAllOutreachMutation.isPending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</>
+              ) : (
+                <><Send className="w-4 h-4 mr-2" />Engage All ({unsentCount})</>
+              )}
+            </Button>
+          )}
           {(leads?.length || 0) > 0 && (
             <Button
               variant="outline"
@@ -318,6 +374,7 @@ export default function LeadsPage() {
             {filteredLeads.map((lead) => {
               const isExpanded = expandedLeads.has(lead.id);
               const hasDetails = lead.outreach || lead.intentSignal || lead.notes;
+              const isSent = !!lead.outreachSentAt;
               return (
                 <div
                   key={lead.id}
@@ -369,10 +426,16 @@ export default function LeadsPage() {
                           Intent
                         </Badge>
                       )}
-                      {lead.outreach && (
+                      {lead.outreach && isSent && (
+                        <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Sent
+                        </Badge>
+                      )}
+                      {lead.outreach && !isSent && (
                         <Badge variant="outline" className="text-xs bg-sky-500/10 text-sky-400 border-sky-500/20">
                           <Send className="w-3 h-3 mr-1" />
-                          Outreach Ready
+                          Ready
                         </Badge>
                       )}
                       <span data-testid={`badge-lead-status-${lead.id}`}><LeadStatusBadge status={lead.status} /></span>
@@ -417,22 +480,45 @@ export default function LeadsPage() {
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <div className="flex items-center gap-2">
                               <Send className="w-4 h-4 text-sky-400" />
-                              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Outreach Email Draft</span>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => copyOutreach(lead.id, lead.outreach!)}
-                              data-testid={`button-copy-outreach-${lead.id}`}
-                            >
-                              {copiedId === lead.id ? (
-                                <><Check className="w-3 h-3 mr-1" /> Copied</>
-                              ) : (
-                                <><Copy className="w-3 h-3 mr-1" /> Copy Email</>
+                              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                {isSent ? "Outreach Email (Sent)" : "Outreach Email Draft"}
+                              </span>
+                              {isSent && lead.outreachSentAt && (
+                                <span className="text-xs text-emerald-400">
+                                  Sent {new Date(lead.outreachSentAt).toLocaleDateString()}
+                                </span>
                               )}
-                            </Button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => { e.stopPropagation(); copyOutreach(lead.id, lead.outreach!); }}
+                                data-testid={`button-copy-outreach-${lead.id}`}
+                              >
+                                {copiedId === lead.id ? (
+                                  <><Check className="w-3 h-3 mr-1" /> Copied</>
+                                ) : (
+                                  <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                                )}
+                              </Button>
+                              {!isSent && lead.email && (
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); sendOutreachMutation.mutate(lead.id); }}
+                                  disabled={sendOutreachMutation.isPending}
+                                  data-testid={`button-send-outreach-${lead.id}`}
+                                >
+                                  {sendOutreachMutation.isPending ? (
+                                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Sending...</>
+                                  ) : (
+                                    <><Send className="w-3 h-3 mr-1" /> Send Email</>
+                                  )}
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          <div className="pl-6 p-3 rounded-md bg-background border text-sm whitespace-pre-wrap" data-testid={`text-outreach-${lead.id}`}>
+                          <div className={`pl-6 p-3 rounded-md bg-background border text-sm whitespace-pre-wrap ${isSent ? "border-emerald-500/20" : ""}`} data-testid={`text-outreach-${lead.id}`}>
                             {lead.outreach}
                           </div>
                         </div>
