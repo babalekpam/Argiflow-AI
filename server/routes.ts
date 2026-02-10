@@ -8,6 +8,7 @@ import { registerSchema, loginSchema, insertLeadSchema, onboardingSchema, market
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import Anthropic from "@anthropic-ai/sdk";
+import sgMail from "@sendgrid/mail";
 
 // ============================================================
 // ANTHROPIC CLAUDE — SINGLE AI PROVIDER FOR EVERYTHING
@@ -163,6 +164,67 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const completed = appts.filter(a => a.status === "completed").length;
       const activeAgents = agents.filter(a => a.status === "active").length;
       return `Leads: ${userLeads.length} total (${hot} hot, ${qualified} qualified, ${warm} warm, ${userLeads.length - hot - qualified - warm} new). Appointments: ${appts.length} total (${scheduled} scheduled, ${completed} completed). AI Agents: ${agents.length} total (${activeAgents} active).`;
+    }
+    case "send_outreach": {
+      const allLeads = await storage.getLeadsByUser(userId);
+      const leadIds = params.lead_ids || [];
+      const sendAll = params.send_all !== false || leadIds.length === 0;
+
+      const targets = sendAll
+        ? allLeads.filter(l => l.outreach && l.email && !l.outreachSentAt)
+        : allLeads.filter(l => leadIds.includes(l.id) && l.outreach && l.email && !l.outreachSentAt);
+
+      if (targets.length === 0) {
+        return "No leads with unsent outreach emails found. Generate leads with outreach drafts first, or all outreach has already been sent.";
+      }
+
+      const settings = await storage.getSettingsByUser(userId);
+      const user = await storage.getUserById(userId);
+
+      if (!settings?.sendgridApiKey) {
+        return "SendGrid API key not configured. Tell the user to go to Settings > Integrations and add their SendGrid API key to enable direct email sending.";
+      }
+
+      sgMail.setApiKey(settings.sendgridApiKey);
+      const senderEmail = user?.email || "noreply@argiflow.com";
+      const senderName = user?.companyName
+        ? `${user.firstName || ""} from ${user.companyName}`.trim()
+        : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "ArgiFlow";
+
+      let sent = 0;
+      let failed = 0;
+      const sentNames: string[] = [];
+      const failedNames: string[] = [];
+
+      for (const lead of targets) {
+        try {
+          const subjectLine = lead.company
+            ? `Quick question for ${lead.company}`
+            : `Quick question, ${lead.name.split(" ")[0]}`;
+
+          await sgMail.send({
+            to: lead.email,
+            from: { email: senderEmail, name: senderName },
+            subject: subjectLine,
+            text: lead.outreach!,
+            html: lead.outreach!.replace(/\n/g, "<br>"),
+          });
+
+          await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm" });
+          sent++;
+          sentNames.push(lead.name);
+        } catch (err: any) {
+          failed++;
+          failedNames.push(lead.name);
+          console.error(`Failed to send to ${lead.name}:`, err?.response?.body || err);
+        }
+      }
+
+      let result = `Sent outreach emails to ${sent} prospect${sent !== 1 ? "s" : ""}: ${sentNames.join(", ")}.`;
+      if (failed > 0) {
+        result += ` Failed to send to ${failed}: ${failedNames.join(", ")}.`;
+      }
+      return result;
     }
     default:
       return `Unknown action: ${action}`;
@@ -321,9 +383,10 @@ ${allAgents.length > 0 ? `- Active agents: ${allAgents.map(a => `${a.name} (${a.
 CAPABILITIES:
 You have CRM management tools and web search at your disposal. Use them proactively:
 - **Lead Generation**: When the user asks for leads, you MUST use web_search FIRST to find REAL businesses and contacts. Search for real companies in their industry, extract actual names, emails, phone numbers, and website URLs from public directories, business listings, and company websites. Then save them using the generate_leads tool. NEVER make up fictional contact information — every lead must come from actual web search results.
+- **Direct Outreach**: After generating leads, if the user says to "engage", "reach out", "email", "send", or "contact" them, IMMEDIATELY use the send_outreach tool to send the personalized outreach emails directly. You can also use this when the user asks you to follow up or engage existing leads.
 - **CRM Tools**: Book appointments, activate AI agents, follow up with prospects, pull performance stats
 - **Web Search**: Research market trends, competitors, industry data, real-time information, and find real business contacts
-- Combine multiple tools in a single response when beneficial
+- Combine multiple tools in a single response when beneficial. For example, generate leads AND send outreach in the same flow when the user asks to "find and engage prospects".
 
 LEAD GENERATION RULES (CRITICAL):
 1. ALWAYS search the web first before generating leads
@@ -451,6 +514,25 @@ COMMUNICATION STANDARDS:
       input_schema: {
         type: "object" as const,
         properties: {},
+        required: [],
+      },
+    },
+    {
+      name: "send_outreach",
+      description: "Send the personalized outreach emails to leads that have outreach drafts. Use this IMMEDIATELY after generating leads when the user says to 'engage', 'reach out', 'email', 'send', or 'contact' the prospects. Can send to all unsent leads at once or specific lead IDs.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          lead_ids: {
+            type: "array",
+            items: { type: "string" },
+            description: "Specific lead IDs to send outreach to. If empty, sends to ALL leads with unsent outreach drafts.",
+          },
+          send_all: {
+            type: "boolean",
+            description: "If true, sends outreach to ALL leads with unsent drafts. Defaults to true if no lead_ids provided.",
+          },
+        },
         required: [],
       },
     },
@@ -1003,6 +1085,111 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     } catch (error) {
       console.error("Error deleting all leads:", error);
       res.status(500).json({ message: "Failed to delete leads" });
+    }
+  });
+
+  // ---- SEND OUTREACH EMAILS ----
+
+  async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string }> {
+    if (!lead.email || !lead.outreach) {
+      return { success: false, error: "Lead has no email or outreach draft" };
+    }
+
+    const sendgridKey = userSettings?.sendgridApiKey;
+    if (!sendgridKey) {
+      return { success: false, error: "SendGrid API key not configured. Go to Settings > Integrations to add it." };
+    }
+
+    sgMail.setApiKey(sendgridKey);
+
+    const senderEmail = user?.email || "noreply@argiflow.com";
+    const senderName = user?.companyName
+      ? `${user.firstName || ""} from ${user.companyName}`.trim()
+      : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "ArgiFlow";
+
+    const subjectLine = lead.company
+      ? `Quick question for ${lead.company}`
+      : `Quick question, ${lead.name.split(" ")[0]}`;
+
+    try {
+      await sgMail.send({
+        to: lead.email,
+        from: { email: senderEmail, name: senderName },
+        subject: subjectLine,
+        text: lead.outreach,
+        html: lead.outreach.replace(/\n/g, "<br>"),
+      });
+      return { success: true };
+    } catch (err: any) {
+      console.error("SendGrid error:", err?.response?.body || err);
+      const sgError = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send";
+      return { success: false, error: sgError };
+    }
+  }
+
+  app.post("/api/leads/:id/send-outreach", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const lead = await storage.getLeadById(req.params.id);
+      if (!lead || lead.userId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      if (lead.outreachSentAt) {
+        return res.status(400).json({ message: "Outreach already sent to this lead" });
+      }
+
+      const settings = await storage.getSettingsByUser(userId);
+      const user = await storage.getUserById(userId);
+      const result = await sendOutreachEmail(lead, settings, user);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm" });
+      res.json({ success: true, message: `Outreach sent to ${lead.name}` });
+    } catch (error) {
+      console.error("Error sending outreach:", error);
+      res.status(500).json({ message: "Failed to send outreach" });
+    }
+  });
+
+  app.post("/api/leads/send-all-outreach", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const allLeads = await storage.getLeadsByUser(userId);
+      const unsent = allLeads.filter(l => l.outreach && l.email && !l.outreachSentAt);
+
+      if (unsent.length === 0) {
+        return res.status(400).json({ message: "No unsent outreach emails to send" });
+      }
+
+      const settings = await storage.getSettingsByUser(userId);
+      const user = await storage.getUserById(userId);
+
+      if (!settings?.sendgridApiKey) {
+        return res.status(400).json({ message: "SendGrid API key not configured. Go to Settings > Integrations to add it." });
+      }
+
+      let sent = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      for (const lead of unsent) {
+        const result = await sendOutreachEmail(lead, settings, user);
+        if (result.success) {
+          await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm" });
+          sent++;
+        } else {
+          failed++;
+          errors.push(`${lead.name}: ${result.error}`);
+        }
+      }
+
+      res.json({ success: true, sent, failed, total: unsent.length, errors: errors.slice(0, 5) });
+    } catch (error) {
+      console.error("Error sending bulk outreach:", error);
+      res.status(500).json({ message: "Failed to send outreach emails" });
     }
   });
 

@@ -24,7 +24,9 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: { email: string; passwordHash: string; firstName: string; lastName: string }): Promise<User>;
   getLeadsByUser(userId: string): Promise<Lead[]>;
+  getLeadById(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
+  updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreachSentAt">>): Promise<Lead | undefined>;
   deleteLead(id: string, userId: string): Promise<void>;
   deleteAllLeadsByUser(userId: string): Promise<void>;
   getAppointmentsByUser(userId: string): Promise<Appointment[]>;
@@ -96,6 +98,16 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLead(id: string, userId: string): Promise<void> {
     await db.delete(leads).where(and(eq(leads.id, id), eq(leads.userId, userId)));
+  }
+
+  async getLeadById(id: string): Promise<Lead | undefined> {
+    const [result] = await db.select().from(leads).where(eq(leads.id, id));
+    return result;
+  }
+
+  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreachSentAt">>): Promise<Lead | undefined> {
+    const [result] = await db.update(leads).set(data).where(eq(leads.id, id)).returning();
+    return result;
   }
 
   async deleteAllLeadsByUser(userId: string): Promise<void> {
