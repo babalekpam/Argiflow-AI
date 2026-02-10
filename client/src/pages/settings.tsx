@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -30,7 +30,19 @@ import {
   CheckCircle,
   AlertCircle,
   Save,
+  Building2,
+  Globe,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SiTwilio } from "react-icons/si";
 import type { UserSettings } from "@shared/schema";
 
@@ -223,12 +235,52 @@ function MaskedInput({ value, onChange, placeholder, sensitive, testId }: {
   );
 }
 
+const industryOptions = [
+  "Marketing Agency", "Real Estate", "Healthcare", "Legal Services",
+  "Financial Services", "E-Commerce", "SaaS / Software", "Consulting",
+  "Construction", "Home Services", "Fitness & Wellness", "Education",
+  "Insurance", "Automotive", "Restaurant / Food", "Other",
+];
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [integrationValues, setIntegrationValues] = useState<Record<string, string>>({});
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
+  const [companyProfile, setCompanyProfile] = useState({
+    companyName: "",
+    industry: "",
+    website: "",
+    companyDescription: "",
+  });
+  const [companyLoaded, setCompanyLoaded] = useState(false);
+
+  useEffect(() => {
+    if (user && !companyLoaded) {
+      setCompanyProfile({
+        companyName: (user as any).companyName || "",
+        industry: (user as any).industry || "",
+        website: (user as any).website || "",
+        companyDescription: (user as any).companyDescription || "",
+      });
+      setCompanyLoaded(true);
+    }
+  }, [user, companyLoaded]);
+
+  const companyMutation = useMutation({
+    mutationFn: async (data: typeof companyProfile) => {
+      await apiRequest("POST", "/api/onboarding", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/strategy"] });
+      toast({ title: "Company profile saved", description: "Your business information has been updated." });
+    },
+    onError: () => {
+      toast({ title: "Failed to save", description: "Please check all fields and try again.", variant: "destructive" });
+    },
+  });
 
   const { data: settings, isLoading } = useQuery<UserSettings>({
     queryKey: ["/api/settings"],
@@ -315,6 +367,93 @@ export default function SettingsPage() {
           <Badge className="bg-primary/10 text-primary border-primary/20">Pro Plan</Badge>
         </div>
       </Card>
+
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Building2 className="w-4 h-4" />
+          Company Profile
+        </h2>
+        <Card className="p-5" data-testid="card-company-profile">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm">Business Information</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                This information powers your AI-generated marketing strategy and personalized recommendations.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Company Name</Label>
+              <Input
+                value={companyProfile.companyName}
+                onChange={(e) => setCompanyProfile({ ...companyProfile, companyName: e.target.value })}
+                placeholder="Acme Corp"
+                data-testid="input-company-name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Industry</Label>
+              <Select
+                value={companyProfile.industry}
+                onValueChange={(v) => setCompanyProfile({ ...companyProfile, industry: v })}
+              >
+                <SelectTrigger data-testid="select-company-industry">
+                  <SelectValue placeholder="Select your industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {industryOptions.map((ind) => (
+                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Website <span className="text-muted-foreground/60">(optional)</span></Label>
+              <Input
+                value={companyProfile.website}
+                onChange={(e) => setCompanyProfile({ ...companyProfile, website: e.target.value })}
+                placeholder="https://www.yourcompany.com"
+                data-testid="input-company-website"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">What does your company do?</Label>
+              <Textarea
+                value={companyProfile.companyDescription}
+                onChange={(e) => setCompanyProfile({ ...companyProfile, companyDescription: e.target.value })}
+                placeholder="Describe your products, services, target customers, and goals. The more detail you provide, the better strategy our AI can generate..."
+                className="resize-none min-h-[80px]"
+                data-testid="input-company-description"
+              />
+              <p className="text-[10px] text-muted-foreground">Min 10 characters. Be specific for a better AI strategy.</p>
+            </div>
+            <Button
+              size="sm"
+              className="mt-2"
+              onClick={() => {
+                if (!companyProfile.companyName || !companyProfile.industry || companyProfile.companyDescription.length < 10) {
+                  toast({ title: "Missing information", description: "Please fill in company name, industry, and description (at least 10 characters).", variant: "destructive" });
+                  return;
+                }
+                companyMutation.mutate(companyProfile);
+              }}
+              disabled={companyMutation.isPending}
+              data-testid="button-save-company-profile"
+            >
+              {companyMutation.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              {companyMutation.isPending ? "Saving..." : "Save Company Profile"}
+            </Button>
+          </div>
+        </Card>
+      </div>
 
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">

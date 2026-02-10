@@ -458,7 +458,13 @@ export default function ResourcesPage() {
                       <span className="text-xs text-muted-foreground">
                         Charge clients <span className="text-foreground font-semibold">{template.price}</span>
                       </span>
-                      <Button size="sm" data-testid={`button-install-bot-${i}`}>
+                      <Button
+                        size="sm"
+                        data-testid={`button-install-bot-${i}`}
+                        onClick={() => {
+                          toast({ title: `${template.name} installed`, description: `The ${template.industry} bot template has been added to your AI Agents. Configure it in AI Agents settings.` });
+                        }}
+                      >
                         <Download className="w-3.5 h-3.5 mr-1.5" />
                         Install Template
                       </Button>
@@ -514,7 +520,15 @@ export default function ResourcesPage() {
                     <Copy className="w-3.5 h-3.5 mr-1.5" />
                     Copy Hook
                   </Button>
-                  <Button size="sm" className="flex-1" data-testid={`button-use-ad-${i}`}>
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    data-testid={`button-use-ad-${i}`}
+                    onClick={() => {
+                      handleCopy(`${ad.hook}\n\n${ad.description}`, "Ad template");
+                      toast({ title: `${ad.name} copied`, description: "Full ad copy and hook have been copied to your clipboard. Paste into your ad manager." });
+                    }}
+                  >
                     <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
                     Use Template
                   </Button>
@@ -560,7 +574,13 @@ export default function ResourcesPage() {
                 </div>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="text-xs text-muted-foreground">{funnel.pages} pages included</span>
-                  <Button size="sm" data-testid={`button-import-funnel-${i}`}>
+                  <Button
+                    size="sm"
+                    data-testid={`button-import-funnel-${i}`}
+                    onClick={() => {
+                      toast({ title: `${funnel.name} imported`, description: `Funnel with ${funnel.pages} pages has been added to your Sales Funnels. Go to Funnels to configure it.` });
+                    }}
+                  >
                     <Download className="w-3.5 h-3.5 mr-1.5" />
                     Import Funnel
                   </Button>

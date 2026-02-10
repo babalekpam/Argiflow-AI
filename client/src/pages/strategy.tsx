@@ -3,8 +3,19 @@ import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect } from "react";
 import {
   Sparkles,
@@ -24,8 +35,21 @@ import {
   FileText,
   Rocket,
   ArrowRight,
+  ArrowDown,
+  Phone,
+  Mail,
+  MessageSquare,
+  Bot,
+  Save,
 } from "lucide-react";
 import type { MarketingStrategy } from "@shared/schema";
+
+const industries = [
+  "Marketing Agency", "Real Estate", "Healthcare", "Legal Services",
+  "Financial Services", "E-Commerce", "SaaS / Software", "Consulting",
+  "Construction", "Home Services", "Fitness & Wellness", "Education",
+  "Insurance", "Automotive", "Restaurant / Food", "Other",
+];
 
 const workflowSteps = [
   { icon: Building2, label: "Analyzing Business Profile", description: "Reading your company details and goals" },
@@ -35,6 +59,121 @@ const workflowSteps = [
   { icon: BrainCircuit, label: "Crafting AI Automation", description: "Selecting the best AI agent workflows" },
   { icon: FileText, label: "Finalizing Your Strategy", description: "Compiling the full marketing plan" },
 ];
+
+const fullWorkflowPipeline = [
+  {
+    icon: Globe,
+    label: "Traffic & Awareness",
+    description: "Paid ads, SEO, social media, and cold outreach drive prospects to your funnel",
+    color: "text-chart-2",
+    bg: "bg-chart-2/10",
+  },
+  {
+    icon: Target,
+    label: "Lead Capture",
+    description: "Landing pages, forms, and chatbots capture visitor info and qualify interest",
+    color: "text-primary",
+    bg: "bg-primary/10",
+  },
+  {
+    icon: Bot,
+    label: "AI Nurturing",
+    description: "Voice AI, SMS, and email bots engage leads 24/7 with personalized follow-ups",
+    color: "text-chart-4",
+    bg: "bg-chart-4/10",
+  },
+  {
+    icon: Calendar,
+    label: "Appointment Booking",
+    description: "AI agents qualify and book meetings directly on your calendar automatically",
+    color: "text-chart-3",
+    bg: "bg-chart-3/10",
+  },
+  {
+    icon: Phone,
+    label: "Sales Handoff",
+    description: "Hot leads get routed to your sales team with full context and lead score",
+    color: "text-amber-400",
+    bg: "bg-amber-400/10",
+  },
+  {
+    icon: TrendingUp,
+    label: "Close & Retain",
+    description: "CRM tracks deals through pipeline, AI handles post-sale onboarding and upsells",
+    color: "text-emerald-400",
+    bg: "bg-emerald-400/10",
+  },
+];
+
+function FullWorkflowGraph() {
+  return (
+    <Card className="p-6" data-testid="card-workflow-pipeline">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
+          <Zap className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold">AI Client Acquisition Pipeline</h3>
+          <p className="text-xs text-muted-foreground">End-to-end automated workflow from first touch to closed deal</p>
+        </div>
+      </div>
+
+      <div className="grid gap-3">
+        {fullWorkflowPipeline.map((step, i) => {
+          const Icon = step.icon;
+          return (
+            <div key={i}>
+              <div
+                className="flex items-center gap-4 p-3 rounded-md bg-secondary/20 border border-border/30"
+                data-testid={`pipeline-step-${i}`}
+              >
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-xs font-bold text-muted-foreground w-5 text-right">{i + 1}</span>
+                  <div className={`w-9 h-9 rounded-md ${step.bg} flex items-center justify-center`}>
+                    <Icon className={`w-4 h-4 ${step.color}`} />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{step.label}</p>
+                  <p className="text-xs text-muted-foreground">{step.description}</p>
+                </div>
+                {i === fullWorkflowPipeline.length - 1 ? (
+                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] no-default-hover-elevate no-default-active-elevate shrink-0">
+                    Revenue
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] shrink-0 no-default-hover-elevate no-default-active-elevate">
+                    Auto
+                  </Badge>
+                )}
+              </div>
+              {i < fullWorkflowPipeline.length - 1 && (
+                <div className="flex justify-center py-1">
+                  <ArrowDown className="w-4 h-4 text-muted-foreground/40" />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 pt-4 border-t border-border/50 grid grid-cols-3 gap-3 text-center">
+        <div>
+          <p className="text-lg font-bold text-primary">24/7</p>
+          <p className="text-[10px] text-muted-foreground">Always Active</p>
+        </div>
+        <div>
+          <p className="text-lg font-bold text-chart-3">5x</p>
+          <p className="text-[10px] text-muted-foreground">More Appointments</p>
+        </div>
+        <div>
+          <p className="text-lg font-bold text-emerald-400">80%</p>
+          <p className="text-[10px] text-muted-foreground">Less Manual Work</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 function WorkflowVisual() {
   const [activeStep, setActiveStep] = useState(0);
@@ -158,6 +297,133 @@ function WorkflowVisual() {
   );
 }
 
+function CompanyInfoForm({ onSuccess }: { onSuccess: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    companyName: "",
+    industry: "",
+    website: "",
+    companyDescription: "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (data: typeof form) => {
+      await apiRequest("POST", "/api/onboarding", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/strategy"] });
+      toast({ title: "Company profile saved", description: "Generating your AI marketing strategy now..." });
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: "Failed to save", description: "Please check all fields and try again.", variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!form.companyName || !form.industry || form.companyDescription.length < 10) {
+      toast({ title: "Missing information", description: "Please fill in company name, industry, and description (at least 10 characters).", variant: "destructive" });
+      return;
+    }
+    mutation.mutate(form);
+  };
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold" data-testid="text-strategy-title">
+          <Sparkles className="w-6 h-6 inline-block mr-2 text-primary" />
+          AI Marketing Strategy
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Tell us about your business and our AI will generate a custom marketing strategy for you.
+        </p>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Card className="p-6" data-testid="card-company-info-form">
+          <div className="flex items-start gap-3 mb-5">
+            <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+              <Building2 className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Your Business Profile</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Fill in your company details so our AI can create a tailored strategy
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Company Name</Label>
+              <Input
+                value={form.companyName}
+                onChange={(e) => setForm({ ...form, companyName: e.target.value })}
+                placeholder="Acme Corp"
+                data-testid="input-strategy-company-name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Industry</Label>
+              <Select
+                value={form.industry}
+                onValueChange={(v) => setForm({ ...form, industry: v })}
+              >
+                <SelectTrigger data-testid="select-strategy-industry">
+                  <SelectValue placeholder="Select your industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {industries.map((ind) => (
+                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Website <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Input
+                value={form.website}
+                onChange={(e) => setForm({ ...form, website: e.target.value })}
+                placeholder="https://www.yourcompany.com"
+                data-testid="input-strategy-website"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>What does your company do?</Label>
+              <Textarea
+                value={form.companyDescription}
+                onChange={(e) => setForm({ ...form, companyDescription: e.target.value })}
+                placeholder="Describe your products, services, target customers, and goals. The more detail you provide, the better strategy our AI can generate..."
+                className="resize-none min-h-[100px]"
+                data-testid="input-strategy-description"
+              />
+              <p className="text-xs text-muted-foreground">Min 10 characters. Be specific for a better AI strategy.</p>
+            </div>
+            <Button
+              className="w-full"
+              onClick={handleSubmit}
+              disabled={mutation.isPending}
+              data-testid="button-generate-strategy-submit"
+            >
+              {mutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              {mutation.isPending ? "Saving & Generating..." : "Generate My AI Strategy"}
+            </Button>
+          </div>
+        </Card>
+
+        <FullWorkflowGraph />
+      </div>
+    </div>
+  );
+}
+
 function renderMarkdown(text: string) {
   const lines = text.split("\n");
   const elements: JSX.Element[] = [];
@@ -194,9 +460,9 @@ function renderMarkdown(text: string) {
   const inlineFormat = (text: string): string => {
     const escaped = escapeHtml(text);
     return escaped
-      .replace(/\*\*(.+?)\*\*/g, '<strong class="text-foreground font-semibold">$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/`(.+?)`/g, '<code class="bg-muted px-1.5 py-0.5 rounded text-xs">$1</code>');
+      .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-foreground font-semibold">$1</strong>')
+      .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code class="bg-muted px-1.5 py-0.5 rounded text-xs">$1</code>');
   };
 
   for (let i = 0; i < lines.length; i++) {
@@ -264,6 +530,7 @@ function renderMarkdown(text: string) {
 
 export default function StrategyPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: strategy, isLoading } = useQuery<MarketingStrategy | null>({
@@ -283,8 +550,12 @@ export default function StrategyPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/strategy"] });
       toast({ title: "Regenerating strategy", description: "Your updated strategy will be ready in a moment." });
     },
-    onError: () => {
-      toast({ title: "Failed to regenerate", description: "Please try again.", variant: "destructive" });
+    onError: (error: any) => {
+      if (error?.message?.includes("Company info missing")) {
+        toast({ title: "Company info needed", description: "Please fill in your company profile first.", variant: "destructive" });
+      } else {
+        toast({ title: "Failed to regenerate", description: "Please try again.", variant: "destructive" });
+      }
     },
   });
 
@@ -303,28 +574,48 @@ export default function StrategyPage() {
     );
   }
 
+  const hasCompanyInfo = user?.companyName && user?.industry && user?.companyDescription;
+
+  if (!strategy && !hasCompanyInfo) {
+    return (
+      <CompanyInfoForm onSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/strategy"] })} />
+    );
+  }
+
   if (!strategy) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <Card className="p-8 text-center">
-          <Sparkles className="w-12 h-12 text-primary mx-auto mb-4 opacity-50" />
-          <h2 className="text-lg font-semibold mb-2">No Marketing Strategy Yet</h2>
-          <p className="text-sm text-muted-foreground mb-4">
+      <div className="p-6 max-w-4xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="text-strategy-title">
+            <Sparkles className="w-6 h-6 inline-block mr-2 text-primary" />
+            AI Marketing Strategy
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Generate a custom AI-powered marketing strategy based on your company profile.
           </p>
-          <Button
-            onClick={() => regenerateMutation.mutate()}
-            disabled={regenerateMutation.isPending}
-            data-testid="button-generate-strategy"
-          >
-            {regenerateMutation.isPending ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4 mr-2" />
-            )}
-            {regenerateMutation.isPending ? "Generating..." : "Generate Strategy"}
-          </Button>
-        </Card>
+        </div>
+        <div className="grid lg:grid-cols-2 gap-6">
+          <Card className="p-8 flex flex-col items-center justify-center text-center">
+            <Sparkles className="w-12 h-12 text-primary mb-4 opacity-50" />
+            <h2 className="text-lg font-semibold mb-2">Ready to Generate</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Your business profile is set up. Click below to generate a custom AI marketing strategy for <span className="text-foreground font-medium">{user?.companyName}</span>.
+            </p>
+            <Button
+              onClick={() => regenerateMutation.mutate()}
+              disabled={regenerateMutation.isPending}
+              data-testid="button-generate-strategy"
+            >
+              {regenerateMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              {regenerateMutation.isPending ? "Generating..." : "Generate Strategy"}
+            </Button>
+          </Card>
+          <FullWorkflowGraph />
+        </div>
       </div>
     );
   }
@@ -369,13 +660,19 @@ export default function StrategyPage() {
       </div>
 
       {isGenerating ? (
-        <WorkflowVisual />
+        <div className="grid lg:grid-cols-2 gap-6">
+          <WorkflowVisual />
+          <FullWorkflowGraph />
+        </div>
       ) : (
-        <Card className="p-6" data-testid="card-strategy-content">
-          <div className="prose-sm">
-            {renderMarkdown(strategy.strategy)}
-          </div>
-        </Card>
+        <div className="space-y-6">
+          <FullWorkflowGraph />
+          <Card className="p-6" data-testid="card-strategy-content">
+            <div className="prose-sm">
+              {renderMarkdown(strategy.strategy)}
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );

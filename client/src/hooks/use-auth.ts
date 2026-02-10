@@ -9,6 +9,8 @@ interface AuthUser {
   profileImageUrl: string | null;
   companyName: string | null;
   industry: string | null;
+  website: string | null;
+  companyDescription: string | null;
   onboardingCompleted: string | null;
 }
 
