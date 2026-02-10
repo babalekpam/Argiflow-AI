@@ -9,6 +9,44 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import Anthropic from "@anthropic-ai/sdk";
 
+async function tavilySearch(query: string, options: { maxResults?: number; topic?: string } = {}): Promise<{ answer?: string; results: { title: string; url: string; content: string }[] }> {
+  const apiKey = process.env.TAVILY_API_KEY;
+  if (!apiKey) {
+    return { results: [], answer: "Web search is not configured. Please add a TAVILY_API_KEY." };
+  }
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query,
+        max_results: options.maxResults || 5,
+        topic: options.topic || "general",
+        include_answer: true,
+        include_raw_content: false,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Tavily API error:", errText);
+      return { results: [], answer: "Search failed. Please try again." };
+    }
+    const data = await res.json() as any;
+    return {
+      answer: data.answer || undefined,
+      results: (data.results || []).map((r: any) => ({
+        title: r.title || "",
+        url: r.url || "",
+        content: r.content || "",
+      })),
+    };
+  } catch (err) {
+    console.error("Tavily search error:", err);
+    return { results: [], answer: "Search temporarily unavailable." };
+  }
+}
+
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password: string): Promise<string> {
@@ -154,6 +192,24 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const activeAgents = agents.filter(a => a.status === "active").length;
       return `STATS: Leads: ${userLeads.length} total (${hot} hot, ${qualified} qualified, ${warm} warm, ${userLeads.length - hot - qualified - warm} new). Appointments: ${appts.length} total (${scheduled} scheduled, ${completed} completed). AI Agents: ${agents.length} total (${activeAgents} active).`;
     }
+    case "web_search": {
+      const query = params.query || params.q || "";
+      if (!query) return "SEARCH_ERROR: No search query provided.";
+      const topic = params.topic || "general";
+      const maxResults = Math.min(params.max_results || 5, 10);
+      const searchResult = await tavilySearch(query, { maxResults, topic });
+      let formatted = `SEARCH_RESULTS for "${query}":\n`;
+      if (searchResult.answer) {
+        formatted += `\nSummary: ${searchResult.answer}\n`;
+      }
+      if (searchResult.results.length > 0) {
+        formatted += `\nSources:\n`;
+        searchResult.results.forEach((r, i) => {
+          formatted += `${i + 1}. ${r.title}\n   ${r.url}\n   ${r.content.slice(0, 300)}\n\n`;
+        });
+      }
+      return formatted;
+    }
     default:
       return "NO_ACTION";
   }
@@ -164,7 +220,7 @@ async function handleAiAction(userId: string, userMessage: string, chatHistory: 
   const allAppts = await storage.getAppointmentsByUser(userId);
   const allAgents = await storage.getAiAgentsByUser(userId);
 
-  const systemPrompt = `You are ArgiFlow AI, an intelligent assistant for automated client acquisition. You help business owners manage leads, appointments, AI agents, and marketing campaigns.
+  const systemPrompt = `You are ArgiFlow AI, an intelligent assistant for automated client acquisition. You help business owners manage leads, appointments, AI agents, and marketing campaigns. You have access to the internet and can research anything for the user.
 
 CURRENT USER DATA:
 - Leads: ${allLeads.length} total (${allLeads.filter(l => l.status === "hot").length} hot, ${allLeads.filter(l => l.status === "qualified").length} qualified, ${allLeads.filter(l => l.status === "warm").length} warm, ${allLeads.filter(l => l.status === "new").length} new)
@@ -174,13 +230,23 @@ ${allLeads.length > 0 ? `- Recent leads: ${allLeads.slice(0, 5).map(l => `${l.na
 ${allAgents.length > 0 ? `- Agents: ${allAgents.map(a => `${a.name} (${a.status})`).join(", ")}` : ""}
 
 AVAILABLE ACTIONS:
-You can perform real actions in the user's account. When the user wants you to do something, include an ACTION block in your response using this exact format:
+You can perform real actions in the user's account AND search the internet. When you want to perform an action, include an ACTION block in your response using this exact format:
 
 [ACTION:generate_leads:{"count":5}]
 [ACTION:book_appointments:{"count":3}]
 [ACTION:activate_agents:{"count":6}]
 [ACTION:follow_up_leads:{"count":3}]
 [ACTION:get_stats:{}]
+[ACTION:web_search:{"query":"your search query here"}]
+[ACTION:web_search:{"query":"latest news topic","topic":"news"}]
+
+WEB SEARCH CAPABILITY:
+- You can search the internet for ANY topic the user asks about
+- Use web_search when the user asks you to research, look up, find information, or when you need current data
+- The topic parameter can be "general" (default) or "news" for recent news
+- You will receive search results with summaries and source links - use them to provide informed, cited answers
+- ALWAYS use web_search when the user asks questions about current events, market trends, competitors, industry data, best practices, tools, or anything that requires up-to-date information
+- You can combine web search with other actions (e.g., research a topic AND generate leads)
 
 Include the ACTION block naturally within your response. You can include multiple actions. The system will execute them and the results will be visible immediately on the user's dashboard.
 
@@ -188,6 +254,8 @@ GUIDELINES:
 - Be conversational, helpful, and proactive
 - Give strategic advice about lead generation, sales, and marketing
 - When the user asks to do something, DO IT by including the action block
+- When the user asks a question that needs research, SEARCH THE WEB for them
+- After receiving search results, summarize the findings clearly and cite sources when relevant
 - Provide context about what you did and next steps
 - If the user has no leads yet, suggest generating some first
 - Be specific with numbers and recommendations
@@ -215,16 +283,42 @@ GUIDELINES:
     const actionRegex = /\[ACTION:(\w+):\{([^}]*)\}\]/g;
     let match;
     const actionResults: string[] = [];
+    const searchResults: string[] = [];
 
     while ((match = actionRegex.exec(aiText)) !== null) {
       const actionName = match[1];
-      let params = {};
+      let params: any = {};
       try { params = JSON.parse(`{${match[2]}}`); } catch {}
       const result = await executeAction(userId, actionName, params);
       actionResults.push(result);
+      if (actionName === "web_search") {
+        searchResults.push(result);
+      }
     }
 
     aiText = aiText.replace(/\[ACTION:\w+:\{[^}]*\}\]/g, "").trim();
+
+    if (searchResults.length > 0) {
+      const searchContext = searchResults.join("\n\n");
+      const followUpMessages = [
+        ...claudeMessages,
+        { role: "assistant" as const, content: aiText || "Let me search for that information." },
+        { role: "user" as const, content: `Here are the web search results. Please summarize and present the key findings to the user in a clear, helpful way. Include relevant source links when appropriate.\n\n${searchContext}` },
+      ];
+      try {
+        const followUp = await anthropic.messages.create({
+          model: "claude-haiku-4-5",
+          max_tokens: 1500,
+          system: systemPrompt,
+          messages: followUpMessages,
+        });
+        const followUpText = followUp.content[0].type === "text" ? followUp.content[0].text : "";
+        aiText = followUpText.replace(/\[ACTION:\w+:\{[^}]*\}\]/g, "").trim() || aiText;
+      } catch (err) {
+        console.error("Follow-up Claude call failed:", err);
+        aiText = aiText ? `${aiText}\n\n${searchContext}` : searchContext;
+      }
+    }
 
     const failedResults = actionResults.filter(r => r.startsWith("NO_LEADS") || r.startsWith("NO_WARM_LEADS") || r.startsWith("ALL_AGENTS_EXIST"));
     if (failedResults.length > 0) {
@@ -271,10 +365,17 @@ async function fallbackResponse(userId: string, msg: string): Promise<string> {
     const result = await executeAction(userId, "get_stats", {});
     return result.replace("STATS: ", "Here's your current status:\n\n");
   }
-  if (lower.includes("help")) {
-    return "I can help you with:\n\n- Generating new leads for your CRM\n- Booking appointments with your leads\n- Activating AI automation agents\n- Creating email/SMS campaigns\n- Following up with warm leads\n- Showing your performance stats\n\nJust tell me what you need!";
+  if (lower.includes("search") || lower.includes("research") || lower.includes("look up") || lower.includes("find out") || lower.includes("what is") || lower.includes("who is") || lower.includes("how to")) {
+    const result = await executeAction(userId, "web_search", { query: msg });
+    if (result.startsWith("SEARCH_RESULTS")) {
+      return `I ran a quick search for you (basic mode):\n\n${result.replace("SEARCH_RESULTS", "Results")}`;
+    }
+    return result;
   }
-  return "I'm experiencing a temporary issue connecting to my AI engine. Please try again in a moment. You can still ask me to generate leads, book appointments, or activate agents - those actions still work!";
+  if (lower.includes("help")) {
+    return "I can help you with:\n\n- Generating new leads for your CRM\n- Booking appointments with your leads\n- Activating AI automation agents\n- Creating email/SMS campaigns\n- Following up with warm leads\n- Showing your performance stats\n- Searching the internet for research and information\n\nJust tell me what you need!";
+  }
+  return "I'm experiencing a temporary issue connecting to my AI engine. Please try again in a moment. You can still ask me to generate leads, book appointments, activate agents, or search the web - those actions still work!";
 }
 
 export async function registerRoutes(
