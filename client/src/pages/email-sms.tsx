@@ -150,28 +150,46 @@ export default function EmailSmsPage() {
                 ))}
               </div>
             ) : messages && messages.length > 0 ? (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-                  data-testid={`chat-message-${msg.id}`}
-                >
-                  <Avatar className="w-8 h-8 shrink-0">
-                    <AvatarFallback className={msg.role === "user" ? "bg-primary/10 text-primary text-xs" : "bg-chart-3/10 text-chart-3 text-xs"}>
-                      {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                    </AvatarFallback>
-                  </Avatar>
+              <>
+                {messages.map((msg) => (
                   <div
-                    className={`max-w-[75%] rounded-md p-3 text-sm whitespace-pre-wrap ${
-                      msg.role === "user"
-                        ? "bg-primary/10 text-foreground"
-                        : "bg-secondary/50 text-foreground"
-                    }`}
+                    key={msg.id}
+                    className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                    data-testid={`chat-message-${msg.id}`}
                   >
-                    {msg.content}
+                    <Avatar className="w-8 h-8 shrink-0">
+                      <AvatarFallback className={msg.role === "user" ? "bg-primary/10 text-primary text-xs" : "bg-chart-3/10 text-chart-3 text-xs"}>
+                        {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div
+                      className={`max-w-[75%] rounded-md p-3 text-sm whitespace-pre-wrap ${
+                        msg.role === "user"
+                          ? "bg-primary/10 text-foreground"
+                          : "bg-secondary/50 text-foreground"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                {sendMutation.isPending && (
+                  <div className="flex gap-3">
+                    <Avatar className="w-8 h-8 shrink-0">
+                      <AvatarFallback className="bg-chart-3/10 text-chart-3 text-xs">
+                        <Bot className="w-4 h-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="max-w-[75%] rounded-md p-3 bg-secondary/50 text-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">

@@ -7,6 +7,7 @@ import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import Anthropic from "@anthropic-ai/sdk";
 
 const scryptAsync = promisify(scrypt);
 
@@ -67,135 +68,213 @@ function generateRandomLead(userId: string) {
   };
 }
 
-async function handleAiAction(userId: string, userMessage: string): Promise<string> {
-  const msg = userMessage.toLowerCase();
+const anthropic = new Anthropic({
+  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+});
 
-  if (msg.includes("lead") && (msg.includes("generate") || msg.includes("find") || msg.includes("get") || msg.includes("create") || msg.includes("add"))) {
-    const countMatch = msg.match(/(\d+)/);
+async function executeAction(userId: string, action: string, params: any): Promise<string> {
+  switch (action) {
+    case "generate_leads": {
+      const count = Math.min(params.count || 3, 20);
+      const created: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const leadData = generateRandomLead(userId);
+        await storage.createLead(leadData);
+        created.push(leadData.name);
+      }
+      const allLeads = await storage.getLeadsByUser(userId);
+      const stats = await storage.getStatsByUser(userId);
+      const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
+      await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
+      return `ACTIONS_COMPLETED: Created ${count} leads: ${created.join(", ")}. Total leads now: ${allLeads.length}.`;
+    }
+    case "book_appointments": {
+      const userLeads = await storage.getLeadsByUser(userId);
+      if (userLeads.length === 0) return "NO_LEADS: User has no leads yet.";
+      const count = Math.min(params.count || 2, userLeads.length);
+      const types = ["Discovery Call", "Strategy Session", "Sales Call", "Follow-Up Call", "Demo Call", "Consultation"];
+      const booked: string[] = [];
+      const shuffled = [...userLeads].sort(() => Math.random() - 0.5);
+      for (let i = 0; i < count; i++) {
+        const lead = shuffled[i];
+        const hoursFromNow = randomInt(4, 72);
+        const appt = await storage.createAppointment({ userId, leadName: lead.name, type: randomPick(types), date: new Date(Date.now() + hoursFromNow * 60 * 60 * 1000), status: "scheduled" });
+        booked.push(`${lead.name} - ${appt.type}`);
+      }
+      const stats = await storage.getStatsByUser(userId);
+      const allAppts = await storage.getAppointmentsByUser(userId);
+      await storage.upsertStats({ userId, totalLeads: stats?.totalLeads || 0, activeLeads: stats?.activeLeads || 0, appointmentsBooked: allAppts.length, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
+      return `ACTIONS_COMPLETED: Booked ${count} appointments: ${booked.join("; ")}.`;
+    }
+    case "activate_agents": {
+      const agentTypes = [
+        { name: "Lead Qualifier", type: "Qualification", desc: "Automatically scores and qualifies incoming leads based on engagement, demographics, and behavior patterns." },
+        { name: "Email Nurturing", type: "Communication", desc: "Sends personalized email sequences that adapt based on recipient behavior and engagement metrics." },
+        { name: "Appointment Setter", type: "Scheduling", desc: "Books qualified leads into available calendar slots and handles rescheduling automatically." },
+        { name: "Chat Responder", type: "Support", desc: "Responds to incoming chat messages instantly, qualifying leads and answering common questions." },
+        { name: "Ad Optimizer", type: "Marketing", desc: "Monitors ad performance across platforms and adjusts bids, targeting, and creative in real-time." },
+        { name: "Follow-Up Agent", type: "Retention", desc: "Automatically follows up with leads who haven't responded, using multi-channel outreach." },
+      ];
+      const existing = await storage.getAiAgentsByUser(userId);
+      const existingNames = new Set(existing.map(a => a.name));
+      const available = agentTypes.filter(a => !existingNames.has(a.name));
+      if (available.length === 0) return "ALL_AGENTS_EXIST: All 6 AI agents are already set up.";
+      const count = Math.min(params.count || available.length, available.length);
+      const toCreate = available.slice(0, count);
+      const created: string[] = [];
+      for (const agent of toCreate) {
+        await storage.createAiAgent({ userId, name: agent.name, type: agent.type, status: "active", tasksCompleted: 0, successRate: 0, description: agent.desc });
+        created.push(agent.name);
+      }
+      return `ACTIONS_COMPLETED: Activated ${count} agents: ${created.join(", ")}.`;
+    }
+    case "follow_up_leads": {
+      const userLeads = await storage.getLeadsByUser(userId);
+      const warmLeads = userLeads.filter(l => l.status === "warm" || l.status === "new");
+      if (warmLeads.length === 0) return "NO_WARM_LEADS: No warm or new leads to follow up with.";
+      const count = Math.min(params.count || warmLeads.length, 5);
+      const appts: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const lead = warmLeads[i];
+        await storage.createAppointment({ userId, leadName: lead.name, type: "Follow-Up Call", date: new Date(Date.now() + randomInt(24, 96) * 60 * 60 * 1000), status: "scheduled" });
+        appts.push(lead.name);
+      }
+      return `ACTIONS_COMPLETED: Created follow-up calls for ${count} leads: ${appts.join(", ")}.`;
+    }
+    case "get_stats": {
+      const userLeads = await storage.getLeadsByUser(userId);
+      const appts = await storage.getAppointmentsByUser(userId);
+      const agents = await storage.getAiAgentsByUser(userId);
+      const hot = userLeads.filter(l => l.status === "hot").length;
+      const qualified = userLeads.filter(l => l.status === "qualified").length;
+      const warm = userLeads.filter(l => l.status === "warm").length;
+      const scheduled = appts.filter(a => a.status === "scheduled").length;
+      const completed = appts.filter(a => a.status === "completed").length;
+      const activeAgents = agents.filter(a => a.status === "active").length;
+      return `STATS: Leads: ${userLeads.length} total (${hot} hot, ${qualified} qualified, ${warm} warm, ${userLeads.length - hot - qualified - warm} new). Appointments: ${appts.length} total (${scheduled} scheduled, ${completed} completed). AI Agents: ${agents.length} total (${activeAgents} active).`;
+    }
+    default:
+      return "NO_ACTION";
+  }
+}
+
+async function handleAiAction(userId: string, userMessage: string, chatHistory: { role: string; content: string }[] = []): Promise<string> {
+  const allLeads = await storage.getLeadsByUser(userId);
+  const allAppts = await storage.getAppointmentsByUser(userId);
+  const allAgents = await storage.getAiAgentsByUser(userId);
+
+  const systemPrompt = `You are ArgiFlow AI, an intelligent assistant for automated client acquisition. You help business owners manage leads, appointments, AI agents, and marketing campaigns.
+
+CURRENT USER DATA:
+- Leads: ${allLeads.length} total (${allLeads.filter(l => l.status === "hot").length} hot, ${allLeads.filter(l => l.status === "qualified").length} qualified, ${allLeads.filter(l => l.status === "warm").length} warm, ${allLeads.filter(l => l.status === "new").length} new)
+- Appointments: ${allAppts.length} total (${allAppts.filter(a => a.status === "scheduled").length} scheduled, ${allAppts.filter(a => a.status === "completed").length} completed)
+- AI Agents: ${allAgents.length} total (${allAgents.filter(a => a.status === "active").length} active)
+${allLeads.length > 0 ? `- Recent leads: ${allLeads.slice(0, 5).map(l => `${l.name} (${l.status}, score: ${l.score})`).join(", ")}` : ""}
+${allAgents.length > 0 ? `- Agents: ${allAgents.map(a => `${a.name} (${a.status})`).join(", ")}` : ""}
+
+AVAILABLE ACTIONS:
+You can perform real actions in the user's account. When the user wants you to do something, include an ACTION block in your response using this exact format:
+
+[ACTION:generate_leads:{"count":5}]
+[ACTION:book_appointments:{"count":3}]
+[ACTION:activate_agents:{"count":6}]
+[ACTION:follow_up_leads:{"count":3}]
+[ACTION:get_stats:{}]
+
+Include the ACTION block naturally within your response. You can include multiple actions. The system will execute them and the results will be visible immediately on the user's dashboard.
+
+GUIDELINES:
+- Be conversational, helpful, and proactive
+- Give strategic advice about lead generation, sales, and marketing
+- When the user asks to do something, DO IT by including the action block
+- Provide context about what you did and next steps
+- If the user has no leads yet, suggest generating some first
+- Be specific with numbers and recommendations
+- Keep responses concise but informative`;
+
+  const claudeMessages: { role: "user" | "assistant"; content: string }[] = chatHistory
+    .filter(m => m.role === "user" || m.role === "assistant")
+    .slice(-20)
+    .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
+
+  if (claudeMessages.length === 0 || claudeMessages[claudeMessages.length - 1].content !== userMessage) {
+    claudeMessages.push({ role: "user", content: userMessage });
+  }
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: claudeMessages,
+    });
+
+    let aiText = response.content[0].type === "text" ? response.content[0].text : "";
+
+    const actionRegex = /\[ACTION:(\w+):\{([^}]*)\}\]/g;
+    let match;
+    const actionResults: string[] = [];
+
+    while ((match = actionRegex.exec(aiText)) !== null) {
+      const actionName = match[1];
+      let params = {};
+      try { params = JSON.parse(`{${match[2]}}`); } catch {}
+      const result = await executeAction(userId, actionName, params);
+      actionResults.push(result);
+    }
+
+    aiText = aiText.replace(/\[ACTION:\w+:\{[^}]*\}\]/g, "").trim();
+
+    const failedResults = actionResults.filter(r => r.startsWith("NO_LEADS") || r.startsWith("NO_WARM_LEADS") || r.startsWith("ALL_AGENTS_EXIST"));
+    if (failedResults.length > 0) {
+      const notes = failedResults.map(r => {
+        if (r.startsWith("NO_LEADS")) return "You don't have any leads yet. Try asking me to generate some leads first.";
+        if (r.startsWith("NO_WARM_LEADS")) return "No warm or new leads to follow up with right now.";
+        if (r.startsWith("ALL_AGENTS_EXIST")) return "All AI agents are already set up and running.";
+        return "";
+      }).filter(Boolean);
+      aiText = aiText ? `${aiText}\n\nNote: ${notes.join(" ")}` : notes.join("\n");
+    }
+
+    if (!aiText && actionResults.length > 0) {
+      aiText = "Done! I've completed the actions. Check your dashboard to see the updates.";
+    }
+
+    return aiText || "I'm here to help! Ask me anything about lead generation, appointments, or marketing strategies.";
+  } catch (error: any) {
+    console.error("Anthropic API error:", error);
+    return fallbackResponse(userId, userMessage);
+  }
+}
+
+async function fallbackResponse(userId: string, msg: string): Promise<string> {
+  const lower = msg.toLowerCase();
+  if (lower.includes("lead") && (lower.includes("generate") || lower.includes("create"))) {
+    const countMatch = lower.match(/(\d+)/);
     const count = Math.min(countMatch ? parseInt(countMatch[1]) : 3, 20);
-    const created: string[] = [];
-    for (let i = 0; i < count; i++) {
-      const leadData = generateRandomLead(userId);
-      await storage.createLead(leadData);
-      created.push(leadData.name);
-    }
-    const stats = await storage.getStatsByUser(userId);
-    const allLeads = await storage.getLeadsByUser(userId);
-    const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
-    await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
-    return `Done! I've generated ${count} new lead${count > 1 ? "s" : ""} and added them to your CRM:\n\n${created.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n\nYour total leads are now ${allLeads.length}. Head over to Leads & CRM to see them.`;
+    const result = await executeAction(userId, "generate_leads", { count });
+    return `I'm running in basic mode right now, but I still got things done! ${result.replace("ACTIONS_COMPLETED: ", "")}`;
   }
-
-  if (msg.includes("appointment") || msg.includes("schedule") || msg.includes("book") || msg.includes("meeting") || msg.includes("call")) {
-    const leads = await storage.getLeadsByUser(userId);
-    if (leads.length === 0) {
-      return "You don't have any leads yet. I need leads to schedule appointments with. Say \"generate 5 leads\" and I'll create some for you first!";
-    }
-    const countMatch = msg.match(/(\d+)/);
-    const count = Math.min(countMatch ? parseInt(countMatch[1]) : 2, leads.length);
-    const types = ["Discovery Call", "Strategy Session", "Sales Call", "Follow-Up Call", "Demo Call", "Consultation"];
-    const booked: string[] = [];
-    const shuffled = [...leads].sort(() => Math.random() - 0.5);
-    for (let i = 0; i < count; i++) {
-      const lead = shuffled[i];
-      const hoursFromNow = randomInt(4, 72);
-      const appt = await storage.createAppointment({
-        userId,
-        leadName: lead.name,
-        type: randomPick(types),
-        date: new Date(Date.now() + hoursFromNow * 60 * 60 * 1000),
-        status: "scheduled",
-      });
-      booked.push(`${lead.name} - ${appt.type}`);
-    }
-    const stats = await storage.getStatsByUser(userId);
-    const allAppts = await storage.getAppointmentsByUser(userId);
-    await storage.upsertStats({ userId, totalLeads: stats?.totalLeads || 0, activeLeads: stats?.activeLeads || 0, appointmentsBooked: allAppts.length, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
-    return `Done! I've booked ${count} appointment${count > 1 ? "s" : ""}:\n\n${booked.map((b, i) => `${i + 1}. ${b}`).join("\n")}\n\nAll appointments are scheduled and reminders are set. Check your Appointments page for details.`;
+  if (lower.includes("appointment") || lower.includes("book")) {
+    const countMatch = lower.match(/(\d+)/);
+    const count = countMatch ? parseInt(countMatch[1]) : 2;
+    const result = await executeAction(userId, "book_appointments", { count });
+    if (result.startsWith("NO_LEADS")) return "You don't have any leads yet. Ask me to generate some leads first!";
+    return `Running in basic mode, but done! ${result.replace("ACTIONS_COMPLETED: ", "")}`;
   }
-
-  if ((msg.includes("agent") || msg.includes("bot")) && (msg.includes("create") || msg.includes("add") || msg.includes("set up") || msg.includes("activate") || msg.includes("start") || msg.includes("launch"))) {
-    const agentTypes = [
-      { name: "Lead Qualifier", type: "Qualification", desc: "Automatically scores and qualifies incoming leads based on engagement, demographics, and behavior patterns." },
-      { name: "Email Nurturing", type: "Communication", desc: "Sends personalized email sequences that adapt based on recipient behavior and engagement metrics." },
-      { name: "Appointment Setter", type: "Scheduling", desc: "Books qualified leads into available calendar slots and handles rescheduling automatically." },
-      { name: "Chat Responder", type: "Support", desc: "Responds to incoming chat messages instantly, qualifying leads and answering common questions." },
-      { name: "Ad Optimizer", type: "Marketing", desc: "Monitors ad performance across platforms and adjusts bids, targeting, and creative in real-time." },
-      { name: "Follow-Up Agent", type: "Retention", desc: "Automatically follows up with leads who haven't responded, using multi-channel outreach." },
-    ];
-    const existing = await storage.getAiAgentsByUser(userId);
-    const existingNames = new Set(existing.map(a => a.name));
-    const available = agentTypes.filter(a => !existingNames.has(a.name));
-    if (available.length === 0) {
-      return "All AI agents are already set up! You have the full team running. You can configure them on the AI Agents page.";
-    }
-    const countMatch = msg.match(/(\d+)/);
-    const count = Math.min(countMatch ? parseInt(countMatch[1]) : available.length, available.length);
-    const toCreate = available.slice(0, count);
-    const created: string[] = [];
-    for (const agent of toCreate) {
-      await storage.createAiAgent({ userId, name: agent.name, type: agent.type, status: "active", tasksCompleted: 0, successRate: 0, description: agent.desc });
-      created.push(agent.name);
-    }
-    return `Done! I've activated ${count} AI agent${count > 1 ? "s" : ""}:\n\n${created.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n\nThey're live and ready to work. Check the AI Agents page to configure them.`;
+  if (lower.includes("agent") || lower.includes("activate")) {
+    const result = await executeAction(userId, "activate_agents", {});
+    return `Running in basic mode, but done! ${result.replace("ACTIONS_COMPLETED: ", "").replace("ALL_AGENTS_EXIST: ", "")}`;
   }
-
-  if (msg.includes("email") && (msg.includes("campaign") || msg.includes("send") || msg.includes("create") || msg.includes("draft"))) {
-    const leads = await storage.getLeadsByUser(userId);
-    const hotLeads = leads.filter(l => l.status === "hot" || l.status === "qualified");
-    const targetCount = hotLeads.length || leads.length;
-    return `I've drafted an email campaign targeting ${targetCount} lead${targetCount > 1 ? "s" : ""}${hotLeads.length > 0 ? " (focusing on your hot and qualified leads)" : ""}.\n\nCampaign details:\n- Subject: Personalized outreach based on lead source\n- Sequence: 3-email drip over 7 days\n- A/B testing: 2 subject line variants\n- Send time: Optimized per lead timezone\n\nThe campaign is queued and ready. You can review it on the Email & SMS page.`;
+  if (lower.includes("stat") || lower.includes("report") || lower.includes("performance")) {
+    const result = await executeAction(userId, "get_stats", {});
+    return result.replace("STATS: ", "Here's your current status:\n\n");
   }
-
-  if (msg.includes("sms") || msg.includes("text message")) {
-    const leads = await storage.getLeadsByUser(userId);
-    return `I've set up an SMS outreach for ${leads.length} lead${leads.length !== 1 ? "s" : ""}.\n\nSMS details:\n- Message: Short, personalized intro with CTA\n- Timing: Staggered delivery during business hours\n- Follow-up: Auto-reply detection enabled\n\nReady to send from your Email & SMS page.`;
+  if (lower.includes("help")) {
+    return "I can help you with:\n\n- Generating new leads for your CRM\n- Booking appointments with your leads\n- Activating AI automation agents\n- Creating email/SMS campaigns\n- Following up with warm leads\n- Showing your performance stats\n\nJust tell me what you need!";
   }
-
-  if (msg.includes("follow") && msg.includes("up")) {
-    const leads = await storage.getLeadsByUser(userId);
-    const warmLeads = leads.filter(l => l.status === "warm" || l.status === "new");
-    if (warmLeads.length === 0) {
-      return "No warm or new leads to follow up with right now. Generate some new leads first and I'll set up follow-up sequences for them.";
-    }
-    const count = Math.min(warmLeads.length, 5);
-    const appts: string[] = [];
-    for (let i = 0; i < count; i++) {
-      const lead = warmLeads[i];
-      await storage.createAppointment({
-        userId,
-        leadName: lead.name,
-        type: "Follow-Up Call",
-        date: new Date(Date.now() + randomInt(24, 96) * 60 * 60 * 1000),
-        status: "scheduled",
-      });
-      appts.push(lead.name);
-    }
-    return `Done! I've created follow-up sequences for ${count} lead${count > 1 ? "s" : ""} and booked follow-up calls:\n\n${appts.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n\nEach lead will get a multi-touch sequence (email + SMS + call). Check your Appointments page.`;
-  }
-
-  if (msg.includes("report") || msg.includes("analytics") || msg.includes("stats") || msg.includes("performance") || msg.includes("how") && msg.includes("doing")) {
-    const leads = await storage.getLeadsByUser(userId);
-    const appts = await storage.getAppointmentsByUser(userId);
-    const agents = await storage.getAiAgentsByUser(userId);
-    const hotLeads = leads.filter(l => l.status === "hot").length;
-    const qualifiedLeads = leads.filter(l => l.status === "qualified").length;
-    const warmLeads = leads.filter(l => l.status === "warm").length;
-    const scheduled = appts.filter(a => a.status === "scheduled").length;
-    const completed = appts.filter(a => a.status === "completed").length;
-    const activeAgents = agents.filter(a => a.status === "active").length;
-    return `Here's your current performance report:\n\nLeads: ${leads.length} total\n- Hot: ${hotLeads}\n- Qualified: ${qualifiedLeads}\n- Warm: ${warmLeads}\n- New: ${leads.length - hotLeads - qualifiedLeads - warmLeads}\n\nAppointments: ${appts.length} total\n- Scheduled: ${scheduled}\n- Completed: ${completed}\n\nAI Agents: ${agents.length} total (${activeAgents} active)\n\n${leads.length === 0 ? "Tip: Say \"generate 10 leads\" to get started!" : ""}${agents.length === 0 ? "Tip: Say \"activate agents\" to set up your AI team!" : ""}`;
-  }
-
-  if (msg.includes("help") || msg.includes("what can you") || msg.includes("what do you")) {
-    return "I can take action on your behalf! Here's what I can do:\n\n- \"Generate 5 leads\" - I'll create real leads in your CRM\n- \"Book 3 appointments\" - I'll schedule calls with your leads\n- \"Activate agents\" - I'll set up your AI automation team\n- \"Create email campaign\" - I'll draft a campaign for your leads\n- \"Follow up with leads\" - I'll schedule follow-up sequences\n- \"Show my stats\" - I'll give you a performance report\n\nJust tell me what to do and I'll handle it!";
-  }
-
-  if (msg.includes("clear") || msg.includes("reset") || msg.includes("delete all")) {
-    return "For data management like clearing or resetting, please use the Settings page. I'm here to help you grow -- try asking me to generate leads, book appointments, or activate agents!";
-  }
-
-  return "I can take action for you! Try:\n\n- \"Generate 10 leads\" to add leads to your CRM\n- \"Book 3 appointments\" to schedule calls\n- \"Activate agents\" to launch your AI team\n- \"Show my stats\" for a performance report\n\nWhat would you like me to do?";
+  return "I'm experiencing a temporary issue connecting to my AI engine. Please try again in a moment. You can still ask me to generate leads, book appointments, or activate agents - those actions still work!";
 }
 
 export async function registerRoutes(
@@ -408,7 +487,10 @@ export async function registerRoutes(
       }
       const userMessage = await storage.createChatMessage({ userId, role: "user", content });
 
-      const aiReply = await handleAiAction(userId, content);
+      const history = await storage.getChatMessages(userId);
+      const chatHistory = history.slice(-20).map(m => ({ role: m.role, content: m.content }));
+
+      const aiReply = await handleAiAction(userId, content, chatHistory);
       const aiMessage = await storage.createChatMessage({ userId, role: "assistant", content: aiReply });
 
       res.json({ userMessage, aiMessage });

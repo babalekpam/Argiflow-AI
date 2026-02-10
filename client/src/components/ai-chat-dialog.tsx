@@ -99,27 +99,45 @@ export function AiChatDialog() {
 
           <div className="flex-1 overflow-auto p-3 space-y-3">
             {messages && messages.length > 0 ? (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-                >
-                  <Avatar className="w-7 h-7 shrink-0">
-                    <AvatarFallback className={msg.role === "user" ? "bg-primary/10 text-primary text-xs" : "bg-chart-3/10 text-chart-3 text-xs"}>
-                      {msg.role === "user" ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
-                    </AvatarFallback>
-                  </Avatar>
+              <>
+                {messages.map((msg) => (
                   <div
-                    className={`max-w-[80%] rounded-md p-2.5 text-xs whitespace-pre-wrap leading-relaxed ${
-                      msg.role === "user"
-                        ? "bg-primary/10 text-foreground"
-                        : "bg-secondary/50 text-foreground"
-                    }`}
+                    key={msg.id}
+                    className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
                   >
-                    {msg.content}
+                    <Avatar className="w-7 h-7 shrink-0">
+                      <AvatarFallback className={msg.role === "user" ? "bg-primary/10 text-primary text-xs" : "bg-chart-3/10 text-chart-3 text-xs"}>
+                        {msg.role === "user" ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div
+                      className={`max-w-[80%] rounded-md p-2.5 text-xs whitespace-pre-wrap leading-relaxed ${
+                        msg.role === "user"
+                          ? "bg-primary/10 text-foreground"
+                          : "bg-secondary/50 text-foreground"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                {sendMutation.isPending && (
+                  <div className="flex gap-2">
+                    <Avatar className="w-7 h-7 shrink-0">
+                      <AvatarFallback className="bg-chart-3/10 text-chart-3 text-xs">
+                        <Bot className="w-3.5 h-3.5" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="max-w-[80%] rounded-md p-2.5 bg-secondary/50 text-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
                 <Bot className="w-10 h-10 text-primary/50 mb-3" />

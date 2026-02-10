@@ -8,6 +8,7 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - **Backend**: Express.js with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
 - **Auth**: Email/password with session-based auth (scrypt hashing)
+- **AI**: Anthropic Claude (claude-haiku-4-5) via Replit AI Integrations
 
 ## Key Routes
 - `/` - Landing page (unauthenticated) or redirects to /dashboard (authenticated)
@@ -42,7 +43,7 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `GET /api/chat/messages` - Get AI chat messages
 - `POST /api/chat/messages` - Send message, get AI reply { content }
 - `DELETE /api/chat/messages` - Clear chat history
-- All authenticated routes call ensureSeeded(userId) to populate sample data on first access
+- AI chat uses Claude for intelligent conversation with action execution (generates leads, books appointments, etc.)
 
 ### Admin Endpoints (email/password auth)
 - `POST /api/admin/login` - Admin login with email/password
@@ -76,4 +77,9 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - Added Training center page
 - Added floating AI chat dialog accessible across all dashboard pages
 - Fixed dashboard routing (overview page now loads correctly)
-- PostgreSQL database with seed data
+- Removed mock data seeding - users start with empty platform
+- Integrated Anthropic Claude (claude-haiku-4-5) for intelligent AI chat with action execution
+- AI bot can generate leads, book appointments, activate agents, show stats via natural language
+- Added "thinking" animation to chat UIs while waiting for AI response
+- Chat history (last 20 messages) passed to Claude for conversational context
+- Fallback mode: actions still work even if Claude API is temporarily unavailable
