@@ -1,5 +1,5 @@
 import {
-  leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages,
+  leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
@@ -8,6 +8,7 @@ import {
   type User,
   type UserSettings, type InsertUserSettings,
   type AiChatMessage, type InsertAiChatMessage,
+  type MarketingStrategy, type InsertMarketingStrategy,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc } from "drizzle-orm";
@@ -38,6 +39,9 @@ export interface IStorage {
   getChatMessages(userId: string): Promise<AiChatMessage[]>;
   createChatMessage(message: InsertAiChatMessage): Promise<AiChatMessage>;
   clearChatMessages(userId: string): Promise<void>;
+  updateUser(id: string, data: Partial<Pick<User, "companyName" | "industry" | "website" | "companyDescription" | "onboardingCompleted">>): Promise<User | undefined>;
+  getMarketingStrategy(userId: string): Promise<MarketingStrategy | undefined>;
+  upsertMarketingStrategy(strategy: InsertMarketingStrategy): Promise<MarketingStrategy>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -171,6 +175,30 @@ export class DatabaseStorage implements IStorage {
 
   async clearChatMessages(userId: string): Promise<void> {
     await db.delete(aiChatMessages).where(eq(aiChatMessages.userId, userId));
+  }
+
+  async updateUser(id: string, data: Partial<Pick<User, "companyName" | "industry" | "website" | "companyDescription" | "onboardingCompleted">>): Promise<User | undefined> {
+    const [result] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
+    return result;
+  }
+
+  async getMarketingStrategy(userId: string): Promise<MarketingStrategy | undefined> {
+    const [result] = await db.select().from(marketingStrategies).where(eq(marketingStrategies.userId, userId));
+    return result;
+  }
+
+  async upsertMarketingStrategy(strategy: InsertMarketingStrategy): Promise<MarketingStrategy> {
+    const existing = await this.getMarketingStrategy(strategy.userId);
+    if (existing) {
+      const [result] = await db
+        .update(marketingStrategies)
+        .set({ ...strategy, updatedAt: new Date() })
+        .where(eq(marketingStrategies.userId, strategy.userId))
+        .returning();
+      return result;
+    }
+    const [result] = await db.insert(marketingStrategies).values(strategy).returning();
+    return result;
   }
 }
 

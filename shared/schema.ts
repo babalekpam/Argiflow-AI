@@ -79,6 +79,17 @@ export const userSettings = pgTable("user_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const marketingStrategies = pgTable("marketing_strategies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  companyName: text("company_name").notNull(),
+  industry: text("industry").notNull(),
+  strategy: text("strategy").notNull(),
+  status: text("status").notNull().default("generating"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const aiChatMessages = pgTable("ai_chat_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
@@ -94,6 +105,10 @@ export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 export const insertAiChatMessageSchema = createInsertSchema(aiChatMessages).omit({ id: true, createdAt: true });
 export type AiChatMessage = typeof aiChatMessages.$inferSelect;
 export type InsertAiChatMessage = z.infer<typeof insertAiChatMessageSchema>;
+
+export const insertMarketingStrategySchema = createInsertSchema(marketingStrategies).omit({ id: true, createdAt: true, updatedAt: true });
+export type MarketingStrategy = typeof marketingStrategies.$inferSelect;
+export type InsertMarketingStrategy = z.infer<typeof insertMarketingStrategySchema>;
 
 export const insertAdminSchema = createInsertSchema(admins).omit({ id: true, createdAt: true });
 export type Admin = typeof admins.$inferSelect;
