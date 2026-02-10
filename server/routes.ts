@@ -1105,6 +1105,122 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================================
+  // SALES FUNNELS
+  // ============================================================
+
+  app.get("/api/funnels", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const userFunnels = await storage.getFunnelsByUser(userId);
+      res.json(userFunnels);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch funnels" });
+    }
+  });
+
+  app.post("/api/funnels", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { name, description, stages } = req.body;
+      if (!name || !stages || !Array.isArray(stages) || stages.length === 0) {
+        return res.status(400).json({ message: "Name and at least one stage are required" });
+      }
+      const funnel = await storage.createFunnel({ userId, name, description, isActive: true });
+      for (let i = 0; i < stages.length; i++) {
+        await storage.createFunnelStage({
+          funnelId: funnel.id,
+          name: stages[i].name,
+          position: i,
+          color: stages[i].color || "#6366f1",
+        });
+      }
+      const createdStages = await storage.getFunnelStages(funnel.id);
+      res.json({ ...funnel, stages: createdStages });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create funnel" });
+    }
+  });
+
+  app.delete("/api/funnels/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      await storage.deleteFunnelDeals(req.params.id);
+      await storage.deleteFunnelStages(req.params.id);
+      await storage.deleteFunnel(req.params.id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete funnel" });
+    }
+  });
+
+  app.get("/api/funnels/:id/stages", isAuthenticated, async (req, res) => {
+    try {
+      const stages = await storage.getFunnelStages(req.params.id);
+      res.json(stages);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch stages" });
+    }
+  });
+
+  app.get("/api/funnels/:id/deals", isAuthenticated, async (req, res) => {
+    try {
+      const deals = await storage.getFunnelDeals(req.params.id);
+      res.json(deals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch deals" });
+    }
+  });
+
+  app.post("/api/funnels/:id/deals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { stageId, contactName, contactEmail, value } = req.body;
+      if (!stageId || !contactName) {
+        return res.status(400).json({ message: "Stage and contact name are required" });
+      }
+      const deal = await storage.createFunnelDeal({
+        funnelId: req.params.id,
+        stageId,
+        userId,
+        contactName,
+        contactEmail: contactEmail || null,
+        value: value || 0,
+        status: "open",
+      });
+      res.json(deal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create deal" });
+    }
+  });
+
+  app.patch("/api/deals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { stageId, contactName, contactEmail, value, status } = req.body;
+      const updated = await storage.updateFunnelDeal(req.params.id, {
+        ...(stageId && { stageId }),
+        ...(contactName && { contactName }),
+        ...(contactEmail !== undefined && { contactEmail }),
+        ...(value !== undefined && { value }),
+        ...(status && { status }),
+      });
+      if (!updated) return res.status(404).json({ message: "Deal not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update deal" });
+    }
+  });
+
+  app.delete("/api/deals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      await storage.deleteFunnelDeal(req.params.id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete deal" });
+    }
+  });
+
   return httpServer;
 }
 

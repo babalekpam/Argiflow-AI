@@ -1,5 +1,6 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
+  funnels, funnelStages, funnelDeals,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
@@ -9,6 +10,9 @@ import {
   type UserSettings, type InsertUserSettings,
   type AiChatMessage, type InsertAiChatMessage,
   type MarketingStrategy, type InsertMarketingStrategy,
+  type Funnel, type InsertFunnel,
+  type FunnelStage, type InsertFunnelStage,
+  type FunnelDeal, type InsertFunnelDeal,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc } from "drizzle-orm";
@@ -42,6 +46,17 @@ export interface IStorage {
   updateUser(id: string, data: Partial<Pick<User, "companyName" | "industry" | "website" | "companyDescription" | "onboardingCompleted">>): Promise<User | undefined>;
   getMarketingStrategy(userId: string): Promise<MarketingStrategy | undefined>;
   upsertMarketingStrategy(strategy: InsertMarketingStrategy): Promise<MarketingStrategy>;
+  getFunnelsByUser(userId: string): Promise<Funnel[]>;
+  createFunnel(funnel: InsertFunnel): Promise<Funnel>;
+  deleteFunnel(id: string, userId: string): Promise<void>;
+  getFunnelStages(funnelId: string): Promise<FunnelStage[]>;
+  createFunnelStage(stage: InsertFunnelStage): Promise<FunnelStage>;
+  deleteFunnelStages(funnelId: string): Promise<void>;
+  getFunnelDeals(funnelId: string): Promise<FunnelDeal[]>;
+  createFunnelDeal(deal: InsertFunnelDeal): Promise<FunnelDeal>;
+  updateFunnelDeal(id: string, data: Partial<Pick<FunnelDeal, "stageId" | "contactName" | "contactEmail" | "value" | "status">>): Promise<FunnelDeal | undefined>;
+  deleteFunnelDeal(id: string, userId: string): Promise<void>;
+  deleteFunnelDeals(funnelId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -199,6 +214,54 @@ export class DatabaseStorage implements IStorage {
     }
     const [result] = await db.insert(marketingStrategies).values(strategy).returning();
     return result;
+  }
+
+  async getFunnelsByUser(userId: string): Promise<Funnel[]> {
+    return db.select().from(funnels).where(eq(funnels.userId, userId)).orderBy(desc(funnels.createdAt));
+  }
+
+  async createFunnel(funnel: InsertFunnel): Promise<Funnel> {
+    const [result] = await db.insert(funnels).values(funnel).returning();
+    return result;
+  }
+
+  async deleteFunnel(id: string, userId: string): Promise<void> {
+    await db.delete(funnels).where(and(eq(funnels.id, id), eq(funnels.userId, userId)));
+  }
+
+  async getFunnelStages(funnelId: string): Promise<FunnelStage[]> {
+    return db.select().from(funnelStages).where(eq(funnelStages.funnelId, funnelId)).orderBy(asc(funnelStages.position));
+  }
+
+  async createFunnelStage(stage: InsertFunnelStage): Promise<FunnelStage> {
+    const [result] = await db.insert(funnelStages).values(stage).returning();
+    return result;
+  }
+
+  async deleteFunnelStages(funnelId: string): Promise<void> {
+    await db.delete(funnelStages).where(eq(funnelStages.funnelId, funnelId));
+  }
+
+  async getFunnelDeals(funnelId: string): Promise<FunnelDeal[]> {
+    return db.select().from(funnelDeals).where(eq(funnelDeals.funnelId, funnelId)).orderBy(desc(funnelDeals.createdAt));
+  }
+
+  async createFunnelDeal(deal: InsertFunnelDeal): Promise<FunnelDeal> {
+    const [result] = await db.insert(funnelDeals).values(deal).returning();
+    return result;
+  }
+
+  async updateFunnelDeal(id: string, data: Partial<Pick<FunnelDeal, "stageId" | "contactName" | "contactEmail" | "value" | "status">>): Promise<FunnelDeal | undefined> {
+    const [result] = await db.update(funnelDeals).set(data).where(eq(funnelDeals.id, id)).returning();
+    return result;
+  }
+
+  async deleteFunnelDeal(id: string, userId: string): Promise<void> {
+    await db.delete(funnelDeals).where(and(eq(funnelDeals.id, id), eq(funnelDeals.userId, userId)));
+  }
+
+  async deleteFunnelDeals(funnelId: string): Promise<void> {
+    await db.delete(funnelDeals).where(eq(funnelDeals.funnelId, funnelId));
   }
 }
 
