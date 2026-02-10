@@ -27,6 +27,8 @@ import {
   MessageSquare,
   Workflow,
   Sparkles,
+  Library,
+  Wand2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -46,6 +48,8 @@ const automationNav = [
 
 const growthNav = [
   { title: "Automations", icon: Workflow, url: "/dashboard/automations" },
+  { title: "Resources", icon: Library, url: "/dashboard/resources", badge: "NEW" },
+  { title: "Demos & Install", icon: Wand2, url: "/dashboard/demos", badge: "NEW" },
   { title: "Training", icon: GraduationCap, url: "/dashboard/training" },
   { title: "Settings", icon: Settings, url: "/dashboard/settings" },
 ];
@@ -126,6 +130,11 @@ export function AppSidebar() {
                     <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
                       <item.icon className="w-4 h-4" />
                       <span>{item.title}</span>
+                      {item.badge && (
+                        <Badge className="ml-auto text-[10px] py-0 px-1.5 bg-chart-3/10 text-chart-3 border-chart-3/20">
+                          {item.badge}
+                        </Badge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

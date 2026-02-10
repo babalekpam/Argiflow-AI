@@ -96,3 +96,6 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - AI auto-generates a full marketing strategy on signup using Claude
 - Strategy page at /dashboard/strategy with markdown rendering, regenerate button, and auto-polling
 - Competitive pricing: Starter $1,497 one-time, Ongoing Growth $997/mo, Enterprise custom
+- Added Resources page with Bot Templates (10 industries), Ad Templates (9x ROI), VSL Funnels, Organic Client Blueprint, and Agency SOPs
+- Added Demos & Install page with 1-Click Voice Demo Builder, 1-Click AI Demo Builder, 15-Minute Installation Checklist, and Lifetime Updates
+- Added Automation Arsenal section to Automations page

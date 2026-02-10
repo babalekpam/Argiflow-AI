@@ -215,6 +215,37 @@ export default function AutomationsPage() {
               </Card>
             ))}
       </div>
+
+      <Card className="p-6" data-testid="card-automation-arsenal">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-md bg-chart-4/10 flex items-center justify-center">
+            <Zap className="w-5 h-5 text-chart-4" />
+          </div>
+          <div>
+            <h3 className="font-semibold">Automation Arsenal</h3>
+            <p className="text-xs text-muted-foreground">Run your entire agency in 10 hours/week</p>
+          </div>
+          <Badge className="ml-auto bg-chart-4/10 text-chart-4 border-chart-4/20">Included</Badge>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[
+            { title: "Client Onboarding Automation", desc: "Auto-send welcome emails, create CRM entries, and schedule kickoff calls" },
+            { title: "Lead Nurture Sequences", desc: "7-day email/SMS drip that converts cold leads into booked calls" },
+            { title: "Appointment Reminders", desc: "Multi-channel reminders that cut no-shows by 80%" },
+            { title: "Monthly Report Generator", desc: "Auto-compile client metrics and send branded performance reports" },
+            { title: "Review Collection Bot", desc: "Trigger review requests after positive interactions" },
+            { title: "Invoice & Payment Automation", desc: "Auto-generate invoices and chase overdue payments" },
+          ].map((item, i) => (
+            <div key={i} className="flex items-start gap-2 p-3 rounded-md bg-secondary/30">
+              <CheckCircle2 className="w-3.5 h-3.5 text-chart-3 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-medium">{item.title}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }

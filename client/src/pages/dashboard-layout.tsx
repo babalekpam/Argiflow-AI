@@ -19,6 +19,8 @@ import EmailSmsPage from "./email-sms";
 import TrainingPage from "./training";
 import SettingsPage from "./settings";
 import StrategyPage from "./strategy";
+import ResourcesPage from "./resources";
+import DemoBuilderPage from "./demo-builder";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 
 export default function DashboardLayout() {
@@ -109,6 +111,8 @@ export default function DashboardLayout() {
               <Route path="/dashboard/ai-agents" component={AiAgentsPage} />
               <Route path="/dashboard/voice-ai" component={VoiceAiPage} />
               <Route path="/dashboard/automations" component={AutomationsPage} />
+              <Route path="/dashboard/resources" component={ResourcesPage} />
+              <Route path="/dashboard/demos" component={DemoBuilderPage} />
               <Route path="/dashboard/email" component={EmailSmsPage} />
               <Route path="/dashboard/training" component={TrainingPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
