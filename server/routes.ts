@@ -402,6 +402,7 @@ async function handleAiAction(userId: string, userMessage: string, chatHistory: 
   const allAgents = await storage.getAiAgentsByUser(userId);
   const websiteProfile = await storage.getWebsiteProfile(userId);
   const user = await storage.getUserById(userId);
+  const userSettings = await storage.getSettingsByUser(userId);
 
   const websiteKnowledgeBlock = websiteProfile?.status === "trained"
     ? `\n\nCLIENT WEBSITE KNOWLEDGE (learned from ${websiteProfile.websiteUrl}):
@@ -416,8 +417,9 @@ async function handleAiAction(userId: string, userMessage: string, chatHistory: 
 Use this knowledge when advising the client. Reference their actual services, pricing, and target audience in your recommendations. This makes your advice specific and actionable rather than generic.`
     : "";
 
+  const bookingLink = userSettings?.calendarLink || "";
   const companyBlock = user?.companyName
-    ? `\nCLIENT COMPANY: ${user.companyName} (${user.industry || "unknown industry"})${user.website ? ` | ${user.website}` : ""}${user.companyDescription ? `\nAbout: ${user.companyDescription}` : ""}`
+    ? `\nCLIENT COMPANY: ${user.companyName} (${user.industry || "unknown industry"})${user.website ? ` | ${user.website}` : ""}${user.companyDescription ? `\nAbout: ${user.companyDescription}` : ""}${bookingLink ? `\nBOOKING LINK: ${bookingLink}` : ""}`
     : "";
 
   const systemPrompt = `You are ArgiFlow AI — the senior AI strategist and automation expert at ArgiFlow, a premium AI Automation Agency specializing in Voice AI, Process Automation, Lead Generation Chatbots, AI Receptionists, and CRM Integration.
@@ -461,7 +463,7 @@ LEAD GENERATION RULES (CRITICAL):
 9. For EVERY lead, you MUST generate a personalized outreach email draft (3-5 sentences). The outreach should:
    - Reference their specific situation or pain point you discovered
    - Mention a relevant benefit of the client's service
-   - Include a clear call-to-action (e.g., "Would you be open to a 15-minute call this week?")
+   - Include a clear call-to-action with a booking link if available. ${bookingLink ? `ALWAYS include this booking link in the outreach: ${bookingLink} — e.g., "I'd love to chat — you can book a quick call here: ${bookingLink}"` : 'Use a generic CTA like "Would you be open to a 15-minute call this week?"'}
    - Sound human, warm, and consultative — not salesy or spammy
 10. Also include an intent_signal field describing what buying signal you found (e.g., "Posted looking for billing help", "New practice opening", "Switching providers")
 11. Include research notes about each prospect — what you learned about their business, size, challenges
