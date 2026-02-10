@@ -48,8 +48,25 @@ export async function getTwilioFromPhoneNumber() {
   return phoneNumber;
 }
 
+export async function getMessagingServiceSid() {
+  const client = await getTwilioClient();
+  const services = await client.messaging.v1.services.list({ limit: 1 });
+  return services.length > 0 ? services[0].sid : null;
+}
+
 export async function sendSMS(to: string, body: string) {
   const client = await getTwilioClient();
+  const messagingServiceSid = await getMessagingServiceSid();
+
+  if (messagingServiceSid) {
+    const message = await client.messages.create({
+      body,
+      messagingServiceSid,
+      to,
+    });
+    return message;
+  }
+
   const from = await getTwilioFromPhoneNumber();
   if (!from) {
     throw new Error('No Twilio phone number configured');
