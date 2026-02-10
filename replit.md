@@ -117,3 +117,6 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - Full AI Client Acquisition Pipeline visualization (6-step workflow graph) on Strategy page
 - Resources Install/Use/Import buttons now functional with toast feedback
 - Login/register endpoints return full user profile including company fields
+- Bot template installation now auto-generates professional AI scripts via Claude based on client's business info
+- AI Agents page shows expandable workflow diagrams and bot scripts per agent (script + workflowSteps columns)
+- Schema: `ai_agents` table has `script` (text) and `workflow_steps` (text/JSON) columns

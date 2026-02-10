@@ -869,7 +869,7 @@ export async function registerRoutes(
   app.post("/api/ai-agents", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const { name, type, description, status } = req.body;
+      const { name, type, description, status, generateScript, templateIndustry, templateFeatures } = req.body;
       if (!name || !type) {
         return res.status(400).json({ message: "Name and type are required" });
       }
@@ -882,6 +882,85 @@ export async function registerRoutes(
         successRate: 0,
         description: description || "",
       });
+
+      if (generateScript) {
+        const user = await storage.getUserById(userId);
+        const companyName = user?.companyName || "your company";
+        const industry = user?.industry || templateIndustry || "general";
+        const companyDescription = user?.companyDescription || "";
+        const website = user?.website || "";
+
+        const scriptPrompt = `You are an expert AI automation consultant. Generate a professional, ready-to-deploy conversational script for an AI bot.
+
+BOT ROLE: ${name}
+BOT INDUSTRY: ${templateIndustry || industry}
+BOT FEATURES: ${(templateFeatures || []).join(", ")}
+BOT DESCRIPTION: ${description}
+
+CLIENT BUSINESS:
+- Company: ${companyName}
+- Industry: ${industry}
+- Website: ${website}
+- Description: ${companyDescription}
+
+Generate TWO things in your response, separated by the exact delimiter "---WORKFLOW_STEPS---":
+
+PART 1 - PROFESSIONAL BOT SCRIPT:
+Write a complete, professional conversational script that this bot would use. Include:
+- A warm, professional greeting customized to the business
+- 4-6 key conversation flows (qualifying questions, objection handling, booking/scheduling, follow-up)
+- Professional closing and handoff scripts
+- Edge case handling (after hours, complex requests, escalation)
+Format as a clean, readable script with clear section headers using ## markdown headers.
+Make it specific to the client's business and industry - NOT generic.
+Keep it concise but thorough (roughly 300-500 words).
+
+PART 2 - WORKFLOW STEPS (after the ---WORKFLOW_STEPS--- delimiter):
+Return a JSON array of 5-7 workflow steps that visually describe this bot's automation pipeline. Each step should have:
+- "title": short step name (3-5 words)
+- "description": one sentence describing what happens
+- "icon": one of: "MessageSquare", "UserCheck", "Calendar", "Mail", "Phone", "Target", "BarChart", "Clock", "Shield", "Zap", "FileText", "DollarSign"
+
+Example format:
+[{"title":"Greet & Qualify","description":"Bot greets visitor and asks qualifying questions.","icon":"MessageSquare"},{"title":"Capture Info","description":"Collects contact details and requirements.","icon":"UserCheck"}]
+
+Return ONLY the script then the delimiter then the JSON array. No other text.`;
+
+        try {
+          const response = await anthropic.messages.create({
+            model: "claude-sonnet-4-5",
+            max_tokens: 2000,
+            messages: [{ role: "user", content: scriptPrompt }],
+          });
+
+          const fullText = response.content
+            .filter((b): b is Anthropic.TextBlock => b.type === "text")
+            .map((b) => b.text)
+            .join("");
+
+          const parts = fullText.split("---WORKFLOW_STEPS---");
+          const script = parts[0]?.trim() || "";
+          let workflowSteps = "[]";
+          if (parts[1]) {
+            const jsonMatch = parts[1].match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              try {
+                JSON.parse(jsonMatch[0]);
+                workflowSteps = jsonMatch[0];
+              } catch {
+                workflowSteps = "[]";
+              }
+            }
+          }
+
+          const updated = await storage.updateAiAgent(agent.id, userId, { script, workflowSteps });
+          return res.json(updated || agent);
+        } catch (aiError) {
+          console.error("Claude script generation failed (agent still created):", aiError);
+          return res.json(agent);
+        }
+      }
+
       res.json(agent);
     } catch (error) {
       console.error("Error creating AI agent:", error);
@@ -893,12 +972,14 @@ export async function registerRoutes(
     try {
       const userId = req.session.userId!;
       const id = req.params.id as string;
-      const { name, status, description, type } = req.body;
+      const { name, status, description, type, script, workflowSteps } = req.body;
       const data: Record<string, string> = {};
       if (name !== undefined) data.name = name;
       if (status !== undefined) data.status = status;
       if (description !== undefined) data.description = description;
       if (type !== undefined) data.type = type;
+      if (script !== undefined) data.script = script;
+      if (workflowSteps !== undefined) data.workflowSteps = workflowSteps;
       const result = await storage.updateAiAgent(id, userId, data);
       if (!result) {
         return res.status(404).json({ message: "Agent not found" });

@@ -393,13 +393,18 @@ export default function ResourcesPage() {
     setInstalledItems((prev) => ({ ...prev, [key]: true }));
   };
 
+  const [installingKey, setInstallingKey] = useState<string | null>(null);
+
   const installAgentMutation = useMutation({
-    mutationFn: async (data: { name: string; type: string; description: string }) => {
+    mutationFn: async (data: { name: string; type: string; description: string; templateIndustry: string; templateFeatures: string[] }) => {
       const res = await apiRequest("POST", "/api/ai-agents", {
         name: data.name,
         type: data.type,
         description: data.description,
         status: "active",
+        generateScript: true,
+        templateIndustry: data.templateIndustry,
+        templateFeatures: data.templateFeatures,
       });
       return res.json();
     },
@@ -505,27 +510,38 @@ export default function ResourcesPage() {
                           <Button
                             size="sm"
                             data-testid={`button-install-bot-${i}`}
-                            disabled={installAgentMutation.isPending}
+                            disabled={installingKey === key}
                             onClick={async () => {
+                              setInstallingKey(key);
                               try {
-                                await installAgentMutation.mutateAsync({
+                                const result = await installAgentMutation.mutateAsync({
                                   name: template.name,
                                   type: "Chat Responder",
                                   description: `${template.industry} bot: ${template.description} Features: ${template.features.join(", ")}`,
+                                  templateIndustry: template.industry,
+                                  templateFeatures: template.features,
                                 });
                                 markInstalled(key);
-                                toast({ title: `${template.name} is live`, description: `AI agent created and activated. View it in AI Agents.` });
+                                const hasScript = result?.script;
+                                toast({
+                                  title: `${template.name} is live`,
+                                  description: hasScript
+                                    ? "AI script generated and agent activated. View it in AI Agents."
+                                    : "Agent activated. Script generation is processing — check AI Agents shortly.",
+                                });
                               } catch {
                                 toast({ title: "Installation failed", description: "Something went wrong. Please try again.", variant: "destructive" });
+                              } finally {
+                                setInstallingKey(null);
                               }
                             }}
                           >
-                            {installAgentMutation.isPending ? (
+                            {installingKey === key ? (
                               <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                             ) : (
                               <Download className="w-3.5 h-3.5 mr-1.5" />
                             )}
-                            {installAgentMutation.isPending ? "Installing..." : "Install Template"}
+                            {installingKey === key ? "Generating AI Script..." : "Install Template"}
                           </Button>
                         )}
                       </div>

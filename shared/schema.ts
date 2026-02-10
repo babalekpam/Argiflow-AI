@@ -36,6 +36,8 @@ export const aiAgents = pgTable("ai_agents", {
   tasksCompleted: integer("tasks_completed").default(0),
   successRate: real("success_rate").default(0),
   description: text("description"),
+  script: text("script"),
+  workflowSteps: text("workflow_steps"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -36,6 +36,14 @@ import {
   Zap,
   BarChart3,
   Clock,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  UserCheck,
+  Phone,
+  Shield,
+  DollarSign,
+  ArrowDown,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -49,6 +57,28 @@ const agentIcons: Record<string, any> = {
   "Ad Optimizer": BarChart3,
   "Follow-Up Agent": Bot,
 };
+
+const workflowIconMap: Record<string, any> = {
+  MessageSquare,
+  UserCheck,
+  Calendar,
+  Mail,
+  Phone,
+  Target,
+  BarChart: BarChart3,
+  Clock,
+  Shield,
+  Zap,
+  FileText,
+  DollarSign,
+  Bot,
+};
+
+interface WorkflowStep {
+  title: string;
+  description: string;
+  icon: string;
+}
 
 function AgentStatusBadge({ status }: { status: string }) {
   if (status === "active") {
@@ -73,6 +103,62 @@ function AgentStatusBadge({ status }: { status: string }) {
   );
 }
 
+function WorkflowDiagram({ steps }: { steps: WorkflowStep[] }) {
+  return (
+    <div className="space-y-1" data-testid="workflow-diagram">
+      {steps.map((step, i) => {
+        const StepIcon = workflowIconMap[step.icon] || Zap;
+        return (
+          <div key={i}>
+            <div className="flex items-start gap-3 p-3 rounded-md bg-muted/30">
+              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                <StepIcon className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                    Step {i + 1}
+                  </Badge>
+                  <p className="text-sm font-medium">{step.title}</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
+              </div>
+            </div>
+            {i < steps.length - 1 && (
+              <div className="flex justify-center py-0.5">
+                <ArrowDown className="w-3.5 h-3.5 text-muted-foreground/40" />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScriptViewer({ script }: { script: string }) {
+  const sections = script.split(/^## /m).filter(Boolean);
+  return (
+    <div className="space-y-3 text-sm" data-testid="script-viewer">
+      {sections.map((section, i) => {
+        const lines = section.split("\n");
+        const title = lines[0]?.trim();
+        const body = lines.slice(1).join("\n").trim();
+        return (
+          <div key={i}>
+            {title && (
+              <h4 className="font-semibold text-foreground mb-1">{title}</h4>
+            )}
+            <div className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+              {body}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AiAgentsPage() {
   const { toast } = useToast();
   const [configAgent, setConfigAgent] = useState<AiAgent | null>(null);
@@ -80,6 +166,8 @@ export default function AiAgentsPage() {
   const [editDescription, setEditDescription] = useState("");
   const [editType, setEditType] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
+  const [viewTab, setViewTab] = useState<"workflow" | "script">("workflow");
 
   const { data: agents, isLoading } = useQuery<AiAgent[]>({
     queryKey: ["/api/ai-agents"],
@@ -145,6 +233,11 @@ export default function AiAgentsPage() {
     );
   };
 
+  const toggleExpand = (agentId: string) => {
+    setExpandedAgent((prev) => (prev === agentId ? null : agentId));
+    setViewTab("workflow");
+  };
+
   const activeCount = agents?.filter((a) => a.status === "active").length || 0;
   const totalTasks = agents?.reduce((sum, a) => sum + (a.tasksCompleted || 0), 0) || 0;
   const avgSuccess =
@@ -205,9 +298,9 @@ export default function AiAgentsPage() {
         </Card>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-2 gap-4">
         {isLoading
-          ? Array.from({ length: 6 }).map((_, i) => (
+          ? Array.from({ length: 4 }).map((_, i) => (
               <Card key={i} className="p-5">
                 <div className="flex items-center gap-3 mb-4">
                   <Skeleton className="w-10 h-10 rounded-md" />
@@ -223,6 +316,16 @@ export default function AiAgentsPage() {
             ))
           : (agents || []).map((agent) => {
               const Icon = agentIcons[agent.name] || Bot;
+              const isExpanded = expandedAgent === agent.id;
+              const hasScript = !!agent.script;
+              let workflowSteps: WorkflowStep[] = [];
+              try {
+                if (agent.workflowSteps) {
+                  workflowSteps = JSON.parse(agent.workflowSteps);
+                }
+              } catch {}
+              const hasWorkflow = workflowSteps.length > 0;
+
               return (
                 <Card
                   key={agent.id}
@@ -264,6 +367,67 @@ export default function AiAgentsPage() {
                     </div>
                   </div>
 
+                  {(hasScript || hasWorkflow) && (
+                    <>
+                      <div className="mt-4 pt-4 border-t border-border/50">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-between"
+                          data-testid={`button-expand-${agent.id}`}
+                          onClick={() => toggleExpand(agent.id)}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <FileText className="w-3.5 h-3.5" />
+                            AI Script & Workflow
+                          </span>
+                          {isExpanded ? (
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          )}
+                        </Button>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="mt-3 space-y-3" data-testid={`expanded-${agent.id}`}>
+                          <div className="flex gap-1">
+                            {hasWorkflow && (
+                              <Button
+                                variant={viewTab === "workflow" ? "default" : "ghost"}
+                                size="sm"
+                                onClick={() => setViewTab("workflow")}
+                                data-testid={`tab-workflow-${agent.id}`}
+                              >
+                                Workflow
+                              </Button>
+                            )}
+                            {hasScript && (
+                              <Button
+                                variant={viewTab === "script" ? "default" : "ghost"}
+                                size="sm"
+                                onClick={() => setViewTab("script")}
+                                data-testid={`tab-script-${agent.id}`}
+                              >
+                                Bot Script
+                              </Button>
+                            )}
+                          </div>
+
+                          {viewTab === "workflow" && hasWorkflow && (
+                            <WorkflowDiagram steps={workflowSteps} />
+                          )}
+
+                          {viewTab === "script" && hasScript && (
+                            <div className="max-h-80 overflow-y-auto rounded-md bg-muted/30 p-4">
+                              <ScriptViewer script={agent.script!} />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50">
                     <Button
                       variant="ghost"
@@ -295,7 +459,7 @@ export default function AiAgentsPage() {
           <Bot className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
           <h3 className="text-lg font-semibold mb-2">No AI Agents Yet</h3>
           <p className="text-muted-foreground text-sm mb-4">
-            Set up your first AI agent to start automating your business.
+            Install bot templates from Resources to get started with AI-powered scripts.
           </p>
         </Card>
       )}
@@ -328,6 +492,7 @@ export default function AiAgentsPage() {
                   <SelectItem value="Communication">Communication</SelectItem>
                   <SelectItem value="Marketing">Marketing</SelectItem>
                   <SelectItem value="Retention">Retention</SelectItem>
+                  <SelectItem value="Chat Responder">Chat Responder</SelectItem>
                 </SelectContent>
               </Select>
             </div>
