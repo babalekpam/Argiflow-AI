@@ -69,6 +69,13 @@ export const userSettings = pgTable("user_settings", {
   weeklyReport: boolean("weekly_report").default(true),
   darkMode: boolean("dark_mode").default(true),
   twoFactorAuth: boolean("two_factor_auth").default(false),
+  sendgridApiKey: text("sendgrid_api_key"),
+  twilioAccountSid: text("twilio_account_sid"),
+  twilioAuthToken: text("twilio_auth_token"),
+  twilioPhoneNumber: text("twilio_phone_number"),
+  grasshopperNumber: text("grasshopper_number"),
+  calendarLink: text("calendar_link"),
+  webhookUrl: text("webhook_url"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
