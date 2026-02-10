@@ -56,35 +56,36 @@ interface SettingItem {
   iconColor: string;
 }
 
-const settingsGroups: { title: string; items: SettingItem[] }[] = [
+const settingsGroups: { title: string; sectionDescription: string; items: SettingItem[] }[] = [
   {
     title: "Notifications",
+    sectionDescription: "Control how and when ArgiFlow notifies you about activity on your account. When turned on, you'll receive alerts through the channels you've connected below (like SendGrid for email or Twilio for SMS).",
     items: [
       {
         key: "emailNotifications",
         label: "Email Notifications",
-        description: "Receive email alerts for new leads, appointments, and campaign updates",
+        description: "When ON: You'll get email alerts whenever a new lead comes in, an appointment is booked, or a campaign finishes. Requires SendGrid integration below.",
         icon: Mail,
         iconColor: "text-primary",
       },
       {
         key: "smsNotifications",
         label: "SMS Notifications",
-        description: "Get text messages for urgent updates and appointment reminders",
+        description: "When ON: You'll receive text messages for time-sensitive updates like new leads and appointment confirmations. Requires Twilio integration below.",
         icon: MessageSquare,
         iconColor: "text-chart-2",
       },
       {
         key: "appointmentReminders",
         label: "Appointment Reminders",
-        description: "Automatic reminders before scheduled meetings",
+        description: "When ON: Both you and your clients get automatic reminders before scheduled meetings so nobody forgets.",
         icon: Calendar,
         iconColor: "text-chart-3",
       },
       {
         key: "weeklyReport",
         label: "Weekly Report",
-        description: "Receive a weekly summary of your business performance",
+        description: "When ON: Every Monday you'll receive a summary showing how many leads, appointments, and conversions happened last week.",
         icon: BarChart3,
         iconColor: "text-chart-4",
       },
@@ -92,18 +93,19 @@ const settingsGroups: { title: string; items: SettingItem[] }[] = [
   },
   {
     title: "AI & Automation",
+    sectionDescription: "These controls turn on AI-powered features that work in the background to help you capture and manage leads automatically.",
     items: [
       {
         key: "aiAutoRespond",
         label: "AI Auto-Respond",
-        description: "Let AI automatically respond to new leads and inquiries",
+        description: "When ON: Your AI bots will automatically reply to new leads and inquiries the moment they come in — even outside business hours.",
         icon: Bot,
         iconColor: "text-primary",
       },
       {
         key: "leadScoring",
         label: "Lead Scoring",
-        description: "Automatically score and prioritize leads based on engagement",
+        description: "When ON: Each lead gets an automatic quality score (1-100) based on their engagement level, helping you focus on the hottest prospects first.",
         icon: Target,
         iconColor: "text-chart-2",
       },
@@ -111,18 +113,19 @@ const settingsGroups: { title: string; items: SettingItem[] }[] = [
   },
   {
     title: "Preferences",
+    sectionDescription: "General account preferences for your ArgiFlow experience.",
     items: [
       {
         key: "darkMode",
         label: "Dark Mode",
-        description: "Use dark theme across the platform",
+        description: "When ON: Switches the platform to a darker color scheme that's easier on your eyes.",
         icon: Moon,
         iconColor: "text-muted-foreground",
       },
       {
         key: "twoFactorAuth",
         label: "Two-Factor Authentication",
-        description: "Add an extra layer of security to your account",
+        description: "When ON: Adds an extra security step when logging in to protect your account.",
         icon: Shield,
         iconColor: "text-emerald-400",
       },
@@ -149,7 +152,7 @@ interface IntegrationConfig {
 const integrations: IntegrationConfig[] = [
   {
     title: "SendGrid (Email)",
-    description: "Connect SendGrid to send automated email campaigns, drip sequences, and newsletters to your leads.",
+    description: "SendGrid is an email delivery service. Once connected, ArgiFlow can automatically send emails to your leads — like welcome messages, follow-ups, and campaign blasts. You'll need a free SendGrid account to get your API key.",
     icon: Mail,
     iconColor: "text-primary",
     iconBg: "bg-primary/10",
@@ -159,7 +162,7 @@ const integrations: IntegrationConfig[] = [
   },
   {
     title: "Twilio (SMS)",
-    description: "Connect Twilio to send SMS follow-ups, appointment reminders, and marketing texts.",
+    description: "Twilio lets ArgiFlow send text messages on your behalf — appointment reminders, lead follow-ups, and more. You'll need a Twilio account with a phone number. Find your credentials at twilio.com/console.",
     icon: MessageSquare,
     iconColor: "text-chart-2",
     iconBg: "bg-chart-2/10",
@@ -171,7 +174,7 @@ const integrations: IntegrationConfig[] = [
   },
   {
     title: "Grasshopper (Phone)",
-    description: "Enter your Grasshopper business phone number to link with Voice AI agents and call tracking.",
+    description: "If you use Grasshopper as your business phone, enter the number here so your Voice AI agents can be linked to it for call routing and tracking.",
     icon: Phone,
     iconColor: "text-chart-3",
     iconBg: "bg-chart-3/10",
@@ -181,7 +184,7 @@ const integrations: IntegrationConfig[] = [
   },
   {
     title: "Calendar Link",
-    description: "Your booking link (Calendly, Cal.com, etc.) used by AI agents when scheduling appointments.",
+    description: "Paste your online booking link here (from Calendly, Cal.com, or similar). When your AI bot wants to schedule a meeting with a lead, it will share this link automatically.",
     icon: Calendar,
     iconColor: "text-chart-4",
     iconBg: "bg-chart-4/10",
@@ -191,7 +194,7 @@ const integrations: IntegrationConfig[] = [
   },
   {
     title: "Webhook URL",
-    description: "Send lead and appointment data to external tools like Zapier, Make, or your own CRM.",
+    description: "A webhook sends your lead and appointment data to other tools you use — like Zapier, Make, or your own CRM system. If you don't use these tools, you can skip this one.",
     icon: Webhook,
     iconColor: "text-muted-foreground",
     iconBg: "bg-secondary/50",
@@ -236,10 +239,10 @@ function MaskedInput({ value, onChange, placeholder, sensitive, testId }: {
 }
 
 const industryOptions = [
-  "Marketing Agency", "Real Estate", "Healthcare", "Legal Services",
-  "Financial Services", "E-Commerce", "SaaS / Software", "Consulting",
-  "Construction", "Home Services", "Fitness & Wellness", "Education",
-  "Insurance", "Automotive", "Restaurant / Food", "Other",
+  "Medical Billing / RCM", "Healthcare", "Marketing Agency", "Real Estate",
+  "Legal Services", "Financial Services", "E-Commerce", "SaaS / Software",
+  "Consulting", "Construction", "Home Services", "Fitness & Wellness",
+  "Education", "Insurance", "Automotive", "Restaurant / Food", "Other",
 ];
 
 export default function SettingsPage() {
@@ -350,7 +353,9 @@ export default function SettingsPage() {
           <Settings className="w-6 h-6 inline-block mr-2 text-muted-foreground" />
           Settings
         </h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage your account, preferences, and integrations.</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          This is your control center. Update your business info, connect external services, and turn features on or off. Each section below explains what it does and how it helps your business.
+        </p>
       </div>
 
       <Card className="p-5">
@@ -369,10 +374,13 @@ export default function SettingsPage() {
       </Card>
 
       <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
           <Building2 className="w-4 h-4" />
           Company Profile
         </h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Tell ArgiFlow about your business so the AI can create strategies and bot scripts tailored specifically to your industry and services.
+        </p>
         <Card className="p-5" data-testid="card-company-profile">
           <div className="flex items-start gap-3 mb-4">
             <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
@@ -381,7 +389,7 @@ export default function SettingsPage() {
             <div>
               <h3 className="font-semibold text-sm">Business Information</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                This information powers your AI-generated marketing strategy and personalized recommendations.
+                This info powers your AI marketing strategy, customizes your bot scripts, and helps the AI chat assistant understand your business. The more detail you add, the better results you'll get.
               </p>
             </div>
           </div>
@@ -456,10 +464,13 @@ export default function SettingsPage() {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
           <Link2 className="w-4 h-4" />
           Integrations
         </h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Connect your external services here so ArgiFlow can send emails, texts, and sync data on your behalf. Each card explains what the service does — only connect the ones you need.
+        </p>
         <div className="space-y-4">
           {integrations.map((config) => {
             const connected = isIntegrationConnected(config);
@@ -526,7 +537,8 @@ export default function SettingsPage() {
 
       {settingsGroups.map((group) => (
         <div key={group.title}>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{group.title}</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">{group.title}</h2>
+          <p className="text-xs text-muted-foreground mb-3">{group.sectionDescription}</p>
           <Card className="divide-y divide-border/50">
             {group.items.map((item) => (
               <div key={item.key} className="flex items-center justify-between gap-4 p-4" data-testid={`setting-${item.key}`}>
