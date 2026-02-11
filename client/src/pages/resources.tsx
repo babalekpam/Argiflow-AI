@@ -37,6 +37,12 @@ import {
   Store,
   GraduationCap,
   Heart,
+  Landmark,
+  Building2,
+  Key,
+  FileCheck,
+  Package,
+  Crosshair,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -158,6 +164,60 @@ const botTemplates = [
     price: "$7,500",
     description: "End-to-end RCM automation: eligibility checks, prior authorizations, denial management, and patient statement follow-up. Built for healthcare practices and billing companies.",
     features: ["Eligibility verification", "Prior auth tracking", "Denial follow-up", "Payment reminders"],
+  },
+  {
+    name: "Tax Lien Hunter",
+    industry: "Real Estate / Tax Liens",
+    icon: Landmark,
+    conversations: "6,300+",
+    price: "$7,500",
+    description: "Discovers tax lien properties, analyzes ROI, monitors auctions, and manages your lien portfolio automatically. Crawls county databases across 10+ states with AI-powered deal scoring.",
+    features: ["County database crawling", "ROI analysis", "Auction monitoring", "Auto-bid strategies", "Portfolio tracking"],
+  },
+  {
+    name: "Tax Deed Agent",
+    industry: "Real Estate / Tax Deeds",
+    icon: Building2,
+    conversations: "5,400+",
+    price: "$7,500",
+    description: "Finds tax deed properties before auction, evaluates title risk, estimates after-repair value, and tracks redemption periods. Built for investors seeking full property ownership.",
+    features: ["Deed property discovery", "Title risk analysis", "ARV estimation", "Redemption tracking", "Auction alerts"],
+  },
+  {
+    name: "Wholesale RE Agent",
+    industry: "Real Estate / Wholesale",
+    icon: Key,
+    conversations: "8,900+",
+    price: "$7,500",
+    description: "Finds off-market wholesale deals, analyzes comps, generates contracts, and matches properties to your buyer list. Automates the entire wholesale pipeline from lead to assignment.",
+    features: ["Off-market discovery", "Comp analysis", "Contract generation", "Buyer matching", "Deal scoring"],
+  },
+  {
+    name: "Govt Contracts Agent",
+    industry: "Government Contracting",
+    icon: FileCheck,
+    conversations: "4,200+",
+    price: "$7,500",
+    description: "Monitors SAM.gov, GovWin, and agency portals for contract opportunities matching your NAICS codes. Analyzes RFPs, tracks deadlines, and scores win probability.",
+    features: ["SAM.gov monitoring", "RFP analysis", "Deadline tracking", "Win probability scoring", "Set-aside filtering"],
+  },
+  {
+    name: "Arbitrage Agent",
+    industry: "E-Commerce / Arbitrage",
+    icon: Package,
+    conversations: "11,200+",
+    price: "$7,500",
+    description: "Scans retail and wholesale sources for profitable arbitrage opportunities. Tracks price differentials, calculates ROI after fees, and monitors inventory availability in real-time.",
+    features: ["Price scanning", "ROI calculation", "Inventory monitoring", "Fee analysis", "Profit alerts"],
+  },
+  {
+    name: "Lead Gen Agent",
+    industry: "Services / B2B Lead Gen",
+    icon: Crosshair,
+    conversations: "14,800+",
+    price: "$7,500",
+    description: "Multi-channel lead generation across web directories, social media, and intent data sources. Enriches contacts, scores leads by buying signals, and auto-drafts personalized outreach.",
+    features: ["Multi-source scraping", "Contact enrichment", "Intent scoring", "Outreach drafting", "Pipeline automation"],
   },
 ];
 
@@ -452,7 +512,7 @@ export default function ResourcesPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-sm text-muted-foreground">
-              12 proven bot templates. Each one handled thousands of real conversations.
+              {botTemplates.length} proven bot templates. Each one handled thousands of real conversations.
               Pick a template, install in 15 minutes, and start delivering results.
             </p>
             <Badge className="bg-primary/10 text-primary border-primary/20">
