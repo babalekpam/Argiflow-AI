@@ -30,7 +30,7 @@ import {
   Globe,
   CheckCircle,
 } from "lucide-react";
-import { SiX, SiLinkedin, SiInstagram } from "react-icons/si";
+import { SiX, SiLinkedin, SiInstagram, SiVenmo } from "react-icons/si";
 import { CompactFlowchart } from "@/components/animated-flowchart";
 
 const services = [
@@ -519,12 +519,20 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="/signup" className="block">
-                <Button className="w-full" variant="outline">
-                  Start Free Trial
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </a>
+              <div className="space-y-2">
+                <a href="/signup" className="block">
+                  <Button className="w-full" variant="outline" data-testid="button-starter-trial">
+                    Start Free Trial
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </a>
+                <a href="https://venmo.com/argilette?txn=pay&amount=297&note=ArgiFlow%20Starter%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
+                  <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-starter-venmo">
+                    <SiVenmo className="w-4 h-4 mr-1" />
+                    Pay with Venmo
+                  </Button>
+                </a>
+              </div>
             </Card>
 
             {/* Pro Package */}
@@ -559,12 +567,20 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="/signup" className="block">
-                <Button className="w-full">
-                  Start Free Trial
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </a>
+              <div className="space-y-2">
+                <a href="/signup" className="block">
+                  <Button className="w-full" data-testid="button-pro-trial">
+                    Start Free Trial
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </a>
+                <a href="https://venmo.com/argilette?txn=pay&amount=597&note=ArgiFlow%20Pro%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
+                  <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-pro-venmo">
+                    <SiVenmo className="w-4 h-4 mr-1" />
+                    Pay with Venmo
+                  </Button>
+                </a>
+              </div>
             </Card>
 
             {/* Enterprise Package */}
@@ -596,12 +612,20 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="/signup" className="block">
-                <Button className="w-full" variant="outline">
-                  Contact Sales
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </a>
+              <div className="space-y-2">
+                <a href="/signup" className="block">
+                  <Button className="w-full" variant="outline" data-testid="button-enterprise-trial">
+                    Contact Sales
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </a>
+                <a href="https://venmo.com/argilette?txn=pay&amount=1497&note=ArgiFlow%20Enterprise%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
+                  <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-enterprise-venmo">
+                    <SiVenmo className="w-4 h-4 mr-1" />
+                    Pay with Venmo
+                  </Button>
+                </a>
+              </div>
             </Card>
           </div>
         </div>
