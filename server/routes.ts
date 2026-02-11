@@ -1542,7 +1542,8 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       const updateSchema = z.object({
         outreach: z.string().min(1).max(5000).optional(),
         status: z.enum(["new", "warm", "hot", "cold", "qualified"]).optional(),
-      }).refine(data => data.outreach || data.status, { message: "No valid fields to update" });
+        scheduledSendAt: z.string().datetime().optional().nullable(),
+      }).refine(data => data.outreach !== undefined || data.status !== undefined || data.scheduledSendAt !== undefined, { message: "No valid fields to update" });
       const parsed = updateSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
@@ -1550,6 +1551,9 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       const updates: any = {};
       if (parsed.data.outreach) updates.outreach = parsed.data.outreach.trim();
       if (parsed.data.status) updates.status = parsed.data.status;
+      if (parsed.data.scheduledSendAt !== undefined) {
+        updates.scheduledSendAt = parsed.data.scheduledSendAt ? new Date(parsed.data.scheduledSendAt) : null;
+      }
       const updated = await storage.updateLead(lead.id, updates);
       res.json(updated);
     } catch (error) {
@@ -1629,6 +1633,98 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       res.status(500).json({ message: "Failed to send outreach emails" });
     }
   });
+
+  // ---- SCHEDULE OUTREACH ----
+
+  app.post("/api/leads/:id/schedule-outreach", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const lead = await storage.getLeadById(req.params.id as string);
+      if (!lead || lead.userId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      if (lead.outreachSentAt) {
+        return res.status(400).json({ message: "Outreach already sent to this lead" });
+      }
+      if (!lead.outreach) {
+        return res.status(400).json({ message: "Lead has no outreach draft to schedule" });
+      }
+      if (!lead.email) {
+        return res.status(400).json({ message: "Lead has no email address" });
+      }
+      const schema = z.object({ scheduledSendAt: z.string().datetime() });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid schedule time" });
+      }
+      const scheduleDate = new Date(parsed.data.scheduledSendAt);
+      if (scheduleDate <= new Date()) {
+        return res.status(400).json({ message: "Scheduled time must be in the future" });
+      }
+      await storage.updateLead(lead.id, { scheduledSendAt: scheduleDate });
+      res.json({ success: true, message: `Outreach to ${lead.name} scheduled for ${scheduleDate.toLocaleString()}` });
+    } catch (error) {
+      console.error("Error scheduling outreach:", error);
+      res.status(500).json({ message: "Failed to schedule outreach" });
+    }
+  });
+
+  app.post("/api/leads/:id/cancel-schedule", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const lead = await storage.getLeadById(req.params.id as string);
+      if (!lead || lead.userId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      if (!lead.scheduledSendAt) {
+        return res.status(400).json({ message: "No schedule to cancel" });
+      }
+      await storage.updateLead(lead.id, { scheduledSendAt: null });
+      res.json({ success: true, message: `Schedule cancelled for ${lead.name}` });
+    } catch (error) {
+      console.error("Error cancelling schedule:", error);
+      res.status(500).json({ message: "Failed to cancel schedule" });
+    }
+  });
+
+  // ---- BACKGROUND SCHEDULER ----
+
+  async function processScheduledOutreach() {
+    try {
+      const dueLeads = await storage.getScheduledLeadsToSend();
+      if (dueLeads.length === 0) return;
+
+      for (const lead of dueLeads) {
+        try {
+          if (!lead.outreach || !lead.email) {
+            await storage.updateLead(lead.id, { scheduledSendAt: null });
+            continue;
+          }
+          const settings = await storage.getSettingsByUser(lead.userId);
+          const user = await storage.getUserById(lead.userId);
+          if (!user?.companyName || !settings?.senderEmail) {
+            console.warn(`Clearing schedule for lead ${lead.id}: missing company/sender config`);
+            await storage.updateLead(lead.id, { scheduledSendAt: null });
+            continue;
+          }
+          const result = await sendOutreachEmail(lead, settings, user);
+          if (result.success) {
+            await storage.updateLead(lead.id, { outreachSentAt: new Date(), scheduledSendAt: null, status: "warm" });
+            console.log(`Scheduled outreach sent to ${lead.name} (${lead.email})`);
+          } else {
+            console.error(`Scheduled send failed for ${lead.name}: ${result.error}. Clearing schedule.`);
+            await storage.updateLead(lead.id, { scheduledSendAt: null });
+          }
+        } catch (err) {
+          console.error(`Error processing scheduled lead ${lead.id}:`, err);
+        }
+      }
+    } catch (error) {
+      console.error("Error in scheduled outreach processor:", error);
+    }
+  }
+
+  setInterval(processScheduledOutreach, 60 * 1000);
 
   // ---- SMS (Twilio) ----
 

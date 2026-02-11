@@ -54,6 +54,8 @@ import {
   Sparkles,
   UserCheck,
   Pencil,
+  CalendarClock,
+  X,
 } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { useState, useEffect } from "react";
@@ -158,6 +160,8 @@ function LeadCard({
   sendOutreachMutation,
   deleteMutation,
   updateLeadMutation,
+  scheduleMutation,
+  cancelScheduleMutation,
 }: {
   lead: Lead;
   isExpanded: boolean;
@@ -167,11 +171,16 @@ function LeadCard({
   sendOutreachMutation: any;
   deleteMutation: any;
   updateLeadMutation: any;
+  scheduleMutation: any;
+  cancelScheduleMutation: any;
 }) {
   const isSent = !!lead.outreachSentAt;
+  const isScheduled = !!lead.scheduledSendAt && !isSent;
   const hasEngagement = (lead.emailOpens || 0) > 0 || (lead.emailClicks || 0) > 0;
   const [isEditingOutreach, setIsEditingOutreach] = useState(false);
   const [draftText, setDraftText] = useState(lead.outreach || "");
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [scheduleDateTime, setScheduleDateTime] = useState("");
 
   useEffect(() => {
     if (!isEditingOutreach) {
@@ -256,7 +265,13 @@ function LeadCard({
               Sent
             </Badge>
           )}
-          {lead.outreach && !isSent && (
+          {lead.outreach && !isSent && isScheduled && (
+            <Badge variant="outline" className="text-xs bg-violet-500/10 text-violet-400 border-violet-500/20">
+              <CalendarClock className="w-3 h-3 mr-1" />
+              Scheduled
+            </Badge>
+          )}
+          {lead.outreach && !isSent && !isScheduled && (
             <Badge variant="outline" className="text-xs bg-sky-500/10 text-sky-400 border-sky-500/20">
               <Send className="w-3 h-3 mr-1" />
               Ready
@@ -391,22 +406,94 @@ function LeadCard({
                       <><Copy className="w-3 h-3 mr-1" /> Copy</>
                     )}
                   </Button>
-                  {!isSent && lead.email && (
+                  {!isSent && lead.email && !isScheduled && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); setShowScheduler(!showScheduler); }}
+                        data-testid={`button-schedule-outreach-${lead.id}`}
+                      >
+                        <CalendarClock className="w-3 h-3 mr-1" /> Schedule
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); sendOutreachMutation.mutate(lead.id); }}
+                        disabled={sendOutreachMutation.isPending}
+                        data-testid={`button-send-outreach-${lead.id}`}
+                      >
+                        {sendOutreachMutation.isPending ? (
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Sending...</>
+                        ) : (
+                          <><Send className="w-3 h-3 mr-1" /> Send Now</>
+                        )}
+                      </Button>
+                    </>
+                  )}
+                  {isScheduled && (
                     <Button
+                      variant="outline"
                       size="sm"
-                      onClick={(e) => { e.stopPropagation(); sendOutreachMutation.mutate(lead.id); }}
-                      disabled={sendOutreachMutation.isPending}
-                      data-testid={`button-send-outreach-${lead.id}`}
+                      onClick={(e) => { e.stopPropagation(); cancelScheduleMutation.mutate(lead.id); }}
+                      disabled={cancelScheduleMutation.isPending}
+                      data-testid={`button-cancel-schedule-${lead.id}`}
                     >
-                      {sendOutreachMutation.isPending ? (
-                        <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Sending...</>
-                      ) : (
-                        <><Send className="w-3 h-3 mr-1" /> Send Email</>
-                      )}
+                      <X className="w-3 h-3 mr-1" /> Cancel Schedule
                     </Button>
                   )}
                 </div>
               </div>
+
+              {isScheduled && lead.scheduledSendAt && (
+                <div className="pl-6 mb-2 flex items-center gap-2 p-2 rounded-md bg-violet-500/5 border border-violet-500/20" data-testid={`schedule-info-${lead.id}`}>
+                  <CalendarClock className="w-4 h-4 text-violet-400" />
+                  <span className="text-sm text-violet-400">
+                    Scheduled to send on {new Date(lead.scheduledSendAt).toLocaleDateString()} at {new Date(lead.scheduledSendAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+              )}
+
+              {showScheduler && !isScheduled && !isSent && (
+                <div className="pl-6 mb-2 flex items-center gap-2 p-3 rounded-md bg-muted/50 border" data-testid={`schedule-picker-${lead.id}`}>
+                  <CalendarClock className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <Input
+                    type="datetime-local"
+                    value={scheduleDateTime}
+                    onChange={(e) => setScheduleDateTime(e.target.value)}
+                    min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                    className="max-w-[220px]"
+                    data-testid={`input-schedule-datetime-${lead.id}`}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!scheduleDateTime) return;
+                      scheduleMutation.mutate(
+                        { id: lead.id, scheduledSendAt: new Date(scheduleDateTime).toISOString() },
+                        { onSuccess: () => { setShowScheduler(false); setScheduleDateTime(""); } }
+                      );
+                    }}
+                    disabled={!scheduleDateTime || scheduleMutation.isPending}
+                    data-testid={`button-confirm-schedule-${lead.id}`}
+                  >
+                    {scheduleMutation.isPending ? (
+                      <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Scheduling...</>
+                    ) : (
+                      <><Check className="w-3 h-3 mr-1" /> Confirm</>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); setShowScheduler(false); setScheduleDateTime(""); }}
+                    data-testid={`button-close-scheduler-${lead.id}`}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+
               <div className={`pl-6 p-3 rounded-md bg-background border text-sm whitespace-pre-wrap ${isSent ? "border-emerald-500/20" : ""}`} data-testid={`text-outreach-${lead.id}`}>
                 {lead.outreach}
               </div>
@@ -554,6 +641,36 @@ export default function LeadsPage() {
     },
     onError: () => {
       toast({ title: "Failed to save draft", variant: "destructive" });
+    },
+  });
+
+  const scheduleMutation = useMutation({
+    mutationFn: async ({ id, scheduledSendAt }: { id: string; scheduledSendAt: string }) => {
+      const res = await apiRequest("POST", `/api/leads/${id}/schedule-outreach`, { scheduledSendAt });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: data.message || "Outreach scheduled" });
+    },
+    onError: async (error: any) => {
+      let message = "Failed to schedule outreach";
+      try { if (error?.message) message = error.message; } catch {}
+      toast({ title: message, variant: "destructive" });
+    },
+  });
+
+  const cancelScheduleMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      const res = await apiRequest("POST", `/api/leads/${leadId}/cancel-schedule`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: data.message || "Schedule cancelled" });
+    },
+    onError: () => {
+      toast({ title: "Failed to cancel schedule", variant: "destructive" });
     },
   });
 
@@ -841,6 +958,8 @@ export default function LeadsPage() {
                 sendOutreachMutation={sendOutreachMutation}
                 deleteMutation={deleteMutation}
                 updateLeadMutation={updateLeadMutation}
+                scheduleMutation={scheduleMutation}
+                cancelScheduleMutation={cancelScheduleMutation}
               />
             ))}
           </div>

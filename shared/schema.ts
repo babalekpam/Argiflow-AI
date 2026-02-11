@@ -19,6 +19,7 @@ export const leads = pgTable("leads", {
   outreach: text("outreach"),
   intentSignal: text("intent_signal"),
   outreachSentAt: timestamp("outreach_sent_at"),
+  scheduledSendAt: timestamp("scheduled_send_at"),
   engagementScore: integer("engagement_score").default(0),
   engagementLevel: text("engagement_level").default("none"),
   lastEngagedAt: timestamp("last_engaged_at"),

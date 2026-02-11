@@ -39,3 +39,6 @@ Do not make changes to the file `Y`.
 - **Venmo**: Payment gateway for subscription billing.
 - **Replit AI Integrations**: Platform for integrating Anthropic Claude.
 - **Replit Connectors**: Used for Twilio integration.
+
+## Key Features
+- **Outreach Scheduling**: Leads with outreach drafts can be scheduled for future sending via `POST /api/leads/:id/schedule-outreach` with `{ scheduledSendAt }` (ISO datetime). Schedules can be cancelled via `POST /api/leads/:id/cancel-schedule`. A background job runs every 60 seconds to process due scheduled emails. The `leads` table has a `scheduledSendAt` column. Frontend shows Schedule button, date/time picker, scheduled badge, and cancel option on each lead card.

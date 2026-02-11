@@ -25,7 +25,7 @@ import {
   type EmailVerificationToken, type InsertEmailVerificationToken,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, asc, isNull } from "drizzle-orm";
+import { eq, desc, and, asc, isNull, sql, lte } from "drizzle-orm";
 
 export interface IStorage {
   getUserById(id: string): Promise<User | undefined>;
@@ -34,7 +34,8 @@ export interface IStorage {
   getLeadsByUser(userId: string): Promise<Lead[]>;
   getLeadById(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
-  updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined>;
+  updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined>;
+  getScheduledLeadsToSend(): Promise<Lead[]>;
   deleteLead(id: string, userId: string): Promise<void>;
   deleteAllLeadsByUser(userId: string): Promise<void>;
   getAppointmentsByUser(userId: string): Promise<Appointment[]>;
@@ -145,9 +146,18 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined> {
+  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined> {
     const [result] = await db.update(leads).set(data).where(eq(leads.id, id)).returning();
     return result;
+  }
+
+  async getScheduledLeadsToSend(): Promise<Lead[]> {
+    return db.select().from(leads).where(
+      and(
+        isNull(leads.outreachSentAt),
+        lte(leads.scheduledSendAt, new Date())
+      )
+    );
   }
 
   async deleteAllLeadsByUser(userId: string): Promise<void> {
