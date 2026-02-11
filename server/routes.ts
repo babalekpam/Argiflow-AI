@@ -1947,7 +1947,17 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     try {
       const userId = req.session.userId!;
       const result = await storage.getAppointmentsByUser(userId);
-      res.json(result);
+      const userLeads = await storage.getLeadsByUser(userId);
+      const enriched = result.map(apt => {
+        const matchedLead = userLeads.find(l => l.name === apt.leadName);
+        return {
+          ...apt,
+          leadEmail: matchedLead?.email || null,
+          leadPhone: matchedLead?.phone || null,
+          leadCompany: matchedLead?.company || null,
+        };
+      });
+      res.json(enriched);
     } catch (error) {
       console.error("Error fetching appointments:", error);
       res.status(500).json({ message: "Failed to fetch appointments" });

@@ -7,14 +7,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Calendar,
   Video,
-  Phone,
   Clock,
   MoreVertical,
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Mail,
+  Phone,
+  Building2,
 } from "lucide-react";
 import type { Appointment } from "@shared/schema";
+
+type EnrichedAppointment = Appointment & {
+  leadEmail?: string | null;
+  leadPhone?: string | null;
+  leadCompany?: string | null;
+};
 
 function AppointmentStatusBadge({ status }: { status: string }) {
   const styles: Record<string, { class: string; icon: any }> = {
@@ -33,9 +41,77 @@ function AppointmentStatusBadge({ status }: { status: string }) {
   );
 }
 
+function AppointmentCard({ apt, opaque }: { apt: EnrichedAppointment; opaque?: boolean }) {
+  const d = new Date(apt.date);
+  const hasContact = apt.leadEmail || apt.leadPhone || apt.leadCompany;
+
+  return (
+    <div
+      className={`flex flex-col gap-2 p-4 rounded-md bg-background/50 ${opaque ? "opacity-70" : ""}`}
+      data-testid={`apt-${apt.id}`}
+    >
+      <div className="flex items-center gap-4">
+        <div className="w-16 text-center shrink-0">
+          <p className="text-sm font-bold" data-testid={`apt-time-${apt.id}`}>
+            {d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </p>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate" data-testid={`apt-name-${apt.id}`}>{apt.leadName}</p>
+          <p className="text-xs text-muted-foreground">{apt.type}</p>
+        </div>
+        <AppointmentStatusBadge status={apt.status} />
+        {!opaque && (
+          <div className="flex items-center gap-1">
+            <Button size="icon" variant="ghost" data-testid={`button-video-${apt.id}`}>
+              <Video className="w-4 h-4" />
+            </Button>
+            <Button size="icon" variant="ghost" data-testid={`button-more-${apt.id}`}>
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+      {hasContact && (
+        <div className="flex items-center gap-4 pl-20 flex-wrap">
+          {apt.leadCompany && (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`apt-company-${apt.id}`}>
+              <Building2 className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-[200px]">{apt.leadCompany}</span>
+            </span>
+          )}
+          {apt.leadEmail && (
+            <a
+              href={`mailto:${apt.leadEmail}`}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+              data-testid={`apt-email-${apt.id}`}
+            >
+              <Mail className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-[200px]">{apt.leadEmail}</span>
+            </a>
+          )}
+          {apt.leadPhone && (
+            <a
+              href={`tel:${apt.leadPhone}`}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+              data-testid={`apt-phone-${apt.id}`}
+            >
+              <Phone className="w-3 h-3 shrink-0" />
+              <span>{apt.leadPhone}</span>
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AppointmentsPage() {
   usePageTitle("Appointments");
-  const { data: appointments, isLoading } = useQuery<Appointment[]>({
+  const { data: appointments, isLoading } = useQuery<EnrichedAppointment[]>({
     queryKey: ["/api/appointments"],
   });
 
@@ -115,38 +191,9 @@ export default function AppointmentsPage() {
               No upcoming appointments.
             </div>
           ) : (
-            upcoming.map((apt) => {
-              const d = new Date(apt.date);
-              return (
-                <div
-                  key={apt.id}
-                  className="flex items-center gap-4 p-4 rounded-md bg-background/50"
-                  data-testid={`upcoming-apt-${apt.id}`}
-                >
-                  <div className="w-16 text-center shrink-0">
-                    <p className="text-sm font-bold">
-                      {d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </p>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{apt.leadName}</p>
-                    <p className="text-xs text-muted-foreground">{apt.type}</p>
-                  </div>
-                  <AppointmentStatusBadge status={apt.status} />
-                  <div className="flex items-center gap-1">
-                    <Button size="icon" variant="ghost">
-                      <Video className="w-4 h-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost">
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })
+            upcoming.map((apt) => (
+              <AppointmentCard key={apt.id} apt={apt} />
+            ))
           )}
         </div>
       </Card>
@@ -155,30 +202,9 @@ export default function AppointmentsPage() {
         <Card className="p-5">
           <h3 className="font-semibold mb-4">Past Appointments</h3>
           <div className="space-y-3">
-            {past.map((apt) => {
-              const d = new Date(apt.date);
-              return (
-                <div
-                  key={apt.id}
-                  className="flex items-center gap-4 p-4 rounded-md bg-background/50 opacity-70"
-                  data-testid={`past-apt-${apt.id}`}
-                >
-                  <div className="w-16 text-center shrink-0">
-                    <p className="text-sm font-bold">
-                      {d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </p>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{apt.leadName}</p>
-                    <p className="text-xs text-muted-foreground">{apt.type}</p>
-                  </div>
-                  <AppointmentStatusBadge status={apt.status} />
-                </div>
-              );
-            })}
+            {past.map((apt) => (
+              <AppointmentCard key={apt.id} apt={apt} opaque />
+            ))}
           </div>
         </Card>
       )}
