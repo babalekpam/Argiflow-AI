@@ -755,8 +755,9 @@ export default function LandingPage() {
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-border/50 text-center text-sm text-muted-foreground">
-            <p>&copy; 2026 ArgiFlow AI. All rights reserved. An ARGILETTE company.</p>
+          <div className="pt-8 border-t border-border/50 text-center text-sm text-muted-foreground space-y-2">
+            <p>&copy; 2026 ArgiFlow AI. All rights reserved.</p>
+            <p className="text-xs text-muted-foreground/70">Powered by <span className="font-semibold text-muted-foreground">ARGILETTE Labs</span></p>
           </div>
         </div>
       </footer>
