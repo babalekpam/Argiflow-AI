@@ -972,20 +972,32 @@ export async function registerRoutes(
       const user = await storage.createUser({ email, passwordHash, firstName, lastName });
       req.session.userId = user.id;
 
+      await storage.markEmailVerified(user.id);
+
+      const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      try {
+        await storage.createSubscription({
+          userId: user.id,
+          plan: "pro",
+          status: "trial",
+          amount: 0,
+          trialEndsAt: trialEnd,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: trialEnd,
+        });
+        console.log(`Pro trial created for ${email}, expires ${trialEnd.toISOString()}`);
+      } catch (subErr: any) {
+        console.error("Failed to create trial subscription:", subErr?.message || subErr);
+      }
+
       const sgKey = process.env.SENDGRID_API_KEY;
       if (sgKey) {
         try {
-          const verifyToken = randomBytes(32).toString("hex");
-          const verifyTokenHash = createHash("sha256").update(verifyToken).digest("hex");
-          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-          await storage.createEmailVerificationToken({ userId: user.id, token: verifyTokenHash, expiresAt });
-
-          const verifyUrl = `${req.protocol}://${req.get("host")}/verify-email?token=${verifyToken}`;
           sgMail.setApiKey(sgKey);
           await sgMail.send({
             to: email,
             from: { email: "info@argilette.co", name: "ArgiFlow" },
-            subject: `Verify your email — ArgiFlow`,
+            subject: `Welcome to ArgiFlow — Your 14-Day Pro Trial is Active!`,
             html: `
               <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
                 <div style="text-align: center; margin-bottom: 30px;">
@@ -993,18 +1005,23 @@ export async function registerRoutes(
                   <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
                 </div>
                 <h2 style="color: #e6edf3; font-size: 22px;">Welcome, ${firstName}!</h2>
-                <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Thanks for signing up. Please confirm your email address to activate your account and get full access to the ArgiFlow platform.</p>
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="${verifyUrl}" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Confirm Email Address</a>
+                <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Your account is ready and your <strong style="color: #38bdf8;">14-day Pro trial</strong> is now active. You have full access to all Pro features including AI agents, lead generation, email campaigns, and more.</p>
+                <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                  <p style="color: #e6edf3; margin: 0 0 8px; font-weight: 600;">Your Trial Details:</p>
+                  <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Plan: <strong style="color: #38bdf8;">Pro</strong></p>
+                  <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Trial ends: <strong style="color: #e6edf3;">${trialEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong></p>
                 </div>
-                <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">If you didn't create this account, you can safely ignore this email. This link expires in 24 hours.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="https://argilette.co/dashboard" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Go to Dashboard</a>
+                </div>
+                <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">After your trial ends, choose a plan to continue using ArgiFlow. No credit card required during the trial.</p>
                 <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
               </div>
             `,
           });
-          console.log(`Verification email sent to ${email}`);
+          console.log(`Welcome email sent to ${email}`);
         } catch (emailErr: any) {
-          console.error("Verification email failed:", emailErr?.response?.body || emailErr?.message || emailErr);
+          console.error("Welcome email failed:", emailErr?.response?.body || emailErr?.message || emailErr);
         }
       }
 
@@ -1217,6 +1234,30 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  app.get("/api/subscription", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const sub = await storage.getSubscriptionByUser(userId);
+      if (!sub) {
+        return res.json({ subscription: null, trialActive: false, trialExpired: false, daysRemaining: 0 });
+      }
+      const now = new Date();
+      const trialActive = sub.status === "trial" && sub.trialEndsAt && new Date(sub.trialEndsAt) > now;
+      const trialExpired = sub.status === "trial" && sub.trialEndsAt && new Date(sub.trialEndsAt) <= now;
+      const daysRemaining = sub.trialEndsAt ? Math.max(0, Math.ceil((new Date(sub.trialEndsAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0;
+
+      if (trialExpired) {
+        await storage.updateSubscription(sub.id, { status: "expired" });
+        sub.status = "expired";
+      }
+
+      res.json({ subscription: sub, trialActive: !!trialActive, trialExpired: !!trialExpired, daysRemaining });
+    } catch (error) {
+      console.error("Error fetching subscription:", error);
+      res.status(500).json({ message: "Failed to fetch subscription" });
     }
   });
 

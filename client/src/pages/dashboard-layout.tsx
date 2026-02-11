@@ -1,12 +1,13 @@
 import { Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Search, Sparkles, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import DashboardPage from "./dashboard";
@@ -26,10 +27,75 @@ import AgentCatalogPage from "./agent-catalog";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 
+type SubscriptionData = {
+  subscription: {
+    plan: string;
+    status: string;
+    trialEndsAt: string | null;
+  } | null;
+  trialActive: boolean;
+  trialExpired: boolean;
+  daysRemaining: number;
+};
+
+function TrialBanner({ subData }: { subData: SubscriptionData }) {
+  if (!subData) return null;
+
+  if (subData.trialActive && subData.daysRemaining > 0) {
+    return (
+      <div className="flex items-center justify-between gap-4 px-4 py-2.5 bg-primary/10 border-b border-primary/20" data-testid="banner-trial-active">
+        <div className="flex items-center gap-2 text-sm">
+          <Sparkles className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-muted-foreground">
+            <span className="font-medium text-foreground">Pro Trial</span> — {subData.daysRemaining} day{subData.daysRemaining !== 1 ? "s" : ""} remaining.
+            Full access to all features.
+          </span>
+        </div>
+        <a href="/#pricing" data-testid="link-trial-upgrade">
+          <Button size="sm" variant="default">Choose a Plan</Button>
+        </a>
+      </div>
+    );
+  }
+
+  if (subData.trialExpired || subData.subscription?.status === "expired") {
+    return (
+      <div className="flex items-center justify-between gap-4 px-4 py-2.5 bg-destructive/10 border-b border-destructive/20" data-testid="banner-trial-expired">
+        <div className="flex items-center gap-2 text-sm">
+          <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+          <span className="text-muted-foreground">
+            <span className="font-medium text-foreground">Your Pro trial has ended.</span> Choose a plan to continue using ArgiFlow.
+          </span>
+        </div>
+        <a href="/#pricing" data-testid="link-expired-upgrade">
+          <Button size="sm" variant="default">Upgrade Now</Button>
+        </a>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function getPlanLabel(subData: SubscriptionData | undefined) {
+  if (!subData?.subscription) return "Free";
+  const { plan, status } = subData.subscription;
+  const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
+  if (status === "trial") return `${planName} Trial`;
+  if (status === "active") return `${planName} Plan`;
+  if (status === "expired" || status === "cancelled") return "No Plan";
+  return planName;
+}
+
 export default function DashboardLayout() {
   const { user, isLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+
+  const { data: subData } = useQuery<SubscriptionData>({
+    queryKey: ["/api/subscription"],
+    enabled: isAuthenticated,
+  });
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -97,12 +163,13 @@ export default function DashboardLayout() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium">{user?.firstName || "User"}</p>
-                  <p className="text-xs text-muted-foreground">Pro Plan</p>
+                  <p className="text-sm font-medium" data-testid="text-user-name">{user?.firstName || "User"}</p>
+                  <p className="text-xs text-muted-foreground" data-testid="text-plan-label">{getPlanLabel(subData)}</p>
                 </div>
               </div>
             </div>
           </header>
+          {subData && <TrialBanner subData={subData} />}
           <main className="flex-1 overflow-auto">
             <Switch>
               <Route path="/dashboard" component={DashboardPage} />
