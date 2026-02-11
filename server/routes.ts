@@ -796,23 +796,13 @@ COMMUNICATION STANDARDS:
     while (response.stop_reason === "tool_use" && loopCount < maxLoops) {
       loopCount++;
 
+      currentMessages.push({ role: "assistant", content: response.content as any });
+
       const toolUseBlocks = response.content.filter(
         (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
       );
 
       const crmToolUses = toolUseBlocks.filter(t => t.name !== "web_search");
-
-      if (crmToolUses.length === 0) {
-        const textContent = response.content
-          .filter((b): b is Anthropic.TextBlock => b.type === "text")
-          .map(b => b.text)
-          .join("\n")
-          .trim();
-        if (textContent) return textContent;
-        break;
-      }
-
-      currentMessages.push({ role: "assistant", content: response.content as any });
 
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
@@ -825,7 +815,9 @@ COMMUNICATION STANDARDS:
         });
       }
 
-      currentMessages.push({ role: "user", content: toolResults as any });
+      if (toolResults.length > 0) {
+        currentMessages.push({ role: "user", content: toolResults as any });
+      }
 
       response = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
