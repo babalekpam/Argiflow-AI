@@ -1,7 +1,7 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
   funnels, funnelStages, funnelDeals, websiteProfiles, automations, emailEvents, subscriptions,
-  agentConfigs, agentTasks, notifications, passwordResetTokens,
+  agentConfigs, agentTasks, notifications, passwordResetTokens, emailVerificationTokens,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
@@ -22,6 +22,7 @@ import {
   type AgentTask, type InsertAgentTask,
   type Notification, type InsertNotification,
   type PasswordResetToken, type InsertPasswordResetToken,
+  type EmailVerificationToken, type InsertEmailVerificationToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc, isNull } from "drizzle-orm";
@@ -104,6 +105,10 @@ export interface IStorage {
   markPasswordResetTokenUsed(id: string): Promise<void>;
   invalidateUserResetTokens(userId: string): Promise<void>;
   updateUserPassword(id: string, passwordHash: string): Promise<void>;
+  createEmailVerificationToken(data: InsertEmailVerificationToken): Promise<EmailVerificationToken>;
+  getEmailVerificationToken(tokenHash: string): Promise<EmailVerificationToken | undefined>;
+  invalidateUserVerificationTokens(userId: string): Promise<void>;
+  markEmailVerified(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -496,6 +501,24 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserPassword(id: string, passwordHash: string): Promise<void> {
     await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+  }
+
+  async createEmailVerificationToken(data: InsertEmailVerificationToken): Promise<EmailVerificationToken> {
+    const [result] = await db.insert(emailVerificationTokens).values(data).returning();
+    return result;
+  }
+
+  async getEmailVerificationToken(tokenHash: string): Promise<EmailVerificationToken | undefined> {
+    const [result] = await db.select().from(emailVerificationTokens).where(eq(emailVerificationTokens.token, tokenHash));
+    return result;
+  }
+
+  async invalidateUserVerificationTokens(userId: string): Promise<void> {
+    await db.update(emailVerificationTokens).set({ usedAt: new Date() }).where(and(eq(emailVerificationTokens.userId, userId), isNull(emailVerificationTokens.usedAt)));
+  }
+
+  async markEmailVerified(userId: string): Promise<void> {
+    await db.update(users).set({ emailVerified: new Date() }).where(eq(users.id, userId));
   }
 }
 
