@@ -24,6 +24,8 @@ export const users = pgTable("users", {
   industry: varchar("industry"),
   website: varchar("website"),
   companyDescription: text("company_description"),
+  region: varchar("region").default("western"),
+  country: varchar("country"),
   onboardingCompleted: timestamp("onboarding_completed"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

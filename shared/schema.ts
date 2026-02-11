@@ -238,6 +238,63 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 
+export const agentConfigs = pgTable("agent_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  agentType: text("agent_type").notNull(),
+  enabled: boolean("enabled").default(false),
+  agentSettings: text("agent_settings"),
+  isRunning: boolean("is_running").default(false),
+  lastRun: timestamp("last_run"),
+  nextRun: timestamp("next_run"),
+  lastError: text("last_error"),
+  totalLeadsFound: integer("total_leads_found").default(0),
+  totalDealsCompleted: integer("total_deals_completed").default(0),
+  healthScore: integer("health_score").default(100),
+  runFrequency: text("run_frequency").default("daily"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const agentTasks = pgTable("agent_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  agentType: text("agent_type").notNull(),
+  agentConfigId: varchar("agent_config_id"),
+  taskType: text("task_type").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"),
+  result: text("result"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  agentType: text("agent_type"),
+  type: text("type").notNull().default("info"),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  priority: text("priority").default("normal"),
+  read: boolean("read").default(false),
+  leadId: varchar("lead_id"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAgentConfigSchema = createInsertSchema(agentConfigs).omit({ id: true, createdAt: true });
+export type AgentConfig = typeof agentConfigs.$inferSelect;
+export type InsertAgentConfig = z.infer<typeof insertAgentConfigSchema>;
+
+export const insertAgentTaskSchema = createInsertSchema(agentTasks).omit({ id: true, createdAt: true });
+export type AgentTask = typeof agentTasks.$inferSelect;
+export type InsertAgentTask = z.infer<typeof insertAgentTaskSchema>;
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
 export const insertAdminSchema = createInsertSchema(admins).omit({ id: true, createdAt: true });
 export type Admin = typeof admins.$inferSelect;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;

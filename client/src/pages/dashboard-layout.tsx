@@ -5,7 +5,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,7 +22,9 @@ import StrategyPage from "./strategy";
 import ResourcesPage from "./resources";
 import DemoBuilderPage from "./demo-builder";
 import SalesFunnelsPage from "./sales-funnels";
+import AgentCatalogPage from "./agent-catalog";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
+import { NotificationsDropdown } from "@/components/notifications-dropdown";
 
 export default function DashboardLayout() {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -86,9 +88,7 @@ export default function DashboardLayout() {
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 animate-pulse" />
                 AI Active
               </Badge>
-              <Button size="icon" variant="ghost" data-testid="button-notifications">
-                <Bell className="w-4 h-4" />
-              </Button>
+              <NotificationsDropdown />
               <div className="flex items-center gap-2">
                 <Avatar className="w-8 h-8">
                   <AvatarImage src={user?.profileImageUrl || ""} />
@@ -117,6 +117,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/demos" component={DemoBuilderPage} />
               <Route path="/dashboard/email" component={EmailSmsPage} />
               <Route path="/dashboard/training" component={TrainingPage} />
+              <Route path="/dashboard/agent-catalog" component={AgentCatalogPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />

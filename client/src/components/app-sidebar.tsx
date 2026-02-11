@@ -30,6 +30,7 @@ import {
   Library,
   Wand2,
   Filter,
+  Boxes,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -42,6 +43,7 @@ const mainNav = [
 ];
 
 const automationNav = [
+  { title: "Agent Catalog", icon: Boxes, url: "/dashboard/agent-catalog", badge: "NEW" },
   { title: "AI Agents", icon: Bot, url: "/dashboard/ai-agents", badge: "LIVE" },
   { title: "Voice AI", icon: Phone, url: "/dashboard/voice-ai", badge: "NEW" },
   { title: "Chatbots", icon: MessageSquare, url: "/dashboard/ai-agents" },

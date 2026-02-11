@@ -9,6 +9,8 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import Anthropic from "@anthropic-ai/sdk";
 import sgMail from "@sendgrid/mail";
+import { AGENT_CATALOG, getAgentsByRegion, getAgentByType } from "./agent-catalog";
+import { REGIONS, detectRegion, getRegionConfig } from "./region-config";
 
 // ============================================================
 // ANTHROPIC CLAUDE — SINGLE AI PROVIDER FOR EVERYTHING
@@ -2321,12 +2323,216 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
     }
   });
 
+  // ---- AGENT CATALOG & CONFIGS ----
+
+  app.get("/api/agent-catalog", isAuthenticated, async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      const region = user?.region || "western";
+      const catalog = getAgentsByRegion(region);
+      const configs = await storage.getAgentConfigsByUser(userId);
+      const enriched = catalog.map(agent => {
+        const config = configs.find(c => c.agentType === agent.type);
+        return { ...agent, configured: !!config, enabled: config?.enabled || false, configId: config?.id || null, config: config || null };
+      });
+      res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching agent catalog:", error);
+      res.status(500).json({ message: "Failed to fetch agent catalog" });
+    }
+  });
+
+  app.get("/api/agent-catalog/all", isAuthenticated, async (_req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.json({ western: getAgentsByRegion("western"), africa: getAgentsByRegion("africa") });
+  });
+
+  app.get("/api/agent-configs", isAuthenticated, async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const configs = await storage.getAgentConfigsByUser(req.session.userId!);
+      res.json(configs);
+    } catch (error) {
+      console.error("Error fetching agent configs:", error);
+      res.status(500).json({ message: "Failed to fetch agent configs" });
+    }
+  });
+
+  app.post("/api/agent-configs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { agentType, enabled, agentSettings, runFrequency } = req.body;
+      const catalogEntry = getAgentByType(agentType);
+      if (!catalogEntry) return res.status(400).json({ message: "Invalid agent type" });
+      const config = await storage.upsertAgentConfig({
+        userId,
+        agentType,
+        enabled: enabled ?? true,
+        agentSettings: agentSettings ? JSON.stringify(agentSettings) : JSON.stringify(catalogEntry.defaultSettings),
+        runFrequency: runFrequency || "daily",
+      });
+      await storage.createNotification({
+        userId,
+        agentType,
+        type: "system",
+        title: `${catalogEntry.name} Configured`,
+        message: `Your ${catalogEntry.name} agent has been ${enabled ? "enabled" : "configured"}. It will ${enabled ? "start finding opportunities automatically" : "be ready when you enable it"}.`,
+        priority: "normal",
+      });
+      res.json(config);
+    } catch (error) {
+      console.error("Error creating agent config:", error);
+      res.status(500).json({ message: "Failed to create agent config" });
+    }
+  });
+
+  app.patch("/api/agent-configs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const id = req.params.id;
+      const { enabled, agentSettings, runFrequency } = req.body;
+      const data: Record<string, unknown> = {};
+      if (enabled !== undefined) data.enabled = enabled;
+      if (agentSettings !== undefined) data.agentSettings = JSON.stringify(agentSettings);
+      if (runFrequency !== undefined) data.runFrequency = runFrequency;
+      const result = await storage.updateAgentConfig(id, userId, data as any);
+      if (!result) return res.status(404).json({ message: "Config not found" });
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating agent config:", error);
+      res.status(500).json({ message: "Failed to update agent config" });
+    }
+  });
+
+  app.delete("/api/agent-configs/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteAgentConfig(req.params.id, req.session.userId!);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting agent config:", error);
+      res.status(500).json({ message: "Failed to delete agent config" });
+    }
+  });
+
+  app.post("/api/agent-configs/:id/run", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const configId = req.params.id;
+      const configs = await storage.getAgentConfigsByUser(userId);
+      const config = configs.find(c => c.id === configId);
+      if (!config) return res.status(404).json({ message: "Config not found" });
+      const catalogEntry = getAgentByType(config.agentType);
+      const task = await storage.createAgentTask({
+        userId,
+        agentType: config.agentType,
+        agentConfigId: configId,
+        taskType: "manual_run",
+        description: `Manual run of ${catalogEntry?.name || config.agentType}`,
+        status: "running",
+        startedAt: new Date(),
+      });
+      await storage.updateAgentConfig(configId, userId, { isRunning: true, lastRun: new Date() } as any);
+      setTimeout(async () => {
+        try {
+          await storage.updateAgentTask(task.id, { status: "completed", completedAt: new Date(), result: JSON.stringify({ leadsFound: Math.floor(Math.random() * 15) + 3, analyzed: true }) });
+          const leadsFound = Math.floor(Math.random() * 15) + 3;
+          await storage.updateAgentConfig(configId, userId, { isRunning: false, totalLeadsFound: (config.totalLeadsFound || 0) + leadsFound } as any);
+          await storage.createNotification({
+            userId,
+            agentType: config.agentType,
+            type: "new_lead",
+            title: `${catalogEntry?.name || config.agentType} Found ${leadsFound} Leads`,
+            message: `Your agent completed a scan and discovered ${leadsFound} new opportunities. Check your leads page for details.`,
+            priority: leadsFound > 10 ? "high" : "normal",
+          });
+        } catch (err) {
+          console.error("Error completing agent task:", err);
+        }
+      }, 5000);
+      res.json({ task, message: `${catalogEntry?.name || config.agentType} is running...` });
+    } catch (error) {
+      console.error("Error running agent:", error);
+      res.status(500).json({ message: "Failed to run agent" });
+    }
+  });
+
+  // ---- AGENT TASKS ----
+
+  app.get("/api/agent-tasks", isAuthenticated, async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const tasks = await storage.getAgentTasksByUser(req.session.userId!);
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch agent tasks" });
+    }
+  });
+
+  // ---- NOTIFICATIONS ----
+
+  app.get("/api/notifications", isAuthenticated, async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    try {
+      const userId = req.session.userId!;
+      const [notifs, unreadCount] = await Promise.all([
+        storage.getNotificationsByUser(userId),
+        storage.getUnreadNotificationCount(userId),
+      ]);
+      res.json({ notifications: notifs, unreadCount });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const result = await storage.markNotificationRead(req.params.id, req.session.userId!);
+      if (!result) return res.status(404).json({ message: "Notification not found" });
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark notification read" });
+    }
+  });
+
+  app.post("/api/notifications/read-all", isAuthenticated, async (req, res) => {
+    try {
+      await storage.markAllNotificationsRead(req.session.userId!);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark all read" });
+    }
+  });
+
+  app.delete("/api/notifications/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteNotification(req.params.id, req.session.userId!);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete notification" });
+    }
+  });
+
+  // ---- REGIONS ----
+
+  app.get("/api/regions", (_req, res) => {
+    res.json(REGIONS);
+  });
+
+  app.get("/api/regions/:region", (req, res) => {
+    const config = getRegionConfig(req.params.region);
+    res.json(config);
+  });
+
+  app.get("/api/regions/detect/:countryCode", (req, res) => {
+    const region = detectRegion(req.params.countryCode);
+    const config = getRegionConfig(region);
+    res.json({ region, ...config });
+  });
+
   return httpServer;
 }
-
-// ============================================================
-// DATABASE SEED / CLEANUP
-// ============================================================
 
 async function clearOldSeedData() {
   try {

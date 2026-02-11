@@ -161,3 +161,12 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - GET /api/admin/clients - All users with subscription, lead count, agent count
 - GET/POST/PATCH/DELETE /api/admin/subscriptions - Full subscription management
 - Enhanced GET /api/admin/stats - Includes totalSubscriptions, activeSubscriptions, monthlyRevenue
+- **Modular AI Agent Framework**: Agent catalog with 10 specialized agents (Tax Lien, Tax Deed, Wholesale RE, Govt Contracts, Arbitrage, Lead Gen for Western; Govt Tenders, Cross-Border Trade, Agri Market, Diaspora Services for Africa)
+- `agent_configs` table: Per-user agent settings, lifecycle state, run frequency, enabled/disabled
+- `agent_tasks` table: Task queue for agent runs (manual and scheduled)
+- `notifications` table: Real-time notifications for agent events, leads found, system alerts
+- Agent Catalog page at /dashboard/agent-catalog with cards, enable/disable toggles, configure dialog, manual run
+- Notifications dropdown in dashboard header with unread count badge, mark read, delete
+- **Multi-Region Support**: Western (ArgiFlow) and African (TradeFlow) brands with region-specific agents, pricing, and currencies
+- Region config: Western plans (Starter $297, Pro $597, Enterprise $1,497), African plans (Hustle $5, Business $15, Mogul $25, Pay Per Result)
+- API: GET /api/agent-catalog, POST/PATCH/DELETE /api/agent-configs, POST /api/agent-configs/:id/run, GET /api/notifications, GET /api/regions

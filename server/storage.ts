@@ -1,6 +1,7 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
   funnels, funnelStages, funnelDeals, websiteProfiles, automations, emailEvents, subscriptions,
+  agentConfigs, agentTasks, notifications,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
@@ -17,6 +18,9 @@ import {
   type Automation, type InsertAutomation,
   type EmailEvent, type InsertEmailEvent,
   type Subscription, type InsertSubscription,
+  type AgentConfig, type InsertAgentConfig,
+  type AgentTask, type InsertAgentTask,
+  type Notification, type InsertNotification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc } from "drizzle-orm";
@@ -80,6 +84,20 @@ export interface IStorage {
   createSubscription(subscription: InsertSubscription): Promise<Subscription>;
   updateSubscription(id: string, data: Partial<Pick<Subscription, "plan" | "status" | "amount" | "paymentMethod" | "venmoHandle" | "trialEndsAt" | "currentPeriodStart" | "currentPeriodEnd" | "cancelledAt" | "notes">>): Promise<Subscription | undefined>;
   deleteSubscription(id: string): Promise<void>;
+  getAgentConfigsByUser(userId: string): Promise<AgentConfig[]>;
+  getAgentConfig(userId: string, agentType: string): Promise<AgentConfig | undefined>;
+  upsertAgentConfig(config: InsertAgentConfig): Promise<AgentConfig>;
+  updateAgentConfig(id: string, userId: string, data: Partial<Pick<AgentConfig, "enabled" | "agentSettings" | "isRunning" | "lastRun" | "nextRun" | "lastError" | "totalLeadsFound" | "totalDealsCompleted" | "healthScore" | "runFrequency">>): Promise<AgentConfig | undefined>;
+  deleteAgentConfig(id: string, userId: string): Promise<void>;
+  getAgentTasksByUser(userId: string): Promise<AgentTask[]>;
+  createAgentTask(task: InsertAgentTask): Promise<AgentTask>;
+  updateAgentTask(id: string, data: Partial<Pick<AgentTask, "status" | "result" | "completedAt">>): Promise<AgentTask | undefined>;
+  getNotificationsByUser(userId: string): Promise<Notification[]>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationRead(id: string, userId: string): Promise<Notification | undefined>;
+  markAllNotificationsRead(userId: string): Promise<void>;
+  deleteNotification(id: string, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -381,6 +399,75 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSubscription(id: string): Promise<void> {
     await db.delete(subscriptions).where(eq(subscriptions.id, id));
+  }
+
+  async getAgentConfigsByUser(userId: string): Promise<AgentConfig[]> {
+    return db.select().from(agentConfigs).where(eq(agentConfigs.userId, userId)).orderBy(desc(agentConfigs.createdAt));
+  }
+
+  async getAgentConfig(userId: string, agentType: string): Promise<AgentConfig | undefined> {
+    const [result] = await db.select().from(agentConfigs).where(and(eq(agentConfigs.userId, userId), eq(agentConfigs.agentType, agentType)));
+    return result;
+  }
+
+  async upsertAgentConfig(config: InsertAgentConfig): Promise<AgentConfig> {
+    const existing = await this.getAgentConfig(config.userId, config.agentType);
+    if (existing) {
+      const [result] = await db.update(agentConfigs).set(config).where(eq(agentConfigs.id, existing.id)).returning();
+      return result;
+    }
+    const [result] = await db.insert(agentConfigs).values(config).returning();
+    return result;
+  }
+
+  async updateAgentConfig(id: string, userId: string, data: Partial<Pick<AgentConfig, "enabled" | "agentSettings" | "isRunning" | "lastRun" | "nextRun" | "lastError" | "totalLeadsFound" | "totalDealsCompleted" | "healthScore" | "runFrequency">>): Promise<AgentConfig | undefined> {
+    const [result] = await db.update(agentConfigs).set(data).where(and(eq(agentConfigs.id, id), eq(agentConfigs.userId, userId))).returning();
+    return result;
+  }
+
+  async deleteAgentConfig(id: string, userId: string): Promise<void> {
+    await db.delete(agentConfigs).where(and(eq(agentConfigs.id, id), eq(agentConfigs.userId, userId)));
+  }
+
+  async getAgentTasksByUser(userId: string): Promise<AgentTask[]> {
+    return db.select().from(agentTasks).where(eq(agentTasks.userId, userId)).orderBy(desc(agentTasks.createdAt));
+  }
+
+  async createAgentTask(task: InsertAgentTask): Promise<AgentTask> {
+    const [result] = await db.insert(agentTasks).values(task).returning();
+    return result;
+  }
+
+  async updateAgentTask(id: string, data: Partial<Pick<AgentTask, "status" | "result" | "completedAt">>): Promise<AgentTask | undefined> {
+    const [result] = await db.update(agentTasks).set(data).where(eq(agentTasks.id, id)).returning();
+    return result;
+  }
+
+  async getNotificationsByUser(userId: string): Promise<Notification[]> {
+    return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const results = await db.select().from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+    return results.length;
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [result] = await db.insert(notifications).values(notification).returning();
+    return result;
+  }
+
+  async markNotificationRead(id: string, userId: string): Promise<Notification | undefined> {
+    const [result] = await db.update(notifications).set({ read: true }).where(and(eq(notifications.id, id), eq(notifications.userId, userId))).returning();
+    return result;
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db.update(notifications).set({ read: true }).where(eq(notifications.userId, userId));
+  }
+
+  async deleteNotification(id: string, userId: string): Promise<void> {
+    await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
   }
 }
 
