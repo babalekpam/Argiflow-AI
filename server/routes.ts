@@ -2255,7 +2255,7 @@ async function clearOldSeedData() {
 }
 
 async function seedSuperAdmin() {
-  const email = "abel@argilette.com";
+  const email = "babalekpam@gmail.com";
   const existing = await storage.getAdminByEmail(email);
   if (!existing) {
     const password = process.env.ADMIN_PASSWORD;
@@ -2264,7 +2264,7 @@ async function seedSuperAdmin() {
       return;
     }
     const passwordHash = await hashPassword(password);
-    await storage.createAdmin({ email, passwordHash, name: "Abel" });
+    await storage.createAdmin({ email, passwordHash, name: "Super Admin" });
     console.log("Super admin seeded:", email);
   }
 }
