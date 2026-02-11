@@ -196,12 +196,6 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return "Email service is temporarily unavailable. Please try again later.";
       }
 
-      sgMail.setApiKey(sgKey);
-      const senderEmail = settings.senderEmail;
-      const senderName = user?.companyName
-        ? `${user.firstName || ""} from ${user.companyName}`.trim()
-        : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "ArgiFlow";
-
       let sent = 0;
       let failed = 0;
       const sentNames: string[] = [];
@@ -485,7 +479,8 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
 
   sgMail.setApiKey(sgKey);
 
-  const senderEmail = userSettings.senderEmail;
+  const platformEmail = "info@argilette.co";
+  const userReplyEmail = userSettings.senderEmail;
   const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
 
   const subjectLine = lead.company
@@ -500,7 +495,8 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
   try {
     await sgMail.send({
       to: lead.email,
-      from: { email: senderEmail, name: senderName },
+      from: { email: platformEmail, name: senderName },
+      replyTo: { email: userReplyEmail, name: senderName },
       subject: subjectLine,
       text: lead.outreach,
       html: htmlBody,
