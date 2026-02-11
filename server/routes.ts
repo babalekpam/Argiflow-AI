@@ -1893,7 +1893,6 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
   // ---- ADMIN ----
 
   await clearOldSeedData();
-  await clearTestAppointments();
   await seedSuperAdmin();
 
   app.post("/api/admin/login", async (req, res) => {
@@ -2259,15 +2258,6 @@ async function clearOldSeedData() {
     }
   } catch (error) {
     console.error("Error clearing seed data:", error);
-  }
-}
-
-async function clearTestAppointments() {
-  try {
-    const result = await db.delete(appointments);
-    console.log("Cleared all test appointments from database");
-  } catch (error) {
-    console.error("Error clearing test appointments:", error);
   }
 }
 
