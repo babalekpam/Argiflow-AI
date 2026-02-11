@@ -77,14 +77,17 @@ function TrialBanner({ subData }: { subData: SubscriptionData }) {
   return null;
 }
 
-function getPlanLabel(subData: SubscriptionData | undefined) {
-  if (!subData?.subscription) return "Free";
-  const { plan, status } = subData.subscription;
-  const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
-  if (status === "trial") return `${planName} Trial`;
-  if (status === "active") return `${planName} Plan`;
-  if (status === "expired" || status === "cancelled") return "No Plan";
-  return planName;
+function getPlanLabel(subData: SubscriptionData | undefined, user: any) {
+  if (subData?.subscription) {
+    const { plan, status } = subData.subscription;
+    const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
+    if (status === "trial") return `${planName} Trial`;
+    if (status === "active") return `${planName} Plan`;
+    if (status === "expired" || status === "cancelled") return "No Plan";
+    return planName;
+  }
+  if (user?.planLabel) return user.planLabel;
+  return "Free";
 }
 
 export default function DashboardLayout() {
@@ -164,7 +167,7 @@ export default function DashboardLayout() {
                 </Avatar>
                 <div className="hidden md:block">
                   <p className="text-sm font-medium" data-testid="text-user-name">{user?.firstName || "User"}</p>
-                  <p className="text-xs text-muted-foreground" data-testid="text-plan-label">{getPlanLabel(subData)}</p>
+                  <p className="text-xs text-muted-foreground" data-testid="text-plan-label">{getPlanLabel(subData, user)}</p>
                 </div>
               </div>
             </div>

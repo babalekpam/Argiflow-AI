@@ -1230,7 +1230,15 @@ export async function registerRoutes(
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
+      const sub = await storage.getSubscriptionByUser(user.id);
+      let planLabel = "Free";
+      if (sub) {
+        const planName = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
+        if (sub.status === "trial") planLabel = `${planName} Trial`;
+        else if (sub.status === "active") planLabel = `${planName} Plan`;
+        else planLabel = "Free";
+      }
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified, planLabel });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
