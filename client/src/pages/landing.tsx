@@ -29,6 +29,23 @@ import {
   ArrowDown,
   Globe,
   CheckCircle,
+  Search,
+  Filter,
+  FileText,
+  Landmark,
+  Building2,
+  RefreshCw,
+  Tractor,
+  Eye,
+  MousePointerClick,
+  GraduationCap,
+  Library,
+  Settings,
+  Boxes,
+  Activity,
+  BarChart,
+  Send,
+  Layers,
 } from "lucide-react";
 import { SiX, SiLinkedin, SiInstagram, SiVenmo } from "react-icons/si";
 import { CompactFlowchart } from "@/components/animated-flowchart";
@@ -42,63 +59,119 @@ const services = [
       "Custom voice AI agents that handle inbound and outbound calls, qualify leads, answer questions, and schedule appointments 24/7 — so you never miss an opportunity.",
   },
   {
-    icon: Workflow,
+    icon: Boxes,
     number: "02",
+    title: "Specialized AI Agent Catalog",
+    description:
+      "10+ industry-specific AI agents — from Tax Lien Hunters and Govt Contract Finders to Cross-Border Trade Agents. Each agent runs autonomously with its own lifecycle: discover, analyze, enrich, act, and monitor.",
+  },
+  {
+    icon: Workflow,
+    number: "03",
     title: "Process Automation",
     description:
       "We audit your workflows and automate repetitive tasks across marketing, sales, and operations using custom AI solutions that save time and eliminate errors.",
   },
   {
     icon: MessageSquare,
-    number: "03",
+    number: "04",
     title: "Lead Gen Chatbots",
     description:
-      "AI chatbots for your website that engage visitors, answer questions, qualify leads, and book appointments while you focus on closing deals.",
+      "AI chatbots powered by Claude that engage visitors, answer questions, qualify leads, and book appointments — with full context of your business, website, and services.",
   },
   {
-    icon: Headphones,
-    number: "04",
-    title: "AI Receptionists",
+    icon: Filter,
+    number: "05",
+    title: "Sales Funnels & Pipeline",
     description:
-      "Virtual receptionists that handle calls, route inquiries, and schedule meetings — ensuring every customer gets instant, professional attention around the clock.",
+      "Visual Kanban-style sales pipelines to manage deals through stages. Create custom funnels, drag-and-drop deals, and track conversion rates with stage-level analytics.",
   },
   {
     icon: Target,
-    number: "05",
-    title: "CRM Integration",
+    number: "06",
+    title: "Email & Engagement Intelligence",
     description:
-      "Seamless integration of AI solutions with your existing CRM — Salesforce, HubSpot, or custom — ensuring data flows efficiently across every business tool.",
+      "Automated outreach with open/click tracking. AI scores leads as Hot, Warm, or Interested based on engagement and recommends next steps — call, follow-up, or try a different channel.",
   },
+];
+
+const platformFeatures = [
   {
     icon: Brain,
-    number: "06",
-    title: "Bespoke AI Solutions",
-    description:
-      "Custom AI solutions engineered for your unique business challenges. From predictive analytics to intelligent document processing — we build what you need.",
+    title: "AI-Generated Marketing Strategy",
+    description: "Claude analyzes your business and generates a full marketing strategy on signup — automatically tailored to your industry, services, and target audience.",
   },
+  {
+    icon: Globe,
+    title: "Website Intelligence",
+    description: "AI scans and analyzes your website to extract services, value propositions, pricing, FAQs, and contact info — then injects that knowledge into every AI interaction.",
+  },
+  {
+    icon: Send,
+    title: "Omnichannel Outreach",
+    description: "Send personalized emails via SendGrid and SMS via Twilio directly from the platform. AI crafts outreach messages based on your business profile and lead data.",
+  },
+  {
+    icon: Eye,
+    title: "Email Open & Click Tracking",
+    description: "Know exactly which leads opened your emails, clicked your links, and when. Auto-scoring classifies leads by engagement level with recommended next actions.",
+  },
+  {
+    icon: Layers,
+    title: "Automation Arsenal",
+    description: "Pre-built workflow templates for lead nurturing, follow-ups, appointment reminders, and re-engagement campaigns. Activate, pause, and customize with one click.",
+  },
+  {
+    icon: GraduationCap,
+    title: "Training Center",
+    description: "Courses, tutorials, and resources to master the platform. From beginner guides to advanced AI strategy — with progress tracking and completion certificates.",
+  },
+  {
+    icon: Library,
+    title: "Resource Library",
+    description: "Bot templates for 12+ industries, ad templates with 9x ROI blueprints, VSL funnel builders, organic client acquisition blueprints, and agency SOPs.",
+  },
+  {
+    icon: BarChart,
+    title: "Advanced Analytics",
+    description: "Real-time dashboards tracking leads, appointments, agent performance, email engagement rates, funnel conversion, and revenue attribution across all channels.",
+  },
+];
+
+const agentShowcase = [
+  { icon: Landmark, name: "Tax Lien Hunter", region: "Western", desc: "Crawl county records, analyze ROI, track auctions, auto-bid" },
+  { icon: FileText, name: "Tax Deed Agent", region: "Western", desc: "Find tax deed properties at county auctions nationwide" },
+  { icon: Building2, name: "Wholesale RE Agent", region: "Western", desc: "Off-market deals, run comps, connect with cash buyers" },
+  { icon: Landmark, name: "Govt Contracts Agent", region: "Western", desc: "Scan SAM.gov, filter by NAICS, evaluate requirements" },
+  { icon: RefreshCw, name: "Arbitrage Agent", region: "Western", desc: "Profitable arbitrage across Amazon, eBay, Walmart" },
+  { icon: Search, name: "Lead Gen Agent", region: "Western", desc: "AI-powered prospecting across multiple channels" },
+  { icon: Globe, name: "Govt Tender Agent", region: "Africa", desc: "Find and auto-apply to government tenders continent-wide" },
+  { icon: Globe, name: "Cross-Border Trade", region: "Africa", desc: "Identify import/export opportunities, match trade partners" },
+  { icon: Tractor, name: "Agri Market Agent", region: "Africa", desc: "Market intelligence for agricultural commodities" },
+  { icon: Users, name: "Diaspora Services", region: "Africa", desc: "Connect diaspora with investment & service opportunities" },
 ];
 
 const process_steps = [
   {
     step: "01",
-    title: "Book a Discovery Call",
+    title: "Sign Up & Tell Us About Your Business",
     description:
-      "Tell us about your business, challenges, and goals. We'll identify the highest-ROI AI opportunities specific to your operations.",
-    icon: Calendar,
+      "Create your account and tell us about your company, industry, and goals. Our AI immediately generates a customized marketing strategy and begins analyzing your website.",
+    icon: Rocket,
   },
   {
     step: "02",
-    title: "Custom Solution Design",
+    title: "Deploy AI Agents",
     description:
-      "We design a tailored AI strategy — selecting the right technologies, integration points, and implementation plan for maximum impact.",
-    icon: Cog,
+      "Browse the Agent Catalog, enable specialized agents for your industry, and configure their settings. They start finding opportunities, leads, and deals immediately.",
+    icon: Bot,
   },
   {
     step: "03",
-    title: "Build & Integrate",
+    title: "Engage, Convert & Scale",
     description:
-      "Our team builds and deploys your AI systems with seamless integration into existing workflows. We train your team to maximize results.",
-    icon: Rocket,
+      "AI agents find leads, send outreach, track engagement, and move deals through your pipeline. You focus on closing while the platform handles everything else.",
+    icon: TrendingUp,
   },
 ];
 
@@ -108,16 +181,16 @@ const testimonials = [
     company: "Apex Real Estate Group",
     initials: "MC",
     quote:
-      "ArgiFlow's voice AI agent handles 80% of our inbound calls now. We booked 3x more appointments in the first month without hiring a single person.",
+      "ArgiFlow's Tax Lien Hunter found 47 properties in our first week. The voice AI handles 80% of our calls. We booked 3x more appointments without hiring anyone.",
     rating: 5,
-    result: "3x appointments",
+    result: "47 deals found",
   },
   {
     name: "Sarah Williams",
     company: "Pinnacle Legal",
     initials: "SW",
     quote:
-      "The process automation alone saved us 40+ hours per week. Our team went from drowning in admin to focused on billable work.",
+      "The process automation saved us 40+ hours per week. Email tracking shows us exactly who's interested. Our team went from drowning in admin to focused on closing.",
     rating: 5,
     result: "40hrs/week saved",
   },
@@ -126,52 +199,36 @@ const testimonials = [
     company: "ScaleUp Digital",
     initials: "DP",
     quote:
-      "Their chatbot qualified more leads in one week than our SDR team did in a month. The ROI was immediate and undeniable.",
+      "The AI chatbot qualified more leads in one week than our SDR team did in a month. The engagement scoring tells us exactly who to call first. Game changer.",
     rating: 5,
     result: "10x lead qualification",
   },
 ];
 
-const targetAudiences = [
-  {
-    title: "Startups",
-    subtitle: "Achieve PMF Faster",
-    description:
-      "Race to product-market fit with AI that makes your small team operate like a big one. Automate customer discovery, lead gen, and support from day one.",
-    icon: Rocket,
-  },
-  {
-    title: "SMBs",
-    subtitle: "Scale Without Hiring",
-    description:
-      "Implement AI in the most critical areas of your business. Reduce costs, increase output, and stay ahead of competitors who are still doing things manually.",
-    icon: TrendingUp,
-  },
-  {
-    title: "Small Teams",
-    subtitle: "10x Your Output",
-    description:
-      "Every team member using AI daily becomes 10x more productive. We train your people and build the systems that multiply what they can accomplish.",
-    icon: Users,
-  },
-];
-
 const faqs = [
   {
+    q: "What are AI Agents and how do they work?",
+    a: "AI Agents are specialized autonomous systems that run specific tasks for your industry — like finding tax liens, scanning government contracts, or generating leads. Each agent follows a lifecycle: discover opportunities, analyze them, enrich with data, take action (send outreach, bid), and monitor results. You configure them once and they work 24/7.",
+  },
+  {
     q: "How long does implementation take?",
-    a: "Most automations go live within 2-4 weeks. Complex, multi-system integrations may take 4-8 weeks. You'll see results fast.",
+    a: "Sign up, configure your agents, and they start working immediately. Most users see their first leads within 24 hours. For more complex multi-system integrations, 2-4 weeks to fully optimize.",
   },
   {
     q: "Do I need technical knowledge?",
-    a: "Not at all. We handle everything — design, build, integration, and training. You just tell us your pain points and goals.",
+    a: "Not at all. The platform is designed for non-technical users. Browse the agent catalog, flip a switch to enable, and configure with simple settings. Our AI handles the complex parts.",
+  },
+  {
+    q: "What regions do you support?",
+    a: "We operate globally with two specialized brands: ArgiFlow for Western markets (US, EU, UK, Canada, Australia) and TradeFlow for African markets (Nigeria, Kenya, Ghana, South Africa, and 26+ more countries) — each with region-specific agents and pricing.",
+  },
+  {
+    q: "Can you integrate with my existing tools?",
+    a: "Yes. We integrate with CRMs (Salesforce, HubSpot), email platforms (SendGrid), SMS (Twilio), calendars, and virtually any tool with an API. All integrations are configured from your Settings dashboard.",
   },
   {
     q: "What if it doesn't work for my business?",
     a: "Every plan starts with a 14-day free trial — no credit card required. If it's not the right fit, cancel anytime with zero risk.",
-  },
-  {
-    q: "Can you integrate with my existing tools?",
-    a: "Yes. We integrate with virtually any CRM, email platform, phone system, or business tool. If it has an API, we can connect it.",
   },
 ];
 
@@ -191,8 +248,11 @@ export default function LandingPage() {
             <a href="#services" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
               Services
             </a>
-            <a href="#process" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              How It Works
+            <a href="#agents" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
+              AI Agents
+            </a>
+            <a href="#platform" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
+              Platform
             </a>
             <a href="#pricing" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
               Pricing
@@ -230,31 +290,33 @@ export default function LandingPage() {
           <div>
             <Badge variant="outline" className="mb-6 py-1.5 px-4 border-primary/30 bg-primary/5">
               <Sparkles className="w-3.5 h-3.5 mr-2 text-primary" />
-              AI Automation Agency for Growing Businesses
+              AI Automation Platform for Revenue-Driven Businesses
             </Badge>
             <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
-              Scale Your Business With{" "}
-              <span className="gradient-text">AI Automation</span>
+              Deploy AI Agents That{" "}
+              <span className="gradient-text">Find, Engage & Close</span>{" "}
+              Deals For You
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed">
-              We help SMBs, startups, and small teams harness AI to slash costs,
-              scale revenue, and 10x output — without hiring additional staff.
+              10+ specialized AI agents that discover opportunities, generate leads,
+              send outreach, track engagement, and manage your pipeline — all on autopilot.
+              Available for Western and African markets.
             </p>
 
             <div className="flex flex-wrap items-center gap-6 mb-10">
               <div className="flex flex-col">
+                <span className="text-3xl font-extrabold gradient-text">10+</span>
+                <span className="text-sm text-muted-foreground">AI Agents Available</span>
+              </div>
+              <div className="w-px h-10 bg-border" />
+              <div className="flex flex-col">
                 <span className="text-3xl font-extrabold gradient-text">24/7</span>
-                <span className="text-sm text-muted-foreground">AI Working For You</span>
+                <span className="text-sm text-muted-foreground">Autonomous Operation</span>
               </div>
               <div className="w-px h-10 bg-border" />
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">10x</span>
-                <span className="text-sm text-muted-foreground">Team Productivity</span>
-              </div>
-              <div className="w-px h-10 bg-border" />
-              <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">2-4 Wks</span>
-                <span className="text-sm text-muted-foreground">To See Results</span>
+                <span className="text-3xl font-extrabold gradient-text">2</span>
+                <span className="text-sm text-muted-foreground">Global Regions</span>
               </div>
             </div>
 
@@ -265,22 +327,26 @@ export default function LandingPage() {
                   Get Started Free
                 </Button>
               </a>
-              <a href="#services">
+              <a href="#agents">
                 <Button variant="outline" size="lg" className="text-base px-8">
-                  <ArrowDown className="w-4 h-4 mr-2" />
-                  See Our Services
+                  <Boxes className="w-4 h-4 mr-2" />
+                  Explore AI Agents
                 </Button>
               </a>
             </div>
 
-            <div className="mt-8 flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="mt-8 flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
               <div className="flex items-center gap-1.5">
                 <Shield className="w-4 h-4 text-chart-3" />
-                <span>100% Money-Back Guarantee</span>
+                <span>14-Day Free Trial</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-chart-3" />
+                <span>Western + African Markets</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-chart-3" />
-                <span>Results in 2-4 Weeks</span>
+                <span>Results in 24 Hours</span>
               </div>
             </div>
           </div>
@@ -292,15 +358,16 @@ export default function LandingPage() {
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
                   <Bot className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-lg font-bold mb-1">What AI Can Do For You</h3>
-                <p className="text-xs text-muted-foreground">Capabilities built for growing businesses</p>
+                <h3 className="text-lg font-bold mb-1">Full-Stack AI Platform</h3>
+                <p className="text-xs text-muted-foreground">Everything you need to scale with AI</p>
               </div>
               <div className="space-y-3">
                 {[
-                  { icon: Phone, label: "Voice AI Agents", value: "24/7 Coverage", sub: "Inbound & outbound calls", color: "bg-primary/10 text-primary" },
-                  { icon: MessageSquare, label: "Lead Gen Chatbots", value: "Always On", sub: "Qualify & convert visitors", color: "bg-chart-3/10 text-chart-3" },
-                  { icon: Workflow, label: "Process Automation", value: "End-to-End", sub: "Sales, marketing & ops", color: "bg-chart-4/10 text-chart-4" },
-                  { icon: Calendar, label: "Smart Scheduling", value: "Automated", sub: "AI-powered booking", color: "bg-chart-2/10 text-chart-2" },
+                  { icon: Boxes, label: "AI Agent Catalog", value: "10+ Agents", sub: "Industry-specific & autonomous", color: "bg-primary/10 text-primary" },
+                  { icon: Filter, label: "Sales Funnels", value: "Kanban View", sub: "Drag-and-drop deal pipeline", color: "bg-chart-3/10 text-chart-3" },
+                  { icon: Eye, label: "Engagement Tracking", value: "Real-Time", sub: "Open, click & score leads", color: "bg-chart-4/10 text-chart-4" },
+                  { icon: Brain, label: "AI Strategy Engine", value: "Auto-Generated", sub: "Claude-powered business plans", color: "bg-chart-2/10 text-chart-2" },
+                  { icon: Globe, label: "Multi-Region", value: "Global", sub: "Western + African markets", color: "bg-amber-500/10 text-amber-400" },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center justify-between gap-4 p-3 rounded-md bg-background/50">
                     <div className="flex items-center gap-3">
@@ -326,20 +393,20 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Our AI Services
+              Core Capabilities
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Comprehensive AI Solutions to{" "}
-              <span className="gradient-text">Transform Your Business</span>
+              Everything You Need to{" "}
+              <span className="gradient-text">Automate Revenue</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              From voice AI to process automation — we build, integrate, and optimize
-              AI systems tailored to your exact needs.
+              From autonomous AI agents to engagement intelligence — a complete platform
+              for finding opportunities, engaging leads, and closing deals.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {services.map((service) => (
-              <Card key={service.title} className="p-6 hover-elevate group relative overflow-hidden">
+              <Card key={service.title} className="p-6 hover-elevate group relative overflow-visible">
                 <div className="absolute top-4 right-4 text-4xl font-extrabold text-foreground/5 group-hover:text-primary/10 transition-colors">
                   {service.number}
                 </div>
@@ -352,6 +419,100 @@ export default function LandingPage() {
                 </p>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* AI Agent Catalog Showcase */}
+      <section id="agents" className="py-24 relative">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 right-0 w-80 h-80 bg-chart-4/5 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
+              <Boxes className="w-3.5 h-3.5 mr-2" />
+              AI Agent Catalog
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4">
+              10+ Specialized AI Agents Ready to{" "}
+              <span className="gradient-text">Work For You</span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+              Each agent is purpose-built for a specific industry or task. Enable with one click,
+              configure your preferences, and let them run autonomously.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 mb-12">
+            {/* Western Agents */}
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-bold">ArgiFlow</h3>
+                  <p className="text-xs text-muted-foreground">Western Markets</p>
+                </div>
+                <Badge variant="outline" className="ml-auto text-xs">US / EU / UK / CA / AU</Badge>
+              </div>
+              <div className="space-y-3">
+                {agentShowcase.filter(a => a.region === "Western").map((agent) => (
+                  <div key={agent.name} className="flex items-center gap-3 p-2.5 rounded-md bg-secondary/30">
+                    <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                      <agent.icon className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{agent.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{agent.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* African Agents */}
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-md bg-amber-500/10 flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold">TradeFlow</h3>
+                  <p className="text-xs text-muted-foreground">African Markets</p>
+                </div>
+                <Badge variant="outline" className="ml-auto text-xs">NG / KE / GH / ZA / 26+</Badge>
+              </div>
+              <div className="space-y-3">
+                {agentShowcase.filter(a => a.region === "Africa").map((agent) => (
+                  <div key={agent.name} className="flex items-center gap-3 p-2.5 rounded-md bg-secondary/30">
+                    <div className="w-8 h-8 rounded-md bg-amber-500/10 flex items-center justify-center shrink-0">
+                      <agent.icon className="w-4 h-4 text-amber-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{agent.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{agent.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 p-3 rounded-md bg-amber-500/5 border border-amber-500/10">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-amber-400">Pay-Per-Result available</span> — No monthly fee. Only pay when agents deliver results.
+                </p>
+              </div>
+            </Card>
+          </div>
+
+          <div className="text-center">
+            <a href="/signup">
+              <Button size="lg" className="text-base px-8">
+                <Bot className="w-4 h-4 mr-2" />
+                Deploy Your First Agent Free
+              </Button>
+            </a>
           </div>
         </div>
       </section>
@@ -379,10 +540,10 @@ export default function LandingPage() {
           </Card>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
             {[
-              { value: "10x", label: "More Leads Generated", color: "text-primary" },
-              { value: "24/7", label: "AI Working Non-Stop", color: "text-chart-3" },
+              { value: "10+", label: "AI Agents Deployed", color: "text-primary" },
+              { value: "24/7", label: "Autonomous Operation", color: "text-chart-3" },
               { value: "80%", label: "Lower Acquisition Cost", color: "text-chart-4" },
-              { value: "5x", label: "Faster Response Time", color: "text-amber-400" },
+              { value: "5min", label: "Setup to First Results", color: "text-amber-400" },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
@@ -393,31 +554,33 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Who We Serve */}
-      <section className="py-24 relative">
+      {/* Platform Features Grid */}
+      <section id="platform" className="py-24 relative">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 right-0 w-96 h-96 bg-chart-4/5 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 right-0 w-96 h-96 bg-chart-2/5 rounded-full blur-3xl" />
         </div>
         <div className="relative max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Who We Serve
+              Complete Platform
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Built for Teams That Want to{" "}
-              <span className="gradient-text">Scale Fast</span>
+              Built-in Tools to{" "}
+              <span className="gradient-text">Run Your Entire Operation</span>
             </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+              Every tool you need — from AI strategy generation to email tracking, training resources, and analytics — all in one dashboard.
+            </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {targetAudiences.map((audience) => (
-              <Card key={audience.title} className="p-8 text-center hover-elevate">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
-                  <audience.icon className="w-7 h-7 text-primary" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {platformFeatures.map((feature) => (
+              <Card key={feature.title} className="p-5 hover-elevate">
+                <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center mb-3">
+                  <feature.icon className="w-4 h-4 text-primary" />
                 </div>
-                <h3 className="text-2xl font-bold mb-1">{audience.title}</h3>
-                <p className="text-primary text-sm font-medium mb-4">{audience.subtitle}</p>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {audience.description}
+                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {feature.description}
                 </p>
               </Card>
             ))}
@@ -433,14 +596,14 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Our Process
+              Get Started in Minutes
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              How We Implement{" "}
-              <span className="gradient-text">AI for Your Business</span>
+              Three Steps to{" "}
+              <span className="gradient-text">AI-Powered Growth</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              A proven 3-step process for delivering AI automation that actually works.
+              From signup to your first leads in under 5 minutes.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
@@ -483,150 +646,202 @@ export default function LandingPage() {
               Packages & Pricing
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Invest in <span className="gradient-text">Real Growth</span>
+              Plans That <span className="gradient-text">Scale With You</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Every engagement starts with a discovery call. These packages are starting points — 
-              we customize based on your specific needs.
+              Start free, upgrade as you grow. Every plan includes the full platform.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Starter Package */}
-            <Card className="p-6 relative">
-              <div className="text-center mb-6 pt-2">
-                <h3 className="text-lg font-semibold mb-1">Starter</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Launch your first AI system fast
-                </p>
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-extrabold">$297</span>
-                  <span className="text-muted-foreground">/month</span>
-                </div>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {[
-                  "AI & automation audit of your business",
-                  "1 AI agent or automation build",
-                  "Up to 1,000 AI-powered actions/month",
-                  "CRM & lead management",
-                  "Email & SMS outreach tools",
-                  "Community support + knowledge base",
-                  "14-day free trial",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-3 text-sm">
-                    <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="space-y-2">
-                <a href="/signup" className="block">
-                  <Button className="w-full" variant="outline" data-testid="button-starter-trial">
-                    Start Free Trial
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </a>
-                <a href="https://venmo.com/argilette?txn=pay&amount=297&note=ArgiFlow%20Starter%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
-                  <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-starter-venmo">
-                    <SiVenmo className="w-4 h-4 mr-1" />
-                    Pay with Venmo
-                  </Button>
-                </a>
-              </div>
-            </Card>
 
-            {/* Pro Package */}
-            <Card className="p-6 relative border-primary/40 glow-purple">
-              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
-                Most Popular
-              </Badge>
-              <div className="text-center mb-6 pt-2">
-                <h3 className="text-lg font-semibold mb-1">Pro</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Scale with unlimited AI power
-                </p>
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-extrabold">$597</span>
-                  <span className="text-muted-foreground">/month</span>
+          {/* Western Pricing */}
+          <div className="mb-8">
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <Zap className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-bold">ArgiFlow</h3>
+              <Badge variant="outline" className="text-xs">Western Markets</Badge>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {/* Starter */}
+              <Card className="p-6 relative">
+                <div className="text-center mb-6 pt-2">
+                  <h3 className="text-lg font-semibold mb-1">Starter</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Launch your first AI agent
+                  </p>
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-4xl font-extrabold">$297</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
                 </div>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {[
-                  "Everything in Starter",
-                  "Unlimited AI agents & automations",
-                  "Up to 10,000 AI-powered actions/month",
-                  "Voice AI & telephony agents",
-                  "Sales funnels with Kanban pipeline",
-                  "Priority support + weekly strategy calls",
-                  "Advanced analytics & reporting",
-                  "Cancel anytime",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-3 text-sm">
-                    <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="space-y-2">
-                <a href="/signup" className="block">
-                  <Button className="w-full" data-testid="button-pro-trial">
-                    Start Free Trial
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </a>
-                <a href="https://venmo.com/argilette?txn=pay&amount=597&note=ArgiFlow%20Pro%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
-                  <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-pro-venmo">
-                    <SiVenmo className="w-4 h-4 mr-1" />
-                    Pay with Venmo
-                  </Button>
-                </a>
-              </div>
-            </Card>
+                <ul className="space-y-3 mb-6">
+                  {[
+                    "1 AI agent from the catalog",
+                    "100 leads/month",
+                    "Email & SMS outreach",
+                    "CRM & lead management",
+                    "AI marketing strategy",
+                    "Community support",
+                    "14-day free trial",
+                  ].map((f) => (
+                    <li key={f} className="flex items-start gap-3 text-sm">
+                      <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="space-y-2">
+                  <a href="/signup" className="block">
+                    <Button className="w-full" variant="outline" data-testid="button-starter-trial">
+                      Start Free Trial
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </a>
+                  <a href="https://venmo.com/argilette?txn=pay&amount=297&note=ArgiFlow%20Starter%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
+                    <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-starter-venmo">
+                      <SiVenmo className="w-4 h-4 mr-1" />
+                      Pay with Venmo
+                    </Button>
+                  </a>
+                </div>
+              </Card>
 
-            {/* Enterprise Package */}
-            <Card className="p-6 relative">
-              <div className="text-center mb-6 pt-2">
-                <h3 className="text-lg font-semibold mb-1">Enterprise</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Full-scale AI transformation
-                </p>
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-extrabold">$1,497</span>
-                  <span className="text-muted-foreground">/month</span>
+              {/* Pro */}
+              <Card className="p-6 relative border-primary/40 glow-purple">
+                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
+                  Most Popular
+                </Badge>
+                <div className="text-center mb-6 pt-2">
+                  <h3 className="text-lg font-semibold mb-1">Pro</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Scale with multiple agents
+                  </p>
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-4xl font-extrabold">$597</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
                 </div>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {[
-                  "Everything in Pro",
-                  "Custom AI agent development",
-                  "Unlimited actions & API calls",
-                  "Advanced CRM integrations",
-                  "Multi-system automation",
-                  "Dedicated account manager",
-                  "Custom reporting & white-label options",
-                  "SLA & onboarding support",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-3 text-sm">
-                    <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="space-y-2">
-                <a href="/signup" className="block">
-                  <Button className="w-full" variant="outline" data-testid="button-enterprise-trial">
-                    Contact Sales
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </a>
-                <a href="https://venmo.com/argilette?txn=pay&amount=1497&note=ArgiFlow%20Enterprise%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
-                  <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-enterprise-venmo">
-                    <SiVenmo className="w-4 h-4 mr-1" />
-                    Pay with Venmo
-                  </Button>
-                </a>
-              </div>
-            </Card>
+                <ul className="space-y-3 mb-6">
+                  {[
+                    "3 AI agents from the catalog",
+                    "500 leads/month",
+                    "Voice AI & telephony agents",
+                    "Sales funnels with Kanban",
+                    "Engagement tracking & scoring",
+                    "Priority support + strategy calls",
+                    "Advanced analytics",
+                  ].map((f) => (
+                    <li key={f} className="flex items-start gap-3 text-sm">
+                      <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="space-y-2">
+                  <a href="/signup" className="block">
+                    <Button className="w-full" data-testid="button-pro-trial">
+                      Start Free Trial
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </a>
+                  <a href="https://venmo.com/argilette?txn=pay&amount=597&note=ArgiFlow%20Pro%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
+                    <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-pro-venmo">
+                      <SiVenmo className="w-4 h-4 mr-1" />
+                      Pay with Venmo
+                    </Button>
+                  </a>
+                </div>
+              </Card>
+
+              {/* Enterprise */}
+              <Card className="p-6 relative">
+                <div className="text-center mb-6 pt-2">
+                  <h3 className="text-lg font-semibold mb-1">Enterprise</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Unlimited AI power
+                  </p>
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-4xl font-extrabold">$1,497</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                </div>
+                <ul className="space-y-3 mb-6">
+                  {[
+                    "Unlimited AI agents",
+                    "Unlimited leads",
+                    "Custom agent development",
+                    "API access & white-label",
+                    "Multi-system integrations",
+                    "Dedicated account manager",
+                    "SLA & onboarding support",
+                  ].map((f) => (
+                    <li key={f} className="flex items-start gap-3 text-sm">
+                      <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="space-y-2">
+                  <a href="/signup" className="block">
+                    <Button className="w-full" variant="outline" data-testid="button-enterprise-trial">
+                      Contact Sales
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </a>
+                  <a href="https://venmo.com/argilette?txn=pay&amount=1497&note=ArgiFlow%20Enterprise%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
+                    <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-enterprise-venmo">
+                      <SiVenmo className="w-4 h-4 mr-1" />
+                      Pay with Venmo
+                    </Button>
+                  </a>
+                </div>
+              </Card>
+            </div>
+          </div>
+
+          {/* African Pricing */}
+          <div className="mt-16">
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <Globe className="w-5 h-5 text-amber-400" />
+              <h3 className="text-lg font-bold">TradeFlow</h3>
+              <Badge variant="outline" className="text-xs">African Markets</Badge>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
+              {[
+                { name: "Hustle", price: "$5", agents: "1 Agent", leads: "50 leads/mo", fee: "5% success fee", features: ["WhatsApp alerts", "Mobile dashboard"] },
+                { name: "Business", price: "$15", agents: "3 Agents", leads: "200 leads/mo", fee: "3% success fee", features: ["Full dashboard", "Tender auto-apply"], popular: true },
+                { name: "Mogul", price: "$25", agents: "Unlimited", leads: "Unlimited leads", fee: "2% success fee", features: ["Priority matching", "API access"] },
+                { name: "Pay Per Result", price: "$0", agents: "1 Agent", leads: "20 leads/mo", fee: "8% success fee", features: ["No monthly fee", "Pay when you earn"] },
+              ].map((plan) => (
+                <Card key={plan.name} className={`p-4 ${plan.popular ? "border-amber-500/40" : ""}`}>
+                  {plan.popular && (
+                    <Badge className="mb-2 bg-amber-500 text-white text-[10px]">Popular</Badge>
+                  )}
+                  <h4 className="font-semibold text-sm">{plan.name}</h4>
+                  <div className="flex items-baseline gap-0.5 mt-1 mb-3">
+                    <span className="text-2xl font-extrabold">{plan.price}</span>
+                    {plan.price !== "$0" && <span className="text-xs text-muted-foreground">/mo</span>}
+                  </div>
+                  <div className="space-y-1.5 text-xs text-muted-foreground mb-3">
+                    <p>{plan.agents}</p>
+                    <p>{plan.leads}</p>
+                    <p className="text-amber-400 font-medium">{plan.fee}</p>
+                  </div>
+                  <ul className="space-y-1">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-center gap-1.5 text-xs">
+                        <Check className="w-3 h-3 text-chart-3 shrink-0" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <a href="/signup" className="block mt-3">
+                    <Button size="sm" variant="outline" className="w-full text-xs" data-testid={`button-africa-${plan.name.toLowerCase().replace(/\s/g, "-")}`}>
+                      Get Started
+                    </Button>
+                  </a>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -648,7 +863,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-6">
             {testimonials.map((t) => (
               <Card key={t.name} className="p-6">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                   <div className="flex items-center gap-1">
                     {Array.from({ length: t.rating }).map((_, i) => (
                       <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -708,11 +923,11 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <Card className="p-12 gradient-border glow-purple">
             <h2 className="text-4xl font-bold mb-4">
-              Ready to <span className="gradient-text">Scale with AI?</span>
+              Ready to Deploy <span className="gradient-text">AI Agents?</span>
             </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-              Sign up for free and explore how AI can transform your business operations.
-              We'll help you identify the highest-ROI opportunities and get started fast.
+              Sign up free, browse the agent catalog, and deploy your first AI agent in under 5 minutes.
+              Let autonomous AI find opportunities, engage leads, and grow your revenue.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
               <a href="/signup" data-testid="button-cta-final">
@@ -729,7 +944,7 @@ export default function LandingPage() {
               </a>
             </div>
             <p className="text-xs text-muted-foreground">
-              Start your 14-day free trial. No credit card required. Cancel anytime.
+              14-day free trial. No credit card required. Cancel anytime.
             </p>
           </Card>
         </div>
@@ -745,7 +960,7 @@ export default function LandingPage() {
                 <span className="font-bold gradient-text">ArgiFlow AI</span>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                AI Automation Agency helping businesses scale with intelligent automation.
+                AI Automation Platform helping businesses scale with autonomous AI agents across Western and African markets.
               </p>
               <div className="flex items-center gap-3">
                 <Button size="icon" variant="ghost"><SiX className="w-4 h-4" /></Button>
@@ -754,12 +969,13 @@ export default function LandingPage() {
               </div>
             </div>
             <div>
-              <h4 className="font-semibold text-sm mb-4">Services</h4>
+              <h4 className="font-semibold text-sm mb-4">Platform</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><a href="#agents" className="hover:text-foreground transition-colors">AI Agent Catalog</a></li>
                 <li><a href="#services" className="hover:text-foreground transition-colors">Voice AI Agents</a></li>
-                <li><a href="#services" className="hover:text-foreground transition-colors">Process Automation</a></li>
-                <li><a href="#services" className="hover:text-foreground transition-colors">Lead Gen Chatbots</a></li>
-                <li><a href="#services" className="hover:text-foreground transition-colors">CRM Integration</a></li>
+                <li><a href="#services" className="hover:text-foreground transition-colors">Sales Funnels</a></li>
+                <li><a href="#platform" className="hover:text-foreground transition-colors">Engagement Tracking</a></li>
+                <li><a href="#platform" className="hover:text-foreground transition-colors">AI Strategy Engine</a></li>
               </ul>
             </div>
             <div>
@@ -781,9 +997,18 @@ export default function LandingPage() {
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-border/50 text-center text-sm text-muted-foreground space-y-2">
-            <p>&copy; 2026 ArgiFlow AI. All rights reserved.</p>
-            <p className="text-xs text-muted-foreground/70">Powered by <span className="font-semibold text-muted-foreground">ARGILETTE Labs</span></p>
+          <div className="border-t border-border/50 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground">
+              &copy; {new Date().getFullYear()} ArgiFlow AI (argilette.co). All rights reserved.
+            </p>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Shield className="w-3 h-3" /> SOC 2 Compliant
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Zap className="w-3 h-3" /> Powered by Claude AI
+              </span>
+            </div>
           </div>
         </div>
       </footer>
