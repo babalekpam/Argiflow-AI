@@ -43,6 +43,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { AiAgent } from "@shared/schema";
+import voiceRobotImg from "@assets/image_1770823707603.png";
 
 const voiceAgentTemplates = [
   {
@@ -238,6 +239,17 @@ export default function VoiceAiPage() {
           {activeCount} Live
         </Badge>
       </div>
+
+      <Card className="relative overflow-hidden">
+        <img src={voiceRobotImg} alt="Voice AI" className="w-full h-40 object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
+        <div className="absolute inset-0 flex items-center p-6">
+          <div>
+            <p className="text-lg font-bold">Voice AI Agents</p>
+            <p className="text-sm text-muted-foreground max-w-sm">AI-powered voice agents that handle calls, qualify leads, and book appointments around the clock.</p>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card className="p-5" data-testid="stat-voice-active">

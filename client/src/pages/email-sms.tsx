@@ -20,6 +20,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import type { AiChatMessage } from "@shared/schema";
+import emailRobotImg from "@assets/robot-email-outreach.png";
 
 
 export default function EmailSmsPage() {
@@ -95,6 +96,17 @@ export default function EmailSmsPage() {
           </Badge>
         </div>
       </div>
+
+      <Card className="relative overflow-hidden">
+        <img src={emailRobotImg} alt="Email & SMS AI" className="w-full h-40 object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
+        <div className="absolute inset-0 flex items-center p-6">
+          <div>
+            <p className="text-lg font-bold">AI Campaign Assistant</p>
+            <p className="text-sm text-muted-foreground max-w-sm">Tell your AI what campaigns to run — it crafts copy, sends emails, and tracks engagement automatically.</p>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 flex flex-col" style={{ height: "500px" }}>

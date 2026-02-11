@@ -27,6 +27,7 @@ import {
   Power,
 } from "lucide-react";
 import type { Automation } from "@shared/schema";
+import automationRobotImg from "@assets/robot-automation.png";
 
 function StatusDot({ status }: { status: string }) {
   if (status === "active") {
@@ -169,6 +170,17 @@ export default function AutomationsPage() {
           {activeCount} Active
         </Badge>
       </div>
+
+      <Card className="relative overflow-hidden">
+        <img src={automationRobotImg} alt="Automations" className="w-full h-40 object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
+        <div className="absolute inset-0 flex items-center p-6">
+          <div>
+            <p className="text-lg font-bold">Workflow Automation</p>
+            <p className="text-sm text-muted-foreground max-w-sm">Set up automated workflows that handle lead nurturing, follow-ups, and client onboarding.</p>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-5" data-testid="stat-auto-workflows">

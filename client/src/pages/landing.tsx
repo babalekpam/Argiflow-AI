@@ -1,4 +1,6 @@
 import { usePageTitle } from "@/hooks/use-page-title";
+import heroRobotImg from "@assets/image_1770823639986.png";
+import agentTeamImg from "@assets/image_1770823690247.png";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -351,39 +353,33 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Hero Card */}
+          {/* Hero Visual */}
           <div className="hidden lg:block">
-            <Card className="p-6 glow-purple gradient-border">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
-                  <Bot className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="text-lg font-bold mb-1">Full-Stack AI Platform</h3>
-                <p className="text-xs text-muted-foreground">Everything you need to scale with AI</p>
-              </div>
-              <div className="space-y-3">
-                {[
-                  { icon: Boxes, label: "AI Agent Catalog", value: "10+ Agents", sub: "Industry-specific & autonomous", color: "bg-primary/10 text-primary" },
-                  { icon: Filter, label: "Sales Funnels", value: "Kanban View", sub: "Drag-and-drop deal pipeline", color: "bg-chart-3/10 text-chart-3" },
-                  { icon: Eye, label: "Engagement Tracking", value: "Real-Time", sub: "Open, click & score leads", color: "bg-chart-4/10 text-chart-4" },
-                  { icon: Brain, label: "AI Strategy Engine", value: "Auto-Generated", sub: "Claude-powered business plans", color: "bg-chart-2/10 text-chart-2" },
-                  { icon: Globe, label: "Multi-Region", value: "Global", sub: "Western + African markets", color: "bg-amber-500/10 text-amber-400" },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between gap-4 p-3 rounded-md bg-background/50">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-md flex items-center justify-center ${item.color}`}>
-                        <item.icon className="w-4 h-4" />
+            <div className="relative rounded-xl overflow-hidden">
+              <img src={heroRobotImg} alt="AI Agent" className="w-full h-auto rounded-xl" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { icon: Boxes, label: "AI Agent Catalog", value: "10+ Agents", color: "bg-primary/10 text-primary" },
+                    { icon: Filter, label: "Sales Funnels", value: "Kanban View", color: "bg-chart-3/10 text-chart-3" },
+                    { icon: Eye, label: "Engagement Tracking", value: "Real-Time", color: "bg-chart-4/10 text-chart-4" },
+                    { icon: Brain, label: "AI Strategy Engine", value: "Auto-Generated", color: "bg-chart-2/10 text-chart-2" },
+                    { icon: Globe, label: "Multi-Region", value: "Global", color: "bg-amber-500/10 text-amber-400" },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 p-2.5 rounded-md bg-background/70 backdrop-blur-sm border border-border/30">
+                      <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${item.color}`}>
+                        <item.icon className="w-3.5 h-3.5" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{item.label}</p>
-                        <p className="text-xs text-muted-foreground">{item.sub}</p>
+                        <p className="text-xs font-medium text-foreground">{item.label}</p>
+                        <p className="text-[10px] font-semibold text-muted-foreground">{item.value}</p>
                       </div>
                     </div>
-                    <span className="text-sm font-semibold">{item.value}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </Card>
+            </div>
           </div>
         </div>
       </section>
@@ -443,6 +439,17 @@ export default function LandingPage() {
               Each agent is purpose-built for a specific industry or task. Enable with one click,
               configure your preferences, and let them run autonomously.
             </p>
+          </div>
+
+          <div className="relative rounded-xl overflow-hidden mb-10 max-h-64">
+            <img src={agentTeamImg} alt="AI Agent Team" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent" />
+            <div className="absolute inset-0 flex items-center p-8">
+              <div>
+                <p className="text-2xl font-bold mb-2">Autonomous AI Agents</p>
+                <p className="text-sm text-muted-foreground max-w-md">Each agent runs its own lifecycle — discover, analyze, enrich, act, and monitor — working 24/7 to find and close opportunities.</p>
+              </div>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 mb-12">

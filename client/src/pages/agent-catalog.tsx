@@ -35,6 +35,7 @@ import {
   Activity,
   Loader2,
 } from "lucide-react";
+import catalogRobotImg from "@assets/image_1770823690247.png";
 
 const AGENT_ICONS: Record<string, typeof Bot> = {
   "tax-lien": Landmark,
@@ -205,6 +206,17 @@ export default function AgentCatalogPage() {
           />
         </div>
       </div>
+
+      <Card className="relative overflow-hidden">
+        <img src={catalogRobotImg} alt="AI Agent Catalog" className="w-full h-40 object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
+        <div className="absolute inset-0 flex items-center p-6">
+          <div>
+            <p className="text-lg font-bold">Specialized AI Agents</p>
+            <p className="text-sm text-muted-foreground max-w-sm">Deploy purpose-built agents that run autonomously — discover, analyze, enrich, act, and monitor.</p>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((agent) => {

@@ -46,6 +46,7 @@ import {
   Crosshair,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import resourcesRobotImg from "@assets/image_1770823658874.png";
 
 type TabKey = "bot-templates" | "ad-templates" | "funnels" | "blueprint" | "sops";
 
@@ -494,6 +495,17 @@ export default function ResourcesPage() {
           Included Free
         </Badge>
       </div>
+
+      <Card className="relative overflow-hidden">
+        <img src={resourcesRobotImg} alt="Resources" className="w-full h-40 object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
+        <div className="absolute inset-0 flex items-center p-6">
+          <div>
+            <p className="text-lg font-bold">Resource Library</p>
+            <p className="text-sm text-muted-foreground max-w-sm">Bot templates, ad blueprints, funnel builders, and SOPs — everything you need to succeed.</p>
+          </div>
+        </div>
+      </Card>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {tabs.map((tab) => (

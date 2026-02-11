@@ -16,6 +16,7 @@ import {
   Target,
   BarChart3,
 } from "lucide-react";
+import trainingRobotImg from "@assets/image_1770823658874.png";
 
 const courses = [
   {
@@ -126,6 +127,17 @@ export default function TrainingPage() {
           {completedCount}/{totalCount} Completed
         </Badge>
       </div>
+
+      <Card className="relative overflow-hidden">
+        <img src={trainingRobotImg} alt="Training Center" className="w-full h-40 object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
+        <div className="absolute inset-0 flex items-center p-6">
+          <div>
+            <p className="text-lg font-bold">Master the Platform</p>
+            <p className="text-sm text-muted-foreground max-w-sm">Courses and tutorials to help you get the most out of every AI feature.</p>
+          </div>
+        </div>
+      </Card>
 
       <Card className="p-5">
         <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">

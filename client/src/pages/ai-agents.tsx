@@ -49,6 +49,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { AiAgent } from "@shared/schema";
+import agentRobotImg from "@assets/image_1770823639986.png";
 
 const agentIcons: Record<string, any> = {
   "Lead Qualifier": Target,
@@ -263,6 +264,17 @@ export default function AiAgentsPage() {
           </Badge>
         </div>
       </div>
+
+      <Card className="relative overflow-hidden">
+        <img src={agentRobotImg} alt="AI Agents" className="w-full h-40 object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
+        <div className="absolute inset-0 flex items-center p-6">
+          <div>
+            <p className="text-lg font-bold">Your AI Workforce</p>
+            <p className="text-sm text-muted-foreground max-w-sm">AI agents working 24/7 to qualify leads, send emails, book appointments, and grow your business.</p>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-5" data-testid="stat-active-agents">
