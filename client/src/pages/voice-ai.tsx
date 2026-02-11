@@ -630,15 +630,16 @@ export default function VoiceAiPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="call-script">Custom Script (optional)</Label>
+              <Label htmlFor="call-script">Call Script / Talking Points</Label>
               <Textarea
                 id="call-script"
                 data-testid="input-call-script"
                 value={callScript}
                 onChange={(e) => setCallScript(e.target.value)}
-                rows={3}
-                placeholder="Custom greeting or script for this call. Leave blank to use default."
+                rows={5}
+                placeholder="Write what the AI should say and discuss on this call. Example: 'Hi, this is Sarah from XYZ Marketing. I'm calling about the proposal we sent last week for your digital advertising campaign. I'd love to walk you through the key benefits and answer any questions.' Leave blank to use the agent's default script."
               />
+              <p className="text-xs text-muted-foreground">The AI will use this as its opening greeting and guide for the entire conversation.</p>
             </div>
           </div>
           <DialogFooter>

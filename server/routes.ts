@@ -2330,21 +2330,58 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       const userId = req.session.userId!;
 
       let greeting = customScript || "Hello, this is an AI assistant from ArgiFlow. I'm calling to follow up on your inquiry. How can I help you today?";
+      let agentName = "ArgiFlow AI Assistant";
+      let agentDescription = "";
+      let agentType = "";
+      let systemPrompt = "";
 
       if (agentId) {
         const agents = await storage.getAiAgentsByUser(userId);
         const agent = agents.find(a => a.id === agentId);
-        if (agent?.script) {
-          greeting = agent.script;
+        if (agent) {
+          agentName = agent.name;
+          agentDescription = agent.description || "";
+          agentType = agent.type || "";
+          if (agent.script) {
+            greeting = agent.script;
+          }
         }
       }
 
+      let leadName = "";
+      let leadCompany = "";
+      let leadContext = "";
       if (leadId) {
         const lead = await storage.getLeadById(leadId);
         if (lead) {
+          leadName = lead.name;
+          leadCompany = lead.company || "";
           greeting = greeting.replace("{leadName}", lead.name).replace("{company}", lead.company || "your company");
+          leadContext = `You are calling ${lead.name}${lead.company ? ` from ${lead.company}` : ""}. Their email is ${lead.email || "unknown"}.`;
+          if (lead.outreach) {
+            leadContext += ` Previous outreach context: ${lead.outreach}`;
+          }
         }
       }
+
+      systemPrompt = `You are "${agentName}", a professional AI phone agent working for the caller's business.
+${agentDescription ? `Your role: ${agentDescription}` : ""}
+${agentType ? `Your specialty: ${agentType}` : ""}
+${leadContext ? `\nCaller context: ${leadContext}` : ""}
+
+YOUR OPENING SCRIPT/GREETING: "${greeting}"
+
+IMPORTANT INSTRUCTIONS:
+- You MUST follow the script and talking points above as your guide for the conversation.
+- Stay on topic and focused on the purpose of this call.
+- Be professional, warm, and conversational -- speak naturally like a real person, not robotic.
+- Keep responses concise (1-3 sentences). Phone conversations should be brief and to the point.
+- Listen carefully to what the person says and respond appropriately.
+- If they ask questions, answer them based on your role and knowledge.
+- If they're not interested, be polite and thank them for their time.
+- If they want to schedule a meeting or follow up, confirm the details.
+- Never reveal you are an AI unless directly asked.
+- If the conversation reaches a natural end, say goodbye politely.`;
 
       const callLog = await storage.createVoiceCall({
         userId,
@@ -2353,7 +2390,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         toNumber: normalizedPhone,
         direction: "outbound",
         status: "queued",
-        script: greeting,
+        script: JSON.stringify({ greeting, systemPrompt }),
       });
 
       const baseUrl = `https://${req.get("host")}`;
@@ -2409,7 +2446,16 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>Sorry, an error occurred.</Say><Hangup/></Response>`);
       }
 
-      const greeting = callLog.script || "Hello, this is an AI assistant. How can I help you?";
+      let greeting = "Hello, this is an AI assistant. How can I help you?";
+      let systemPrompt = "You are a professional AI phone agent. Be helpful and concise.";
+
+      try {
+        const scriptData = callLog.script ? JSON.parse(callLog.script) : {};
+        greeting = scriptData.greeting || greeting;
+        systemPrompt = scriptData.systemPrompt || systemPrompt;
+      } catch {
+        greeting = callLog.script || greeting;
+      }
 
       const speechResult = req.body?.SpeechResult;
 
@@ -2418,22 +2464,15 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
           const existingTranscript = callLog.transcript ? JSON.parse(callLog.transcript) : [];
           existingTranscript.push({ role: "caller", text: speechResult });
 
-          const conversationContext = existingTranscript.map((t: any) => `${t.role}: ${t.text}`).join("\n");
+          const conversationHistory = existingTranscript.map((t: any) =>
+            ({ role: t.role === "agent" ? "assistant" as const : "user" as const, content: t.text })
+          );
 
           const aiResponse = await anthropic.messages.create({
             model: "claude-sonnet-4-5-20250514",
             max_tokens: 200,
-            messages: [
-              {
-                role: "user",
-                content: `You are a professional AI phone agent for ArgiFlow. You are on a live phone call. Respond naturally and concisely (1-3 sentences max). Keep it conversational.
-
-Previous conversation:
-${conversationContext}
-
-Respond to the caller's latest message. If they want to end the call, say goodbye politely.`
-              }
-            ],
+            system: systemPrompt,
+            messages: conversationHistory,
           });
 
           const aiText = aiResponse.content[0]?.type === "text" ? aiResponse.content[0].text : "I understand. Is there anything else I can help with?";
