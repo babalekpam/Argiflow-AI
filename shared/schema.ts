@@ -83,6 +83,7 @@ export const userSettings = pgTable("user_settings", {
   darkMode: boolean("dark_mode").default(true),
   twoFactorAuth: boolean("two_factor_auth").default(false),
   sendgridApiKey: text("sendgrid_api_key"),
+  senderEmail: text("sender_email"),
   twilioAccountSid: text("twilio_account_sid"),
   twilioAuthToken: text("twilio_auth_token"),
   twilioPhoneNumber: text("twilio_phone_number"),
