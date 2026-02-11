@@ -1,7 +1,7 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
   funnels, funnelStages, funnelDeals, websiteProfiles, automations, emailEvents, subscriptions,
-  agentConfigs, agentTasks, notifications, passwordResetTokens, emailVerificationTokens,
+  agentConfigs, agentTasks, notifications, passwordResetTokens, emailVerificationTokens, voiceCalls,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
@@ -23,6 +23,7 @@ import {
   type Notification, type InsertNotification,
   type PasswordResetToken, type InsertPasswordResetToken,
   type EmailVerificationToken, type InsertEmailVerificationToken,
+  type VoiceCall, type InsertVoiceCall,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc, isNull, sql, lte } from "drizzle-orm";
@@ -110,6 +111,11 @@ export interface IStorage {
   getEmailVerificationToken(tokenHash: string): Promise<EmailVerificationToken | undefined>;
   invalidateUserVerificationTokens(userId: string): Promise<void>;
   markEmailVerified(userId: string): Promise<void>;
+  createVoiceCall(call: InsertVoiceCall): Promise<VoiceCall>;
+  updateVoiceCall(id: string, data: Partial<Pick<VoiceCall, "status" | "durationSec" | "outcome" | "recordingUrl" | "transcript" | "twilioCallSid" | "startedAt" | "endedAt" | "fromNumber">>): Promise<VoiceCall | undefined>;
+  getVoiceCallsByUser(userId: string): Promise<VoiceCall[]>;
+  getVoiceCallById(id: string): Promise<VoiceCall | undefined>;
+  getVoiceCallByTwilioSid(sid: string): Promise<VoiceCall | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -529,6 +535,30 @@ export class DatabaseStorage implements IStorage {
 
   async markEmailVerified(userId: string): Promise<void> {
     await db.update(users).set({ emailVerified: new Date() }).where(eq(users.id, userId));
+  }
+
+  async createVoiceCall(call: InsertVoiceCall): Promise<VoiceCall> {
+    const [result] = await db.insert(voiceCalls).values(call).returning();
+    return result;
+  }
+
+  async updateVoiceCall(id: string, data: Partial<Pick<VoiceCall, "status" | "durationSec" | "outcome" | "recordingUrl" | "transcript" | "twilioCallSid" | "startedAt" | "endedAt" | "fromNumber">>): Promise<VoiceCall | undefined> {
+    const [result] = await db.update(voiceCalls).set(data).where(eq(voiceCalls.id, id)).returning();
+    return result;
+  }
+
+  async getVoiceCallsByUser(userId: string): Promise<VoiceCall[]> {
+    return db.select().from(voiceCalls).where(eq(voiceCalls.userId, userId)).orderBy(desc(voiceCalls.createdAt));
+  }
+
+  async getVoiceCallById(id: string): Promise<VoiceCall | undefined> {
+    const [result] = await db.select().from(voiceCalls).where(eq(voiceCalls.id, id));
+    return result;
+  }
+
+  async getVoiceCallByTwilioSid(sid: string): Promise<VoiceCall | undefined> {
+    const [result] = await db.select().from(voiceCalls).where(eq(voiceCalls.twilioCallSid, sid));
+    return result;
   }
 }
 

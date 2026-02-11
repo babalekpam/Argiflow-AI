@@ -35,10 +35,11 @@ Do not make changes to the file `Y`.
 ## External Dependencies
 - **Anthropic Claude**: AI model for conversational AI, strategy generation, and intelligent automation.
 - **SendGrid**: Email service for system emails (verification, password reset) and user outreach campaigns.
-- **Twilio**: SMS service for sending text messages to leads.
+- **Twilio**: SMS and Voice service for sending text messages and making AI-powered phone calls to leads.
 - **Venmo**: Payment gateway for subscription billing.
 - **Replit AI Integrations**: Platform for integrating Anthropic Claude.
 - **Replit Connectors**: Used for Twilio integration.
 
 ## Key Features
 - **Outreach Scheduling**: Leads with outreach drafts can be scheduled for future sending via `POST /api/leads/:id/schedule-outreach` with `{ scheduledSendAt }` (ISO datetime). Schedules can be cancelled via `POST /api/leads/:id/cancel-schedule`. A background job runs every 60 seconds to process due scheduled emails. The `leads` table has a `scheduledSendAt` column. Frontend shows Schedule button, date/time picker, scheduled badge, and cancel option on each lead card.
+- **Voice AI Calling**: AI-powered phone calls via Twilio Voice API. Users can initiate calls from the Voice AI page or directly from lead cards. The system uses TwiML webhooks for conversational AI (Claude generates responses to caller speech via Twilio's `<Gather>` input). Call logs are stored in the `voice_calls` table with transcript, duration, status, and recording URL. Endpoints: `POST /api/voice/calls` (initiate), `GET /api/voice/calls` (list), `POST /api/twilio/voice/:callLogId/twiml` (TwiML webhook), `POST /api/twilio/voice/status` (status callback).

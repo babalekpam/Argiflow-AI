@@ -56,6 +56,7 @@ import {
   Pencil,
   CalendarClock,
   X,
+  PhoneCall,
 } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { useState, useEffect } from "react";
@@ -162,6 +163,7 @@ function LeadCard({
   updateLeadMutation,
   scheduleMutation,
   cancelScheduleMutation,
+  callMutation,
 }: {
   lead: Lead;
   isExpanded: boolean;
@@ -173,6 +175,7 @@ function LeadCard({
   updateLeadMutation: any;
   scheduleMutation: any;
   cancelScheduleMutation: any;
+  callMutation: any;
 }) {
   const isSent = !!lead.outreachSentAt;
   const isScheduled = !!lead.scheduledSendAt && !isSent;
@@ -288,6 +291,18 @@ function LeadCard({
           <span className="text-xs text-muted-foreground w-20 text-right" data-testid={`text-lead-date-${lead.id}`}>
             {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : ""}
           </span>
+          {lead.phone && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => { e.stopPropagation(); callMutation.mutate({ toNumber: lead.phone!, leadId: lead.id }); }}
+              disabled={callMutation.isPending}
+              data-testid={`button-call-lead-${lead.id}`}
+              title="Call this lead"
+            >
+              <PhoneCall className="w-4 h-4 text-primary" />
+            </Button>
+          )}
           <Button
             size="icon"
             variant="ghost"
@@ -674,6 +689,19 @@ export default function LeadsPage() {
     },
   });
 
+  const callMutation = useMutation({
+    mutationFn: async (data: { toNumber: string; leadId: string }) => {
+      const res = await apiRequest("POST", "/api/voice/calls", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Call initiated", description: "The AI agent is calling this lead now." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Call failed", description: err.message || "Could not initiate call.", variant: "destructive" });
+    },
+  });
+
   const sendAllOutreachMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/leads/send-all-outreach");
@@ -960,6 +988,7 @@ export default function LeadsPage() {
                 updateLeadMutation={updateLeadMutation}
                 scheduleMutation={scheduleMutation}
                 cancelScheduleMutation={cancelScheduleMutation}
+                callMutation={callMutation}
               />
             ))}
           </div>

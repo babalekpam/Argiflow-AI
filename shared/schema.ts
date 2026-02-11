@@ -338,3 +338,27 @@ export const emailVerificationTokens = pgTable("email_verification_tokens", {
 
 export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
 export type InsertEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;
+
+export const voiceCalls = pgTable("voice_calls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  leadId: varchar("lead_id"),
+  agentId: varchar("agent_id"),
+  toNumber: text("to_number").notNull(),
+  fromNumber: text("from_number"),
+  direction: text("direction").notNull().default("outbound"),
+  status: text("status").notNull().default("queued"),
+  durationSec: integer("duration_sec").default(0),
+  outcome: text("outcome"),
+  recordingUrl: text("recording_url"),
+  transcript: text("transcript"),
+  script: text("script"),
+  twilioCallSid: text("twilio_call_sid"),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertVoiceCallSchema = createInsertSchema(voiceCalls).omit({ id: true, createdAt: true });
+export type VoiceCall = typeof voiceCalls.$inferSelect;
+export type InsertVoiceCall = z.infer<typeof insertVoiceCallSchema>;

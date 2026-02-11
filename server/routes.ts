@@ -25,6 +25,10 @@ const anthropic = new Anthropic({
 
 const scryptAsync = promisify(scrypt);
 
+function escapeXml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
 async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
@@ -2294,6 +2298,246 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
     } catch (error) {
       console.error("Error in AI generate:", error);
       res.status(500).json({ message: "Generation failed" });
+    }
+  });
+
+  // ---- VOICE AI CALLS (Twilio) ----
+
+  app.get("/api/voice/calls", isAuthenticated, async (req, res) => {
+    try {
+      const calls = await storage.getVoiceCallsByUser(req.session.userId!);
+      res.json(calls);
+    } catch (error) {
+      console.error("Error fetching voice calls:", error);
+      res.status(500).json({ message: "Failed to fetch calls" });
+    }
+  });
+
+  app.post("/api/voice/calls", isAuthenticated, async (req, res) => {
+    try {
+      const { toNumber, leadId, agentId, script: customScript } = req.body;
+      if (!toNumber || typeof toNumber !== "string") {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+
+      const cleaned = toNumber.replace(/[\s\-\(\)\.]/g, "");
+      const phoneRegex = /^\+?[1-9]\d{6,14}$/;
+      if (!phoneRegex.test(cleaned)) {
+        return res.status(400).json({ message: "Invalid phone number format. Use international format like +15551234567" });
+      }
+      const normalizedPhone = cleaned.startsWith("+") ? cleaned : `+${cleaned}`;
+
+      const userId = req.session.userId!;
+
+      let greeting = customScript || "Hello, this is an AI assistant from ArgiFlow. I'm calling to follow up on your inquiry. How can I help you today?";
+
+      if (agentId) {
+        const agents = await storage.getAiAgentsByUser(userId);
+        const agent = agents.find(a => a.id === agentId);
+        if (agent?.script) {
+          greeting = agent.script;
+        }
+      }
+
+      if (leadId) {
+        const lead = await storage.getLeadById(leadId);
+        if (lead) {
+          greeting = greeting.replace("{leadName}", lead.name).replace("{company}", lead.company || "your company");
+        }
+      }
+
+      const callLog = await storage.createVoiceCall({
+        userId,
+        leadId: leadId || null,
+        agentId: agentId || null,
+        toNumber: normalizedPhone,
+        direction: "outbound",
+        status: "queued",
+        script: greeting,
+      });
+
+      const baseUrl = `https://${req.get("host")}`;
+      const twimlUrl = `${baseUrl}/api/twilio/voice/${callLog.id}/twiml`;
+      const statusUrl = `${baseUrl}/api/twilio/voice/status`;
+
+      try {
+        const { getTwilioClient, getTwilioFromPhoneNumber } = await import("./twilio");
+        const client = await getTwilioClient();
+        const fromNumber = await getTwilioFromPhoneNumber();
+
+        if (!fromNumber) {
+          await storage.updateVoiceCall(callLog.id, { status: "failed", outcome: "No Twilio phone number configured" });
+          return res.status(400).json({ message: "No Twilio phone number configured" });
+        }
+
+        const call = await client.calls.create({
+          url: twimlUrl,
+          from: fromNumber,
+          to: normalizedPhone,
+          statusCallback: statusUrl,
+          statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
+          statusCallbackMethod: "POST",
+          record: true,
+        });
+
+        await storage.updateVoiceCall(callLog.id, {
+          twilioCallSid: call.sid,
+          fromNumber,
+          status: "initiated",
+          startedAt: new Date(),
+        });
+
+        res.json({ success: true, callId: callLog.id, twilioSid: call.sid });
+      } catch (twilioErr: any) {
+        console.error("Twilio call error:", twilioErr);
+        await storage.updateVoiceCall(callLog.id, { status: "failed", outcome: twilioErr.message || "Twilio error" });
+        res.status(500).json({ message: twilioErr.message || "Failed to initiate call" });
+      }
+    } catch (error) {
+      console.error("Error initiating voice call:", error);
+      res.status(500).json({ message: "Failed to initiate call" });
+    }
+  });
+
+  app.post("/api/twilio/voice/:callLogId/twiml", async (req, res) => {
+    try {
+      const { callLogId } = req.params;
+      const callLog = await storage.getVoiceCallById(callLogId);
+
+      if (!callLog) {
+        res.type("text/xml");
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>Sorry, an error occurred.</Say><Hangup/></Response>`);
+      }
+
+      const greeting = callLog.script || "Hello, this is an AI assistant. How can I help you?";
+
+      const speechResult = req.body?.SpeechResult;
+
+      if (speechResult) {
+        try {
+          const existingTranscript = callLog.transcript ? JSON.parse(callLog.transcript) : [];
+          existingTranscript.push({ role: "caller", text: speechResult });
+
+          const conversationContext = existingTranscript.map((t: any) => `${t.role}: ${t.text}`).join("\n");
+
+          const aiResponse = await anthropic.messages.create({
+            model: "claude-sonnet-4-5-20250514",
+            max_tokens: 200,
+            messages: [
+              {
+                role: "user",
+                content: `You are a professional AI phone agent for ArgiFlow. You are on a live phone call. Respond naturally and concisely (1-3 sentences max). Keep it conversational.
+
+Previous conversation:
+${conversationContext}
+
+Respond to the caller's latest message. If they want to end the call, say goodbye politely.`
+              }
+            ],
+          });
+
+          const aiText = aiResponse.content[0]?.type === "text" ? aiResponse.content[0].text : "I understand. Is there anything else I can help with?";
+          existingTranscript.push({ role: "agent", text: aiText });
+
+          await storage.updateVoiceCall(callLogId, { transcript: JSON.stringify(existingTranscript) });
+
+          const isGoodbye = aiText.toLowerCase().includes("goodbye") || aiText.toLowerCase().includes("have a great day") || existingTranscript.length > 20;
+
+          const baseUrl = `https://${req.get("host")}`;
+
+          res.type("text/xml");
+          if (isGoodbye) {
+            return res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna">${escapeXml(aiText)}</Say>
+  <Hangup/>
+</Response>`);
+          }
+
+          return res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna">${escapeXml(aiText)}</Say>
+  <Gather input="speech" timeout="5" speechTimeout="auto" action="${baseUrl}/api/twilio/voice/${callLogId}/twiml" method="POST">
+    <Say voice="Polly.Joanna"></Say>
+  </Gather>
+  <Say voice="Polly.Joanna">I didn't catch that. Thank you for your time. Goodbye!</Say>
+  <Hangup/>
+</Response>`);
+        } catch (aiErr) {
+          console.error("AI response error during call:", aiErr);
+          res.type("text/xml");
+          return res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna">I apologize, I'm having a technical issue. A team member will follow up with you shortly. Goodbye!</Say>
+  <Hangup/>
+</Response>`);
+        }
+      }
+
+      const initialTranscript = [{ role: "agent", text: greeting }];
+      await storage.updateVoiceCall(callLogId, { status: "in-progress", transcript: JSON.stringify(initialTranscript) });
+
+      const baseUrl = `https://${req.get("host")}`;
+
+      res.type("text/xml");
+      res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna">${escapeXml(greeting)}</Say>
+  <Gather input="speech" timeout="5" speechTimeout="auto" action="${baseUrl}/api/twilio/voice/${callLogId}/twiml" method="POST">
+    <Say voice="Polly.Joanna"></Say>
+  </Gather>
+  <Say voice="Polly.Joanna">I didn't hear a response. Feel free to call back anytime. Goodbye!</Say>
+  <Hangup/>
+</Response>`);
+    } catch (error) {
+      console.error("TwiML generation error:", error);
+      res.type("text/xml");
+      res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>An error occurred. Goodbye.</Say><Hangup/></Response>`);
+    }
+  });
+
+  app.post("/api/twilio/voice/status", async (req, res) => {
+    try {
+      const { CallSid, CallStatus, CallDuration, RecordingUrl } = req.body;
+      if (!CallSid) return res.sendStatus(200);
+
+      const callLog = await storage.getVoiceCallByTwilioSid(CallSid);
+      if (!callLog) return res.sendStatus(200);
+
+      const updateData: any = {};
+
+      const statusMap: Record<string, string> = {
+        "queued": "queued",
+        "initiated": "initiated",
+        "ringing": "ringing",
+        "in-progress": "in-progress",
+        "completed": "completed",
+        "busy": "failed",
+        "no-answer": "failed",
+        "canceled": "failed",
+        "failed": "failed",
+      };
+
+      updateData.status = statusMap[CallStatus] || CallStatus;
+
+      if (CallStatus === "completed") {
+        updateData.outcome = "completed";
+        updateData.endedAt = new Date();
+        if (CallDuration) updateData.durationSec = parseInt(CallDuration);
+      } else if (["busy", "no-answer", "canceled", "failed"].includes(CallStatus)) {
+        updateData.outcome = CallStatus;
+        updateData.endedAt = new Date();
+      }
+
+      if (RecordingUrl) {
+        updateData.recordingUrl = RecordingUrl;
+      }
+
+      await storage.updateVoiceCall(callLog.id, updateData);
+      res.sendStatus(200);
+    } catch (error) {
+      console.error("Voice status callback error:", error);
+      res.sendStatus(200);
     }
   });
 

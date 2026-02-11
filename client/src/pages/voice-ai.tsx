@@ -39,10 +39,14 @@ import {
   Volume2,
   Plus,
   Bot,
+  PhoneOff,
+  CheckCircle,
+  XCircle,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { AiAgent } from "@shared/schema";
+import type { AiAgent, VoiceCall } from "@shared/schema";
 import voiceRobotImg from "@assets/image_1770823707603.png";
 
 const voiceAgentTemplates = [
@@ -103,6 +107,38 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function CallStatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case "completed":
+      return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"><CheckCircle className="w-3 h-3 mr-1" />Completed</Badge>;
+    case "in-progress":
+      return <Badge className="bg-primary/10 text-primary border-primary/20"><Loader2 className="w-3 h-3 mr-1 animate-spin" />In Progress</Badge>;
+    case "ringing":
+    case "initiated":
+      return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20"><Phone className="w-3 h-3 mr-1" />Ringing</Badge>;
+    case "queued":
+      return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20"><Clock className="w-3 h-3 mr-1" />Queued</Badge>;
+    case "failed":
+      return <Badge className="bg-red-500/10 text-red-400 border-red-500/20"><XCircle className="w-3 h-3 mr-1" />Failed</Badge>;
+    default:
+      return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">{status}</Badge>;
+  }
+}
+
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function formatPhoneDisplay(phone: string): string {
+  if (phone.length === 12 && phone.startsWith("+1")) {
+    return `(${phone.slice(2, 5)}) ${phone.slice(5, 8)}-${phone.slice(8)}`;
+  }
+  return phone;
+}
+
 export default function VoiceAiPage() {
   usePageTitle("Voice AI Agents");
   const { toast } = useToast();
@@ -114,9 +150,19 @@ export default function VoiceAiPage() {
   const [editStatus, setEditStatus] = useState("");
   const [deployName, setDeployName] = useState("");
   const [deployDesc, setDeployDesc] = useState("");
+  const [showCallDialog, setShowCallDialog] = useState(false);
+  const [callPhone, setCallPhone] = useState("");
+  const [callAgentId, setCallAgentId] = useState<string>("");
+  const [callScript, setCallScript] = useState("");
+  const [showTranscript, setShowTranscript] = useState<VoiceCall | null>(null);
 
   const { data: allAgents, isLoading } = useQuery<AiAgent[]>({
     queryKey: ["/api/ai-agents"],
+  });
+
+  const { data: callLogs, isLoading: callsLoading } = useQuery<VoiceCall[]>({
+    queryKey: ["/api/voice/calls"],
+    refetchInterval: 10000,
   });
 
   const voiceAgents = allAgents?.filter((a) => a.type === "Voice AI") || [];
@@ -138,6 +184,24 @@ export default function VoiceAiPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ai-agents"] });
+    },
+  });
+
+  const callMutation = useMutation({
+    mutationFn: async (data: { toNumber: string; agentId?: string; script?: string }) => {
+      const res = await apiRequest("POST", "/api/voice/calls", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/voice/calls"] });
+      toast({ title: "Call initiated", description: "The AI agent is now calling the number." });
+      setShowCallDialog(false);
+      setCallPhone("");
+      setCallAgentId("");
+      setCallScript("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Call failed", description: err.message || "Could not initiate the call.", variant: "destructive" });
     },
   });
 
@@ -216,14 +280,29 @@ export default function VoiceAiPage() {
     );
   };
 
+  const initiateCall = () => {
+    if (!callPhone.trim()) return;
+    const payload: { toNumber: string; agentId?: string; script?: string } = { toNumber: callPhone };
+    if (callAgentId && callAgentId !== "none") payload.agentId = callAgentId;
+    if (callScript.trim()) payload.script = callScript;
+    callMutation.mutate(payload);
+  };
+
   const activeCount = voiceAgents.filter((a) => a.status === "active").length;
-  const totalCalls = voiceAgents.reduce((sum, a) => sum + (a.tasksCompleted || 0), 0);
-  const avgSuccess =
-    voiceAgents.length > 0
-      ? (voiceAgents.reduce((sum, a) => sum + (a.successRate || 0), 0) / voiceAgents.length).toFixed(1)
-      : "0";
+  const totalCalls = callLogs?.length || 0;
+  const completedCalls = callLogs?.filter(c => c.status === "completed") || [];
+  const avgSuccess = totalCalls > 0 ? Math.round((completedCalls.length / totalCalls) * 100) : 0;
 
   const deployedNames = voiceAgents.map((a) => a.name);
+
+  const parseTranscript = (transcript: string | null): { role: string; text: string }[] => {
+    if (!transcript) return [];
+    try {
+      return JSON.parse(transcript);
+    } catch {
+      return [];
+    }
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -234,10 +313,16 @@ export default function VoiceAiPage() {
             Deploy and manage AI-powered voice agents that handle calls 24/7.
           </p>
         </div>
-        <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20">
-          <Mic className="w-3 h-3 mr-1.5" />
-          {activeCount} Live
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20">
+            <Mic className="w-3 h-3 mr-1.5" />
+            {activeCount} Live
+          </Badge>
+          <Button onClick={() => setShowCallDialog(true)} data-testid="button-make-call">
+            <PhoneCall className="w-4 h-4 mr-1.5" />
+            Make a Call
+          </Button>
+        </div>
       </div>
 
       <Card className="relative overflow-hidden">
@@ -357,6 +442,18 @@ export default function VoiceAiPage() {
                   </Button>
                   <Button
                     variant="ghost"
+                    size="sm"
+                    data-testid={`button-call-with-${agent.id}`}
+                    onClick={() => {
+                      setCallAgentId(agent.id);
+                      setShowCallDialog(true);
+                    }}
+                  >
+                    <PhoneOutgoing className="w-3.5 h-3.5 mr-1.5" />
+                    Call
+                  </Button>
+                  <Button
+                    variant="ghost"
                     size="icon"
                     data-testid={`button-power-voice-${agent.id}`}
                     onClick={() => togglePower(agent)}
@@ -417,6 +514,56 @@ export default function VoiceAiPage() {
         </div>
       </div>
 
+      {(callLogs && callLogs.length > 0) && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3">Call History</h2>
+          <Card className="divide-y divide-border/50">
+            {callLogs.slice(0, 20).map((call) => (
+              <div key={call.id} className="flex items-center justify-between gap-4 p-4 flex-wrap" data-testid={`call-log-${call.id}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center">
+                    {call.direction === "outbound" ? (
+                      <PhoneOutgoing className="w-4 h-4 text-primary" />
+                    ) : (
+                      <PhoneIncoming className="w-4 h-4 text-chart-2" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{formatPhoneDisplay(call.toNumber)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {call.createdAt ? new Date(call.createdAt).toLocaleString() : ""}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {call.durationSec !== null && call.durationSec > 0 && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {formatDuration(call.durationSec)}
+                    </span>
+                  )}
+                  <CallStatusBadge status={call.status} />
+                  {call.transcript && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowTranscript(call)}
+                      data-testid={`button-transcript-${call.id}`}
+                    >
+                      <Volume2 className="w-3.5 h-3.5 mr-1" />
+                      Transcript
+                    </Button>
+                  )}
+                  {call.outcome && call.outcome !== "completed" && (
+                    <span className="text-xs text-muted-foreground capitalize">{call.outcome}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </Card>
+        </div>
+      )}
+
       <Card className="p-6" data-testid="card-voice-capabilities">
         <h3 className="font-semibold mb-4 flex items-center gap-2">
           <Volume2 className="w-4 h-4 text-primary" />
@@ -443,6 +590,81 @@ export default function VoiceAiPage() {
           ))}
         </div>
       </Card>
+
+      <Dialog open={showCallDialog} onOpenChange={(open) => !open && setShowCallDialog(false)}>
+        <DialogContent data-testid="dialog-make-call">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PhoneCall className="w-5 h-5 text-primary" />
+              Make an AI Call
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="call-phone">Phone Number</Label>
+              <Input
+                id="call-phone"
+                data-testid="input-call-phone"
+                value={callPhone}
+                onChange={(e) => setCallPhone(e.target.value)}
+                placeholder="+1 (555) 123-4567"
+              />
+              <p className="text-xs text-muted-foreground">Include country code (e.g. +1 for US)</p>
+            </div>
+            {voiceAgents.length > 0 && (
+              <div className="space-y-2">
+                <Label>Voice Agent</Label>
+                <Select value={callAgentId} onValueChange={setCallAgentId}>
+                  <SelectTrigger data-testid="select-call-agent">
+                    <SelectValue placeholder="Select an agent (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Default AI Agent</SelectItem>
+                    {voiceAgents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="call-script">Custom Script (optional)</Label>
+              <Textarea
+                id="call-script"
+                data-testid="input-call-script"
+                value={callScript}
+                onChange={(e) => setCallScript(e.target.value)}
+                rows={3}
+                placeholder="Custom greeting or script for this call. Leave blank to use default."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCallDialog(false)} data-testid="button-cancel-call">
+              Cancel
+            </Button>
+            <Button
+              onClick={initiateCall}
+              disabled={callMutation.isPending || !callPhone.trim()}
+              data-testid="button-confirm-call"
+            >
+              {callMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  Calling...
+                </>
+              ) : (
+                <>
+                  <PhoneCall className="w-4 h-4 mr-1.5" />
+                  Call Now
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showDeploy} onOpenChange={(open) => !open && setShowDeploy(false)}>
         <DialogContent data-testid="dialog-deploy-voice">
@@ -531,6 +753,44 @@ export default function VoiceAiPage() {
             </Button>
             <Button onClick={saveConfig} disabled={updateMutation.isPending} data-testid="button-save-voice-config">
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!showTranscript} onOpenChange={(open) => !open && setShowTranscript(null)}>
+        <DialogContent className="max-w-lg" data-testid="dialog-transcript">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Volume2 className="w-5 h-5 text-primary" />
+              Call Transcript
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 max-h-80 overflow-y-auto">
+            {showTranscript && parseTranscript(showTranscript.transcript).map((entry, i) => (
+              <div key={i} className={`flex gap-3 ${entry.role === "agent" ? "" : "flex-row-reverse"}`}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${entry.role === "agent" ? "bg-primary/10" : "bg-chart-2/10"}`}>
+                  {entry.role === "agent" ? (
+                    <Bot className="w-3.5 h-3.5 text-primary" />
+                  ) : (
+                    <Mic className="w-3.5 h-3.5 text-chart-2" />
+                  )}
+                </div>
+                <div className={`rounded-md p-3 text-sm max-w-[80%] ${entry.role === "agent" ? "bg-primary/5" : "bg-secondary/50"}`}>
+                  <p className="text-xs text-muted-foreground mb-1 font-medium">
+                    {entry.role === "agent" ? "AI Agent" : "Caller"}
+                  </p>
+                  {entry.text}
+                </div>
+              </div>
+            ))}
+            {showTranscript && parseTranscript(showTranscript.transcript).length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No transcript available for this call.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTranscript(null)} data-testid="button-close-transcript">
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
