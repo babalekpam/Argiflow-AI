@@ -69,12 +69,12 @@ interface SettingItem {
 const settingsGroups: { title: string; sectionDescription: string; items: SettingItem[] }[] = [
   {
     title: "Notifications",
-    sectionDescription: "Control how and when ArgiFlow notifies you about activity on your account. When turned on, you'll receive alerts through the channels you've connected below (like SendGrid for email or Twilio for SMS).",
+    sectionDescription: "Control how and when ArgiFlow notifies you about activity on your account.",
     items: [
       {
         key: "emailNotifications",
         label: "Email Notifications",
-        description: "When ON: You'll get email alerts whenever a new lead comes in, an appointment is booked, or a campaign finishes. Requires SendGrid integration below.",
+        description: "When ON: You'll get email alerts whenever a new lead comes in, an appointment is booked, or a campaign finishes.",
         icon: Mail,
         iconColor: "text-primary",
       },
@@ -161,26 +161,13 @@ interface IntegrationConfig {
 
 const integrations: IntegrationConfig[] = [
   {
-    title: "SendGrid (Email)",
-    description: "SendGrid is an email delivery service. Once connected, ArgiFlow can automatically send emails to your leads — like welcome messages, follow-ups, and campaign blasts. You'll need a free SendGrid account to get your API key.",
+    title: "Email Identity",
+    description: "Set the email address that outreach emails will be sent from. This should match your company domain so recipients see your brand. Your company name (from Company Profile) will appear as the sender name.",
     icon: Mail,
     iconColor: "text-primary",
     iconBg: "bg-primary/10",
     fields: [
-      { key: "sendgridApiKey", label: "API Key", placeholder: "SG.xxxxxxxxxxxxxxxx", sensitive: true },
       { key: "senderEmail", label: "Sender Email", placeholder: "you@yourdomain.com", sensitive: false },
-    ],
-  },
-  {
-    title: "Twilio (SMS)",
-    description: "Twilio lets ArgiFlow send text messages on your behalf — appointment reminders, lead follow-ups, and more. You'll need a Twilio account with a phone number. Find your credentials at twilio.com/console.",
-    icon: MessageSquare,
-    iconColor: "text-chart-2",
-    iconBg: "bg-chart-2/10",
-    fields: [
-      { key: "twilioAccountSid", label: "Account SID", placeholder: "ACxxxxxxxxxxxxxxxx", sensitive: true },
-      { key: "twilioAuthToken", label: "Auth Token", placeholder: "Your auth token", sensitive: true },
-      { key: "twilioPhoneNumber", label: "Phone Number", placeholder: "+1234567890", sensitive: false },
     ],
   },
   {
