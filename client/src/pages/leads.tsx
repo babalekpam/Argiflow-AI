@@ -50,6 +50,8 @@ import {
   BarChart3,
   Activity,
   Clock,
+  Sparkles,
+  UserCheck,
 } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { useState } from "react";
@@ -145,11 +147,249 @@ function EmailAnalyticsSummary() {
   );
 }
 
+function LeadCard({
+  lead,
+  isExpanded,
+  toggleExpand,
+  copiedId,
+  copyOutreach,
+  sendOutreachMutation,
+  deleteMutation,
+}: {
+  lead: Lead;
+  isExpanded: boolean;
+  toggleExpand: (id: string) => void;
+  copiedId: string | null;
+  copyOutreach: (id: string, text: string) => void;
+  sendOutreachMutation: any;
+  deleteMutation: any;
+}) {
+  const hasDetails = lead.outreach || lead.intentSignal || lead.notes;
+  const isSent = !!lead.outreachSentAt;
+  const hasEngagement = (lead.emailOpens || 0) > 0 || (lead.emailClicks || 0) > 0;
+
+  return (
+    <div
+      className="border rounded-md overflow-visible"
+      data-testid={`lead-row-${lead.id}`}
+    >
+      <div
+        className={`flex items-center gap-3 p-3 ${hasDetails ? "cursor-pointer hover-elevate" : ""}`}
+        onClick={() => hasDetails && toggleExpand(lead.id)}
+        data-testid={`lead-header-${lead.id}`}
+      >
+        {hasDetails && (
+          <div className="text-muted-foreground">
+            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </div>
+        )}
+        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+          {lead.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-sm" data-testid={`text-lead-name-${lead.id}`}>{lead.name}</span>
+            {lead.company && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-lead-company-${lead.id}`}>
+                <Building2 className="w-3 h-3" />
+                {lead.company}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
+            {lead.email && (
+              <span className="flex items-center gap-1" data-testid={`text-lead-email-${lead.id}`}>
+                <Mail className="w-3 h-3" />
+                {lead.email}
+              </span>
+            )}
+            {lead.phone && (
+              <span className="flex items-center gap-1" data-testid={`text-lead-phone-${lead.id}`}>
+                <Phone className="w-3 h-3" />
+                {lead.phone}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          {lead.intentSignal && (
+            <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-400 border-purple-500/20">
+              <Target className="w-3 h-3 mr-1" />
+              Intent
+            </Badge>
+          )}
+          {isSent && hasEngagement && (
+            <EngagementLevelBadge level={lead.engagementLevel || "none"} />
+          )}
+          {isSent && hasEngagement && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`text-engagement-stats-${lead.id}`}>
+              <span className="flex items-center gap-0.5" title="Email opens">
+                <Eye className="w-3 h-3 text-sky-400" />
+                {lead.emailOpens || 0}
+              </span>
+              <span className="flex items-center gap-0.5" title="Link clicks">
+                <MousePointerClick className="w-3 h-3 text-emerald-400" />
+                {lead.emailClicks || 0}
+              </span>
+            </div>
+          )}
+          {lead.outreach && isSent && !hasEngagement && (
+            <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              Sent
+            </Badge>
+          )}
+          {lead.outreach && !isSent && (
+            <Badge variant="outline" className="text-xs bg-sky-500/10 text-sky-400 border-sky-500/20">
+              <Send className="w-3 h-3 mr-1" />
+              Ready
+            </Badge>
+          )}
+          <span data-testid={`badge-lead-status-${lead.id}`}><LeadStatusBadge status={lead.status} /></span>
+          <span className="text-xs font-medium w-10 text-right" data-testid={`text-lead-score-${lead.id}`}>{lead.score}/100</span>
+          <span className="text-xs text-muted-foreground w-20 text-right" data-testid={`text-lead-date-${lead.id}`}>
+            {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : ""}
+          </span>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(lead.id); }}
+            disabled={deleteMutation.isPending}
+            data-testid={`button-delete-lead-${lead.id}`}
+          >
+            <Trash2 className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </div>
+      </div>
+
+      {isExpanded && hasDetails && (
+        <div className="border-t p-4 space-y-3 bg-muted/30" data-testid={`lead-details-${lead.id}`}>
+          {isSent && hasEngagement && (
+            <div className="border rounded-md p-3 bg-background" data-testid={`engagement-panel-${lead.id}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="w-4 h-4 text-primary" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Engagement</span>
+                <EngagementLevelBadge level={lead.engagementLevel || "none"} />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                <div className="text-center p-2 rounded-md bg-muted/50">
+                  <div className="text-sm font-bold text-sky-400">{lead.emailOpens || 0}</div>
+                  <div className="text-xs text-muted-foreground">Opens</div>
+                </div>
+                <div className="text-center p-2 rounded-md bg-muted/50">
+                  <div className="text-sm font-bold text-emerald-400">{lead.emailClicks || 0}</div>
+                  <div className="text-xs text-muted-foreground">Clicks</div>
+                </div>
+                <div className="text-center p-2 rounded-md bg-muted/50">
+                  <div className="text-sm font-bold">{lead.engagementScore || 0}</div>
+                  <div className="text-xs text-muted-foreground">Score</div>
+                </div>
+                <div className="text-center p-2 rounded-md bg-muted/50">
+                  <div className="text-sm font-bold text-muted-foreground">
+                    {lead.lastEngagedAt ? new Date(lead.lastEngagedAt).toLocaleDateString() : "N/A"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Last Active</div>
+                </div>
+              </div>
+              {lead.nextStep && (
+                <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10">
+                  <ArrowRight className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                  <div>
+                    <span className="text-xs font-semibold text-primary">Recommended Next Step</span>
+                    <p className="text-sm" data-testid={`text-next-step-${lead.id}`}>{lead.nextStep}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isSent && !hasEngagement && (
+            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                Email sent {lead.outreachSentAt ? new Date(lead.outreachSentAt).toLocaleDateString() : ""} — waiting for engagement (opens, clicks)
+              </span>
+            </div>
+          )}
+
+          {lead.intentSignal && (
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Target className="w-4 h-4 text-purple-400" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Intent Signal</span>
+              </div>
+              <p className="text-sm pl-6" data-testid={`text-intent-${lead.id}`}>{lead.intentSignal}</p>
+            </div>
+          )}
+          {lead.notes && (
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Research Notes</span>
+              </div>
+              <p className="text-sm pl-6" data-testid={`text-notes-${lead.id}`}>{lead.notes}</p>
+            </div>
+          )}
+          {lead.outreach && (
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-2">
+                  <Send className="w-4 h-4 text-sky-400" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {isSent ? "Outreach Email (Sent)" : "Outreach Email Draft"}
+                  </span>
+                  {isSent && lead.outreachSentAt && (
+                    <span className="text-xs text-emerald-400">
+                      Sent {new Date(lead.outreachSentAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); copyOutreach(lead.id, lead.outreach!); }}
+                    data-testid={`button-copy-outreach-${lead.id}`}
+                  >
+                    {copiedId === lead.id ? (
+                      <><Check className="w-3 h-3 mr-1" /> Copied</>
+                    ) : (
+                      <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                    )}
+                  </Button>
+                  {!isSent && lead.email && (
+                    <Button
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); sendOutreachMutation.mutate(lead.id); }}
+                      disabled={sendOutreachMutation.isPending}
+                      data-testid={`button-send-outreach-${lead.id}`}
+                    >
+                      {sendOutreachMutation.isPending ? (
+                        <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Sending...</>
+                      ) : (
+                        <><Send className="w-3 h-3 mr-1" /> Send Email</>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className={`pl-6 p-3 rounded-md bg-background border text-sm whitespace-pre-wrap ${isSent ? "border-emerald-500/20" : ""}`} data-testid={`text-outreach-${lead.id}`}>
+                {lead.outreach}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LeadsPage() {
   usePageTitle("Leads & CRM");
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"new" | "engaged">("new");
 
   const { data: leads, isLoading } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
@@ -266,14 +506,21 @@ export default function LeadsPage() {
     toast({ title: "Outreach email copied to clipboard" });
   };
 
-  const filteredLeads = (leads || []).filter(
+  const allLeads = leads || [];
+
+  const newLeads = allLeads.filter(l => !l.outreachSentAt);
+  const engagedLeads = allLeads.filter(l => !!l.outreachSentAt);
+
+  const currentLeads = activeTab === "new" ? newLeads : engagedLeads;
+
+  const filteredLeads = currentLeads.filter(
     (l) =>
       l.name.toLowerCase().includes(search.toLowerCase()) ||
       l.email.toLowerCase().includes(search.toLowerCase()) ||
       (l.company || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const unsentCount = (leads || []).filter(l => l.outreach && l.email && !l.outreachSentAt).length;
+  const unsentCount = newLeads.filter(l => l.outreach && l.email).length;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -285,22 +532,7 @@ export default function LeadsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {unsentCount > 0 && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => sendAllOutreachMutation.mutate()}
-              disabled={sendAllOutreachMutation.isPending}
-              data-testid="button-send-all-outreach"
-            >
-              {sendAllOutreachMutation.isPending ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</>
-              ) : (
-                <><Send className="w-4 h-4 mr-2" />Engage All ({unsentCount})</>
-              )}
-            </Button>
-          )}
-          {(leads?.length || 0) > 0 && (
+          {(allLeads.length || 0) > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -424,18 +656,60 @@ export default function LeadsPage() {
 
       <EmailAnalyticsSummary />
 
+      <div className="flex items-center border-b gap-0" data-testid="leads-tab-bar">
+        <button
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "new"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setActiveTab("new")}
+          data-testid="tab-new-leads"
+        >
+          <Sparkles className="w-4 h-4" />
+          New Leads
+          <Badge variant="secondary" className="text-xs ml-1">{newLeads.length}</Badge>
+        </button>
+        <button
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "engaged"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setActiveTab("engaged")}
+          data-testid="tab-engaged-leads"
+        >
+          <UserCheck className="w-4 h-4" />
+          Engaged Leads
+          <Badge variant="secondary" className="text-xs ml-1">{engagedLeads.length}</Badge>
+        </button>
+      </div>
+
       <Card className="p-4">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search leads..."
+              placeholder={activeTab === "new" ? "Search new leads..." : "Search engaged leads..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
               data-testid="input-search-leads"
             />
           </div>
+          {activeTab === "new" && unsentCount > 0 && (
+            <Button
+              onClick={() => sendAllOutreachMutation.mutate()}
+              disabled={sendAllOutreachMutation.isPending}
+              data-testid="button-send-all-outreach"
+            >
+              {sendAllOutreachMutation.isPending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</>
+              ) : (
+                <><Send className="w-4 h-4 mr-2" />Engage All ({unsentCount})</>
+              )}
+            </Button>
+          )}
         </div>
 
         {isLoading ? (
@@ -450,233 +724,34 @@ export default function LeadsPage() {
           </div>
         ) : filteredLeads.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
-            <p className="font-medium">No leads found</p>
-            <p className="text-sm">Add your first lead to get started.</p>
+            {activeTab === "new" ? (
+              <>
+                <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p className="font-medium">No new leads</p>
+                <p className="text-sm">Add leads manually or use the AI chat to generate them.</p>
+              </>
+            ) : (
+              <>
+                <UserCheck className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p className="font-medium">No engaged leads yet</p>
+                <p className="text-sm">Send outreach to your new leads and they'll appear here.</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredLeads.map((lead) => {
-              const isExpanded = expandedLeads.has(lead.id);
-              const hasDetails = lead.outreach || lead.intentSignal || lead.notes;
-              const isSent = !!lead.outreachSentAt;
-              const hasEngagement = (lead.emailOpens || 0) > 0 || (lead.emailClicks || 0) > 0;
-              return (
-                <div
-                  key={lead.id}
-                  className="border rounded-md overflow-visible"
-                  data-testid={`lead-row-${lead.id}`}
-                >
-                  <div
-                    className={`flex items-center gap-3 p-3 ${hasDetails ? "cursor-pointer hover-elevate" : ""}`}
-                    onClick={() => hasDetails && toggleExpand(lead.id)}
-                    data-testid={`lead-header-${lead.id}`}
-                  >
-                    {hasDetails && (
-                      <div className="text-muted-foreground">
-                        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                      </div>
-                    )}
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-                      {lead.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm" data-testid={`text-lead-name-${lead.id}`}>{lead.name}</span>
-                        {lead.company && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-lead-company-${lead.id}`}>
-                            <Building2 className="w-3 h-3" />
-                            {lead.company}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                        {lead.email && (
-                          <span className="flex items-center gap-1" data-testid={`text-lead-email-${lead.id}`}>
-                            <Mail className="w-3 h-3" />
-                            {lead.email}
-                          </span>
-                        )}
-                        {lead.phone && (
-                          <span className="flex items-center gap-1" data-testid={`text-lead-phone-${lead.id}`}>
-                            <Phone className="w-3 h-3" />
-                            {lead.phone}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                      {lead.intentSignal && (
-                        <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-400 border-purple-500/20">
-                          <Target className="w-3 h-3 mr-1" />
-                          Intent
-                        </Badge>
-                      )}
-                      {isSent && hasEngagement && (
-                        <EngagementLevelBadge level={lead.engagementLevel || "none"} />
-                      )}
-                      {isSent && hasEngagement && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`text-engagement-stats-${lead.id}`}>
-                          <span className="flex items-center gap-0.5" title="Email opens">
-                            <Eye className="w-3 h-3 text-sky-400" />
-                            {lead.emailOpens || 0}
-                          </span>
-                          <span className="flex items-center gap-0.5" title="Link clicks">
-                            <MousePointerClick className="w-3 h-3 text-emerald-400" />
-                            {lead.emailClicks || 0}
-                          </span>
-                        </div>
-                      )}
-                      {lead.outreach && isSent && !hasEngagement && (
-                        <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Sent
-                        </Badge>
-                      )}
-                      {lead.outreach && !isSent && (
-                        <Badge variant="outline" className="text-xs bg-sky-500/10 text-sky-400 border-sky-500/20">
-                          <Send className="w-3 h-3 mr-1" />
-                          Ready
-                        </Badge>
-                      )}
-                      <span data-testid={`badge-lead-status-${lead.id}`}><LeadStatusBadge status={lead.status} /></span>
-                      <span className="text-xs font-medium w-10 text-right" data-testid={`text-lead-score-${lead.id}`}>{lead.score}/100</span>
-                      <span className="text-xs text-muted-foreground w-20 text-right" data-testid={`text-lead-date-${lead.id}`}>
-                        {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : ""}
-                      </span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(lead.id); }}
-                        disabled={deleteMutation.isPending}
-                        data-testid={`button-delete-lead-${lead.id}`}
-                      >
-                        <Trash2 className="w-4 h-4 text-muted-foreground" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {isExpanded && hasDetails && (
-                    <div className="border-t p-4 space-y-3 bg-muted/30" data-testid={`lead-details-${lead.id}`}>
-                      {isSent && hasEngagement && (
-                        <div className="border rounded-md p-3 bg-background" data-testid={`engagement-panel-${lead.id}`}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Activity className="w-4 h-4 text-primary" />
-                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Engagement</span>
-                            <EngagementLevelBadge level={lead.engagementLevel || "none"} />
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-                            <div className="text-center p-2 rounded-md bg-muted/50">
-                              <div className="text-sm font-bold text-sky-400">{lead.emailOpens || 0}</div>
-                              <div className="text-xs text-muted-foreground">Opens</div>
-                            </div>
-                            <div className="text-center p-2 rounded-md bg-muted/50">
-                              <div className="text-sm font-bold text-emerald-400">{lead.emailClicks || 0}</div>
-                              <div className="text-xs text-muted-foreground">Clicks</div>
-                            </div>
-                            <div className="text-center p-2 rounded-md bg-muted/50">
-                              <div className="text-sm font-bold">{lead.engagementScore || 0}</div>
-                              <div className="text-xs text-muted-foreground">Score</div>
-                            </div>
-                            <div className="text-center p-2 rounded-md bg-muted/50">
-                              <div className="text-sm font-bold text-muted-foreground">
-                                {lead.lastEngagedAt ? new Date(lead.lastEngagedAt).toLocaleDateString() : "N/A"}
-                              </div>
-                              <div className="text-xs text-muted-foreground">Last Active</div>
-                            </div>
-                          </div>
-                          {lead.nextStep && (
-                            <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10">
-                              <ArrowRight className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                              <div>
-                                <span className="text-xs font-semibold text-primary">Recommended Next Step</span>
-                                <p className="text-sm" data-testid={`text-next-step-${lead.id}`}>{lead.nextStep}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {isSent && !hasEngagement && (
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            Email sent {lead.outreachSentAt ? new Date(lead.outreachSentAt).toLocaleDateString() : ""} — waiting for engagement (opens, clicks)
-                          </span>
-                        </div>
-                      )}
-
-                      {lead.intentSignal && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <Target className="w-4 h-4 text-purple-400" />
-                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Intent Signal</span>
-                          </div>
-                          <p className="text-sm pl-6" data-testid={`text-intent-${lead.id}`}>{lead.intentSignal}</p>
-                        </div>
-                      )}
-                      {lead.notes && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <FileText className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Research Notes</span>
-                          </div>
-                          <p className="text-sm pl-6" data-testid={`text-notes-${lead.id}`}>{lead.notes}</p>
-                        </div>
-                      )}
-                      {lead.outreach && (
-                        <div>
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <div className="flex items-center gap-2">
-                              <Send className="w-4 h-4 text-sky-400" />
-                              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                {isSent ? "Outreach Email (Sent)" : "Outreach Email Draft"}
-                              </span>
-                              {isSent && lead.outreachSentAt && (
-                                <span className="text-xs text-emerald-400">
-                                  Sent {new Date(lead.outreachSentAt).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => { e.stopPropagation(); copyOutreach(lead.id, lead.outreach!); }}
-                                data-testid={`button-copy-outreach-${lead.id}`}
-                              >
-                                {copiedId === lead.id ? (
-                                  <><Check className="w-3 h-3 mr-1" /> Copied</>
-                                ) : (
-                                  <><Copy className="w-3 h-3 mr-1" /> Copy</>
-                                )}
-                              </Button>
-                              {!isSent && lead.email && (
-                                <Button
-                                  size="sm"
-                                  onClick={(e) => { e.stopPropagation(); sendOutreachMutation.mutate(lead.id); }}
-                                  disabled={sendOutreachMutation.isPending}
-                                  data-testid={`button-send-outreach-${lead.id}`}
-                                >
-                                  {sendOutreachMutation.isPending ? (
-                                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Sending...</>
-                                  ) : (
-                                    <><Send className="w-3 h-3 mr-1" /> Send Email</>
-                                  )}
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                          <div className={`pl-6 p-3 rounded-md bg-background border text-sm whitespace-pre-wrap ${isSent ? "border-emerald-500/20" : ""}`} data-testid={`text-outreach-${lead.id}`}>
-                            {lead.outreach}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {filteredLeads.map((lead) => (
+              <LeadCard
+                key={lead.id}
+                lead={lead}
+                isExpanded={expandedLeads.has(lead.id)}
+                toggleExpand={toggleExpand}
+                copiedId={copiedId}
+                copyOutreach={copyOutreach}
+                sendOutreachMutation={sendOutreachMutation}
+                deleteMutation={deleteMutation}
+              />
+            ))}
           </div>
         )}
       </Card>
