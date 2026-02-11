@@ -216,6 +216,56 @@ async function executeAction(userId: string, action: string, params: any): Promi
       }
       return result;
     }
+    case "create_funnel": {
+      const funnelName = params.name || "Client Acquisition Pipeline";
+      const funnelDesc = params.description || "AI-powered sales pipeline for tracking and converting leads";
+      const defaultStages = [
+        { name: "Prospects", color: "#3b82f6" },
+        { name: "Qualified", color: "#8b5cf6" },
+        { name: "Proposal Sent", color: "#f59e0b" },
+        { name: "Negotiation", color: "#f97316" },
+        { name: "Closed Won", color: "#22c55e" },
+      ];
+      const stages = (params.stages && Array.isArray(params.stages) && params.stages.length > 0)
+        ? params.stages
+        : defaultStages;
+
+      const funnel = await storage.createFunnel({ userId, name: funnelName, description: funnelDesc, isActive: true });
+      const createdStages = [];
+      for (let i = 0; i < stages.length; i++) {
+        const stage = await storage.createFunnelStage({
+          funnelId: funnel.id,
+          name: stages[i].name,
+          position: i,
+          color: stages[i].color || "#6366f1",
+        });
+        createdStages.push(stage);
+      }
+
+      let dealsInfo = "";
+      const addLeads = params.add_leads_as_deals !== false;
+      if (addLeads && createdStages.length > 0) {
+        const userLeads = await storage.getLeadsByUser(userId);
+        if (userLeads.length > 0) {
+          const firstStage = createdStages[0];
+          let dealsCreated = 0;
+          for (const lead of userLeads) {
+            await storage.createFunnelDeal({
+              funnelId: funnel.id,
+              stageId: firstStage.id,
+              contactName: lead.name,
+              contactEmail: lead.email || "",
+              value: 0,
+              status: "open",
+            });
+            dealsCreated++;
+          }
+          dealsInfo = ` Added ${dealsCreated} existing leads as deals in the "${firstStage.name}" stage.`;
+        }
+      }
+
+      return `Created sales funnel "${funnelName}" with ${stages.length} stages: ${stages.map((s: any) => s.name).join(" → ")}.${dealsInfo} View it at the Sales Funnels page.`;
+    }
     case "send_sms": {
       const allLeads = await storage.getLeadsByUser(userId);
       const targetPhone = params.phone;
@@ -496,6 +546,7 @@ You have CRM management tools and web search at your disposal. Use them proactiv
 - **Lead Generation**: When the user asks for leads, you MUST use web_search FIRST to find REAL businesses and contacts. Search for real companies in their industry, extract actual names, emails, phone numbers, and website URLs from public directories, business listings, and company websites. Then save them using the generate_leads tool. NEVER make up fictional contact information — every lead must come from actual web search results.
 - **Direct Outreach**: After generating leads, if the user says to "engage", "reach out", "email", "send", or "contact" them, IMMEDIATELY use the send_outreach tool to send the personalized outreach emails directly. You can also use this when the user asks you to follow up or engage existing leads.
 - **SMS Messaging**: If the user asks to "text", "SMS", or "send a text" to leads or a phone number, use the send_sms tool. You can text individual leads by ID, a direct phone number, or all leads with phone numbers at once.
+- **Sales Funnels**: When the user asks to "start a funnel", "create a pipeline", "build a funnel", or "start the funnel", use the create_funnel tool to set up a sales funnel with pipeline stages. It automatically adds existing leads as deals in the first stage. You can customize stage names and colors.
 - **CRM Tools**: Book appointments, activate AI agents, follow up with prospects, pull performance stats
 - **Web Search**: Research market trends, competitors, industry data, real-time information, and find real business contacts
 - Combine multiple tools in a single response when beneficial. For example, generate leads AND send outreach in the same flow when the user asks to "find and engage prospects".
@@ -652,6 +703,40 @@ COMMUNICATION STANDARDS:
           },
         },
         required: [],
+      },
+    },
+    {
+      name: "create_funnel",
+      description: "Create a sales funnel with pipeline stages and optionally add existing leads as deals. Use when the user asks to 'start a funnel', 'create a pipeline', 'set up a sales funnel', 'build a funnel', or 'start the funnel'. Creates a funnel with customizable stages and can automatically add the user's existing leads as deals in the first stage.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          name: {
+            type: "string",
+            description: "Name for the funnel (e.g. 'Client Acquisition Pipeline', 'Sales Funnel Q1')",
+          },
+          description: {
+            type: "string",
+            description: "Brief description of the funnel purpose",
+          },
+          stages: {
+            type: "array",
+            description: "Pipeline stages in order. If not provided, uses default stages: Prospects, Qualified, Proposal, Negotiation, Closed Won",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Stage name" },
+                color: { type: "string", description: "Hex color for the stage (e.g. '#3b82f6')" },
+              },
+              required: ["name"],
+            },
+          },
+          add_leads_as_deals: {
+            type: "boolean",
+            description: "If true, automatically adds all existing leads as deals in the first pipeline stage. Defaults to true.",
+          },
+        },
+        required: ["name"],
       },
     },
     {
