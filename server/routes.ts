@@ -2520,6 +2520,23 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
     }
   });
 
+  app.get("/api/admin/platform-config", isAdmin, async (_req, res) => {
+    try {
+      res.json({
+        sendgridApiKey: !!process.env.SENDGRID_API_KEY,
+        twilioAccountSid: !!process.env.TWILIO_ACCOUNT_SID,
+        twilioAuthToken: !!process.env.TWILIO_AUTH_TOKEN,
+        twilioPhoneNumber: !!process.env.TWILIO_PHONE_NUMBER,
+        anthropicApiKey: !!process.env.ANTHROPIC_API_KEY,
+        sessionSecret: !!process.env.SESSION_SECRET,
+        adminPassword: !!process.env.ADMIN_PASSWORD,
+        platformSenderEmail: "info@argilette.co",
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch platform config" });
+    }
+  });
+
   // ============================================================
   // SALES FUNNELS
   // ============================================================

@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Shield, LogOut, Users, CalendarDays, Bot, DollarSign, BarChart3,
   CreditCard, Plus, Pencil, Trash2, Building2, Mail, Globe, Eye,
-  UserCheck, AlertCircle,
+  UserCheck, AlertCircle, Settings, CheckCircle2, XCircle,
 } from "lucide-react";
 import type { Lead, Appointment, AiAgent, Subscription } from "@shared/schema";
 
@@ -402,6 +402,22 @@ export default function AdminDashboard() {
     enabled: isAuthenticated,
   });
 
+  interface PlatformConfig {
+    sendgridApiKey: boolean;
+    twilioAccountSid: boolean;
+    twilioAuthToken: boolean;
+    twilioPhoneNumber: boolean;
+    anthropicApiKey: boolean;
+    sessionSecret: boolean;
+    adminPassword: boolean;
+    platformSenderEmail: string;
+  }
+
+  const { data: platformConfig } = useQuery<PlatformConfig>({
+    queryKey: ["/api/admin/platform-config"],
+    enabled: isAuthenticated,
+  });
+
   const deleteSubMutation = useMutation({
     mutationFn: async (id: string) => {
       await apiRequest("DELETE", `/api/admin/subscriptions/${id}`);
@@ -479,6 +495,10 @@ export default function AdminDashboard() {
             </TabsTrigger>
             <TabsTrigger value="agents" data-testid="tab-admin-agents">
               Agents ({agents?.length || 0})
+            </TabsTrigger>
+            <TabsTrigger value="platform" data-testid="tab-admin-platform">
+              <Settings className="w-3.5 h-3.5 mr-1.5" />
+              Platform
             </TabsTrigger>
           </TabsList>
 
@@ -772,6 +792,123 @@ export default function AdminDashboard() {
                 </Table>
               </div>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="platform">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="p-5">
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-primary" />
+                  Email Service (SendGrid)
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-sm text-muted-foreground">API Key</span>
+                    <div className="flex items-center gap-1.5" data-testid="status-sendgrid-key">
+                      {platformConfig?.sendgridApiKey ? (
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                      ) : (
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Platform Sender</span>
+                    <span className="text-sm font-mono" data-testid="text-platform-sender">{platformConfig?.platformSenderEmail || "N/A"}</span>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-5">
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-primary" />
+                  SMS Service (Twilio)
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Account SID</span>
+                    <div className="flex items-center gap-1.5" data-testid="status-twilio-sid">
+                      {platformConfig?.twilioAccountSid ? (
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                      ) : (
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Auth Token</span>
+                    <div className="flex items-center gap-1.5" data-testid="status-twilio-token">
+                      {platformConfig?.twilioAuthToken ? (
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                      ) : (
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Phone Number</span>
+                    <div className="flex items-center gap-1.5" data-testid="status-twilio-phone">
+                      {platformConfig?.twilioPhoneNumber ? (
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                      ) : (
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-5">
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-primary" />
+                  AI Service (Anthropic)
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-sm text-muted-foreground">API Key</span>
+                    <div className="flex items-center gap-1.5" data-testid="status-anthropic-key">
+                      {platformConfig?.anthropicApiKey ? (
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                      ) : (
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-5">
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary" />
+                  Security
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Session Secret</span>
+                    <div className="flex items-center gap-1.5" data-testid="status-session-secret">
+                      {platformConfig?.sessionSecret ? (
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                      ) : (
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Admin Password</span>
+                    <div className="flex items-center gap-1.5" data-testid="status-admin-password">
+                      {platformConfig?.adminPassword ? (
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                      ) : (
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+            <p className="text-xs text-muted-foreground mt-4">
+              Platform secrets are managed via environment variables. To update them, go to the Secrets tab in your project settings.
+            </p>
           </TabsContent>
         </Tabs>
       </div>
