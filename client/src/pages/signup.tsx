@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ const industries = [
 ];
 
 export default function SignupPage() {
+  usePageTitle("Sign Up");
   const { register } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();

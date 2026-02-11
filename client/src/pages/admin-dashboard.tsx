@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { apiRequest } from "@/lib/queryClient";
@@ -72,6 +73,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function AdminDashboard() {
+  usePageTitle("Admin Dashboard");
   const { admin, isLoading, isAuthenticated } = useAdmin();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();

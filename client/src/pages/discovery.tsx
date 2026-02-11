@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 export default function DiscoveryCallPage() {
+  usePageTitle("Discovery Call");
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     firstName: "",

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -255,6 +256,7 @@ const industryOptions = [
 ];
 
 export default function SettingsPage() {
+  usePageTitle("Settings");
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();

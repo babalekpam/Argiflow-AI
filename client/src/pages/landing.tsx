@@ -1,3 +1,4 @@
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -175,6 +176,7 @@ const faqs = [
 ];
 
 export default function LandingPage() {
+  usePageTitle();
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}

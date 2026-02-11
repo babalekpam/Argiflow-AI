@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +88,7 @@ const workflowTemplates = [
 ];
 
 export default function AutomationsPage() {
+  usePageTitle("Automations");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 

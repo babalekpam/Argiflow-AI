@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -378,6 +379,7 @@ function PipelineView({ funnel }: { funnel: Funnel }) {
 }
 
 export default function SalesFunnelsPage() {
+  usePageTitle("Sales Funnels");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedFunnelId, setSelectedFunnelId] = useState<string | null>(null);

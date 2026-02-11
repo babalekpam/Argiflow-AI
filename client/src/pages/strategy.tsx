@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -416,6 +417,7 @@ function renderMarkdown(text: string) {
 }
 
 export default function StrategyPage() {
+  usePageTitle("Marketing Strategy");
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -445,6 +446,7 @@ const sopCategories = [
 ];
 
 export default function ResourcesPage() {
+  usePageTitle("Resources & Templates");
   const [activeTab, setActiveTab] = useState<TabKey>("bot-templates");
   const [installedItems, setInstalledItems] = useState<Record<string, boolean>>({});
   const { toast } = useToast();

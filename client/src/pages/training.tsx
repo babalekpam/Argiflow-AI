@@ -1,3 +1,4 @@
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function TrainingPage() {
+  usePageTitle("Training Center");
   const completedCount = courses.filter((c) => c.status === "completed").length;
   const totalCount = courses.length;
   const progressPercent = Math.round((completedCount / totalCount) * 100);

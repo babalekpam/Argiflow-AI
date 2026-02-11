@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -160,6 +161,7 @@ function ScriptViewer({ script }: { script: string }) {
 }
 
 export default function AiAgentsPage() {
+  usePageTitle("AI Agents");
   const { toast } = useToast();
   const [configAgent, setConfigAgent] = useState<AiAgent | null>(null);
   const [editName, setEditName] = useState("");

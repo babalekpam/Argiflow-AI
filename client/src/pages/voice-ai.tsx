@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function VoiceAiPage() {
+  usePageTitle("Voice AI Agents");
   const { toast } = useToast();
   const [showDeploy, setShowDeploy] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<typeof voiceAgentTemplates[0] | null>(null);

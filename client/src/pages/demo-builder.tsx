@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,7 @@ const lifetimeUpdates = [
 ];
 
 export default function DemoBuilderPage() {
+  usePageTitle("Demos & Install");
   const [activeTab, setActiveTab] = useState<TabKey>("voice-demo");
   const { toast } = useToast();
 
