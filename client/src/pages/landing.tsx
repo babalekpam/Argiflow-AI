@@ -166,7 +166,7 @@ const faqs = [
   },
   {
     q: "What if it doesn't work for my business?",
-    a: "We offer a 100% money-back guarantee on the Starter Package. If we can't deliver measurable value, you pay nothing.",
+    a: "Every plan starts with a 14-day free trial — no credit card required. If it's not the right fit, cancel anytime with zero risk.",
   },
   {
     q: "Can you integrate with my existing tools?",
@@ -492,24 +492,24 @@ export default function LandingPage() {
             {/* Starter Package */}
             <Card className="p-6 relative">
               <div className="text-center mb-6 pt-2">
-                <h3 className="text-lg font-semibold mb-1">Starter Package</h3>
+                <h3 className="text-lg font-semibold mb-1">Starter</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  One-time setup to launch your first AI system
+                  Launch your first AI system fast
                 </p>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-extrabold">$1,497</span>
-                  <span className="text-muted-foreground">one-time</span>
+                  <span className="text-4xl font-extrabold">$297</span>
+                  <span className="text-muted-foreground">/month</span>
                 </div>
               </div>
               <ul className="space-y-3 mb-6">
                 {[
                   "AI & automation audit of your business",
-                  "One full automation build (sales, marketing, or support)",
-                  "Up to 30 min/week for calls",
-                  "Unlimited questions via Slack/Telegram",
-                  "Basic team training on automations we build",
-                  "No-code & AI platform implementation",
-                  "30-day money-back guarantee",
+                  "1 AI agent or automation build",
+                  "Up to 1,000 AI-powered actions/month",
+                  "CRM & lead management",
+                  "Email & SMS outreach tools",
+                  "Community support + knowledge base",
+                  "14-day free trial",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-3 text-sm">
                     <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
@@ -519,37 +519,37 @@ export default function LandingPage() {
               </ul>
               <a href="/signup" className="block">
                 <Button className="w-full" variant="outline">
-                  Get Started
+                  Start Free Trial
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </a>
             </Card>
 
-            {/* Ongoing Package */}
+            {/* Pro Package */}
             <Card className="p-6 relative border-primary/40 glow-purple">
               <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
                 Most Popular
               </Badge>
               <div className="text-center mb-6 pt-2">
-                <h3 className="text-lg font-semibold mb-1">Ongoing Growth</h3>
+                <h3 className="text-lg font-semibold mb-1">Pro</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Continuous automation & optimization
+                  Scale with unlimited AI power
                 </p>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-extrabold">$997</span>
+                  <span className="text-4xl font-extrabold">$597</span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
               </div>
               <ul className="space-y-3 mb-6">
                 {[
-                  "Full AI & automation audit",
-                  "Up to 2 systems automated simultaneously",
-                  "Ongoing updates for all past implementations",
-                  "Up to 45 min/week for strategy calls",
-                  "Priority support via your preferred channel",
-                  "Weekly analytics report",
-                  "Unlimited questions via Slack/Telegram",
-                  "Pause or cancel anytime",
+                  "Everything in Starter",
+                  "Unlimited AI agents & automations",
+                  "Up to 10,000 AI-powered actions/month",
+                  "Voice AI & telephony agents",
+                  "Sales funnels with Kanban pipeline",
+                  "Priority support + weekly strategy calls",
+                  "Advanced analytics & reporting",
+                  "Cancel anytime",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-3 text-sm">
                     <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
@@ -559,34 +559,34 @@ export default function LandingPage() {
               </ul>
               <a href="/signup" className="block">
                 <Button className="w-full">
-                  Get Started
+                  Start Free Trial
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </a>
             </Card>
 
-            {/* Custom Package */}
+            {/* Enterprise Package */}
             <Card className="p-6 relative">
               <div className="text-center mb-6 pt-2">
-                <h3 className="text-lg font-semibold mb-1">Enterprise / Custom</h3>
+                <h3 className="text-lg font-semibold mb-1">Enterprise</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Custom AI agents, integrations & more
+                  Full-scale AI transformation
                 </p>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-extrabold">Custom</span>
+                  <span className="text-4xl font-extrabold">$1,497</span>
+                  <span className="text-muted-foreground">/month</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">Quoted per project</p>
               </div>
               <ul className="space-y-3 mb-6">
                 {[
-                  "Everything in Ongoing Growth",
+                  "Everything in Pro",
                   "Custom AI agent development",
-                  "Voice AI & telephony systems",
+                  "Unlimited actions & API calls",
                   "Advanced CRM integrations",
                   "Multi-system automation",
-                  "Dedicated project manager",
-                  "Custom reporting & analytics",
-                  "White-label options available",
+                  "Dedicated account manager",
+                  "Custom reporting & white-label options",
+                  "SLA & onboarding support",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-3 text-sm">
                     <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
@@ -596,7 +596,7 @@ export default function LandingPage() {
               </ul>
               <a href="/signup" className="block">
                 <Button className="w-full" variant="outline">
-                  Let's Talk
+                  Contact Sales
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </a>
@@ -703,7 +703,7 @@ export default function LandingPage() {
               </a>
             </div>
             <p className="text-xs text-muted-foreground">
-              No commitment required. 100% money-back guarantee on Starter Package.
+              Start your 14-day free trial. No credit card required. Cancel anytime.
             </p>
           </Card>
         </div>
