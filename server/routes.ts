@@ -2368,6 +2368,10 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         return res.status(401).json({ message: "Invalid credentials" });
       }
       req.session.adminId = admin.id;
+      const linkedUser = await storage.getUserByEmail(admin.email);
+      if (linkedUser) {
+        req.session.userId = linkedUser.id;
+      }
       res.json({ id: admin.id, email: admin.email, name: admin.name });
     } catch (error) {
       console.error("Admin login error:", error);
@@ -2378,6 +2382,29 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
   app.post("/api/admin/logout", (req, res) => {
     delete req.session.adminId;
     res.json({ success: true });
+  });
+
+  app.post("/api/admin/switch-to-user", isAdmin, async (req, res) => {
+    try {
+      const admin = await storage.getAdminById(req.session.adminId!);
+      if (!admin) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { email } = req.body || {};
+      const targetEmail = (email && typeof email === "string") ? email.trim().toLowerCase() : admin.email;
+      if (!targetEmail || !targetEmail.includes("@")) {
+        return res.status(400).json({ message: "Valid email is required." });
+      }
+      const linkedUser = await storage.getUserByEmail(targetEmail);
+      if (linkedUser) {
+        req.session.userId = linkedUser.id;
+        console.log(`[ADMIN SWITCH] Admin ${admin.email} (${admin.id}) switched to user ${linkedUser.email} (${linkedUser.id}) at ${new Date().toISOString()}`);
+        return res.json({ success: true, userId: linkedUser.id, email: linkedUser.email });
+      }
+      return res.status(404).json({ message: "No user account found for that email." });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to switch" });
+    }
   });
 
   app.get("/api/admin/me", isAdmin, async (req, res) => {

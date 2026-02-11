@@ -366,6 +366,32 @@ export default function AdminDashboard() {
     },
   });
 
+  const [switchEmail, setSwitchEmail] = useState("");
+  const [showSwitchDialog, setShowSwitchDialog] = useState(false);
+
+  const switchToUserMutation = useMutation({
+    mutationFn: async (email?: string) => {
+      const res = await apiRequest("POST", "/api/admin/switch-to-user", email ? { email } : {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      setShowSwitchDialog(false);
+      setLocation("/dashboard");
+    },
+    onError: (error: any) => {
+      if (!showSwitchDialog) {
+        setShowSwitchDialog(true);
+      } else {
+        toast({
+          title: "Cannot switch",
+          description: error?.message || "No user account found for that email.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       setLocation("/admin");
@@ -461,15 +487,44 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setLocation("/dashboard")}
-              data-testid="button-go-to-dashboard"
-            >
-              <Eye className="w-4 h-4 mr-2" />
-              User Dashboard
-            </Button>
+            <Dialog open={showSwitchDialog} onOpenChange={setShowSwitchDialog}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => switchToUserMutation.mutate(undefined)}
+                disabled={switchToUserMutation.isPending}
+                data-testid="button-go-to-dashboard"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                {switchToUserMutation.isPending ? "Switching..." : "My Account"}
+              </Button>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Switch to User Account</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">
+                  Enter the email of the user account you want to switch to.
+                </p>
+                <Input
+                  placeholder="user@example.com"
+                  value={switchEmail}
+                  onChange={(e) => setSwitchEmail(e.target.value)}
+                  data-testid="input-switch-email"
+                />
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button
+                    onClick={() => switchToUserMutation.mutate(switchEmail)}
+                    disabled={!switchEmail || switchToUserMutation.isPending}
+                    data-testid="button-switch-confirm"
+                  >
+                    {switchToUserMutation.isPending ? "Switching..." : "Switch"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Button
               variant="ghost"
               size="sm"
