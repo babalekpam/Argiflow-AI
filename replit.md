@@ -154,3 +154,10 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - Leads page shows Email Engagement Overview card (total sent, opens, clicks, rates, hot leads count)
 - Per-lead engagement panel: opens/clicks/score/last active + recommended next step badge
 - Domain: argilette.co (all SEO, sitemap, robots.txt, OG tags)
+- Venmo payment buttons on all pricing plans (@argilette handle, pre-filled amounts)
+- `subscriptions` table: plan, status, amount, paymentMethod, venmoHandle, trialEndsAt, currentPeriodStart/End, cancelledAt, notes
+- Super admin dashboard rebuilt: 6 stat cards (Clients, Active Subs, MRR, Leads, Appointments, Agents)
+- Admin tabs: Clients (with plan/status/leads/agents per client), Subscriptions (full CRUD with create/edit/delete), Leads, Appointments, Agents
+- GET /api/admin/clients - All users with subscription, lead count, agent count
+- GET/POST/PATCH/DELETE /api/admin/subscriptions - Full subscription management
+- Enhanced GET /api/admin/stats - Includes totalSubscriptions, activeSubscriptions, monthlyRevenue

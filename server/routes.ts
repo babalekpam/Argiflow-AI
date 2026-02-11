@@ -1956,19 +1956,149 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
 
   app.get("/api/admin/stats", isAdmin, async (_req, res) => {
     try {
-      const allStats = await storage.getAllStats();
+      const allUsers = await storage.getAllUsers();
       const allLeads = await storage.getAllLeads();
       const allAppointments = await storage.getAllAppointments();
       const allAgents = await storage.getAllAiAgents();
+      const allSubs = await storage.getAllSubscriptions();
+      const activeSubs = allSubs.filter(s => s.status === "active" || s.status === "trial");
+      const monthlyRevenue = allSubs.filter(s => s.status === "active").reduce((sum, s) => sum + (s.amount || 0), 0);
       res.json({
-        totalUsers: allStats.length,
+        totalUsers: allUsers.length,
         totalLeads: allLeads.length,
         totalAppointments: allAppointments.length,
         totalAgents: allAgents.length,
-        revenue: allStats.reduce((sum, s) => sum + (s.revenue || 0), 0),
+        totalSubscriptions: allSubs.length,
+        activeSubscriptions: activeSubs.length,
+        monthlyRevenue,
+        revenue: monthlyRevenue,
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+  });
+
+  app.get("/api/admin/clients", isAdmin, async (_req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const allSubs = await storage.getAllSubscriptions();
+      const allLeads = await storage.getAllLeads();
+      const allAgents = await storage.getAllAiAgents();
+
+      const subsMap = new Map(allSubs.map(s => [s.userId, s]));
+      const leadCounts = new Map<string, number>();
+      allLeads.forEach(l => leadCounts.set(l.userId, (leadCounts.get(l.userId) || 0) + 1));
+      const agentCounts = new Map<string, number>();
+      allAgents.forEach(a => agentCounts.set(a.userId, (agentCounts.get(a.userId) || 0) + 1));
+
+      const clients = allUsers.map(u => ({
+        id: u.id,
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        companyName: u.companyName,
+        industry: u.industry,
+        website: u.website,
+        createdAt: u.createdAt,
+        subscription: subsMap.get(u.id) || null,
+        leadsCount: leadCounts.get(u.id) || 0,
+        agentsCount: agentCounts.get(u.id) || 0,
+      }));
+      res.json(clients);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch clients" });
+    }
+  });
+
+  app.get("/api/admin/subscriptions", isAdmin, async (_req, res) => {
+    try {
+      const allSubs = await storage.getAllSubscriptions();
+      const allUsers = await storage.getAllUsers();
+      const usersMap = new Map(allUsers.map(u => [u.id, u]));
+      const subsWithUser = allSubs.map(s => ({
+        ...s,
+        user: usersMap.get(s.userId) ? {
+          email: usersMap.get(s.userId)!.email,
+          firstName: usersMap.get(s.userId)!.firstName,
+          lastName: usersMap.get(s.userId)!.lastName,
+          companyName: usersMap.get(s.userId)!.companyName,
+        } : null,
+      }));
+      res.json(subsWithUser);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch subscriptions" });
+    }
+  });
+
+  app.post("/api/admin/subscriptions", isAdmin, async (req, res) => {
+    try {
+      const { userId, plan, status, amount, paymentMethod, venmoHandle, notes } = req.body;
+      if (!userId || typeof userId !== "string") {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+      const validPlans = ["starter", "pro", "enterprise"];
+      const validStatuses = ["trial", "active", "past_due", "cancelled", "expired"];
+      if (!plan || !validPlans.includes(plan)) {
+        return res.status(400).json({ message: "Valid plan is required (starter, pro, enterprise)" });
+      }
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      const now = new Date();
+      const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+      const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const sub = await storage.createSubscription({
+        userId,
+        plan,
+        status: status || "trial",
+        amount: amount || (plan === "starter" ? 297 : plan === "pro" ? 597 : 1497),
+        paymentMethod: paymentMethod || "venmo",
+        venmoHandle: venmoHandle || null,
+        trialEndsAt: status === "trial" ? trialEnd : null,
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        notes: notes || null,
+      });
+      res.json(sub);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create subscription" });
+    }
+  });
+
+  app.patch("/api/admin/subscriptions/:id", isAdmin, async (req, res) => {
+    try {
+      const { plan, status, amount, paymentMethod, venmoHandle, notes, currentPeriodEnd } = req.body;
+      const validPlans = ["starter", "pro", "enterprise"];
+      const validStatuses = ["trial", "active", "past_due", "cancelled", "expired"];
+      if (plan !== undefined && !validPlans.includes(plan)) {
+        return res.status(400).json({ message: "Invalid plan" });
+      }
+      if (status !== undefined && !validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      const data: any = {};
+      if (plan !== undefined) data.plan = plan;
+      if (status !== undefined) data.status = status;
+      if (amount !== undefined) data.amount = amount;
+      if (paymentMethod !== undefined) data.paymentMethod = paymentMethod;
+      if (venmoHandle !== undefined) data.venmoHandle = venmoHandle;
+      if (notes !== undefined) data.notes = notes;
+      if (currentPeriodEnd !== undefined) data.currentPeriodEnd = new Date(currentPeriodEnd);
+      if (status === "cancelled") data.cancelledAt = new Date();
+      const updated = await storage.updateSubscription(req.params.id, data);
+      if (!updated) return res.status(404).json({ message: "Subscription not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update subscription" });
+    }
+  });
+
+  app.delete("/api/admin/subscriptions/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteSubscription(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete subscription" });
     }
   });
 

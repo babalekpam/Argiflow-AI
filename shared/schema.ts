@@ -217,6 +217,27 @@ export const insertEmailEventSchema = createInsertSchema(emailEvents).omit({ id:
 export type EmailEvent = typeof emailEvents.$inferSelect;
 export type InsertEmailEvent = z.infer<typeof insertEmailEventSchema>;
 
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  plan: text("plan").notNull().default("starter"),
+  status: text("status").notNull().default("trial"),
+  amount: real("amount").notNull().default(0),
+  paymentMethod: text("payment_method").default("venmo"),
+  venmoHandle: text("venmo_handle"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelledAt: timestamp("cancelled_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true, updatedAt: true });
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+
 export const insertAdminSchema = createInsertSchema(admins).omit({ id: true, createdAt: true });
 export type Admin = typeof admins.$inferSelect;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;

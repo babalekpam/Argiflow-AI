@@ -1,6 +1,6 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
-  funnels, funnelStages, funnelDeals, websiteProfiles, automations, emailEvents,
+  funnels, funnelStages, funnelDeals, websiteProfiles, automations, emailEvents, subscriptions,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
@@ -16,6 +16,7 @@ import {
   type WebsiteProfile, type InsertWebsiteProfile,
   type Automation, type InsertAutomation,
   type EmailEvent, type InsertEmailEvent,
+  type Subscription, type InsertSubscription,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc } from "drizzle-orm";
@@ -73,6 +74,12 @@ export interface IStorage {
   createEmailEvent(event: InsertEmailEvent): Promise<EmailEvent>;
   getEmailEventsByLead(leadId: string): Promise<EmailEvent[]>;
   getEmailEventsByUser(userId: string): Promise<EmailEvent[]>;
+  getAllUsers(): Promise<User[]>;
+  getSubscriptionByUser(userId: string): Promise<Subscription | undefined>;
+  getAllSubscriptions(): Promise<Subscription[]>;
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  updateSubscription(id: string, data: Partial<Pick<Subscription, "plan" | "status" | "amount" | "paymentMethod" | "venmoHandle" | "trialEndsAt" | "currentPeriodStart" | "currentPeriodEnd" | "cancelledAt" | "notes">>): Promise<Subscription | undefined>;
+  deleteSubscription(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -347,6 +354,33 @@ export class DatabaseStorage implements IStorage {
 
   async getEmailEventsByUser(userId: string): Promise<EmailEvent[]> {
     return db.select().from(emailEvents).where(eq(emailEvents.userId, userId)).orderBy(desc(emailEvents.createdAt));
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async getSubscriptionByUser(userId: string): Promise<Subscription | undefined> {
+    const [result] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId));
+    return result;
+  }
+
+  async getAllSubscriptions(): Promise<Subscription[]> {
+    return db.select().from(subscriptions).orderBy(desc(subscriptions.createdAt));
+  }
+
+  async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
+    const [result] = await db.insert(subscriptions).values(subscription).returning();
+    return result;
+  }
+
+  async updateSubscription(id: string, data: Partial<Pick<Subscription, "plan" | "status" | "amount" | "paymentMethod" | "venmoHandle" | "trialEndsAt" | "currentPeriodStart" | "currentPeriodEnd" | "cancelledAt" | "notes">>): Promise<Subscription | undefined> {
+    const [result] = await db.update(subscriptions).set({ ...data, updatedAt: new Date() }).where(eq(subscriptions.id, id)).returning();
+    return result;
+  }
+
+  async deleteSubscription(id: string): Promise<void> {
+    await db.delete(subscriptions).where(eq(subscriptions.id, id));
   }
 }
 
