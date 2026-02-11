@@ -1,7 +1,7 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
   funnels, funnelStages, funnelDeals, websiteProfiles, automations, emailEvents, subscriptions,
-  agentConfigs, agentTasks, notifications,
+  agentConfigs, agentTasks, notifications, passwordResetTokens,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
@@ -21,9 +21,10 @@ import {
   type AgentConfig, type InsertAgentConfig,
   type AgentTask, type InsertAgentTask,
   type Notification, type InsertNotification,
+  type PasswordResetToken, type InsertPasswordResetToken,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, asc } from "drizzle-orm";
+import { eq, desc, and, asc, isNull } from "drizzle-orm";
 
 export interface IStorage {
   getUserById(id: string): Promise<User | undefined>;
@@ -98,6 +99,11 @@ export interface IStorage {
   markNotificationRead(id: string, userId: string): Promise<Notification | undefined>;
   markAllNotificationsRead(userId: string): Promise<void>;
   deleteNotification(id: string, userId: string): Promise<void>;
+  createPasswordResetToken(data: InsertPasswordResetToken): Promise<PasswordResetToken>;
+  getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined>;
+  markPasswordResetTokenUsed(id: string): Promise<void>;
+  invalidateUserResetTokens(userId: string): Promise<void>;
+  updateUserPassword(id: string, passwordHash: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -468,6 +474,28 @@ export class DatabaseStorage implements IStorage {
 
   async deleteNotification(id: string, userId: string): Promise<void> {
     await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
+  }
+
+  async createPasswordResetToken(data: InsertPasswordResetToken): Promise<PasswordResetToken> {
+    const [result] = await db.insert(passwordResetTokens).values(data).returning();
+    return result;
+  }
+
+  async getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined> {
+    const [result] = await db.select().from(passwordResetTokens).where(eq(passwordResetTokens.token, tokenHash));
+    return result;
+  }
+
+  async markPasswordResetTokenUsed(id: string): Promise<void> {
+    await db.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.id, id));
+  }
+
+  async invalidateUserResetTokens(userId: string): Promise<void> {
+    await db.update(passwordResetTokens).set({ usedAt: new Date() }).where(and(eq(passwordResetTokens.userId, userId), isNull(passwordResetTokens.usedAt)));
+  }
+
+  async updateUserPassword(id: string, passwordHash: string): Promise<void> {
+    await db.update(users).set({ passwordHash }).where(eq(users.id, id));
   }
 }
 

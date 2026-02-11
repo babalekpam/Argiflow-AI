@@ -12,8 +12,10 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 
 ## Key Routes
 - `/` - Landing page (unauthenticated) or redirects to /dashboard (authenticated)
-- `/login` - User login page
-- `/signup` - User registration page
+- `/login` - User login page (with "Forgot password?" link)
+- `/signup` - User registration page (sends welcome email via SendGrid)
+- `/forgot-password` - Request password reset email
+- `/reset-password?token=xxx` - Set new password with reset token
 - `/dashboard` - Main dashboard overview
 - `/dashboard/leads` - Leads & CRM management
 - `/dashboard/funnels` - Sales funnels with Kanban pipeline
@@ -27,10 +29,12 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 
 ## API Endpoints
 ### User Auth Endpoints (email/password)
-- `POST /api/auth/register` - Register new user { email, password, firstName, lastName }
+- `POST /api/auth/register` - Register new user { email, password, firstName, lastName } — sends branded welcome email
 - `POST /api/auth/login` - Login { email, password }
 - `POST /api/auth/logout` - Logout (destroys session)
 - `GET /api/auth/user` - Get authenticated user
+- `POST /api/auth/forgot-password` - Request password reset email { email }
+- `POST /api/auth/reset-password` - Reset password with token { token, password }
 
 ### Data Endpoints (session auth required)
 - `GET /api/stats` - Dashboard statistics
@@ -85,6 +89,7 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `funnel_stages` - Pipeline stages within funnels (position-ordered, with colors)
 - `funnel_deals` - Deals/contacts moving through funnel stages
 - `automations` - User workflow automations with status, runs tracking, and template keys
+- `password_reset_tokens` - Token-based password reset with expiry and usage tracking
 
 ## Design
 - Dark theme with sky blue gradient accents

@@ -11,6 +11,8 @@ import DiscoveryPage from "@/pages/discovery";
 import DashboardLayout from "@/pages/dashboard-layout";
 import AdminLoginPage from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -48,6 +50,8 @@ function Router() {
       <Route path="/" component={HomeRouter} />
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/discovery" component={DiscoveryPage} />
       <Route path="/dashboard" component={DashboardLayout} />
       <Route path="/dashboard/:rest*" component={DashboardLayout} />

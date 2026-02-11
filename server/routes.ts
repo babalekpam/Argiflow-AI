@@ -5,7 +5,7 @@ import { db } from "./db";
 import { leads, appointments, aiAgents, dashboardStats, aiChatMessages } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
 import Anthropic from "@anthropic-ai/sdk";
 import sgMail from "@sendgrid/mail";
@@ -973,6 +973,45 @@ export async function registerRoutes(
       const passwordHash = await hashPassword(password);
       const user = await storage.createUser({ email, passwordHash, firstName, lastName });
       req.session.userId = user.id;
+
+      const sgKey = process.env.SENDGRID_API_KEY;
+      if (sgKey) {
+        try {
+          sgMail.setApiKey(sgKey);
+          await sgMail.send({
+            to: email,
+            from: { email: "info@argilette.co", name: "ArgiFlow" },
+            subject: `Welcome to ArgiFlow, ${firstName}!`,
+            html: `
+              <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                  <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
+                  <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
+                </div>
+                <h2 style="color: #e6edf3; font-size: 22px;">Welcome aboard, ${firstName}!</h2>
+                <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Your account has been successfully created. You now have access to the full ArgiFlow platform — AI agents, sales funnels, email campaigns, and more.</p>
+                <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                  <h3 style="color: #38bdf8; margin: 0 0 12px; font-size: 16px;">Getting Started</h3>
+                  <ul style="color: #8b949e; padding-left: 20px; margin: 0; line-height: 2;">
+                    <li>Complete your company profile in Settings</li>
+                    <li>Activate AI agents from the Agent Catalog</li>
+                    <li>Set up your email & SMS integrations</li>
+                    <li>Let our AI generate your marketing strategy</li>
+                  </ul>
+                </div>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="https://argilette.co/dashboard" style="background: #38bdf8; color: #0d1117; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 15px;">Go to Dashboard</a>
+                </div>
+                <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
+              </div>
+            `,
+          });
+          console.log(`Welcome email sent to ${email}`);
+        } catch (emailErr) {
+          console.error("Welcome email failed (non-blocking):", emailErr);
+        }
+      }
+
       res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted });
     } catch (error) {
       console.error("Registration error:", error);
@@ -1011,6 +1050,88 @@ export async function registerRoutes(
       res.clearCookie("connect.sid");
       res.json({ success: true });
     });
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      const user = await storage.getUserByEmail(email);
+      res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+
+      if (!user) return;
+
+      const sgKey = process.env.SENDGRID_API_KEY;
+      if (!sgKey) {
+        console.warn("SENDGRID_API_KEY not set, cannot send password reset email");
+        return;
+      }
+
+      await storage.invalidateUserResetTokens(user.id);
+
+      const token = randomBytes(32).toString("hex");
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await storage.createPasswordResetToken({ userId: user.id, token: tokenHash, expiresAt });
+
+      const resetUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${token}`;
+      sgMail.setApiKey(sgKey);
+      await sgMail.send({
+        to: email,
+        from: { email: "info@argilette.co", name: "ArgiFlow" },
+        subject: "Reset Your ArgiFlow Password",
+        html: `
+          <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
+              <p style="color: #8b949e; margin: 8px 0 0;">Password Reset</p>
+            </div>
+            <h2 style="color: #e6edf3; font-size: 22px;">Reset your password</h2>
+            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">We received a request to reset the password for your ArgiFlow account. Click the button below to set a new password. This link expires in 1 hour.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" style="background: #38bdf8; color: #0d1117; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 15px;">Reset Password</a>
+            </div>
+            <p style="color: #8b949e; font-size: 13px;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+            <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
+          </div>
+        `,
+      });
+      console.log(`Password reset email sent to ${email}`);
+    } catch (error) {
+      console.error("Forgot password error:", error);
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password || password.length < 6) {
+        return res.status(400).json({ message: "Valid token and password (min 6 characters) are required" });
+      }
+
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      const resetToken = await storage.getPasswordResetToken(tokenHash);
+      if (!resetToken) {
+        return res.status(400).json({ message: "Invalid or expired reset link" });
+      }
+      if (resetToken.usedAt) {
+        return res.status(400).json({ message: "This reset link has already been used" });
+      }
+      if (new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ message: "This reset link has expired. Please request a new one." });
+      }
+
+      const passwordHash = await hashPassword(password);
+      await storage.updateUserPassword(resetToken.userId, passwordHash);
+      await storage.invalidateUserResetTokens(resetToken.userId);
+
+      res.json({ message: "Password has been reset successfully. You can now log in with your new password." });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
   });
 
   app.get("/api/auth/user", isAuthenticated, async (req, res) => {

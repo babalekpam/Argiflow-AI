@@ -104,7 +104,12 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
+          <div className="mt-3 text-right">
+            <a href="/forgot-password" className="text-xs text-muted-foreground hover:text-primary" data-testid="link-forgot-password">
+              Forgot your password?
+            </a>
+          </div>
+          <div className="mt-3 text-center text-sm text-muted-foreground">
             Not a client yet?{" "}
             <a href="/discovery" className="text-primary hover:underline" data-testid="link-discovery">
               Book a discovery call
