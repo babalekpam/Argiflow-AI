@@ -183,13 +183,13 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const settings = await storage.getSettingsByUser(userId);
       const user = await storage.getUserById(userId);
 
-      const sgKey = settings?.sendgridApiKey || process.env.SENDGRID_API_KEY;
+      const sgKey = settings?.sendgridApiKey;
       if (!sgKey) {
         return "SendGrid API key not configured. Tell the user to go to Settings > Integrations and add their SendGrid API key to enable direct email sending.";
       }
 
       sgMail.setApiKey(sgKey);
-      const senderEmail = "info@track-med.com";
+      const senderEmail = settings?.senderEmail || user?.email || "noreply@argilette.co";
       const senderName = user?.companyName
         ? `${user.firstName || ""} from ${user.companyName}`.trim()
         : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "ArgiFlow";
@@ -277,11 +277,11 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return "Please specify the message to send via SMS.";
       }
 
-      try {
-        const { sendSMS } = await import("./twilio");
+      const smsSettings = await storage.getSettingsByUser(userId);
 
+      try {
         if (targetPhone) {
-          const msg = await sendSMS(targetPhone, smsBody);
+          const msg = await sendUserSMS(targetPhone, smsBody, smsSettings);
           return `SMS sent successfully to ${targetPhone} (SID: ${msg.sid}).`;
         }
 
@@ -290,7 +290,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
           const lead = allLeads.find(l => l.id === leadId);
           if (!lead) return "Lead not found.";
           if (!lead.phone) return `Lead ${lead.name} has no phone number on file.`;
-          const msg = await sendSMS(lead.phone, smsBody);
+          const msg = await sendUserSMS(lead.phone, smsBody, smsSettings);
           return `SMS sent to ${lead.name} at ${lead.phone} (SID: ${msg.sid}).`;
         }
 
@@ -303,7 +303,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
         const sentNames: string[] = [];
         for (const lead of leadsWithPhone) {
           try {
-            await sendSMS(lead.phone!, smsBody);
+            await sendUserSMS(lead.phone!, smsBody, smsSettings);
             sentCount++;
             sentNames.push(lead.name);
           } catch (err: any) {
@@ -312,8 +312,8 @@ async function executeAction(userId: string, action: string, params: any): Promi
         }
         return `SMS sent to ${sentCount} lead${sentCount !== 1 ? "s" : ""}: ${sentNames.join(", ")}.`;
       } catch (err: any) {
-        if (err.message?.includes("Twilio not connected")) {
-          return "Twilio is not connected. Ask the user to set up their Twilio integration in the project settings.";
+        if (err.message?.includes("Twilio not configured")) {
+          return "Twilio is not configured. Tell the user to go to Settings > Integrations and add their Twilio Account SID, Auth Token, and Phone Number.";
         }
         return `Failed to send SMS: ${err.message}`;
       }
@@ -431,6 +431,25 @@ Schedule a discovery call with our team to discuss your custom strategy in detai
 }
 
 // ============================================================
+// PER-USER SMS HELPER (uses user's own Twilio credentials)
+// ============================================================
+
+async function sendUserSMS(to: string, body: string, userSettings: any): Promise<{ sid: string; status: string }> {
+  const accountSid = userSettings?.twilioAccountSid;
+  const authToken = userSettings?.twilioAuthToken;
+  const fromNumber = userSettings?.twilioPhoneNumber;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    throw new Error("Twilio not configured. Go to Settings > Integrations to add your Twilio Account SID, Auth Token, and Phone Number.");
+  }
+
+  const twilio = (await import("twilio")).default;
+  const client = twilio(accountSid, authToken);
+  const message = await client.messages.create({ body, from: fromNumber, to });
+  return { sid: message.sid, status: message.status };
+}
+
+// ============================================================
 // EMAIL TRACKING HELPERS (used by sendOutreachEmail + tracking endpoints)
 // ============================================================
 
@@ -462,14 +481,14 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
     return { success: false, error: "Lead has no email or outreach draft" };
   }
 
-  const sendgridKey = userSettings?.sendgridApiKey || process.env.SENDGRID_API_KEY;
+  const sendgridKey = userSettings?.sendgridApiKey;
   if (!sendgridKey) {
-    return { success: false, error: "SendGrid API key not configured. Go to Settings > Integrations to add it." };
+    return { success: false, error: "SendGrid API key not configured. Go to Settings > Integrations to add your own SendGrid API key." };
   }
 
   sgMail.setApiKey(sendgridKey);
 
-  const senderEmail = "info@track-med.com";
+  const senderEmail = userSettings?.senderEmail || user?.email || "noreply@argilette.co";
   const senderName = user?.companyName
     ? `${user.firstName || ""} from ${user.companyName}`.trim()
     : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "ArgiFlow";
@@ -1594,9 +1613,10 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       if (!to || !body) {
         return res.status(400).json({ message: "Phone number (to) and message body are required" });
       }
-      const { sendSMS } = await import("./twilio");
-      const message = await sendSMS(to, body);
-      res.json({ success: true, sid: message.sid, status: message.status });
+      const userId = req.session.userId!;
+      const settings = await storage.getSettingsByUser(userId);
+      const result = await sendUserSMS(to, body, settings);
+      res.json({ success: true, sid: result.sid, status: result.status });
     } catch (error: any) {
       console.error("Error sending SMS:", error);
       res.status(500).json({ message: error.message || "Failed to send SMS" });
@@ -1617,9 +1637,9 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       if (!body) {
         return res.status(400).json({ message: "Message body is required" });
       }
-      const { sendSMS } = await import("./twilio");
-      const message = await sendSMS(lead.phone, body);
-      res.json({ success: true, sid: message.sid, status: message.status, leadName: lead.name });
+      const settings = await storage.getSettingsByUser(userId);
+      const result = await sendUserSMS(lead.phone, body, settings);
+      res.json({ success: true, sid: result.sid, status: result.status, leadName: lead.name });
     } catch (error: any) {
       console.error("Error sending SMS to lead:", error);
       res.status(500).json({ message: error.message || "Failed to send SMS" });

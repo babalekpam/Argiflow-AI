@@ -168,6 +168,7 @@ const integrations: IntegrationConfig[] = [
     iconBg: "bg-primary/10",
     fields: [
       { key: "sendgridApiKey", label: "API Key", placeholder: "SG.xxxxxxxxxxxxxxxx", sensitive: true },
+      { key: "senderEmail", label: "Sender Email", placeholder: "you@yourdomain.com", sensitive: false },
     ],
   },
   {
