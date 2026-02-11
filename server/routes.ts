@@ -863,6 +863,13 @@ export async function registerRoutes(
   app.set("trust proxy", 1);
   app.use(getSession());
 
+  app.use("/api", (_req, res, next) => {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+    next();
+  });
+
   // ---- AUTH ----
 
   app.post("/api/auth/register", async (req, res) => {
