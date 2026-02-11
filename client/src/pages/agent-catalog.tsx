@@ -49,6 +49,12 @@ const AGENT_ICONS: Record<string, typeof Bot> = {
   "diaspora-services": Users,
 };
 
+const REGION_LABELS: Record<string, string> = {
+  all: "All Regions",
+  western: "Western (ArgiFlow)",
+  africa: "Africa (TradeFlow)",
+};
+
 interface CatalogAgent {
   type: string;
   name: string;
@@ -72,15 +78,24 @@ interface CatalogAgent {
   } | null;
 }
 
+interface CatalogResponse {
+  agents: CatalogAgent[];
+  userRegion: string;
+}
+
 export default function AgentCatalogPage() {
   const { toast } = useToast();
   const [configDialog, setConfigDialog] = useState<CatalogAgent | null>(null);
   const [selectedFrequency, setSelectedFrequency] = useState("daily");
   const [searchTerm, setSearchTerm] = useState("");
+  const [regionFilter, setRegionFilter] = useState("all");
 
-  const { data: agents = [], isLoading } = useQuery<CatalogAgent[]>({
-    queryKey: ["/api/agent-catalog"],
+  const { data, isLoading } = useQuery<CatalogResponse>({
+    queryKey: ["/api/agent-catalog", regionFilter],
+    queryFn: () => fetch(`/api/agent-catalog?region=${regionFilter}`, { credentials: "include" }).then(r => r.json()),
   });
+
+  const agents = data?.agents || [];
 
   const enableMutation = useMutation({
     mutationFn: async ({ agentType, enabled }: { agentType: string; enabled: boolean; configId?: string | null }) => {
@@ -164,20 +179,37 @@ export default function AgentCatalogPage() {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search agents..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 max-w-sm"
-          data-testid="input-search-agents"
-        />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex gap-1.5" data-testid="region-tabs">
+          {Object.entries(REGION_LABELS).map(([key, label]) => (
+            <Button
+              key={key}
+              size="sm"
+              variant={regionFilter === key ? "default" : "outline"}
+              onClick={() => setRegionFilter(key)}
+              data-testid={`button-region-${key}`}
+            >
+              {key === "africa" && <Globe className="w-3.5 h-3.5 mr-1.5" />}
+              {label}
+            </Button>
+          ))}
+        </div>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search agents..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+            data-testid="input-search-agents"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((agent) => {
           const Icon = AGENT_ICONS[agent.type] || Bot;
+          const regionBadge = agent.region === "western" ? "Western" : agent.region === "africa" ? "Africa" : "Global";
           return (
             <Card key={agent.type} className="flex flex-col" data-testid={`card-agent-${agent.type}`}>
               <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-3">
@@ -187,9 +219,16 @@ export default function AgentCatalogPage() {
                   </div>
                   <div>
                     <CardTitle className="text-sm font-semibold">{agent.name}</CardTitle>
-                    <Badge variant="outline" className="mt-1 text-[10px]">
-                      {agent.category}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <Badge variant="outline" className="text-[10px]">
+                        {agent.category}
+                      </Badge>
+                      {regionFilter === "all" && (
+                        <Badge variant="secondary" className="text-[10px]">
+                          {regionBadge}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <Switch
@@ -276,7 +315,7 @@ export default function AgentCatalogPage() {
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Bot className="w-12 h-12 text-muted-foreground/30 mb-4" />
             <h3 className="font-medium">No agents found</h3>
-            <p className="text-sm text-muted-foreground mt-1">Try adjusting your search</p>
+            <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or region filter</p>
           </CardContent>
         </Card>
       )}
@@ -303,7 +342,7 @@ export default function AgentCatalogPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Capabilities</Label>
+              <Label>Workflow Phases</Label>
               <div className="flex flex-wrap gap-1.5">
                 {(configDialog?.phases || []).map((phase) => (
                   <Badge key={phase} variant="secondary" className="text-xs">{phase}</Badge>

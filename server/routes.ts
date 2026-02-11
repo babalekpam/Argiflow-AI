@@ -2330,23 +2330,24 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
     try {
       const userId = req.session.userId!;
       const user = await storage.getUserById(userId);
-      const region = user?.region || "western";
-      const catalog = getAgentsByRegion(region);
+      const userRegion = user?.region || "western";
+      const regionFilter = (req.query.region as string) || "all";
+      let catalog;
+      if (regionFilter === "all") {
+        catalog = AGENT_CATALOG;
+      } else {
+        catalog = getAgentsByRegion(regionFilter);
+      }
       const configs = await storage.getAgentConfigsByUser(userId);
       const enriched = catalog.map(agent => {
         const config = configs.find(c => c.agentType === agent.type);
         return { ...agent, configured: !!config, enabled: config?.enabled || false, configId: config?.id || null, config: config || null };
       });
-      res.json(enriched);
+      res.json({ agents: enriched, userRegion });
     } catch (error) {
       console.error("Error fetching agent catalog:", error);
       res.status(500).json({ message: "Failed to fetch agent catalog" });
     }
-  });
-
-  app.get("/api/agent-catalog/all", isAuthenticated, async (_req, res) => {
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-    res.json({ western: getAgentsByRegion("western"), africa: getAgentsByRegion("africa") });
   });
 
   app.get("/api/agent-configs", isAuthenticated, async (req, res) => {
