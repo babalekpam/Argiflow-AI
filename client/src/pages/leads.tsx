@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -52,9 +53,10 @@ import {
   Clock,
   Sparkles,
   UserCheck,
+  Pencil,
 } from "lucide-react";
 import type { Lead } from "@shared/schema";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const addLeadSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -155,6 +157,7 @@ function LeadCard({
   copyOutreach,
   sendOutreachMutation,
   deleteMutation,
+  updateLeadMutation,
 }: {
   lead: Lead;
   isExpanded: boolean;
@@ -163,10 +166,26 @@ function LeadCard({
   copyOutreach: (id: string, text: string) => void;
   sendOutreachMutation: any;
   deleteMutation: any;
+  updateLeadMutation: any;
 }) {
-  const hasDetails = lead.outreach || lead.intentSignal || lead.notes;
   const isSent = !!lead.outreachSentAt;
   const hasEngagement = (lead.emailOpens || 0) > 0 || (lead.emailClicks || 0) > 0;
+  const [isEditingOutreach, setIsEditingOutreach] = useState(false);
+  const [draftText, setDraftText] = useState(lead.outreach || "");
+
+  useEffect(() => {
+    if (!isEditingOutreach) {
+      setDraftText(lead.outreach || "");
+    }
+  }, [lead.outreach, isEditingOutreach]);
+
+  const handleSaveDraft = () => {
+    if (!draftText.trim()) return;
+    updateLeadMutation.mutate(
+      { id: lead.id, outreach: draftText.trim() },
+      { onSuccess: () => setIsEditingOutreach(false) }
+    );
+  };
 
   return (
     <div
@@ -174,15 +193,13 @@ function LeadCard({
       data-testid={`lead-row-${lead.id}`}
     >
       <div
-        className={`flex items-center gap-3 p-3 ${hasDetails ? "cursor-pointer hover-elevate" : ""}`}
-        onClick={() => hasDetails && toggleExpand(lead.id)}
+        className="flex items-center gap-3 p-3 cursor-pointer hover-elevate"
+        onClick={() => toggleExpand(lead.id)}
         data-testid={`lead-header-${lead.id}`}
       >
-        {hasDetails && (
-          <div className="text-muted-foreground">
-            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </div>
-        )}
+        <div className="text-muted-foreground">
+          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </div>
         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
           {lead.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
         </div>
@@ -245,6 +262,12 @@ function LeadCard({
               Ready
             </Badge>
           )}
+          {!lead.outreach && !isSent && (
+            <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
+              <Pencil className="w-3 h-3 mr-1" />
+              No Draft
+            </Badge>
+          )}
           <span data-testid={`badge-lead-status-${lead.id}`}><LeadStatusBadge status={lead.status} /></span>
           <span className="text-xs font-medium w-10 text-right" data-testid={`text-lead-score-${lead.id}`}>{lead.score}/100</span>
           <span className="text-xs text-muted-foreground w-20 text-right" data-testid={`text-lead-date-${lead.id}`}>
@@ -262,7 +285,7 @@ function LeadCard({
         </div>
       </div>
 
-      {isExpanded && hasDetails && (
+      {isExpanded && (
         <div className="border-t p-4 space-y-3 bg-muted/30" data-testid={`lead-details-${lead.id}`}>
           {isSent && hasEngagement && (
             <div className="border rounded-md p-3 bg-background" data-testid={`engagement-panel-${lead.id}`}>
@@ -330,7 +353,8 @@ function LeadCard({
               <p className="text-sm pl-6" data-testid={`text-notes-${lead.id}`}>{lead.notes}</p>
             </div>
           )}
-          {lead.outreach && (
+
+          {lead.outreach && !isEditingOutreach && (
             <div>
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2">
@@ -345,6 +369,16 @@ function LeadCard({
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  {!isSent && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); setDraftText(lead.outreach || ""); setIsEditingOutreach(true); }}
+                      data-testid={`button-edit-outreach-${lead.id}`}
+                    >
+                      <Pencil className="w-3 h-3 mr-1" /> Edit
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -375,6 +409,48 @@ function LeadCard({
               </div>
               <div className={`pl-6 p-3 rounded-md bg-background border text-sm whitespace-pre-wrap ${isSent ? "border-emerald-500/20" : ""}`} data-testid={`text-outreach-${lead.id}`}>
                 {lead.outreach}
+              </div>
+            </div>
+          )}
+
+          {(isEditingOutreach || (!lead.outreach && !isSent)) && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Pencil className="w-4 h-4 text-sky-400" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {lead.outreach ? "Edit Outreach Draft" : "Write Outreach Email"}
+                </span>
+              </div>
+              <Textarea
+                value={draftText}
+                onChange={(e) => setDraftText(e.target.value)}
+                placeholder={`Hi ${lead.name.split(" ")[0]}, I wanted to reach out about...`}
+                className="min-h-[120px] text-sm"
+                data-testid={`textarea-outreach-${lead.id}`}
+              />
+              <div className="flex items-center justify-end gap-2 mt-2">
+                {lead.outreach && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setDraftText(lead.outreach || ""); setIsEditingOutreach(false); }}
+                    data-testid={`button-cancel-outreach-${lead.id}`}
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={handleSaveDraft}
+                  disabled={!draftText.trim() || updateLeadMutation.isPending}
+                  data-testid={`button-save-outreach-${lead.id}`}
+                >
+                  {updateLeadMutation.isPending ? (
+                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Saving...</>
+                  ) : (
+                    <><Check className="w-3 h-3 mr-1" /> Save Draft</>
+                  )}
+                </Button>
               </div>
             </div>
           )}
@@ -464,6 +540,20 @@ export default function LeadsPage() {
         if (error?.message) message = error.message;
       } catch {}
       toast({ title: message, variant: "destructive" });
+    },
+  });
+
+  const updateLeadMutation = useMutation({
+    mutationFn: async ({ id, outreach }: { id: string; outreach: string }) => {
+      const res = await apiRequest("PATCH", `/api/leads/${id}`, { outreach });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: "Outreach draft saved" });
+    },
+    onError: () => {
+      toast({ title: "Failed to save draft", variant: "destructive" });
     },
   });
 
@@ -750,6 +840,7 @@ export default function LeadsPage() {
                 copyOutreach={copyOutreach}
                 sendOutreachMutation={sendOutreachMutation}
                 deleteMutation={deleteMutation}
+                updateLeadMutation={updateLeadMutation}
               />
             ))}
           </div>

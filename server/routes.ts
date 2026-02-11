@@ -1532,6 +1532,32 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     }
   });
 
+  app.patch("/api/leads/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const lead = await storage.getLeadById(req.params.id as string);
+      if (!lead || lead.userId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      const updateSchema = z.object({
+        outreach: z.string().min(1).max(5000).optional(),
+        status: z.enum(["new", "warm", "hot", "cold", "qualified"]).optional(),
+      }).refine(data => data.outreach || data.status, { message: "No valid fields to update" });
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
+      }
+      const updates: any = {};
+      if (parsed.data.outreach) updates.outreach = parsed.data.outreach.trim();
+      if (parsed.data.status) updates.status = parsed.data.status;
+      const updated = await storage.updateLead(lead.id, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating lead:", error);
+      res.status(500).json({ message: "Failed to update lead" });
+    }
+  });
+
   // ---- SEND OUTREACH EMAILS ----
 
   app.post("/api/leads/:id/send-outreach", isAuthenticated, async (req, res) => {

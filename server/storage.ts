@@ -34,7 +34,7 @@ export interface IStorage {
   getLeadsByUser(userId: string): Promise<Lead[]>;
   getLeadById(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
-  updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreachSentAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined>;
+  updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined>;
   deleteLead(id: string, userId: string): Promise<void>;
   deleteAllLeadsByUser(userId: string): Promise<void>;
   getAppointmentsByUser(userId: string): Promise<Appointment[]>;
@@ -145,7 +145,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreachSentAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined> {
+  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined> {
     const [result] = await db.update(leads).set(data).where(eq(leads.id, id)).returning();
     return result;
   }
