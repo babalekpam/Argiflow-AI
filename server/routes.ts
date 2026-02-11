@@ -1245,6 +1245,34 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/auth/is-owner", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.session.userId!);
+      const isOwner = user?.email === "abel@argilette.com";
+      res.json({ isOwner });
+    } catch {
+      res.json({ isOwner: false });
+    }
+  });
+
+  app.post("/api/admin/owner-login", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.session.userId!);
+      if (!user || user.email !== "abel@argilette.com") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const admin = await storage.getAdminByEmail("babalekpam@gmail.com");
+      if (!admin) {
+        return res.status(404).json({ message: "Admin account not found" });
+      }
+      req.session.adminId = admin.id;
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Owner admin login error:", error);
+      res.status(500).json({ message: "Failed to switch to admin" });
+    }
+  });
+
   app.get("/api/subscription", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;

@@ -76,7 +76,18 @@ export function AppSidebar() {
     staleTime: 1000 * 60 * 10,
   });
 
-  const isAdmin = !!adminData;
+  const { data: isOwnerData } = useQuery<{ isOwner: boolean } | null>({
+    queryKey: ["/api/auth/is-owner"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/is-owner", { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const isAdmin = !!adminData || !!isOwnerData?.isOwner;
 
   const initials = user
     ? `${(user.firstName || "")[0] || ""}${(user.lastName || "")[0] || ""}`.toUpperCase() || "U"
@@ -166,12 +177,21 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         {isAdmin && (
-          <Link href="/admin/dashboard" data-testid="link-admin-panel">
-            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-primary hover-elevate mb-2">
-              <Shield className="w-4 h-4" />
-              <span className="font-medium">Platform Admin</span>
-            </div>
-          </Link>
+          <div
+            data-testid="link-admin-panel"
+            className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-primary hover-elevate mb-2 cursor-pointer"
+            onClick={async () => {
+              if (!adminData) {
+                try {
+                  await fetch("/api/admin/owner-login", { method: "POST", credentials: "include" });
+                } catch {}
+              }
+              window.location.href = "/admin/dashboard";
+            }}
+          >
+            <Shield className="w-4 h-4" />
+            <span className="font-medium">Platform Admin</span>
+          </div>
         )}
         <div className="flex items-center gap-3">
           <Avatar className="w-8 h-8">
