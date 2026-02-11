@@ -2264,13 +2264,8 @@ async function clearOldSeedData() {
 
 async function clearTestAppointments() {
   try {
-    const allAppointments = await storage.getAllAppointments();
-    if (allAppointments.length > 0) {
-      for (const appt of allAppointments) {
-        await db.delete(appointments).where(eq(appointments.id, appt.id));
-      }
-      console.log(`Cleared ${allAppointments.length} test appointments`);
-    }
+    const result = await db.delete(appointments);
+    console.log("Cleared all test appointments from database");
   } catch (error) {
     console.error("Error clearing test appointments:", error);
   }
