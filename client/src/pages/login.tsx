@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Zap, ArrowRight, Eye, EyeOff, Mail, Loader2 } from "lucide-react";
+import { Zap, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -17,15 +17,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
-  const [needsVerification, setNeedsVerification] = useState(false);
-  const [verificationEmail, setVerificationEmail] = useState("");
-  const [resending, setResending] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setNeedsVerification(false);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -35,11 +31,6 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 403 && data.needsVerification) {
-          setNeedsVerification(true);
-          setVerificationEmail(data.email || form.email);
-          return;
-        }
         throw new Error(data.message || "Login failed");
       }
       const { queryClient } = await import("@/lib/queryClient");
@@ -53,30 +44,6 @@ export default function LoginPage() {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleResendVerification = async () => {
-    setResending(true);
-    try {
-      const res = await fetch("/api/auth/resend-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: verificationEmail }),
-      });
-      const data = await res.json();
-      toast({
-        title: "Verification email sent",
-        description: data.message || "Check your inbox for the confirmation link.",
-      });
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to resend verification email. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setResending(false);
     }
   };
 
@@ -101,37 +68,6 @@ export default function LoginPage() {
         </div>
 
         <Card className="p-6 gradient-border">
-          {needsVerification ? (
-            <div className="text-center space-y-4" data-testid="verification-needed">
-              <Mail className="w-12 h-12 text-primary mx-auto" />
-              <h2 className="text-lg font-semibold">Email Not Verified</h2>
-              <p className="text-sm text-muted-foreground">
-                Please verify your email address before logging in. Check your inbox at <strong className="text-foreground">{verificationEmail}</strong> for the confirmation link.
-              </p>
-              <Button
-                className="w-full"
-                onClick={handleResendVerification}
-                disabled={resending}
-                data-testid="button-resend-verification"
-              >
-                {resending ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Mail className="w-4 h-4 mr-2" />
-                )}
-                Resend Verification Email
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full"
-                onClick={() => setNeedsVerification(false)}
-                data-testid="button-try-again"
-              >
-                Try a different account
-              </Button>
-            </div>
-          ) : (
-            <>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -190,8 +126,6 @@ export default function LoginPage() {
                   Book a discovery call
                 </a>
               </div>
-            </>
-          )}
         </Card>
       </div>
     </div>

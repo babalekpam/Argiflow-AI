@@ -1005,8 +1005,8 @@ export async function registerRoutes(
             `,
           });
           console.log(`Verification email sent to ${email}`);
-        } catch (emailErr) {
-          console.error("Verification email failed (non-blocking):", emailErr);
+        } catch (emailErr: any) {
+          console.error("Verification email failed:", emailErr?.response?.body || emailErr?.message || emailErr);
         }
       }
 
@@ -1031,9 +1031,6 @@ export async function registerRoutes(
       const valid = await comparePasswords(password, user.passwordHash);
       if (!valid) {
         return res.status(401).json({ message: "Invalid email or password" });
-      }
-      if (!user.emailVerified) {
-        return res.status(403).json({ message: "Please verify your email address before logging in. Check your inbox for the confirmation link.", needsVerification: true, email: user.email });
       }
       req.session.userId = user.id;
       res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });

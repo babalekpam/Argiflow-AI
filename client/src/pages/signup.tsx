@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Zap, ArrowRight, ArrowLeft, Eye, EyeOff, Check, Building2, Sparkles, Mail, CheckCircle2 } from "lucide-react";
+import { Zap, ArrowRight, ArrowLeft, Eye, EyeOff, Check, Building2, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -52,7 +52,6 @@ export default function SignupPage() {
     email: "",
     password: "",
   });
-  const [registrationComplete, setRegistrationComplete] = useState(false);
   const [companyForm, setCompanyForm] = useState({
     companyName: "",
     industry: "",
@@ -88,8 +87,9 @@ export default function SignupPage() {
 
       await apiRequest("POST", "/api/onboarding", companyForm);
 
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-      setRegistrationComplete(true);
+      const { queryClient } = await import("@/lib/queryClient");
+      queryClient.setQueryData(["/api/auth/user"], data);
+      setLocation("/dashboard");
     } catch (error: any) {
       toast({
         title: "Registration failed",
@@ -115,7 +115,7 @@ export default function SignupPage() {
             <span className="text-2xl font-bold gradient-text">ArgiFlow</span>
             <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">AI</Badge>
           </a>
-          {!registrationComplete && (step === 1 ? (
+          {step === 1 ? (
             <>
               <h1 className="text-2xl font-bold mb-2" data-testid="text-signup-title">Create Your Client Account</h1>
               <p className="text-sm text-muted-foreground">
@@ -132,30 +132,9 @@ export default function SignupPage() {
                 Step 2 of 2 — Our AI will create a custom marketing strategy for you
               </p>
             </>
-          ))}
+          )}
         </div>
 
-        {registrationComplete ? (
-          <Card className="p-8 gradient-border text-center" data-testid="signup-complete">
-            <div className="space-y-4">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                <Mail className="w-8 h-8 text-primary" />
-              </div>
-              <h2 className="text-xl font-semibold">Check Your Email</h2>
-              <p className="text-sm text-muted-foreground">
-                We sent a confirmation link to <strong className="text-foreground">{form.email}</strong>. Please click the link in the email to verify your account and start using ArgiFlow.
-              </p>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center p-3 rounded-md bg-primary/5 border border-primary/10">
-                <CheckCircle2 className="w-4 h-4 text-chart-3 shrink-0" />
-                <span>Your AI marketing strategy is being generated in the background</span>
-              </div>
-              <Button variant="outline" className="w-full" onClick={() => setLocation("/login")} data-testid="button-go-login-after-signup">
-                Go to Login
-              </Button>
-            </div>
-          </Card>
-        ) : (
-        <>
         <div className="flex items-center gap-2 mb-6 justify-center">
           <div className={`h-1.5 w-16 rounded-full transition-colors ${step >= 1 ? "bg-primary" : "bg-muted"}`} />
           <div className={`h-1.5 w-16 rounded-full transition-colors ${step >= 2 ? "bg-primary" : "bg-muted"}`} />
@@ -333,8 +312,6 @@ export default function SignupPage() {
             </div>
           )}
         </div>
-        </>
-        )}
       </div>
     </div>
   );
