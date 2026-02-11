@@ -31,8 +31,10 @@ import {
   Wand2,
   Filter,
   Boxes,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 
 const mainNav = [
   { title: "Overview", icon: LayoutDashboard, url: "/dashboard" },
@@ -61,6 +63,20 @@ const growthNav = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+
+  const { data: adminData } = useQuery<{ id: string } | null>({
+    queryKey: ["/api/admin/me"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/me", { credentials: "include" });
+      if (res.status === 401) return null;
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const isAdmin = !!adminData;
 
   const initials = user
     ? `${(user.firstName || "")[0] || ""}${(user.lastName || "")[0] || ""}`.toUpperCase() || "U"
@@ -149,6 +165,14 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
+        {isAdmin && (
+          <Link href="/admin/dashboard" data-testid="link-admin-panel">
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-primary hover-elevate mb-2">
+              <Shield className="w-4 h-4" />
+              <span className="font-medium">Platform Admin</span>
+            </div>
+          </Link>
+        )}
         <div className="flex items-center gap-3">
           <Avatar className="w-8 h-8">
             <AvatarImage src={user?.profileImageUrl || ""} />

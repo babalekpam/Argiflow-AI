@@ -446,26 +446,40 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-40">
+      <header className="border-b-2 border-primary/30 bg-primary/5 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-primary" />
+            <div className="w-9 h-9 rounded-md bg-primary/20 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-sm font-bold" data-testid="text-admin-header">ARGILETTE Admin</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-bold" data-testid="text-admin-header">ARGILETTE</h1>
+                <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Platform Admin</Badge>
+              </div>
               <p className="text-xs text-muted-foreground">{admin?.email}</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => logoutMutation.mutate()}
-            data-testid="button-admin-logout"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation("/dashboard")}
+              data-testid="button-go-to-dashboard"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              User Dashboard
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => logoutMutation.mutate()}
+              data-testid="button-admin-logout"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
