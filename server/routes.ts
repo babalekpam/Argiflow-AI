@@ -188,12 +188,11 @@ async function executeAction(userId: string, action: string, params: any): Promi
       }
 
       if (!settings?.senderEmail) {
-        return "Sender email not configured. Tell the user to go to Settings > Integrations > Email Identity and set their sender email before sending outreach.";
+        return "Sender email not configured. Tell the user to go to Settings > Integrations and set their verified sender email before sending outreach.";
       }
 
-      const sgKey = process.env.SENDGRID_API_KEY;
-      if (!sgKey) {
-        return "Email service is temporarily unavailable. Please try again later.";
+      if (!settings?.sendgridApiKey) {
+        return "SendGrid API key not configured. Tell the user to go to Settings > Integrations and enter their SendGrid API key to enable email sending.";
       }
 
       let sent = 0;
@@ -469,18 +468,16 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
   }
 
   if (!userSettings?.senderEmail) {
-    return { success: false, error: "Sender email required. Go to Settings > Integrations > Email Identity and set your sender email before sending outreach." };
+    return { success: false, error: "Sender email required. Go to Settings > Integrations and set your verified sender email." };
   }
 
-  const sgKey = process.env.SENDGRID_API_KEY;
-  if (!sgKey) {
-    return { success: false, error: "Email service is temporarily unavailable. Please try again later." };
+  if (!userSettings?.sendgridApiKey) {
+    return { success: false, error: "SendGrid API key required. Go to Settings > Integrations and enter your SendGrid API key to send emails." };
   }
 
-  sgMail.setApiKey(sgKey);
+  sgMail.setApiKey(userSettings.sendgridApiKey);
 
-  const platformEmail = "info@argilette.co";
-  const userReplyEmail = userSettings.senderEmail;
+  const senderEmail = userSettings.senderEmail;
   const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
 
   const subjectLine = lead.company
@@ -495,8 +492,7 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
   try {
     await sgMail.send({
       to: lead.email,
-      from: { email: platformEmail, name: senderName },
-      replyTo: { email: userReplyEmail, name: senderName },
+      from: { email: senderEmail, name: senderName },
       subject: subjectLine,
       text: lead.outreach,
       html: htmlBody,
@@ -2531,6 +2527,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         sessionSecret: !!process.env.SESSION_SECRET,
         adminPassword: !!process.env.ADMIN_PASSWORD,
         platformSenderEmail: "info@argilette.co",
+        outreachEmailMode: "user_sendgrid_key",
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch platform config" });

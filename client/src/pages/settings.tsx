@@ -161,13 +161,14 @@ interface IntegrationConfig {
 
 const integrations: IntegrationConfig[] = [
   {
-    title: "Email Identity",
-    description: "Set the email address that outreach emails will be sent from. This should match your company domain so recipients see your brand. Your company name (from Company Profile) will appear as the sender name.",
+    title: "Email (SendGrid)",
+    description: "Connect your SendGrid account to send outreach emails. Enter your API key and the verified sender email from your SendGrid account. Emails will be sent from your own domain.",
     icon: Mail,
     iconColor: "text-primary",
     iconBg: "bg-primary/10",
     fields: [
-      { key: "senderEmail", label: "Sender Email", placeholder: "you@yourdomain.com", sensitive: false },
+      { key: "sendgridApiKey", label: "SendGrid API Key", placeholder: "SG.xxxxxxxxxxxx", sensitive: true },
+      { key: "senderEmail", label: "Verified Sender Email", placeholder: "you@yourdomain.com", sensitive: false },
     ],
   },
   {
