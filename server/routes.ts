@@ -977,42 +977,40 @@ export async function registerRoutes(
       const sgKey = process.env.SENDGRID_API_KEY;
       if (sgKey) {
         try {
+          const verifyToken = randomBytes(32).toString("hex");
+          const verifyTokenHash = createHash("sha256").update(verifyToken).digest("hex");
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+          await storage.createEmailVerificationToken({ userId: user.id, token: verifyTokenHash, expiresAt });
+
+          const verifyUrl = `${req.protocol}://${req.get("host")}/verify-email?token=${verifyToken}`;
           sgMail.setApiKey(sgKey);
           await sgMail.send({
             to: email,
             from: { email: "info@argilette.co", name: "ArgiFlow" },
-            subject: `Welcome to ArgiFlow, ${firstName}!`,
+            subject: `Verify your email — ArgiFlow`,
             html: `
               <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
                 <div style="text-align: center; margin-bottom: 30px;">
                   <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
                   <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
                 </div>
-                <h2 style="color: #e6edf3; font-size: 22px;">Welcome aboard, ${firstName}!</h2>
-                <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Your account has been successfully created. You now have access to the full ArgiFlow platform — AI agents, sales funnels, email campaigns, and more.</p>
-                <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 24px 0;">
-                  <h3 style="color: #38bdf8; margin: 0 0 12px; font-size: 16px;">Getting Started</h3>
-                  <ul style="color: #8b949e; padding-left: 20px; margin: 0; line-height: 2;">
-                    <li>Complete your company profile in Settings</li>
-                    <li>Activate AI agents from the Agent Catalog</li>
-                    <li>Set up your email & SMS integrations</li>
-                    <li>Let our AI generate your marketing strategy</li>
-                  </ul>
-                </div>
+                <h2 style="color: #e6edf3; font-size: 22px;">Welcome, ${firstName}!</h2>
+                <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Thanks for signing up. Please confirm your email address to activate your account and get full access to the ArgiFlow platform.</p>
                 <div style="text-align: center; margin: 30px 0;">
-                  <a href="https://argilette.co/dashboard" style="background: #38bdf8; color: #0d1117; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 15px;">Go to Dashboard</a>
+                  <a href="${verifyUrl}" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Confirm Email Address</a>
                 </div>
+                <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">If you didn't create this account, you can safely ignore this email. This link expires in 24 hours.</p>
                 <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
               </div>
             `,
           });
-          console.log(`Welcome email sent to ${email}`);
+          console.log(`Verification email sent to ${email}`);
         } catch (emailErr) {
-          console.error("Welcome email failed (non-blocking):", emailErr);
+          console.error("Verification email failed (non-blocking):", emailErr);
         }
       }
 
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted });
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
     } catch (error) {
       console.error("Registration error:", error);
       res.status(500).json({ message: "Registration failed" });
@@ -1034,8 +1032,11 @@ export async function registerRoutes(
       if (!valid) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
+      if (!user.emailVerified) {
+        return res.status(403).json({ message: "Please verify your email address before logging in. Check your inbox for the confirmation link.", needsVerification: true, email: user.email });
+      }
       req.session.userId = user.id;
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted });
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Login failed" });
@@ -1050,6 +1051,83 @@ export async function registerRoutes(
       res.clearCookie("connect.sid");
       res.json({ success: true });
     });
+  });
+
+  app.post("/api/auth/verify-email", async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token) {
+        return res.status(400).json({ message: "Verification token is required" });
+      }
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      const verifyToken = await storage.getEmailVerificationToken(tokenHash);
+      if (!verifyToken) {
+        return res.status(400).json({ message: "Invalid verification link" });
+      }
+      if (verifyToken.usedAt) {
+        return res.status(400).json({ message: "This verification link has already been used" });
+      }
+      if (new Date() > verifyToken.expiresAt) {
+        return res.status(400).json({ message: "This verification link has expired. Please request a new one." });
+      }
+      await storage.markEmailVerified(verifyToken.userId);
+      await storage.invalidateUserVerificationTokens(verifyToken.userId);
+      res.json({ message: "Email verified successfully! You can now log in." });
+    } catch (error) {
+      console.error("Email verification error:", error);
+      res.status(500).json({ message: "Verification failed" });
+    }
+  });
+
+  app.post("/api/auth/resend-verification", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      res.json({ message: "If an account with that email exists and is unverified, a new verification link has been sent." });
+
+      const user = await storage.getUserByEmail(email);
+      if (!user || user.emailVerified) return;
+
+      const sgKey = process.env.SENDGRID_API_KEY;
+      if (!sgKey) {
+        console.warn("SENDGRID_API_KEY not set, cannot send verification email");
+        return;
+      }
+
+      await storage.invalidateUserVerificationTokens(user.id);
+      const token = randomBytes(32).toString("hex");
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await storage.createEmailVerificationToken({ userId: user.id, token: tokenHash, expiresAt });
+
+      const verifyUrl = `${req.protocol}://${req.get("host")}/verify-email?token=${token}`;
+      sgMail.setApiKey(sgKey);
+      await sgMail.send({
+        to: email,
+        from: { email: "info@argilette.co", name: "ArgiFlow" },
+        subject: `Verify your email — ArgiFlow`,
+        html: `
+          <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
+              <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
+            </div>
+            <h2 style="color: #e6edf3; font-size: 22px;">Verify Your Email</h2>
+            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Click the button below to confirm your email address and activate your ArgiFlow account.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${verifyUrl}" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Confirm Email Address</a>
+            </div>
+            <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">This link expires in 24 hours. If you didn't request this, you can safely ignore it.</p>
+            <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
+          </div>
+        `,
+      });
+      console.log(`Verification email resent to ${email}`);
+    } catch (error) {
+      console.error("Resend verification error:", error);
+    }
   });
 
   app.post("/api/auth/forgot-password", async (req, res) => {
@@ -1140,7 +1218,7 @@ export async function registerRoutes(
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted });
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });

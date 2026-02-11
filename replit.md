@@ -12,8 +12,9 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 
 ## Key Routes
 - `/` - Landing page (unauthenticated) or redirects to /dashboard (authenticated)
-- `/login` - User login page (with "Forgot password?" link)
-- `/signup` - User registration page (sends welcome email via SendGrid)
+- `/login` - User login page (with "Forgot password?" link, shows resend verification for unverified emails)
+- `/verify-email` - Email verification page (processes token from confirmation email)
+- `/signup` - User registration page (sends verification email via SendGrid)
 - `/forgot-password` - Request password reset email
 - `/reset-password?token=xxx` - Set new password with reset token
 - `/dashboard` - Main dashboard overview
@@ -33,6 +34,8 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - `POST /api/auth/login` - Login { email, password }
 - `POST /api/auth/logout` - Logout (destroys session)
 - `GET /api/auth/user` - Get authenticated user
+- `POST /api/auth/verify-email` - Verify email with token { token }
+- `POST /api/auth/resend-verification` - Resend verification email { email }
 - `POST /api/auth/forgot-password` - Request password reset email { email }
 - `POST /api/auth/reset-password` - Reset password with token { token, password }
 
@@ -175,3 +178,9 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - **Multi-Region Support**: Western (ArgiFlow) and African (TradeFlow) brands with region-specific agents, pricing, and currencies
 - Region config: Western plans (Starter $297, Pro $597, Enterprise $1,497), African plans (Hustle $5, Business $15, Mogul $25, Pay Per Result)
 - API: GET /api/agent-catalog, POST/PATCH/DELETE /api/agent-configs, POST /api/agent-configs/:id/run, GET /api/notifications, GET /api/regions
+- Email verification: New users must confirm email before logging in, branded verification emails via SendGrid
+- `email_verification_tokens` table with SHA-256 hashed tokens, 24h expiry
+- `emailVerified` timestamp field on users table
+- Login blocks unverified users with "resend verification" option
+- Signup shows "Check Your Email" screen after registration instead of auto-login to dashboard
+- POST /api/auth/verify-email and POST /api/auth/resend-verification endpoints
