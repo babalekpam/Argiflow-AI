@@ -198,26 +198,15 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const failedNames: string[] = [];
 
       for (const lead of targets) {
-        try {
-          const subjectLine = lead.company
-            ? `Quick question for ${lead.company}`
-            : `Quick question, ${lead.name.split(" ")[0]}`;
-
-          await sgMail.send({
-            to: lead.email,
-            from: { email: senderEmail, name: senderName },
-            subject: subjectLine,
-            text: lead.outreach!,
-            html: lead.outreach!.replace(/\n/g, "<br>"),
-          });
-
+        const result = await sendOutreachEmail(lead, settings, user);
+        if (result.success) {
           await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm" });
           sent++;
           sentNames.push(lead.name);
-        } catch (err: any) {
+        } else {
           failed++;
           failedNames.push(lead.name);
-          console.error(`Failed to send to ${lead.name}:`, err?.response?.body || err);
+          console.error(`Failed to send to ${lead.name}:`, result.error);
         }
       }
 
@@ -386,6 +375,75 @@ Schedule a discovery call with our team to discuss your custom strategy in detai
 *Your full AI-generated strategy will be available shortly. Check back in a few minutes, or refresh your dashboard.*`,
       status: "completed",
     });
+  }
+}
+
+// ============================================================
+// EMAIL TRACKING HELPERS (used by sendOutreachEmail + tracking endpoints)
+// ============================================================
+
+function getBaseUrl(): string {
+  return process.env.REPLIT_DEPLOYMENT_URL
+    ? `https://${process.env.REPLIT_DEPLOYMENT_URL}`
+    : process.env.REPL_SLUG
+      ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+      : "https://argilette.co";
+}
+
+function wrapLinksForTracking(html: string, leadId: string, baseUrl: string): string {
+  return html.replace(
+    /href="(https?:\/\/[^"]+)"/gi,
+    (_match: string, url: string) => {
+      const trackUrl = `${baseUrl}/t/c/${leadId}?url=${encodeURIComponent(url)}`;
+      return `href="${trackUrl}"`;
+    }
+  );
+}
+
+function injectTrackingPixel(html: string, leadId: string, baseUrl: string): string {
+  const pixel = `<img src="${baseUrl}/t/o/${leadId}" width="1" height="1" style="display:none;border:0;" alt="" />`;
+  return html + pixel;
+}
+
+async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string }> {
+  if (!lead.email || !lead.outreach) {
+    return { success: false, error: "Lead has no email or outreach draft" };
+  }
+
+  const sendgridKey = userSettings?.sendgridApiKey || process.env.SENDGRID_API_KEY;
+  if (!sendgridKey) {
+    return { success: false, error: "SendGrid API key not configured. Go to Settings > Integrations to add it." };
+  }
+
+  sgMail.setApiKey(sendgridKey);
+
+  const senderEmail = "info@track-med.com";
+  const senderName = user?.companyName
+    ? `${user.firstName || ""} from ${user.companyName}`.trim()
+    : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "ArgiFlow";
+
+  const subjectLine = lead.company
+    ? `Quick question for ${lead.company}`
+    : `Quick question, ${lead.name.split(" ")[0]}`;
+
+  const baseUrl = getBaseUrl();
+  let htmlBody = lead.outreach.replace(/\n/g, "<br>");
+  htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
+  htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+
+  try {
+    await sgMail.send({
+      to: lead.email,
+      from: { email: senderEmail, name: senderName },
+      subject: subjectLine,
+      text: lead.outreach,
+      html: htmlBody,
+    });
+    return { success: true };
+  } catch (err: any) {
+    console.error("SendGrid error:", err?.response?.body || err);
+    const sgError = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send";
+    return { success: false, error: sgError };
   }
 }
 
@@ -1172,43 +1230,6 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
   // ---- SEND OUTREACH EMAILS ----
 
-  async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string }> {
-    if (!lead.email || !lead.outreach) {
-      return { success: false, error: "Lead has no email or outreach draft" };
-    }
-
-    const sendgridKey = userSettings?.sendgridApiKey || process.env.SENDGRID_API_KEY;
-    if (!sendgridKey) {
-      return { success: false, error: "SendGrid API key not configured. Go to Settings > Integrations to add it." };
-    }
-
-    sgMail.setApiKey(sendgridKey);
-
-    const senderEmail = "info@track-med.com";
-    const senderName = user?.companyName
-      ? `${user.firstName || ""} from ${user.companyName}`.trim()
-      : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "ArgiFlow";
-
-    const subjectLine = lead.company
-      ? `Quick question for ${lead.company}`
-      : `Quick question, ${lead.name.split(" ")[0]}`;
-
-    try {
-      await sgMail.send({
-        to: lead.email,
-        from: { email: senderEmail, name: senderName },
-        subject: subjectLine,
-        text: lead.outreach,
-        html: lead.outreach.replace(/\n/g, "<br>"),
-      });
-      return { success: true };
-    } catch (err: any) {
-      console.error("SendGrid error:", err?.response?.body || err);
-      const sgError = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send";
-      return { success: false, error: sgError };
-    }
-  }
-
   app.post("/api/leads/:id/send-outreach", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -1312,6 +1333,197 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     } catch (error: any) {
       console.error("Error sending SMS to lead:", error);
       res.status(500).json({ message: error.message || "Failed to send SMS" });
+    }
+  });
+
+  // ---- EMAIL TRACKING (public endpoints — no auth, hit from email clients) ----
+
+  const TRACKING_PIXEL = Buffer.from(
+    "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+    "base64"
+  );
+
+  function calculateEngagement(opens: number, clicks: number): { score: number; level: string; nextStep: string } {
+    let score = 0;
+    if (opens >= 1) score += 20;
+    if (opens >= 2) score += 10;
+    if (opens >= 3) score += 10;
+    if (clicks >= 1) score += 30;
+    if (clicks >= 2) score += 15;
+    if (clicks >= 3) score += 10;
+    score = Math.min(score, 100);
+
+    let level: string;
+    let nextStep: string;
+    if (score >= 60) {
+      level = "hot";
+      nextStep = "Schedule a call immediately — this lead is highly engaged";
+    } else if (score >= 30) {
+      level = "warm";
+      nextStep = "Send a follow-up email with a case study or booking link";
+    } else if (score >= 10) {
+      level = "interested";
+      nextStep = "Send a value-add follow-up in 2-3 days";
+    } else {
+      level = "none";
+      nextStep = "Wait for engagement or try a different channel (SMS/call)";
+    }
+    return { score, level, nextStep };
+  }
+
+  app.get("/t/o/:leadId", async (req, res) => {
+    try {
+      const lead = await storage.getLeadById(req.params.leadId);
+      if (lead) {
+        await storage.createEmailEvent({
+          leadId: lead.id,
+          userId: lead.userId,
+          eventType: "open",
+          ipAddress: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
+          userAgent: req.headers["user-agent"] || null,
+          metadata: null,
+        });
+
+        const newOpens = (lead.emailOpens || 0) + 1;
+        const { score, level, nextStep } = calculateEngagement(newOpens, lead.emailClicks || 0);
+        const statusUpdate: any = {
+          emailOpens: newOpens,
+          engagementScore: score,
+          engagementLevel: level,
+          lastEngagedAt: new Date(),
+          nextStep,
+        };
+        if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
+        else if (level === "warm" && lead.status === "new") statusUpdate.status = "warm";
+        await storage.updateLead(lead.id, statusUpdate);
+      }
+    } catch (err) {
+      console.error("Tracking pixel error:", err);
+    }
+    res.set({
+      "Content-Type": "image/gif",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+    });
+    res.send(TRACKING_PIXEL);
+  });
+
+  app.get("/t/c/:leadId", async (req, res) => {
+    try {
+      const url = req.query.url as string;
+      let safeUrl: string | null = null;
+      if (url) {
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            safeUrl = parsed.toString();
+          }
+        } catch {}
+      }
+
+      const lead = await storage.getLeadById(req.params.leadId);
+      if (lead) {
+        await storage.createEmailEvent({
+          leadId: lead.id,
+          userId: lead.userId,
+          eventType: "click",
+          metadata: JSON.stringify({ url: safeUrl || "unknown" }),
+          ipAddress: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
+          userAgent: req.headers["user-agent"] || null,
+        });
+
+        const newClicks = (lead.emailClicks || 0) + 1;
+        const { score, level, nextStep } = calculateEngagement(lead.emailOpens || 0, newClicks);
+        const statusUpdate: any = {
+          emailClicks: newClicks,
+          engagementScore: score,
+          engagementLevel: level,
+          lastEngagedAt: new Date(),
+          nextStep,
+        };
+        if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
+        else if (level === "warm" && (lead.status === "new" || lead.status === "cold")) statusUpdate.status = "warm";
+        await storage.updateLead(lead.id, statusUpdate);
+      }
+      if (safeUrl) {
+        return res.redirect(302, safeUrl);
+      }
+    } catch (err) {
+      console.error("Click tracking error:", err);
+    }
+    res.redirect(302, "https://argilette.co");
+  });
+
+  app.get("/api/leads/:id/engagement", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const lead = await storage.getLeadById(req.params.id as string);
+      if (!lead || lead.userId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      const events = await storage.getEmailEventsByLead(lead.id);
+      const opens = events.filter(e => e.eventType === "open");
+      const clicks = events.filter(e => e.eventType === "click");
+
+      res.json({
+        leadId: lead.id,
+        engagementScore: lead.engagementScore || 0,
+        engagementLevel: lead.engagementLevel || "none",
+        nextStep: lead.nextStep || "No engagement yet — waiting for email interaction",
+        emailOpens: lead.emailOpens || 0,
+        emailClicks: lead.emailClicks || 0,
+        lastEngagedAt: lead.lastEngagedAt,
+        events: events.slice(0, 50).map(e => ({
+          type: e.eventType,
+          metadata: e.metadata ? JSON.parse(e.metadata) : null,
+          timestamp: e.createdAt,
+          ipAddress: e.ipAddress,
+        })),
+        timeline: {
+          firstOpen: opens.length > 0 ? opens[opens.length - 1].createdAt : null,
+          lastOpen: opens.length > 0 ? opens[0].createdAt : null,
+          firstClick: clicks.length > 0 ? clicks[clicks.length - 1].createdAt : null,
+          lastClick: clicks.length > 0 ? clicks[0].createdAt : null,
+          totalOpens: opens.length,
+          totalClicks: clicks.length,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching engagement:", error);
+      res.status(500).json({ message: "Failed to fetch engagement data" });
+    }
+  });
+
+  app.get("/api/email-analytics", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const allLeads = await storage.getLeadsByUser(userId);
+      const sentLeads = allLeads.filter(l => l.outreachSentAt);
+      const totalSent = sentLeads.length;
+      const totalOpens = sentLeads.reduce((sum, l) => sum + (l.emailOpens || 0), 0);
+      const totalClicks = sentLeads.reduce((sum, l) => sum + (l.emailClicks || 0), 0);
+      const engaged = sentLeads.filter(l => (l.emailOpens || 0) > 0).length;
+
+      const byLevel = {
+        hot: sentLeads.filter(l => l.engagementLevel === "hot").length,
+        warm: sentLeads.filter(l => l.engagementLevel === "warm").length,
+        interested: sentLeads.filter(l => l.engagementLevel === "interested").length,
+        none: sentLeads.filter(l => !l.engagementLevel || l.engagementLevel === "none").length,
+      };
+
+      res.json({
+        totalSent,
+        totalOpens,
+        totalClicks,
+        engaged,
+        openRate: totalSent > 0 ? Math.round((engaged / totalSent) * 100) : 0,
+        clickRate: totalSent > 0 ? Math.round((sentLeads.filter(l => (l.emailClicks || 0) > 0).length / totalSent) * 100) : 0,
+        byLevel,
+      });
+    } catch (error) {
+      console.error("Error fetching email analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
     }
   });
 

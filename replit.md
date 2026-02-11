@@ -142,3 +142,15 @@ ArgiFlow is a SaaS platform for automated client acquisition with AI agents. It 
 - POST /api/sms/send - Send SMS to any phone number { to, body }
 - POST /api/leads/:id/send-sms - Send SMS to a specific lead { body }
 - AI agent has `send_sms` tool to text leads via chat ("text", "SMS", "message" triggers)
+- Email Tracking: Outreach emails include invisible tracking pixel (open detection) and wrapped links (click detection)
+- `email_events` table logs every open/click with timestamp, IP, user agent
+- Leads table extended with `engagementScore`, `engagementLevel` (hot/warm/interested/none), `emailOpens`, `emailClicks`, `nextStep`, `lastEngagedAt`
+- Public tracking endpoints: GET /t/o/:leadId (pixel for opens), GET /t/c/:leadId?url=... (redirect for clicks)
+- Auto-classification: Opens bump score (20-40pts), clicks (30-55pts). Score ≥60 = "hot", ≥30 = "warm", ≥10 = "interested"
+- Lead status auto-updates based on engagement (new→warm→hot)
+- Recommended next steps auto-generated per lead: call immediately, send follow-up, try different channel
+- GET /api/leads/:id/engagement - Detailed engagement timeline per lead
+- GET /api/email-analytics - Aggregate email stats (open rate, click rate, by engagement level)
+- Leads page shows Email Engagement Overview card (total sent, opens, clicks, rates, hot leads count)
+- Per-lead engagement panel: opens/clicks/score/last active + recommended next step badge
+- Domain: argilette.co (all SEO, sitemap, robots.txt, OG tags)

@@ -1,6 +1,6 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
-  funnels, funnelStages, funnelDeals, websiteProfiles, automations,
+  funnels, funnelStages, funnelDeals, websiteProfiles, automations, emailEvents,
   type Lead, type InsertLead,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
@@ -15,6 +15,7 @@ import {
   type FunnelDeal, type InsertFunnelDeal,
   type WebsiteProfile, type InsertWebsiteProfile,
   type Automation, type InsertAutomation,
+  type EmailEvent, type InsertEmailEvent,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc } from "drizzle-orm";
@@ -26,7 +27,7 @@ export interface IStorage {
   getLeadsByUser(userId: string): Promise<Lead[]>;
   getLeadById(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
-  updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreachSentAt">>): Promise<Lead | undefined>;
+  updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreachSentAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined>;
   deleteLead(id: string, userId: string): Promise<void>;
   deleteAllLeadsByUser(userId: string): Promise<void>;
   getAppointmentsByUser(userId: string): Promise<Appointment[]>;
@@ -69,6 +70,9 @@ export interface IStorage {
   createAutomation(automation: InsertAutomation): Promise<Automation>;
   updateAutomation(id: string, userId: string, data: Partial<Pick<Automation, "status" | "runs" | "successRate" | "lastRunAt">>): Promise<Automation | undefined>;
   deleteAutomation(id: string, userId: string): Promise<void>;
+  createEmailEvent(event: InsertEmailEvent): Promise<EmailEvent>;
+  getEmailEventsByLead(leadId: string): Promise<EmailEvent[]>;
+  getEmailEventsByUser(userId: string): Promise<EmailEvent[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -105,7 +109,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreachSentAt">>): Promise<Lead | undefined> {
+  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreachSentAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined> {
     const [result] = await db.update(leads).set(data).where(eq(leads.id, id)).returning();
     return result;
   }
@@ -330,6 +334,19 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAutomation(id: string, userId: string): Promise<void> {
     await db.delete(automations).where(and(eq(automations.id, id), eq(automations.userId, userId)));
+  }
+
+  async createEmailEvent(event: InsertEmailEvent): Promise<EmailEvent> {
+    const [result] = await db.insert(emailEvents).values(event).returning();
+    return result;
+  }
+
+  async getEmailEventsByLead(leadId: string): Promise<EmailEvent[]> {
+    return db.select().from(emailEvents).where(eq(emailEvents.leadId, leadId)).orderBy(desc(emailEvents.createdAt));
+  }
+
+  async getEmailEventsByUser(userId: string): Promise<EmailEvent[]> {
+    return db.select().from(emailEvents).where(eq(emailEvents.userId, userId)).orderBy(desc(emailEvents.createdAt));
   }
 }
 

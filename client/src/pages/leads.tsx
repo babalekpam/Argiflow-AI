@@ -42,6 +42,14 @@ import {
   Check,
   CheckCircle2,
   Loader2,
+  Eye,
+  MousePointerClick,
+  Flame,
+  TrendingUp,
+  ArrowRight,
+  BarChart3,
+  Activity,
+  Clock,
 } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { useState } from "react";
@@ -69,6 +77,74 @@ function LeadStatusBadge({ status }: { status: string }) {
   );
 }
 
+function EngagementLevelBadge({ level }: { level: string }) {
+  const config: Record<string, { style: string; label: string; icon: any }> = {
+    hot: { style: "bg-red-500/10 text-red-400 border-red-500/20", label: "HOT", icon: Flame },
+    warm: { style: "bg-amber-500/10 text-amber-400 border-amber-500/20", label: "WARM", icon: TrendingUp },
+    interested: { style: "bg-sky-500/10 text-sky-400 border-sky-500/20", label: "INTERESTED", icon: Eye },
+    none: { style: "bg-slate-500/10 text-slate-400 border-slate-500/20", label: "NO ACTIVITY", icon: Clock },
+  };
+  const c = config[level] || config.none;
+  const Icon = c.icon;
+  return (
+    <Badge variant="outline" className={`text-xs ${c.style}`}>
+      <Icon className="w-3 h-3 mr-1" />
+      {c.label}
+    </Badge>
+  );
+}
+
+function EmailAnalyticsSummary() {
+  const { data: analytics } = useQuery<{
+    totalSent: number;
+    totalOpens: number;
+    totalClicks: number;
+    engaged: number;
+    openRate: number;
+    clickRate: number;
+    byLevel: { hot: number; warm: number; interested: number; none: number };
+  }>({
+    queryKey: ["/api/email-analytics"],
+  });
+
+  if (!analytics || analytics.totalSent === 0) return null;
+
+  return (
+    <Card className="p-4 mb-6" data-testid="card-email-analytics">
+      <div className="flex items-center gap-2 mb-3">
+        <BarChart3 className="w-4 h-4 text-primary" />
+        <h3 className="text-sm font-semibold">Email Engagement Overview</h3>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div className="text-center">
+          <div className="text-lg font-bold" data-testid="text-total-sent">{analytics.totalSent}</div>
+          <div className="text-xs text-muted-foreground">Emails Sent</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-sky-400" data-testid="text-total-opens">{analytics.totalOpens}</div>
+          <div className="text-xs text-muted-foreground">Total Opens</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-emerald-400" data-testid="text-total-clicks">{analytics.totalClicks}</div>
+          <div className="text-xs text-muted-foreground">Total Clicks</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-amber-400" data-testid="text-open-rate">{analytics.openRate}%</div>
+          <div className="text-xs text-muted-foreground">Open Rate</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-purple-400" data-testid="text-click-rate">{analytics.clickRate}%</div>
+          <div className="text-xs text-muted-foreground">Click Rate</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-red-400" data-testid="text-hot-leads">{analytics.byLevel.hot}</div>
+          <div className="text-xs text-muted-foreground">Hot Leads</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function LeadsPage() {
   usePageTitle("Leads & CRM");
   const { toast } = useToast();
@@ -92,6 +168,7 @@ export default function LeadsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
       toast({ title: "Lead created successfully" });
       form.reset();
       setDialogOpen(false);
@@ -108,6 +185,7 @@ export default function LeadsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
       toast({ title: "Lead deleted" });
     },
     onError: () => {
@@ -122,6 +200,7 @@ export default function LeadsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
       toast({ title: "All leads cleared" });
     },
     onError: () => {
@@ -136,6 +215,7 @@ export default function LeadsPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
       toast({ title: data.message || "Outreach email sent" });
     },
     onError: async (error: any) => {
@@ -154,6 +234,7 @@ export default function LeadsPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
       const msg = `Sent ${data.sent} email${data.sent !== 1 ? "s" : ""}${data.failed > 0 ? `, ${data.failed} failed` : ""}`;
       toast({ title: msg });
     },
@@ -341,6 +422,8 @@ export default function LeadsPage() {
         </div>
       </div>
 
+      <EmailAnalyticsSummary />
+
       <Card className="p-4">
         <div className="flex items-center gap-3 mb-4">
           <div className="relative flex-1 max-w-sm">
@@ -377,6 +460,7 @@ export default function LeadsPage() {
               const isExpanded = expandedLeads.has(lead.id);
               const hasDetails = lead.outreach || lead.intentSignal || lead.notes;
               const isSent = !!lead.outreachSentAt;
+              const hasEngagement = (lead.emailOpens || 0) > 0 || (lead.emailClicks || 0) > 0;
               return (
                 <div
                   key={lead.id}
@@ -428,7 +512,22 @@ export default function LeadsPage() {
                           Intent
                         </Badge>
                       )}
-                      {lead.outreach && isSent && (
+                      {isSent && hasEngagement && (
+                        <EngagementLevelBadge level={lead.engagementLevel || "none"} />
+                      )}
+                      {isSent && hasEngagement && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`text-engagement-stats-${lead.id}`}>
+                          <span className="flex items-center gap-0.5" title="Email opens">
+                            <Eye className="w-3 h-3 text-sky-400" />
+                            {lead.emailOpens || 0}
+                          </span>
+                          <span className="flex items-center gap-0.5" title="Link clicks">
+                            <MousePointerClick className="w-3 h-3 text-emerald-400" />
+                            {lead.emailClicks || 0}
+                          </span>
+                        </div>
+                      )}
+                      {lead.outreach && isSent && !hasEngagement && (
                         <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                           <CheckCircle2 className="w-3 h-3 mr-1" />
                           Sent
@@ -459,6 +558,54 @@ export default function LeadsPage() {
 
                   {isExpanded && hasDetails && (
                     <div className="border-t p-4 space-y-3 bg-muted/30" data-testid={`lead-details-${lead.id}`}>
+                      {isSent && hasEngagement && (
+                        <div className="border rounded-md p-3 bg-background" data-testid={`engagement-panel-${lead.id}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Activity className="w-4 h-4 text-primary" />
+                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Engagement</span>
+                            <EngagementLevelBadge level={lead.engagementLevel || "none"} />
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                            <div className="text-center p-2 rounded-md bg-muted/50">
+                              <div className="text-sm font-bold text-sky-400">{lead.emailOpens || 0}</div>
+                              <div className="text-xs text-muted-foreground">Opens</div>
+                            </div>
+                            <div className="text-center p-2 rounded-md bg-muted/50">
+                              <div className="text-sm font-bold text-emerald-400">{lead.emailClicks || 0}</div>
+                              <div className="text-xs text-muted-foreground">Clicks</div>
+                            </div>
+                            <div className="text-center p-2 rounded-md bg-muted/50">
+                              <div className="text-sm font-bold">{lead.engagementScore || 0}</div>
+                              <div className="text-xs text-muted-foreground">Score</div>
+                            </div>
+                            <div className="text-center p-2 rounded-md bg-muted/50">
+                              <div className="text-sm font-bold text-muted-foreground">
+                                {lead.lastEngagedAt ? new Date(lead.lastEngagedAt).toLocaleDateString() : "N/A"}
+                              </div>
+                              <div className="text-xs text-muted-foreground">Last Active</div>
+                            </div>
+                          </div>
+                          {lead.nextStep && (
+                            <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10">
+                              <ArrowRight className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                              <div>
+                                <span className="text-xs font-semibold text-primary">Recommended Next Step</span>
+                                <p className="text-sm" data-testid={`text-next-step-${lead.id}`}>{lead.nextStep}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {isSent && !hasEngagement && (
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
+                            Email sent {lead.outreachSentAt ? new Date(lead.outreachSentAt).toLocaleDateString() : ""} — waiting for engagement (opens, clicks)
+                          </span>
+                        </div>
+                      )}
+
                       {lead.intentSignal && (
                         <div>
                           <div className="flex items-center gap-2 mb-1">

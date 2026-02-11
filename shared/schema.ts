@@ -19,6 +19,12 @@ export const leads = pgTable("leads", {
   outreach: text("outreach"),
   intentSignal: text("intent_signal"),
   outreachSentAt: timestamp("outreach_sent_at"),
+  engagementScore: integer("engagement_score").default(0),
+  engagementLevel: text("engagement_level").default("none"),
+  lastEngagedAt: timestamp("last_engaged_at"),
+  emailOpens: integer("email_opens").default(0),
+  emailClicks: integer("email_clicks").default(0),
+  nextStep: text("next_step"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -195,6 +201,21 @@ export const websiteProfiles = pgTable("website_profiles", {
 export const insertWebsiteProfileSchema = createInsertSchema(websiteProfiles).omit({ id: true, createdAt: true });
 export type WebsiteProfile = typeof websiteProfiles.$inferSelect;
 export type InsertWebsiteProfile = z.infer<typeof insertWebsiteProfileSchema>;
+
+export const emailEvents = pgTable("email_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  eventType: text("event_type").notNull(),
+  metadata: text("metadata"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertEmailEventSchema = createInsertSchema(emailEvents).omit({ id: true, createdAt: true });
+export type EmailEvent = typeof emailEvents.$inferSelect;
+export type InsertEmailEvent = z.infer<typeof insertEmailEventSchema>;
 
 export const insertAdminSchema = createInsertSchema(admins).omit({ id: true, createdAt: true });
 export type Admin = typeof admins.$inferSelect;
