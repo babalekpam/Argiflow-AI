@@ -2368,11 +2368,17 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         return res.status(401).json({ message: "Invalid credentials" });
       }
       req.session.adminId = admin.id;
-      const linkedUser = await storage.getUserByEmail(admin.email);
+      let linkedUser = await storage.getUserByEmail(admin.email);
+      if (!linkedUser) {
+        const allUsers = await storage.getAllUsers();
+        if (allUsers.length > 0) {
+          linkedUser = allUsers[0];
+        }
+      }
       if (linkedUser) {
         req.session.userId = linkedUser.id;
       }
-      res.json({ id: admin.id, email: admin.email, name: admin.name });
+      res.json({ id: admin.id, email: admin.email, name: admin.name, linkedUserId: linkedUser?.id || null });
     } catch (error) {
       console.error("Admin login error:", error);
       res.status(500).json({ message: "Login failed" });
@@ -2391,17 +2397,25 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         return res.status(401).json({ message: "Unauthorized" });
       }
       const { email } = req.body || {};
-      const targetEmail = (email && typeof email === "string") ? email.trim().toLowerCase() : admin.email;
-      if (!targetEmail || !targetEmail.includes("@")) {
-        return res.status(400).json({ message: "Valid email is required." });
+      let linkedUser = null;
+      if (email && typeof email === "string" && email.includes("@")) {
+        linkedUser = await storage.getUserByEmail(email.trim().toLowerCase());
       }
-      const linkedUser = await storage.getUserByEmail(targetEmail);
+      if (!linkedUser) {
+        linkedUser = await storage.getUserByEmail(admin.email);
+      }
+      if (!linkedUser) {
+        const allUsers = await storage.getAllUsers();
+        if (allUsers.length > 0) {
+          linkedUser = allUsers[0];
+        }
+      }
       if (linkedUser) {
         req.session.userId = linkedUser.id;
         console.log(`[ADMIN SWITCH] Admin ${admin.email} (${admin.id}) switched to user ${linkedUser.email} (${linkedUser.id}) at ${new Date().toISOString()}`);
         return res.json({ success: true, userId: linkedUser.id, email: linkedUser.email });
       }
-      return res.status(404).json({ message: "No user account found for that email." });
+      return res.status(404).json({ message: "No user accounts exist yet." });
     } catch (error) {
       res.status(500).json({ message: "Failed to switch" });
     }
