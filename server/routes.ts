@@ -2360,6 +2360,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
 
   await clearOldSeedData();
   await seedSuperAdmin();
+  await ensureOwnerSubscription();
 
   app.post("/api/admin/login", async (req, res) => {
     try {
@@ -3003,5 +3004,37 @@ async function seedSuperAdmin() {
     const passwordHash = await hashPassword(password);
     await storage.createAdmin({ email, passwordHash, name: "Super Admin" });
     console.log("Super admin seeded:", email);
+  }
+}
+
+async function ensureOwnerSubscription() {
+  const ownerEmail = "abel@argilette.com";
+  try {
+    const user = await storage.getUserByEmail(ownerEmail);
+    if (!user) return;
+    const existing = await storage.getSubscriptionByUser(user.id);
+    if (!existing) {
+      await storage.createSubscription({
+        userId: user.id,
+        plan: "pro",
+        status: "active",
+        amount: 0,
+        paymentMethod: "lifetime",
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date("2099-12-31"),
+        notes: "Lifetime Pro - Platform Owner",
+      });
+      console.log("Lifetime Pro subscription created for owner:", ownerEmail);
+    } else if (existing.status !== "active" || existing.plan !== "pro") {
+      await storage.updateSubscription(existing.id, {
+        plan: "pro",
+        status: "active",
+        currentPeriodEnd: new Date("2099-12-31"),
+        notes: "Lifetime Pro - Platform Owner",
+      });
+      console.log("Owner subscription updated to lifetime Pro:", ownerEmail);
+    }
+  } catch (err) {
+    console.error("Error ensuring owner subscription:", err);
   }
 }
