@@ -55,6 +55,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SiTwilio } from "react-icons/si";
+import { Server } from "lucide-react";
 import type { UserSettings, WebsiteProfile } from "@shared/schema";
 
 type SettingKey = keyof Omit<UserSettings, "id" | "userId" | "updatedAt">;
@@ -113,17 +114,6 @@ interface IntegrationConfig {
 }
 
 const integrations: IntegrationConfig[] = [
-  {
-    titleKey: "settings.emailSendGrid",
-    descKey: "settings.emailSendGridDesc",
-    icon: Mail,
-    iconColor: "text-primary",
-    iconBg: "bg-primary/10",
-    fields: [
-      { key: "sendgridApiKey", labelKey: "settings.sendgridApiKey", placeholder: "SG.xxxxxxxxxxxx", sensitive: true },
-      { key: "senderEmail", labelKey: "settings.verifiedSenderEmail", placeholder: "you@yourdomain.com", sensitive: false },
-    ],
-  },
   {
     titleKey: "settings.grasshopperPhone",
     descKey: "settings.grasshopperDesc",
@@ -624,6 +614,183 @@ export default function SettingsPage() {
           {t("settings.integrationsSectionDesc")}
         </p>
         <div className="space-y-4">
+          <Card className="p-5" data-testid="integration-email-provider">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                <Mail className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-sm">{t("settings.emailProvider")}</h3>
+                  {(() => {
+                    const provider = getFieldValue("emailProvider") || settings?.emailProvider || "sendgrid";
+                    const isSmtp = provider === "smtp";
+                    const connected = isSmtp
+                      ? !!(getFieldValue("smtpHost") && getFieldValue("smtpUsername") && getFieldValue("smtpPassword") && getFieldValue("senderEmail"))
+                      : !!(getFieldValue("sendgridApiKey") && getFieldValue("senderEmail"));
+                    return connected ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        {t("settings.connected")}
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {t("settings.notConnected")}
+                      </Badge>
+                    );
+                  })()}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{t("settings.emailProviderDesc")}</p>
+              </div>
+            </div>
+            {isLoading ? (
+              <div className="space-y-3"><Skeleton className="h-9 w-full" /></div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("settings.emailProviderType")}</Label>
+                  <Select
+                    value={getFieldValue("emailProvider") || settings?.emailProvider || "sendgrid"}
+                    onValueChange={(v) => {
+                      setFieldValue("emailProvider", v);
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-email-provider">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sendgrid">
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-3.5 h-3.5" />
+                          SendGrid
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="smtp">
+                        <div className="flex items-center gap-2">
+                          <Server className="w-3.5 h-3.5" />
+                          {t("settings.smtpServer")}
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("settings.verifiedSenderEmail")}</Label>
+                  <MaskedInput
+                    value={getFieldValue("senderEmail")}
+                    onChange={(v) => setFieldValue("senderEmail", v)}
+                    placeholder="you@yourdomain.com"
+                    sensitive={false}
+                    testId="input-senderEmail"
+                  />
+                </div>
+
+                {(getFieldValue("emailProvider") || settings?.emailProvider || "sendgrid") === "sendgrid" ? (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{t("settings.sendgridApiKey")}</Label>
+                    <MaskedInput
+                      value={getFieldValue("sendgridApiKey")}
+                      onChange={(v) => setFieldValue("sendgridApiKey", v)}
+                      placeholder="SG.xxxxxxxxxxxx"
+                      sensitive={true}
+                      testId="input-sendgridApiKey"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("settings.smtpHost")}</Label>
+                      <MaskedInput
+                        value={getFieldValue("smtpHost")}
+                        onChange={(v) => setFieldValue("smtpHost", v)}
+                        placeholder="smtp.yourdomain.com"
+                        sensitive={false}
+                        testId="input-smtpHost"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("settings.smtpPort")}</Label>
+                      <MaskedInput
+                        value={getFieldValue("smtpPort")}
+                        onChange={(v) => setFieldValue("smtpPort", v)}
+                        placeholder="587"
+                        sensitive={false}
+                        testId="input-smtpPort"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("settings.smtpUsername")}</Label>
+                      <MaskedInput
+                        value={getFieldValue("smtpUsername")}
+                        onChange={(v) => setFieldValue("smtpUsername", v)}
+                        placeholder="user@yourdomain.com"
+                        sensitive={false}
+                        testId="input-smtpUsername"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("settings.smtpPassword")}</Label>
+                      <MaskedInput
+                        value={getFieldValue("smtpPassword")}
+                        onChange={(v) => setFieldValue("smtpPassword", v)}
+                        placeholder="********"
+                        sensitive={true}
+                        testId="input-smtpPassword"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Switch
+                        checked={(() => {
+                          const v = getFieldValue("smtpSecure");
+                          if (v === "") return settings?.smtpSecure ?? true;
+                          return v === "true";
+                        })()}
+                        onCheckedChange={(checked) => setFieldValue("smtpSecure", String(checked))}
+                        data-testid="switch-smtp-secure"
+                      />
+                      <Label className="text-xs text-muted-foreground">{t("settings.smtpSecure")}</Label>
+                    </div>
+                  </>
+                )}
+
+                <Button
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    const provider = getFieldValue("emailProvider") || settings?.emailProvider || "sendgrid";
+                    const update: Record<string, any> = {
+                      emailProvider: provider,
+                      senderEmail: getFieldValue("senderEmail"),
+                    };
+                    if (provider === "sendgrid") {
+                      update.sendgridApiKey = getFieldValue("sendgridApiKey");
+                    } else {
+                      update.smtpHost = getFieldValue("smtpHost");
+                      update.smtpPort = parseInt(getFieldValue("smtpPort")) || 587;
+                      update.smtpUsername = getFieldValue("smtpUsername");
+                      update.smtpPassword = getFieldValue("smtpPassword");
+                      const secVal = getFieldValue("smtpSecure");
+                      update.smtpSecure = secVal === "" ? (settings?.smtpSecure ?? true) : secVal === "true";
+                    }
+                    updateMutation.mutate(update as any, {
+                      onSuccess: (data) => {
+                        queryClient.setQueryData(["/api/settings"], data);
+                        setDirtyFields(new Set());
+                        toast({ title: t("settings.integrationSaved", { title: t("settings.emailProvider") }), description: t("settings.integrationSavedDesc") });
+                      },
+                    });
+                  }}
+                  disabled={updateMutation.isPending || dirtyFields.size === 0}
+                  data-testid="button-save-email-provider"
+                >
+                  <Save className="w-3.5 h-3.5 mr-1.5" />
+                  {updateMutation.isPending ? t("settings.saving") : t("settings.save")}
+                </Button>
+              </div>
+            )}
+          </Card>
           {integrations.map((config) => {
             const connected = isIntegrationConnected(config);
             const unsaved = hasUnsavedChanges(config);

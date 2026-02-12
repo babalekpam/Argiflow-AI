@@ -9,6 +9,7 @@ import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
 import Anthropic from "@anthropic-ai/sdk";
 import sgMail from "@sendgrid/mail";
+import nodemailer from "nodemailer";
 import { AGENT_CATALOG, getAgentsByRegion, getAgentByType } from "./agent-catalog";
 import { REGIONS, detectRegion, getRegionConfig } from "./region-config";
 
@@ -223,8 +224,13 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return "Sender email not configured. Tell the user to go to Settings > Integrations and set their verified sender email before sending outreach.";
       }
 
-      if (!settings?.sendgridApiKey) {
-        return "SendGrid API key not configured. Tell the user to go to Settings > Integrations and enter their SendGrid API key to enable email sending.";
+      const emailProvider = settings?.emailProvider || "sendgrid";
+      if (emailProvider === "smtp") {
+        if (!settings?.smtpHost || !settings?.smtpUsername || !settings?.smtpPassword) {
+          return "SMTP settings incomplete. Tell the user to go to Settings > Integrations and configure their SMTP server (host, username, password).";
+        }
+      } else if (!settings?.sendgridApiKey) {
+        return "Email provider not configured. Tell the user to go to Settings > Integrations and either set up SendGrid API key or configure their own SMTP server.";
       }
 
       let sent = 0;
@@ -503,11 +509,17 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
     return { success: false, error: "Sender email required. Go to Settings > Integrations and set your verified sender email." };
   }
 
-  if (!userSettings?.sendgridApiKey) {
-    return { success: false, error: "SendGrid API key required. Go to Settings > Integrations and enter your SendGrid API key to send emails." };
-  }
+  const emailProvider = userSettings.emailProvider || "sendgrid";
 
-  sgMail.setApiKey(userSettings.sendgridApiKey);
+  if (emailProvider === "smtp") {
+    if (!userSettings.smtpHost || !userSettings.smtpUsername || !userSettings.smtpPassword) {
+      return { success: false, error: "SMTP settings incomplete. Go to Settings > Integrations and configure your SMTP server (host, username, password)." };
+    }
+  } else {
+    if (!userSettings.sendgridApiKey) {
+      return { success: false, error: "SendGrid API key required. Go to Settings > Integrations and enter your SendGrid API key to send emails." };
+    }
+  }
 
   const senderEmail = userSettings.senderEmail;
   const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
@@ -522,18 +534,39 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
   htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
 
   try {
-    await sgMail.send({
-      to: lead.email,
-      from: { email: senderEmail, name: senderName },
-      subject: subjectLine,
-      text: lead.outreach,
-      html: htmlBody,
-    });
+    if (emailProvider === "smtp") {
+      const transporter = nodemailer.createTransport({
+        host: userSettings.smtpHost,
+        port: userSettings.smtpPort || 587,
+        secure: userSettings.smtpSecure ?? false,
+        auth: {
+          user: userSettings.smtpUsername,
+          pass: userSettings.smtpPassword,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `"${senderName}" <${senderEmail}>`,
+        to: lead.email,
+        subject: subjectLine,
+        text: lead.outreach,
+        html: htmlBody,
+      });
+    } else {
+      sgMail.setApiKey(userSettings.sendgridApiKey);
+      await sgMail.send({
+        to: lead.email,
+        from: { email: senderEmail, name: senderName },
+        subject: subjectLine,
+        text: lead.outreach,
+        html: htmlBody,
+      });
+    }
     return { success: true };
   } catch (err: any) {
-    console.error("SendGrid error:", err?.response?.body || err);
-    const sgError = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send";
-    return { success: false, error: sgError };
+    console.error("Email send error:", err?.response?.body || err?.message || err);
+    const errorMsg = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send";
+    return { success: false, error: errorMsg };
   }
 }
 
@@ -1739,8 +1772,13 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return res.status(400).json({ message: "Sender email required. Go to Settings > Integrations > Email Identity and set your sender email before sending outreach." });
       }
 
-      if (!settings?.sendgridApiKey) {
-        return res.status(400).json({ message: "SendGrid API key required. Go to Settings > Integrations and enter your SendGrid API key to send emails." });
+      const emailProvider = settings?.emailProvider || "sendgrid";
+      if (emailProvider === "smtp") {
+        if (!settings?.smtpHost || !settings?.smtpUsername || !settings?.smtpPassword) {
+          return res.status(400).json({ message: "SMTP settings incomplete. Go to Settings > Integrations and configure your SMTP server." });
+        }
+      } else if (!settings?.sendgridApiKey) {
+        return res.status(400).json({ message: "Email provider not configured. Go to Settings > Integrations and set up SendGrid or SMTP." });
       }
 
       const existing = bulkSendStatus.get(userId);
