@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,27 +20,9 @@ import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
-const industries = [
-  "Marketing Agency",
-  "Real Estate",
-  "Healthcare",
-  "Legal Services",
-  "Financial Services",
-  "E-Commerce",
-  "SaaS / Software",
-  "Consulting",
-  "Construction",
-  "Home Services",
-  "Fitness & Wellness",
-  "Education",
-  "Insurance",
-  "Automotive",
-  "Restaurant / Food",
-  "Other",
-];
-
 export default function SignupPage() {
-  usePageTitle("Sign Up");
+  const { t } = useTranslation();
+  usePageTitle(t("auth.signup.title"));
   const { register } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -59,6 +42,12 @@ export default function SignupPage() {
     companyDescription: "",
   });
 
+  const industryKeys = [
+    "marketingAgency", "realEstate", "healthcare", "legalServices", "financialServices",
+    "eCommerce", "saas", "consulting", "construction", "homeServices",
+    "fitnessWellness", "education", "insurance", "automotive", "restaurantFood", "other"
+  ];
+
   const handleStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
     setStep(2);
@@ -68,8 +57,8 @@ export default function SignupPage() {
     e.preventDefault();
     if (!companyForm.companyName || !companyForm.industry || companyForm.companyDescription.length < 10) {
       toast({
-        title: "Missing information",
-        description: "Please fill in your company name, industry, and a brief description (at least 10 characters).",
+        title: t("auth.signup.missingInfo"),
+        description: t("auth.signup.missingInfoDesc"),
         variant: "destructive",
       });
       return;
@@ -83,7 +72,7 @@ export default function SignupPage() {
         credentials: "include",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Registration failed");
+      if (!res.ok) throw new Error(data.message || t("auth.signup.registrationFailed"));
 
       await apiRequest("POST", "/api/onboarding", companyForm);
 
@@ -92,8 +81,8 @@ export default function SignupPage() {
       setLocation("/dashboard");
     } catch (error: any) {
       toast({
-        title: "Registration failed",
-        description: error?.message || "Please try again.",
+        title: t("auth.signup.registrationFailed"),
+        description: error?.message || t("auth.signup.tryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -112,24 +101,24 @@ export default function SignupPage() {
         <div className="text-center mb-8">
           <a href="/" className="inline-flex items-center gap-2 mb-6" data-testid="link-signup-home">
             <Zap className="w-7 h-7 text-primary" />
-            <span className="text-2xl font-bold gradient-text">ArgiFlow</span>
-            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">AI</Badge>
+            <span className="text-2xl font-bold gradient-text">{t("common.brandName")}</span>
+            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{t("common.brandTag")}</Badge>
           </a>
           {step === 1 ? (
             <>
-              <h1 className="text-2xl font-bold mb-2" data-testid="text-signup-title">Create Your Client Account</h1>
+              <h1 className="text-2xl font-bold mb-2" data-testid="text-signup-title">{t("auth.signup.title")}</h1>
               <p className="text-sm text-muted-foreground">
-                Step 1 of 2 — Account details
+                {t("auth.signup.step1")}
               </p>
             </>
           ) : (
             <>
               <h1 className="text-2xl font-bold mb-2" data-testid="text-signup-step2-title">
                 <Building2 className="w-5 h-5 inline-block mr-2 text-primary" />
-                Tell Us About Your Business
+                {t("auth.signup.step2Title")}
               </h1>
               <p className="text-sm text-muted-foreground">
-                Step 2 of 2 — Our AI will create a custom marketing strategy for you
+                {t("auth.signup.step2")}
               </p>
             </>
           )}
@@ -145,42 +134,42 @@ export default function SignupPage() {
             <form onSubmit={handleStep1} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
+                  <Label htmlFor="firstName">{t("auth.signup.firstName")}</Label>
                   <Input
                     id="firstName"
                     required
                     value={form.firstName}
                     onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                    placeholder="John"
+                    placeholder={t("auth.signup.firstNamePlaceholder")}
                     data-testid="input-signup-firstname"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
+                  <Label htmlFor="lastName">{t("auth.signup.lastName")}</Label>
                   <Input
                     id="lastName"
                     required
                     value={form.lastName}
                     onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                    placeholder="Smith"
+                    placeholder={t("auth.signup.lastNamePlaceholder")}
                     data-testid="input-signup-lastname"
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Work Email</Label>
+                <Label htmlFor="email">{t("auth.signup.workEmail")}</Label>
                 <Input
                   id="email"
                   type="email"
                   required
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="john@company.com"
+                  placeholder={t("auth.signup.emailPlaceholder")}
                   data-testid="input-signup-email"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("auth.signup.password")}</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -189,7 +178,7 @@ export default function SignupPage() {
                     minLength={6}
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="Min 6 characters"
+                    placeholder={t("auth.signup.passwordPlaceholder")}
                     className="pr-10"
                     data-testid="input-signup-password"
                   />
@@ -204,14 +193,14 @@ export default function SignupPage() {
                 </div>
               </div>
               <Button type="submit" className="w-full" data-testid="button-signup-next">
-                Continue
+                {t("auth.signup.continue")}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </form>
             <div className="mt-4 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              {t("auth.signup.alreadyHaveAccount")}{" "}
               <a href="/login" className="text-primary hover:underline" data-testid="link-login">
-                Sign in
+                {t("auth.signup.signIn")}
               </a>
             </div>
           </Card>
@@ -219,72 +208,72 @@ export default function SignupPage() {
           <Card className="p-6 gradient-border">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="companyName">Company Name</Label>
+                <Label htmlFor="companyName">{t("auth.signup.companyName")}</Label>
                 <Input
                   id="companyName"
                   required
                   value={companyForm.companyName}
                   onChange={(e) => setCompanyForm({ ...companyForm, companyName: e.target.value })}
-                  placeholder="Acme Corp"
+                  placeholder={t("auth.signup.companyNamePlaceholder")}
                   data-testid="input-signup-company"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="industry">Industry</Label>
+                <Label htmlFor="industry">{t("auth.signup.industry")}</Label>
                 <Select
                   value={companyForm.industry}
                   onValueChange={(v) => setCompanyForm({ ...companyForm, industry: v })}
                 >
                   <SelectTrigger data-testid="select-signup-industry">
-                    <SelectValue placeholder="Select your industry" />
+                    <SelectValue placeholder={t("auth.signup.industryPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {industries.map((ind) => (
-                      <SelectItem key={ind} value={ind} data-testid={`industry-${ind.toLowerCase().replace(/[^a-z]/g, "-")}`}>
-                        {ind}
+                    {industryKeys.map((key) => (
+                      <SelectItem key={key} value={t(`auth.signup.industries.${key}`)} data-testid={`industry-${key}`}>
+                        {t(`auth.signup.industries.${key}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="website">Website <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Label htmlFor="website">{t("auth.signup.website")} <span className="text-muted-foreground text-xs">({t("common.optional")})</span></Label>
                 <Input
                   id="website"
                   value={companyForm.website}
                   onChange={(e) => setCompanyForm({ ...companyForm, website: e.target.value })}
-                  placeholder="https://www.yourcompany.com"
+                  placeholder={t("auth.signup.websitePlaceholder")}
                   data-testid="input-signup-website"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="companyDescription">What does your company do?</Label>
+                <Label htmlFor="companyDescription">{t("auth.signup.whatDoesCompanyDo")}</Label>
                 <Textarea
                   id="companyDescription"
                   required
                   value={companyForm.companyDescription}
                   onChange={(e) => setCompanyForm({ ...companyForm, companyDescription: e.target.value })}
-                  placeholder="Tell us about your products, services, target customers, and goals. The more detail, the better strategy our AI can generate..."
+                  placeholder={t("auth.signup.companyDescPlaceholder")}
                   className="resize-none min-h-[100px]"
                   data-testid="input-signup-description"
                 />
-                <p className="text-xs text-muted-foreground">Min 10 characters. Be specific for a better AI strategy.</p>
+                <p className="text-xs text-muted-foreground">{t("auth.signup.minChars")}</p>
               </div>
               <div className="flex gap-3">
                 <Button type="button" variant="outline" onClick={() => setStep(1)} data-testid="button-signup-back">
                   <ArrowLeft className="w-4 h-4 mr-1" />
-                  Back
+                  {t("auth.signup.back")}
                 </Button>
                 <Button type="submit" className="flex-1" disabled={isLoading} data-testid="button-signup-submit">
                   {isLoading ? (
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                      Creating account...
+                      {t("auth.signup.creatingAccount")}
                     </div>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4 mr-2" />
-                      Create Account & Generate Strategy
+                      {t("auth.signup.createAccount")}
                     </>
                   )}
                 </Button>
@@ -296,9 +285,9 @@ export default function SignupPage() {
         <div className="mt-6 space-y-2">
           {step === 1 ? (
             [
-              "AI-powered lead management & CRM",
-              "Real-time automation dashboards",
-              "Direct line to your ArgiFlow team",
+              t("auth.signup.feature1"),
+              t("auth.signup.feature2"),
+              t("auth.signup.feature3"),
             ].map((f) => (
               <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
                 <Check className="w-3 h-3 text-chart-3" />
@@ -308,7 +297,7 @@ export default function SignupPage() {
           ) : (
             <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center p-3 rounded-md bg-primary/5 border border-primary/10">
               <Sparkles className="w-4 h-4 text-primary shrink-0" />
-              <span>Our AI will analyze your business and generate a complete marketing strategy automatically</span>
+              <span>{t("auth.signup.aiAnalyze")}</span>
             </div>
           )}
         </div>

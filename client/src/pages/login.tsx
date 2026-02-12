@@ -9,9 +9,11 @@ import { Zap, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 
 export default function LoginPage() {
-  usePageTitle("Log In");
+  const { t } = useTranslation();
+  usePageTitle(t("auth.login.title"));
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -38,8 +40,8 @@ export default function LoginPage() {
       setLocation("/dashboard");
     } catch (error: any) {
       toast({
-        title: "Login failed",
-        description: error?.message || "Invalid email or password.",
+        title: t("auth.login.loginFailed"),
+        description: error?.message || t("auth.login.invalidCredentials"),
         variant: "destructive",
       });
     } finally {
@@ -58,31 +60,31 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <a href="/" className="inline-flex items-center gap-2 mb-6" data-testid="link-login-home">
             <Zap className="w-7 h-7 text-primary" />
-            <span className="text-2xl font-bold gradient-text">ArgiFlow</span>
-            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">AI</Badge>
+            <span className="text-2xl font-bold gradient-text">{t("common.brandName")}</span>
+            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{t("common.brandTag")}</Badge>
           </a>
-          <h1 className="text-2xl font-bold mb-2" data-testid="text-login-title">Client Portal</h1>
+          <h1 className="text-2xl font-bold mb-2" data-testid="text-login-title">{t("auth.login.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Sign in to your AI automation dashboard
+            {t("auth.login.subtitle")}
           </p>
         </div>
 
         <Card className="p-6 gradient-border">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t("auth.login.email")}</Label>
                   <Input
                     id="email"
                     type="email"
                     required
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="john@company.com"
+                    placeholder={t("auth.login.emailPlaceholder")}
                     data-testid="input-login-email"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t("auth.login.password")}</Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -90,7 +92,7 @@ export default function LoginPage() {
                       required
                       value={form.password}
                       onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      placeholder="Enter your password"
+                      placeholder={t("auth.login.passwordPlaceholder")}
                       className="pr-10"
                       data-testid="input-login-password"
                     />
@@ -109,7 +111,7 @@ export default function LoginPage() {
                     <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <>
-                      Sign In
+                      {t("auth.login.signIn")}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}
@@ -117,13 +119,13 @@ export default function LoginPage() {
               </form>
               <div className="mt-3 text-right">
                 <a href="/forgot-password" className="text-xs text-muted-foreground hover:text-primary" data-testid="link-forgot-password">
-                  Forgot your password?
+                  {t("auth.login.forgotPassword")}
                 </a>
               </div>
               <div className="mt-3 text-center text-sm text-muted-foreground">
-                Not a client yet?{" "}
+                {t("auth.login.notClient")}{" "}
                 <a href="/discovery" className="text-primary hover:underline" data-testid="link-discovery">
-                  Book a discovery call
+                  {t("auth.login.bookDiscovery")}
                 </a>
               </div>
         </Card>

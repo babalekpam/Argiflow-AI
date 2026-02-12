@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -33,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function DiscoveryCallPage() {
   usePageTitle("Discovery Call");
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     firstName: "",
@@ -57,8 +59,8 @@ export default function DiscoveryCallPage() {
     setIsSubmitting(false);
     setSubmitted(true);
     toast({
-      title: "Discovery call booked!",
-      description: "We'll email you a calendar link within 24 hours.",
+      title: t("discovery.success"),
+      description: t("discovery.successDesc"),
     });
   };
 
@@ -104,8 +106,8 @@ export default function DiscoveryCallPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
           <a href="/" className="flex items-center gap-2" data-testid="link-discovery-home">
             <Zap className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold gradient-text">ArgiFlow</span>
-            <Badge variant="outline" className="text-[10px] ml-1 border-primary/30 text-primary">AI</Badge>
+            <span className="text-xl font-bold gradient-text">{t("common.brandName")}</span>
+            <Badge variant="outline" className="text-[10px] ml-1 border-primary/30 text-primary">{t("common.brandTag")}</Badge>
           </a>
           <a href="/login">
             <Button variant="ghost" size="sm" data-testid="button-discovery-login">Client Login</Button>
@@ -177,7 +179,7 @@ export default function DiscoveryCallPage() {
                   <Video className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold">Book Your Discovery Call</h2>
+                  <h2 className="text-lg font-bold">{t("discovery.title")}</h2>
                   <p className="text-xs text-muted-foreground">
                     Fill out this quick form and we'll schedule your call within 24 hours
                   </p>
@@ -193,7 +195,7 @@ export default function DiscoveryCallPage() {
                       required
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      placeholder="John"
+                      placeholder={t("discovery.namePlaceholder")}
                       data-testid="input-discovery-firstname"
                     />
                   </div>
@@ -212,24 +214,24 @@ export default function DiscoveryCallPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Work Email *</Label>
+                    <Label htmlFor="email">{t("discovery.email")} *</Label>
                     <Input
                       id="email"
                       type="email"
                       required
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="john@company.com"
+                      placeholder={t("discovery.emailPlaceholder")}
                       data-testid="input-discovery-email"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
+                    <Label htmlFor="phone">{t("discovery.phone")}</Label>
                     <Input
                       id="phone"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+1 (555) 000-0000"
+                      placeholder={t("discovery.phonePlaceholder")}
                       data-testid="input-discovery-phone"
                     />
                   </div>
@@ -237,13 +239,13 @@ export default function DiscoveryCallPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="company">Company Name *</Label>
+                    <Label htmlFor="company">{t("discovery.company")} *</Label>
                     <Input
                       id="company"
                       required
                       value={formData.company}
                       onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                      placeholder="Acme Corp"
+                      placeholder={t("discovery.companyPlaceholder")}
                       data-testid="input-discovery-company"
                     />
                   </div>
@@ -313,13 +315,13 @@ export default function DiscoveryCallPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="challenge">What's your biggest business challenge right now?</Label>
+                  <Label htmlFor="challenge">{t("discovery.message")}</Label>
                   <Textarea
                     id="challenge"
                     rows={3}
                     value={formData.challenge}
                     onChange={(e) => setFormData({ ...formData, challenge: e.target.value })}
-                    placeholder="e.g. We're spending too much time on manual follow-ups and losing leads..."
+                    placeholder={t("discovery.msgPlaceholder")}
                     data-testid="textarea-discovery-challenge"
                   />
                 </div>
@@ -328,12 +330,12 @@ export default function DiscoveryCallPage() {
                   {isSubmitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
-                      Submitting...
+                      {t("discovery.submitting")}
                     </>
                   ) : (
                     <>
                       <Calendar className="w-4 h-4 mr-2" />
-                      Book My Free Discovery Call
+                      {t("discovery.submit")}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}

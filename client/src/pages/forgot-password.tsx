@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 
 export default function ForgotPasswordPage() {
   usePageTitle("Forgot Password");
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -24,8 +26,8 @@ export default function ForgotPasswordPage() {
       setSent(true);
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error?.message || "Something went wrong. Please try again.",
+        title: t("auth.forgotPassword.error"),
+        description: error?.message || t("auth.forgotPassword.somethingWrong"),
         variant: "destructive",
       });
     } finally {
@@ -44,16 +46,16 @@ export default function ForgotPasswordPage() {
         <div className="text-center mb-8">
           <a href="/" className="inline-flex items-center gap-2 mb-6" data-testid="link-forgot-home">
             <Zap className="w-7 h-7 text-primary" />
-            <span className="text-2xl font-bold gradient-text">ArgiFlow</span>
-            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">AI</Badge>
+            <span className="text-2xl font-bold gradient-text">{t("common.brandName")}</span>
+            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{t("common.brandTag")}</Badge>
           </a>
           <h1 className="text-2xl font-bold mb-2" data-testid="text-forgot-title">
-            {sent ? "Check Your Email" : "Forgot Password"}
+            {sent ? t("auth.forgotPassword.checkEmail") : t("auth.forgotPassword.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
             {sent
-              ? "We've sent you a password reset link if an account exists with that email."
-              : "Enter your email address and we'll send you a reset link."}
+              ? t("auth.forgotPassword.checkEmailDesc")
+              : t("auth.forgotPassword.subtitle")}
           </p>
         </div>
 
@@ -64,12 +66,12 @@ export default function ForgotPasswordPage() {
                 <Mail className="w-8 h-8 text-emerald-400" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Reset link sent to</p>
+                <p className="text-sm text-muted-foreground mb-1">{t("auth.forgotPassword.sentTo")}</p>
                 <p className="font-medium" data-testid="text-sent-email">{email}</p>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center p-3 rounded-md bg-muted/50">
                 <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-                <span>The link expires in 1 hour. Check your spam folder if you don't see it.</span>
+                <span>{t("auth.forgotPassword.linkExpires")}</span>
               </div>
               <div className="pt-2 space-y-2">
                 <Button
@@ -78,24 +80,24 @@ export default function ForgotPasswordPage() {
                   onClick={() => setSent(false)}
                   data-testid="button-resend"
                 >
-                  Send again
+                  {t("auth.forgotPassword.sendAgain")}
                 </Button>
                 <a href="/login" className="block text-center text-sm text-primary hover:underline" data-testid="link-back-login">
-                  Back to sign in
+                  {t("auth.forgotPassword.backToSignIn")}
                 </a>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">{t("auth.forgotPassword.emailAddress")}</Label>
                 <Input
                   id="email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="john@company.com"
+                  placeholder={t("auth.forgotPassword.emailPlaceholder")}
                   data-testid="input-forgot-email"
                 />
               </div>
@@ -105,7 +107,7 @@ export default function ForgotPasswordPage() {
                 ) : (
                   <>
                     <Mail className="w-4 h-4 mr-2" />
-                    Send Reset Link
+                    {t("auth.forgotPassword.sendResetLink")}
                   </>
                 )}
               </Button>
@@ -115,7 +117,7 @@ export default function ForgotPasswordPage() {
             <div className="mt-4 text-center">
               <a href="/login" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground" data-testid="link-back-login">
                 <ArrowLeft className="w-3 h-3" />
-                Back to sign in
+                {t("auth.forgotPassword.backToSignIn")}
               </a>
             </div>
           )}

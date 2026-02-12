@@ -1,4 +1,5 @@
 import { useLocation, Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   Sidebar,
   SidebarContent,
@@ -36,33 +37,34 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 
-const mainNav = [
-  { title: "Overview", icon: LayoutDashboard, url: "/dashboard" },
-  { title: "Strategy", icon: Sparkles, url: "/dashboard/strategy", badge: "AI" },
-  { title: "Leads & CRM", icon: Users, url: "/dashboard/leads" },
-  { title: "Sales Funnels", icon: Filter, url: "/dashboard/funnels" },
-  { title: "Appointments", icon: Calendar, url: "/dashboard/appointments" },
-];
-
-const automationNav = [
-  { title: "Agent Catalog", icon: Boxes, url: "/dashboard/agent-catalog", badge: "NEW" },
-  { title: "AI Agents", icon: Bot, url: "/dashboard/ai-agents", badge: "LIVE" },
-  { title: "Voice AI", icon: Phone, url: "/dashboard/voice-ai", badge: "NEW" },
-  { title: "Chatbots", icon: MessageSquare, url: "/dashboard/ai-agents" },
-  { title: "Email & SMS", icon: Mail, url: "/dashboard/email" },
-];
-
-const growthNav = [
-  { title: "Automations", icon: Workflow, url: "/dashboard/automations" },
-  { title: "Resources", icon: Library, url: "/dashboard/resources", badge: "NEW" },
-  { title: "Demos & Install", icon: Wand2, url: "/dashboard/demos", badge: "NEW" },
-  { title: "Training", icon: GraduationCap, url: "/dashboard/training" },
-  { title: "Settings", icon: Settings, url: "/dashboard/settings" },
-];
-
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
+
+  const mainNav = [
+    { title: t("sidebar.overview"), icon: LayoutDashboard, url: "/dashboard" },
+    { title: t("sidebar.strategy"), icon: Sparkles, url: "/dashboard/strategy", badge: t("common.brandTag") },
+    { title: t("sidebar.leadsCrm"), icon: Users, url: "/dashboard/leads" },
+    { title: t("sidebar.salesFunnels"), icon: Filter, url: "/dashboard/funnels" },
+    { title: t("sidebar.appointments"), icon: Calendar, url: "/dashboard/appointments" },
+  ];
+
+  const automationNav = [
+    { title: t("sidebar.agentCatalog"), icon: Boxes, url: "/dashboard/agent-catalog", badge: t("common.new") },
+    { title: t("sidebar.aiAgentsNav"), icon: Bot, url: "/dashboard/ai-agents", badge: t("common.live") },
+    { title: t("sidebar.voiceAi"), icon: Phone, url: "/dashboard/voice-ai", badge: t("common.new") },
+    { title: t("sidebar.chatbots"), icon: MessageSquare, url: "/dashboard/ai-agents" },
+    { title: t("sidebar.emailSms"), icon: Mail, url: "/dashboard/email" },
+  ];
+
+  const growthNav = [
+    { title: t("sidebar.automations"), icon: Workflow, url: "/dashboard/automations" },
+    { title: t("sidebar.resources"), icon: Library, url: "/dashboard/resources", badge: t("common.new") },
+    { title: t("sidebar.demosInstall"), icon: Wand2, url: "/dashboard/demos", badge: t("common.new") },
+    { title: t("sidebar.training"), icon: GraduationCap, url: "/dashboard/training" },
+    { title: t("sidebar.settings"), icon: Settings, url: "/dashboard/settings" },
+  ];
 
   const { data: adminData } = useQuery<{ id: string } | null>({
     queryKey: ["/api/admin/me"],
@@ -98,15 +100,15 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <Link href="/" className="flex items-center gap-2" data-testid="link-sidebar-logo">
           <Zap className="w-5 h-5 text-primary" />
-          <span className="font-bold gradient-text text-lg">ArgiFlow</span>
+          <span className="font-bold gradient-text text-lg">{t("common.brandName")}</span>
           <Badge variant="outline" className="text-[9px] py-0 px-1.5 border-primary/30 text-primary ml-0.5">
-            AI
+            {t("common.brandTag")}
           </Badge>
         </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("sidebar.main")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNav.map((item) => (
@@ -129,7 +131,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>AI Automation</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("sidebar.aiAutomation")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {automationNav.map((item) => (
@@ -152,7 +154,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Growth</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("sidebar.growth")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {growthNav.map((item) => (
@@ -190,7 +192,7 @@ export function AppSidebar() {
             }}
           >
             <Shield className="w-4 h-4" />
-            <span className="font-medium">Platform Admin</span>
+            <span className="font-medium">{t("sidebar.platformAdmin")}</span>
           </div>
         )}
         <div className="flex items-center gap-3">

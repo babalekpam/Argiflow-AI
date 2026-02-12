@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,6 +17,7 @@ function useSearchParam(name: string): string | null {
 
 export default function ResetPasswordPage() {
   usePageTitle("Reset Password");
+  const { t } = useTranslation();
   const { toast } = useToast();
   const token = useSearchParam("token");
   const [password, setPassword] = useState("");
@@ -28,16 +30,16 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     if (password !== confirmPassword) {
       toast({
-        title: "Passwords don't match",
-        description: "Please make sure both passwords are the same.",
+        title: t("auth.resetPassword.dontMatch"),
+        description: t("auth.resetPassword.dontMatchDesc"),
         variant: "destructive",
       });
       return;
     }
     if (password.length < 6) {
       toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters.",
+        title: t("auth.resetPassword.tooShort"),
+        description: t("auth.resetPassword.tooShortDesc"),
         variant: "destructive",
       });
       return;
@@ -48,8 +50,8 @@ export default function ResetPasswordPage() {
       setSuccess(true);
     } catch (error: any) {
       toast({
-        title: "Reset failed",
-        description: error?.message || "Invalid or expired reset link. Please request a new one.",
+        title: t("auth.resetPassword.resetFailed"),
+        description: error?.message || t("auth.resetPassword.invalidOrExpired"),
         variant: "destructive",
       });
     } finally {
@@ -62,10 +64,10 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <Card className="p-6 max-w-md w-full text-center">
           <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Invalid Reset Link</h2>
-          <p className="text-sm text-muted-foreground mb-4">This password reset link is invalid or has expired.</p>
+          <h2 className="text-xl font-bold mb-2">{t("auth.resetPassword.invalidLink")}</h2>
+          <p className="text-sm text-muted-foreground mb-4">{t("auth.resetPassword.invalidLinkDesc")}</p>
           <a href="/forgot-password">
-            <Button data-testid="button-request-new-reset">Request a New Reset Link</Button>
+            <Button data-testid="button-request-new-reset">{t("auth.resetPassword.requestNew")}</Button>
           </a>
         </Card>
       </div>
@@ -83,14 +85,14 @@ export default function ResetPasswordPage() {
         <div className="text-center mb-8">
           <a href="/" className="inline-flex items-center gap-2 mb-6" data-testid="link-reset-home">
             <Zap className="w-7 h-7 text-primary" />
-            <span className="text-2xl font-bold gradient-text">ArgiFlow</span>
-            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">AI</Badge>
+            <span className="text-2xl font-bold gradient-text">{t("common.brandName")}</span>
+            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{t("common.brandTag")}</Badge>
           </a>
           <h1 className="text-2xl font-bold mb-2" data-testid="text-reset-title">
-            {success ? "Password Reset" : "Set New Password"}
+            {success ? t("auth.resetPassword.passwordReset") : t("auth.resetPassword.setNewPassword")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {success ? "Your password has been updated successfully." : "Enter your new password below."}
+            {success ? t("auth.resetPassword.passwordUpdated") : t("auth.resetPassword.enterNew")}
           </p>
         </div>
 
@@ -100,17 +102,17 @@ export default function ResetPasswordPage() {
               <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
                 <Check className="w-8 h-8 text-emerald-400" />
               </div>
-              <p className="text-sm text-muted-foreground">You can now sign in with your new password.</p>
+              <p className="text-sm text-muted-foreground">{t("auth.resetPassword.canSignIn")}</p>
               <a href="/login">
                 <Button className="w-full" data-testid="button-go-login">
-                  Go to Sign In
+                  {t("auth.resetPassword.goToSignIn")}
                 </Button>
               </a>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="password">New Password</Label>
+                <Label htmlFor="password">{t("auth.resetPassword.newPassword")}</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -119,7 +121,7 @@ export default function ResetPasswordPage() {
                     minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Min 6 characters"
+                    placeholder={t("auth.resetPassword.minChars")}
                     className="pr-10"
                     data-testid="input-reset-password"
                   />
@@ -134,7 +136,7 @@ export default function ResetPasswordPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">{t("auth.resetPassword.confirmPassword")}</Label>
                 <Input
                   id="confirmPassword"
                   type={showPassword ? "text" : "password"}
@@ -142,7 +144,7 @@ export default function ResetPasswordPage() {
                   minLength={6}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter password"
+                  placeholder={t("auth.resetPassword.confirmPlaceholder")}
                   data-testid="input-reset-confirm-password"
                 />
               </div>
@@ -152,7 +154,7 @@ export default function ResetPasswordPage() {
                 ) : (
                   <>
                     <Lock className="w-4 h-4 mr-2" />
-                    Reset Password
+                    {t("auth.resetPassword.resetBtn")}
                   </>
                 )}
               </Button>
