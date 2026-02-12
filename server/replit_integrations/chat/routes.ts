@@ -2,10 +2,12 @@ import type { Express, Request, Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { chatStorage } from "./storage";
 
+const useDirectKey = !!process.env.ANTHROPIC_API_KEY;
+
 const anthropic = new Anthropic(
-  process.env.ANTHROPIC_API_KEY
+  useDirectKey
     ? {
-        apiKey: process.env.ANTHROPIC_API_KEY,
+        apiKey: process.env.ANTHROPIC_API_KEY!,
         baseURL: "https://api.anthropic.com",
       }
     : process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL
@@ -18,6 +20,8 @@ const anthropic = new Anthropic(
         baseURL: "https://api.anthropic.com",
       }
 );
+
+const CHAT_MODEL = useDirectKey ? "claude-sonnet-4-20250514" : "claude-sonnet-4-5";
 
 export function registerChatRoutes(app: Express): void {
   // Get all conversations
@@ -94,7 +98,7 @@ export function registerChatRoutes(app: Express): void {
 
       // Stream response from Anthropic
       const stream = anthropic.messages.stream({
-        model: "claude-sonnet-4-5",
+        model: CHAT_MODEL,
         max_tokens: 2048,
         messages: chatMessages,
       });
