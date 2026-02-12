@@ -1722,6 +1722,68 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     }
   });
 
+  // ---- GENERATE MISSING OUTREACH DRAFTS ----
+
+  app.post("/api/leads/generate-outreach", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const allLeads = await storage.getLeadsByUser(userId);
+      const needsOutreach = allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
+
+      if (needsOutreach.length === 0) {
+        return res.json({ message: "All leads already have outreach drafts!", generated: 0 });
+      }
+
+      const user = await storage.getUserById(userId);
+      const userSettings = await storage.getSettingsByUser(userId);
+      const bookingLink = userSettings?.calendarLink || "";
+
+      const batchSize = 5;
+      let generated = 0;
+      const batches = [];
+      for (let i = 0; i < needsOutreach.length; i += batchSize) {
+        batches.push(needsOutreach.slice(i, i + batchSize));
+      }
+
+      for (const batch of batches) {
+        const leadsInfo = batch.map(l =>
+          `- Name: ${l.name}, Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Industry notes: ${l.notes || "N/A"}, Intent signal: ${l.intentSignal || "N/A"}, Score: ${l.score}`
+        ).join("\n");
+
+        try {
+          const response = await anthropic.messages.create({
+            model: "claude-sonnet-4-5",
+            max_tokens: 2000,
+            messages: [{
+              role: "user",
+              content: `Generate personalized outreach email drafts for these leads. Each email should be 3-5 sentences, reference their specific situation, mention a relevant benefit, and include a clear call-to-action.${bookingLink ? ` Include this booking link: ${bookingLink}` : ""}\n\nCompany: ${user?.companyName || "Our company"} (${user?.industry || ""})\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array where each element has "name" (exact lead name) and "outreach" (the email draft). No other text.`
+            }],
+          });
+
+          const text = response.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map(b => b.text).join("");
+          const jsonMatch = text.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            const drafts = JSON.parse(jsonMatch[0]);
+            for (const draft of drafts) {
+              const matchingLead = batch.find(l => l.name.toLowerCase() === draft.name?.toLowerCase());
+              if (matchingLead && draft.outreach) {
+                await storage.updateLead(matchingLead.id, { outreach: draft.outreach });
+                generated++;
+              }
+            }
+          }
+        } catch (batchError) {
+          console.error("Error generating outreach batch:", batchError);
+        }
+      }
+
+      res.json({ message: `Generated outreach drafts for ${generated} out of ${needsOutreach.length} leads.`, generated, total: needsOutreach.length });
+    } catch (error) {
+      console.error("Error generating outreach drafts:", error);
+      res.status(500).json({ message: "Failed to generate outreach drafts" });
+    }
+  });
+
   // ---- SCHEDULE OUTREACH ----
 
   app.post("/api/leads/:id/schedule-outreach", isAuthenticated, async (req, res) => {

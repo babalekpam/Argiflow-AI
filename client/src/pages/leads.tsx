@@ -772,6 +772,22 @@ export default function LeadsPage() {
     },
   });
 
+  const generateOutreachMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/leads/generate-outreach");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: data.message || t("leads.outreachGenerated") });
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || t("leads.outreachGenerateFailed"), variant: "destructive" });
+    },
+  });
+
+  const missingOutreachCount = newLeads.filter(l => !l.outreach || l.outreach.trim() === "").length;
+
   const [expandedLeads, setExpandedLeads] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -982,6 +998,20 @@ export default function LeadsPage() {
               data-testid="input-search-leads"
             />
           </div>
+          {activeTab === "new" && missingOutreachCount > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => generateOutreachMutation.mutate()}
+              disabled={generateOutreachMutation.isPending}
+              data-testid="button-generate-outreach"
+            >
+              {generateOutreachMutation.isPending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t("leads.generatingDrafts")}</>
+              ) : (
+                <><Sparkles className="w-4 h-4 mr-2" />{t("leads.generateDrafts", { count: missingOutreachCount })}</>
+              )}
+            </Button>
+          )}
           {activeTab === "new" && unsentCount > 0 && (
             <Button
               onClick={() => sendAllOutreachMutation.mutate()}
