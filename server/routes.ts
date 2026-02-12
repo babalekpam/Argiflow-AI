@@ -224,12 +224,16 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return "Sender email not configured. Tell the user to go to Settings > Integrations and set their verified sender email before sending outreach.";
       }
 
-      const emailProvider = settings?.emailProvider || "sendgrid";
-      if (emailProvider === "smtp") {
-        if (!settings?.smtpHost || !settings?.smtpUsername || !settings?.smtpPassword) {
+      const hasSmtpEnv = !!(settings?.smtpHost || process.env.SMTP_HOST) && !!(settings?.smtpUsername || process.env.SMTP_USERNAME) && !!(settings?.smtpPassword || process.env.SMTP_PASSWORD);
+      const hasSgKey = !!settings?.sendgridApiKey;
+      let eprov = settings?.emailProvider || "sendgrid";
+      if (eprov === "sendgrid" && !hasSgKey && hasSmtpEnv) eprov = "smtp";
+
+      if (eprov === "smtp") {
+        if (!hasSmtpEnv) {
           return "SMTP settings incomplete. Tell the user to go to Settings > Integrations and configure their SMTP server (host, username, password).";
         }
-      } else if (!settings?.sendgridApiKey) {
+      } else if (!hasSgKey) {
         return "Email provider not configured. Tell the user to go to Settings > Integrations and either set up SendGrid API key or configure their own SMTP server.";
       }
 
@@ -509,14 +513,26 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
     return { success: false, error: "Sender email required. Go to Settings > Integrations and set your verified sender email." };
   }
 
-  const emailProvider = userSettings.emailProvider || "sendgrid";
+  const smtpHost = userSettings.smtpHost || process.env.SMTP_HOST;
+  const smtpUsername = userSettings.smtpUsername || process.env.SMTP_USERNAME;
+  const smtpPassword = userSettings.smtpPassword || process.env.SMTP_PASSWORD;
+  const smtpPort = userSettings.smtpPort || (process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587);
+  const smtpSecure = userSettings.smtpSecure ?? false;
+
+  const hasSmtp = !!(smtpHost && smtpUsername && smtpPassword);
+  const hasSendgrid = !!userSettings.sendgridApiKey;
+
+  let emailProvider = userSettings.emailProvider || "sendgrid";
+  if (emailProvider === "sendgrid" && !hasSendgrid && hasSmtp) {
+    emailProvider = "smtp";
+  }
 
   if (emailProvider === "smtp") {
-    if (!userSettings.smtpHost || !userSettings.smtpUsername || !userSettings.smtpPassword) {
+    if (!hasSmtp) {
       return { success: false, error: "SMTP settings incomplete. Go to Settings > Integrations and configure your SMTP server (host, username, password)." };
     }
   } else {
-    if (!userSettings.sendgridApiKey) {
+    if (!hasSendgrid) {
       return { success: false, error: "SendGrid API key required. Go to Settings > Integrations and enter your SendGrid API key to send emails." };
     }
   }
@@ -536,12 +552,12 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
   try {
     if (emailProvider === "smtp") {
       const transporter = nodemailer.createTransport({
-        host: userSettings.smtpHost,
-        port: userSettings.smtpPort || 587,
-        secure: userSettings.smtpSecure ?? false,
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpSecure,
         auth: {
-          user: userSettings.smtpUsername,
-          pass: userSettings.smtpPassword,
+          user: smtpUsername,
+          pass: smtpPassword,
         },
       });
 
@@ -1772,12 +1788,19 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return res.status(400).json({ message: "Sender email required. Go to Settings > Integrations > Email Identity and set your sender email before sending outreach." });
       }
 
-      const emailProvider = settings?.emailProvider || "sendgrid";
-      if (emailProvider === "smtp") {
-        if (!settings?.smtpHost || !settings?.smtpUsername || !settings?.smtpPassword) {
+      const bulkSmtpHost = settings?.smtpHost || process.env.SMTP_HOST;
+      const bulkSmtpUser = settings?.smtpUsername || process.env.SMTP_USERNAME;
+      const bulkSmtpPass = settings?.smtpPassword || process.env.SMTP_PASSWORD;
+      const bulkHasSmtp = !!(bulkSmtpHost && bulkSmtpUser && bulkSmtpPass);
+      const bulkHasSg = !!settings?.sendgridApiKey;
+      let bulkProvider = settings?.emailProvider || "sendgrid";
+      if (bulkProvider === "sendgrid" && !bulkHasSg && bulkHasSmtp) bulkProvider = "smtp";
+
+      if (bulkProvider === "smtp") {
+        if (!bulkHasSmtp) {
           return res.status(400).json({ message: "SMTP settings incomplete. Go to Settings > Integrations and configure your SMTP server." });
         }
-      } else if (!settings?.sendgridApiKey) {
+      } else if (!bulkHasSg) {
         return res.status(400).json({ message: "Email provider not configured. Go to Settings > Integrations and set up SendGrid or SMTP." });
       }
 
