@@ -113,7 +113,8 @@
     "noPlan": "Aucun Plan",
     "free": "Gratuit",
     "unauthorized": "Non autorisé",
-    "loggingIn": "Reconnexion en cours..."
+    "loggingIn": "Reconnexion en cours...",
+    "defaultUser": "Utilisateur"
   },
   "landing": {
     "hero": {
