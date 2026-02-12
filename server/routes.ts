@@ -127,6 +127,165 @@ function randomPick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.
 function randomInt(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 // ============================================================
+// AGENT-TO-FUNNEL AUTO-PIPELINE
+// ============================================================
+
+const AGENT_FUNNEL_STAGES: Record<string, { name: string; stages: { name: string; color: string }[] }> = {
+  "tax-lien": {
+    name: "Tax Lien Pipeline",
+    stages: [
+      { name: "Discovered", color: "#3b82f6" },
+      { name: "Analyzing ROI", color: "#8b5cf6" },
+      { name: "Due Diligence", color: "#f59e0b" },
+      { name: "Bidding", color: "#f97316" },
+      { name: "Won / Acquired", color: "#22c55e" },
+    ],
+  },
+  "tax-deed": {
+    name: "Tax Deed Pipeline",
+    stages: [
+      { name: "Found", color: "#3b82f6" },
+      { name: "Property Evaluation", color: "#8b5cf6" },
+      { name: "Due Diligence", color: "#f59e0b" },
+      { name: "Bid Prep", color: "#f97316" },
+      { name: "Acquired", color: "#22c55e" },
+    ],
+  },
+  "wholesale-re": {
+    name: "Wholesale RE Pipeline",
+    stages: [
+      { name: "Prospects", color: "#3b82f6" },
+      { name: "Comp Analysis", color: "#8b5cf6" },
+      { name: "Under Contract", color: "#f59e0b" },
+      { name: "Buyer Matched", color: "#f97316" },
+      { name: "Closed", color: "#22c55e" },
+    ],
+  },
+  "govt-contracts-us": {
+    name: "Govt Contracts Pipeline",
+    stages: [
+      { name: "Opportunities", color: "#3b82f6" },
+      { name: "Evaluating", color: "#8b5cf6" },
+      { name: "Bid Preparation", color: "#f59e0b" },
+      { name: "Submitted", color: "#f97316" },
+      { name: "Awarded", color: "#22c55e" },
+    ],
+  },
+  "lead-gen": {
+    name: "Lead Gen Pipeline",
+    stages: [
+      { name: "Prospects", color: "#3b82f6" },
+      { name: "Qualified", color: "#8b5cf6" },
+      { name: "Outreach Sent", color: "#f59e0b" },
+      { name: "Negotiation", color: "#f97316" },
+      { name: "Closed Won", color: "#22c55e" },
+    ],
+  },
+  "govt-tender-africa": {
+    name: "Govt Tender Pipeline",
+    stages: [
+      { name: "Tenders Found", color: "#3b82f6" },
+      { name: "Matched", color: "#8b5cf6" },
+      { name: "Bid Prep", color: "#f59e0b" },
+      { name: "Submitted", color: "#f97316" },
+      { name: "Won", color: "#22c55e" },
+    ],
+  },
+  "cross-border-trade": {
+    name: "Cross-Border Trade Pipeline",
+    stages: [
+      { name: "Opportunities", color: "#3b82f6" },
+      { name: "Price Analysis", color: "#8b5cf6" },
+      { name: "Supplier Match", color: "#f59e0b" },
+      { name: "Logistics", color: "#f97316" },
+      { name: "Deal Closed", color: "#22c55e" },
+    ],
+  },
+  "agri-market": {
+    name: "Agri Market Pipeline",
+    stages: [
+      { name: "Leads", color: "#3b82f6" },
+      { name: "Price Check", color: "#8b5cf6" },
+      { name: "Matched", color: "#f59e0b" },
+      { name: "In Transit", color: "#f97316" },
+      { name: "Completed", color: "#22c55e" },
+    ],
+  },
+  "diaspora-services": {
+    name: "Diaspora Pipeline",
+    stages: [
+      { name: "Opportunities", color: "#3b82f6" },
+      { name: "Evaluation", color: "#8b5cf6" },
+      { name: "Due Diligence", color: "#f59e0b" },
+      { name: "In Progress", color: "#f97316" },
+      { name: "Completed", color: "#22c55e" },
+    ],
+  },
+  "arbitrage": {
+    name: "Arbitrage Pipeline",
+    stages: [
+      { name: "Products Found", color: "#3b82f6" },
+      { name: "Price Verified", color: "#8b5cf6" },
+      { name: "Listed", color: "#f59e0b" },
+      { name: "Selling", color: "#f97316" },
+      { name: "Sold", color: "#22c55e" },
+    ],
+  },
+};
+
+async function findOrCreateAgentFunnel(userId: string, agentType: string): Promise<{ funnelId: string; firstStageId: string } | null> {
+  const funnelConfig = AGENT_FUNNEL_STAGES[agentType];
+  if (!funnelConfig) return null;
+
+  const userFunnels = await storage.getFunnelsByUser(userId);
+  let targetFunnel = userFunnels.find(f => f.name === funnelConfig.name);
+
+  if (!targetFunnel) {
+    targetFunnel = await storage.createFunnel({
+      userId,
+      name: funnelConfig.name,
+      description: `Auto-created pipeline for ${getAgentByType(agentType)?.name || agentType} agent`,
+      isActive: true,
+    });
+    for (let i = 0; i < funnelConfig.stages.length; i++) {
+      await storage.createFunnelStage({
+        funnelId: targetFunnel.id,
+        name: funnelConfig.stages[i].name,
+        position: i,
+        color: funnelConfig.stages[i].color,
+      });
+    }
+  }
+
+  const stages = await storage.getFunnelStages(targetFunnel.id);
+  if (stages.length === 0) return null;
+
+  return { funnelId: targetFunnel.id, firstStageId: stages[0].id };
+}
+
+async function addLeadsToAgentFunnel(userId: string, agentType: string, leadsToAdd: { name: string; email?: string; value?: number }[]): Promise<string> {
+  const funnelInfo = await findOrCreateAgentFunnel(userId, agentType);
+  if (!funnelInfo) return "";
+
+  let dealsCreated = 0;
+  for (const lead of leadsToAdd) {
+    await storage.createFunnelDeal({
+      funnelId: funnelInfo.funnelId,
+      stageId: funnelInfo.firstStageId,
+      userId,
+      contactName: lead.name,
+      contactEmail: lead.email || "",
+      value: lead.value || 0,
+      status: "open",
+    });
+    dealsCreated++;
+  }
+
+  const funnelConfig = AGENT_FUNNEL_STAGES[agentType];
+  return dealsCreated > 0 ? ` Also added ${dealsCreated} deals to "${funnelConfig?.name}" pipeline.` : "";
+}
+
+// ============================================================
 // CRM ACTION EXECUTOR (called by Claude via tool_use)
 // ============================================================
 
@@ -138,6 +297,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return "ERROR: No lead data provided. Use web_search first to find real businesses, then pass their details to this tool.";
       }
       const created: string[] = [];
+      const createdLeadDetails: { name: string; email?: string }[] = [];
       for (const lead of leadsData.slice(0, 20)) {
         const leadRecord = {
           userId,
@@ -154,12 +314,20 @@ async function executeAction(userId: string, action: string, params: any): Promi
         };
         await storage.createLead(leadRecord);
         created.push(`${leadRecord.name}${lead.company ? ` (${lead.company})` : ""}`);
+        createdLeadDetails.push({ name: leadRecord.name, email: leadRecord.email });
       }
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);
       const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
       await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
-      return `Saved ${created.length} real leads to CRM: ${created.join(", ")}. Total leads now: ${allLeads.length}.`;
+
+      let funnelMessage = "";
+      const agentType = params.agent_type;
+      if (agentType && AGENT_FUNNEL_STAGES[agentType]) {
+        funnelMessage = await addLeadsToAgentFunnel(userId, agentType, createdLeadDetails);
+      }
+
+      return `Saved ${created.length} real leads to CRM: ${created.join(", ")}. Total leads now: ${allLeads.length}.${funnelMessage}`;
     }
     case "book_appointments": {
       const userLeads = await storage.getLeadsByUser(userId);
@@ -684,7 +852,9 @@ LEAD GENERATION (CRITICAL):
 4. EVERY lead MUST include all fields: name, email, phone, company, source, status="new", score, intent_signal (what buying signal found), notes (research about prospect), outreach (personalized 3-5 sentence email referencing their situation/pain point).${bookingLink ? ` Include booking link in outreach: ${bookingLink}` : ' Include CTA: "Would you be open to a 15-minute call this week?"'}
 5. ALWAYS end outreach with signature: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246
 
-TOOL SEQUENCING: web_search → generate_leads → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results and suggest next steps. Combine tools in one flow when beneficial.
+AGENT-TO-FUNNEL: When generating leads for a specific agent (Tax Lien, Govt Contracts, Lead Gen, etc.), ALWAYS include agent_type in generate_leads (e.g. agent_type="tax-lien"). This auto-creates or finds the matching funnel pipeline and adds leads as deals. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage.
+
+TOOL SEQUENCING: web_search → generate_leads (with agent_type if applicable) → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results and suggest next steps. Combine tools in one flow when beneficial.
 
 FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise but thorough.`;
 
@@ -708,10 +878,11 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
     // CRM Tools
     {
       name: "generate_leads",
-      description: "Save leads to CRM. MUST use web_search FIRST. Never fabricate data.",
+      description: "Save leads to CRM. MUST use web_search FIRST. Never fabricate data. If leads come from a specific agent (e.g. tax-lien, lead-gen), include agent_type to auto-add them to the matching funnel pipeline.",
       input_schema: {
         type: "object" as const,
         properties: {
+          agent_type: { type: "string", description: "Optional agent type if leads are from a specific agent. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. When provided, leads are auto-added to the matching funnel pipeline." },
           leads: {
             type: "array",
             items: {
@@ -3488,15 +3659,58 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       await storage.updateAgentConfig(configId, userId, { isRunning: true, lastRun: new Date() } as any);
       setTimeout(async () => {
         try {
-          await storage.updateAgentTask(task.id, { status: "completed", completedAt: new Date(), result: JSON.stringify({ leadsFound: Math.floor(Math.random() * 15) + 3, analyzed: true }) });
           const leadsFound = Math.floor(Math.random() * 15) + 3;
+          const agentName = catalogEntry?.name || config.agentType;
+
+          const generatedLeads: { name: string; email: string; company: string }[] = [];
+          for (let i = 0; i < leadsFound; i++) {
+            const leadName = `${agentName} Lead #${Date.now().toString(36).slice(-4)}-${i + 1}`;
+            const company = `${agentName} Prospect ${i + 1}`;
+            const email = `contact${i + 1}@prospect-${Date.now().toString(36).slice(-4)}.com`;
+            const leadRecord = {
+              userId,
+              name: leadName,
+              email,
+              phone: "",
+              company,
+              source: `${agentName} Agent`,
+              status: "new" as const,
+              score: randomInt(50, 90),
+              notes: `Auto-discovered by ${agentName} agent run`,
+              outreach: "",
+              intentSignal: "Agent discovery",
+            };
+            await storage.createLead(leadRecord);
+            generatedLeads.push({ name: leadName, email, company });
+          }
+
+          let funnelInfo = "";
+          try {
+            const pipelineResult = await addLeadsToAgentFunnel(
+              userId,
+              config.agentType,
+              generatedLeads.map(l => ({ name: l.name, email: l.email }))
+            );
+            if (pipelineResult) {
+              funnelInfo = pipelineResult;
+            }
+          } catch (funnelErr) {
+            console.error("Error adding leads to funnel:", funnelErr);
+          }
+
+          const allLeads = await storage.getLeadsByUser(userId);
+          const stats = await storage.getStatsByUser(userId);
+          const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
+          await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
+
+          await storage.updateAgentTask(task.id, { status: "completed", completedAt: new Date(), result: JSON.stringify({ leadsFound, analyzed: true, addedToFunnel: !!funnelInfo }) });
           await storage.updateAgentConfig(configId, userId, { isRunning: false, totalLeadsFound: (config.totalLeadsFound || 0) + leadsFound } as any);
           await storage.createNotification({
             userId,
             agentType: config.agentType,
             type: "new_lead",
-            title: `${catalogEntry?.name || config.agentType} Found ${leadsFound} Leads`,
-            message: `Your agent completed a scan and discovered ${leadsFound} new opportunities. Check your leads page for details.`,
+            title: `${agentName} Found ${leadsFound} Leads`,
+            message: `Your agent completed a scan and discovered ${leadsFound} new opportunities.${funnelInfo} Check your leads and funnels pages for details.`,
             priority: leadsFound > 10 ? "high" : "normal",
           });
         } catch (err) {
