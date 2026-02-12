@@ -13,6 +13,34 @@ import nodemailer from "nodemailer";
 import { AGENT_CATALOG, getAgentsByRegion, getAgentByType } from "./agent-catalog";
 import { REGIONS, detectRegion, getRegionConfig } from "./region-config";
 
+async function sendSystemEmail(to: string, from: { email: string; name: string }, subject: string, html: string) {
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpUser = process.env.SMTP_USERNAME;
+  const smtpPass = process.env.SMTP_PASSWORD;
+  const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587;
+  const sgKey = process.env.SENDGRID_API_KEY;
+
+  if (smtpHost && smtpUser && smtpPass) {
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: { user: smtpUser, pass: smtpPass },
+    });
+    await transporter.sendMail({
+      from: `"${from.name}" <${from.email}>`,
+      to,
+      subject,
+      html,
+    });
+  } else if (sgKey) {
+    sgMail.setApiKey(sgKey);
+    await sgMail.send({ to, from, subject, html });
+  } else {
+    console.warn("No email provider configured (neither SMTP env vars nor SENDGRID_API_KEY). Cannot send system email.");
+  }
+}
+
 // ============================================================
 // ANTHROPIC CLAUDE — SINGLE AI PROVIDER FOR EVERYTHING
 // No Tavily, no OpenAI, no other providers.
@@ -1077,39 +1105,33 @@ export async function registerRoutes(
         console.error("Failed to create trial subscription:", subErr?.message || subErr);
       }
 
-      const sgKey = process.env.SENDGRID_API_KEY;
-      if (sgKey) {
-        try {
-          sgMail.setApiKey(sgKey);
-          await sgMail.send({
-            to: email,
-            from: { email: "info@argilette.co", name: "ArgiFlow" },
-            subject: `Welcome to ArgiFlow — Your 14-Day Pro Trial is Active!`,
-            html: `
-              <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
-                <div style="text-align: center; margin-bottom: 30px;">
-                  <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
-                  <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
-                </div>
-                <h2 style="color: #e6edf3; font-size: 22px;">Welcome, ${firstName}!</h2>
-                <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Your account is ready and your <strong style="color: #38bdf8;">14-day Pro trial</strong> is now active. You have full access to all Pro features including AI agents, lead generation, email campaigns, and more.</p>
-                <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                  <p style="color: #e6edf3; margin: 0 0 8px; font-weight: 600;">Your Trial Details:</p>
-                  <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Plan: <strong style="color: #38bdf8;">Pro</strong></p>
-                  <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Trial ends: <strong style="color: #e6edf3;">${trialEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong></p>
-                </div>
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="https://argilette.co/dashboard" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Go to Dashboard</a>
-                </div>
-                <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">After your trial ends, choose a plan to continue using ArgiFlow. No credit card required during the trial.</p>
-                <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
-              </div>
-            `,
-          });
-          console.log(`Welcome email sent to ${email}`);
-        } catch (emailErr: any) {
-          console.error("Welcome email failed:", emailErr?.response?.body || emailErr?.message || emailErr);
-        }
+      try {
+        await sendSystemEmail(
+          email,
+          { email: "info@argilette.co", name: "ArgiFlow" },
+          `Welcome to ArgiFlow — Your 14-Day Pro Trial is Active!`,
+          `<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
+              <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
+            </div>
+            <h2 style="color: #e6edf3; font-size: 22px;">Welcome, ${firstName}!</h2>
+            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Your account is ready and your <strong style="color: #38bdf8;">14-day Pro trial</strong> is now active. You have full access to all Pro features including AI agents, lead generation, email campaigns, and more.</p>
+            <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <p style="color: #e6edf3; margin: 0 0 8px; font-weight: 600;">Your Trial Details:</p>
+              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Plan: <strong style="color: #38bdf8;">Pro</strong></p>
+              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Trial ends: <strong style="color: #e6edf3;">${trialEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong></p>
+            </div>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://argilette.co/dashboard" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Go to Dashboard</a>
+            </div>
+            <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">After your trial ends, choose a plan to continue using ArgiFlow. No credit card required during the trial.</p>
+            <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
+          </div>`
+        );
+        console.log(`Welcome email sent to ${email}`);
+      } catch (emailErr: any) {
+        console.error("Welcome email failed:", emailErr?.response?.body || emailErr?.message || emailErr);
       }
 
       res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
@@ -1189,12 +1211,6 @@ export async function registerRoutes(
       const user = await storage.getUserByEmail(email);
       if (!user || user.emailVerified) return;
 
-      const sgKey = process.env.SENDGRID_API_KEY;
-      if (!sgKey) {
-        console.warn("SENDGRID_API_KEY not set, cannot send verification email");
-        return;
-      }
-
       await storage.invalidateUserVerificationTokens(user.id);
       const token = randomBytes(32).toString("hex");
       const tokenHash = createHash("sha256").update(token).digest("hex");
@@ -1202,27 +1218,24 @@ export async function registerRoutes(
       await storage.createEmailVerificationToken({ userId: user.id, token: tokenHash, expiresAt });
 
       const verifyUrl = `${req.protocol}://${req.get("host")}/verify-email?token=${token}`;
-      sgMail.setApiKey(sgKey);
-      await sgMail.send({
-        to: email,
-        from: { email: "info@argilette.co", name: "ArgiFlow" },
-        subject: `Verify your email — ArgiFlow`,
-        html: `
-          <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
-              <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
-            </div>
-            <h2 style="color: #e6edf3; font-size: 22px;">Verify Your Email</h2>
-            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Click the button below to confirm your email address and activate your ArgiFlow account.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${verifyUrl}" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Confirm Email Address</a>
-            </div>
-            <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">This link expires in 24 hours. If you didn't request this, you can safely ignore it.</p>
-            <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
+      await sendSystemEmail(
+        email,
+        { email: "info@argilette.co", name: "ArgiFlow" },
+        `Verify your email — ArgiFlow`,
+        `<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
+            <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
           </div>
-        `,
-      });
+          <h2 style="color: #e6edf3; font-size: 22px;">Verify Your Email</h2>
+          <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Click the button below to confirm your email address and activate your ArgiFlow account.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verifyUrl}" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Confirm Email Address</a>
+          </div>
+          <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">This link expires in 24 hours. If you didn't request this, you can safely ignore it.</p>
+          <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
+        </div>`
+      );
       console.log(`Verification email resent to ${email}`);
     } catch (error) {
       console.error("Resend verification error:", error);
@@ -1240,12 +1253,6 @@ export async function registerRoutes(
 
       if (!user) return;
 
-      const sgKey = process.env.SENDGRID_API_KEY;
-      if (!sgKey) {
-        console.warn("SENDGRID_API_KEY not set, cannot send password reset email");
-        return;
-      }
-
       await storage.invalidateUserResetTokens(user.id);
 
       const token = randomBytes(32).toString("hex");
@@ -1254,27 +1261,24 @@ export async function registerRoutes(
       await storage.createPasswordResetToken({ userId: user.id, token: tokenHash, expiresAt });
 
       const resetUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${token}`;
-      sgMail.setApiKey(sgKey);
-      await sgMail.send({
-        to: email,
-        from: { email: "info@argilette.co", name: "ArgiFlow" },
-        subject: "Reset Your ArgiFlow Password",
-        html: `
-          <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
-              <p style="color: #8b949e; margin: 8px 0 0;">Password Reset</p>
-            </div>
-            <h2 style="color: #e6edf3; font-size: 22px;">Reset your password</h2>
-            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">We received a request to reset the password for your ArgiFlow account. Click the button below to set a new password. This link expires in 1 hour.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" style="background: #38bdf8; color: #0d1117; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 15px;">Reset Password</a>
-            </div>
-            <p style="color: #8b949e; font-size: 13px;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
-            <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
+      await sendSystemEmail(
+        email,
+        { email: "info@argilette.co", name: "ArgiFlow" },
+        "Reset Your ArgiFlow Password",
+        `<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
+            <p style="color: #8b949e; margin: 8px 0 0;">Password Reset</p>
           </div>
-        `,
-      });
+          <h2 style="color: #e6edf3; font-size: 22px;">Reset your password</h2>
+          <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">We received a request to reset the password for your ArgiFlow account. Click the button below to set a new password. This link expires in 1 hour.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" style="background: #38bdf8; color: #0d1117; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 15px;">Reset Password</a>
+          </div>
+          <p style="color: #8b949e; font-size: 13px;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+          <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
+        </div>`
+      );
       console.log(`Password reset email sent to ${email}`);
     } catch (error) {
       console.error("Forgot password error:", error);
