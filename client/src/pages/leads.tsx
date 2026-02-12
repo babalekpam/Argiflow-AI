@@ -752,16 +752,50 @@ export default function LeadsPage() {
     },
   });
 
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkSendProgress, setBulkSendProgress] = useState("");
+
   const sendAllOutreachMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/leads/send-all-outreach");
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
-      const msg = `${t("leads.sentEmailsCount", { sent: data.sent })}${data.failed > 0 ? `, ${t("leads.sentEmailsFailed", { failed: data.failed })}` : ""}`;
-      toast({ title: msg });
+      if (data.status === "processing") {
+        setBulkSending(true);
+        setBulkSendProgress(`0/${data.total}`);
+        toast({ title: data.message || t("common.sending") });
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await fetch("/api/leads/send-all-outreach/status", { credentials: "include" });
+            const status = await statusRes.json();
+            setBulkSendProgress(`${status.sent}/${status.total}`);
+            if (status.status === "complete") {
+              clearInterval(pollInterval);
+              setBulkSending(false);
+              setBulkSendProgress("");
+              queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+              const msg = `${t("leads.sentEmailsCount", { sent: status.sent })}${status.failed > 0 ? `, ${t("leads.sentEmailsFailed", { failed: status.failed })}` : ""}`;
+              toast({ title: msg });
+            } else if (status.status === "error") {
+              clearInterval(pollInterval);
+              setBulkSending(false);
+              setBulkSendProgress("");
+              toast({ title: t("leads.sendAllFailed"), variant: "destructive" });
+            }
+          } catch {
+            clearInterval(pollInterval);
+            setBulkSending(false);
+            setBulkSendProgress("");
+          }
+        }, 3000);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+        const msg = `${t("leads.sentEmailsCount", { sent: data.sent })}${data.failed > 0 ? `, ${t("leads.sentEmailsFailed", { failed: data.failed })}` : ""}`;
+        toast({ title: msg });
+      }
     },
     onError: async (error: any) => {
       let message = t("leads.sendAllFailed");
@@ -1043,14 +1077,14 @@ export default function LeadsPage() {
               )}
             </Button>
           )}
-          {activeTab === "new" && unsentCount > 0 && (
+          {activeTab === "new" && (unsentCount > 0 || bulkSending) && (
             <Button
               onClick={() => sendAllOutreachMutation.mutate()}
-              disabled={sendAllOutreachMutation.isPending}
+              disabled={sendAllOutreachMutation.isPending || bulkSending}
               data-testid="button-send-all-outreach"
             >
-              {sendAllOutreachMutation.isPending ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t("common.sending")}</>
+              {sendAllOutreachMutation.isPending || bulkSending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t("common.sending")} {bulkSendProgress && `(${bulkSendProgress})`}</>
               ) : (
                 <><Send className="w-4 h-4 mr-2" />{t("leads.engageAll", { count: unsentCount })}</>
               )}

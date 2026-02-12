@@ -1679,6 +1679,34 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     }
   });
 
+  const bulkSendStatus = new Map<string, { status: string; sent: number; failed: number; total: number; errors: string[] }>();
+
+  async function processBulkOutreachSend(userId: string, unsent: any[], settings: any, user: any) {
+    let sent = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const lead of unsent) {
+      try {
+        const result = await sendOutreachEmail(lead, settings, user);
+        if (result.success) {
+          await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm" });
+          sent++;
+        } else {
+          failed++;
+          errors.push(`${lead.name}: ${result.error}`);
+        }
+      } catch (err: any) {
+        failed++;
+        errors.push(`${lead.name}: ${err.message || "Unknown error"}`);
+      }
+      bulkSendStatus.set(userId, { status: "processing", sent, failed, total: unsent.length, errors: errors.slice(0, 5) });
+    }
+
+    bulkSendStatus.set(userId, { status: "complete", sent, failed, total: unsent.length, errors: errors.slice(0, 5) });
+    console.log(`Bulk outreach send complete for user ${userId}: ${sent} sent, ${failed} failed out of ${unsent.length}`);
+  }
+
   app.post("/api/leads/send-all-outreach", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -1700,25 +1728,35 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return res.status(400).json({ message: "Sender email required. Go to Settings > Integrations > Email Identity and set your sender email before sending outreach." });
       }
 
-      let sent = 0;
-      let failed = 0;
-      const errors: string[] = [];
-
-      for (const lead of unsent) {
-        const result = await sendOutreachEmail(lead, settings, user);
-        if (result.success) {
-          await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm" });
-          sent++;
-        } else {
-          failed++;
-          errors.push(`${lead.name}: ${result.error}`);
-        }
+      const existing = bulkSendStatus.get(userId);
+      if (existing && existing.status === "processing") {
+        return res.json({ status: "processing", sent: existing.sent, failed: existing.failed, total: existing.total });
       }
 
-      res.json({ success: true, sent, failed, total: unsent.length, errors: errors.slice(0, 5) });
+      bulkSendStatus.set(userId, { status: "processing", sent: 0, failed: 0, total: unsent.length, errors: [] });
+      res.json({ status: "processing", sent: 0, failed: 0, total: unsent.length, message: `Sending ${unsent.length} emails in the background...` });
+
+      setImmediate(() => {
+        processBulkOutreachSend(userId, unsent, settings, user).catch(err => {
+          console.error("Background bulk send failed:", err);
+          bulkSendStatus.set(userId, { status: "error", sent: 0, failed: 0, total: unsent.length, errors: [String(err)] });
+        });
+      });
     } catch (error) {
       console.error("Error sending bulk outreach:", error);
       res.status(500).json({ message: "Failed to send outreach emails" });
+    }
+  });
+
+  app.get("/api/leads/send-all-outreach/status", isAuthenticated, async (req, res) => {
+    const userId = req.session.userId!;
+    const status = bulkSendStatus.get(userId);
+    if (!status) {
+      return res.json({ status: "idle", sent: 0, failed: 0, total: 0 });
+    }
+    res.json(status);
+    if (status.status === "complete" || status.status === "error") {
+      bulkSendStatus.delete(userId);
     }
   });
 
