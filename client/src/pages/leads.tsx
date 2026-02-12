@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -88,11 +89,12 @@ function LeadStatusBadge({ status }: { status: string }) {
 }
 
 function EngagementLevelBadge({ level }: { level: string }) {
+  const { t } = useTranslation();
   const config: Record<string, { style: string; label: string; icon: any }> = {
-    hot: { style: "bg-red-500/10 text-red-400 border-red-500/20", label: "HOT", icon: Flame },
-    warm: { style: "bg-amber-500/10 text-amber-400 border-amber-500/20", label: "WARM", icon: TrendingUp },
-    interested: { style: "bg-sky-500/10 text-sky-400 border-sky-500/20", label: "INTERESTED", icon: Eye },
-    none: { style: "bg-slate-500/10 text-slate-400 border-slate-500/20", label: "NO ACTIVITY", icon: Clock },
+    hot: { style: "bg-red-500/10 text-red-400 border-red-500/20", label: t("leads.engagement.hot").toUpperCase(), icon: Flame },
+    warm: { style: "bg-amber-500/10 text-amber-400 border-amber-500/20", label: t("leads.engagement.warm").toUpperCase(), icon: TrendingUp },
+    interested: { style: "bg-sky-500/10 text-sky-400 border-sky-500/20", label: t("leads.engagement.interested").toUpperCase(), icon: Eye },
+    none: { style: "bg-slate-500/10 text-slate-400 border-slate-500/20", label: t("leads.engagement.noActivity"), icon: Clock },
   };
   const c = config[level] || config.none;
   const Icon = c.icon;
@@ -105,6 +107,7 @@ function EngagementLevelBadge({ level }: { level: string }) {
 }
 
 function EmailAnalyticsSummary() {
+  const { t } = useTranslation();
   const { data: analytics } = useQuery<{
     totalSent: number;
     totalOpens: number;
@@ -123,32 +126,32 @@ function EmailAnalyticsSummary() {
     <Card className="p-4 mb-6" data-testid="card-email-analytics">
       <div className="flex items-center gap-2 mb-3">
         <BarChart3 className="w-4 h-4 text-primary" />
-        <h3 className="text-sm font-semibold">Email Engagement Overview</h3>
+        <h3 className="text-sm font-semibold">{t("leads.engagement.overview")}</h3>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
         <div className="text-center">
           <div className="text-lg font-bold" data-testid="text-total-sent">{analytics.totalSent}</div>
-          <div className="text-xs text-muted-foreground">Emails Sent</div>
+          <div className="text-xs text-muted-foreground">{t("leads.engagement.emailsSent")}</div>
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-sky-400" data-testid="text-total-opens">{analytics.totalOpens}</div>
-          <div className="text-xs text-muted-foreground">Total Opens</div>
+          <div className="text-xs text-muted-foreground">{t("leads.engagement.totalOpens")}</div>
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-emerald-400" data-testid="text-total-clicks">{analytics.totalClicks}</div>
-          <div className="text-xs text-muted-foreground">Total Clicks</div>
+          <div className="text-xs text-muted-foreground">{t("leads.engagement.totalClicks")}</div>
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-amber-400" data-testid="text-open-rate">{analytics.openRate}%</div>
-          <div className="text-xs text-muted-foreground">Open Rate</div>
+          <div className="text-xs text-muted-foreground">{t("leads.engagement.openRate")}</div>
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-purple-400" data-testid="text-click-rate">{analytics.clickRate}%</div>
-          <div className="text-xs text-muted-foreground">Click Rate</div>
+          <div className="text-xs text-muted-foreground">{t("leads.engagement.clickRate")}</div>
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-red-400" data-testid="text-hot-leads">{analytics.byLevel.hot}</div>
-          <div className="text-xs text-muted-foreground">Hot Leads</div>
+          <div className="text-xs text-muted-foreground">{t("leads.engagement.hotLeads")}</div>
         </div>
       </div>
     </Card>
@@ -182,6 +185,7 @@ function LeadCard({
   callMutation: any;
   onSmsClick: (lead: Lead) => void;
 }) {
+  const { t } = useTranslation();
   const isSent = !!lead.outreachSentAt;
   const isScheduled = !!lead.scheduledSendAt && !isSent;
   const hasEngagement = (lead.emailOpens || 0) > 0 || (lead.emailClicks || 0) > 0;
@@ -249,7 +253,7 @@ function LeadCard({
           {lead.intentSignal && (
             <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-400 border-purple-500/20">
               <Target className="w-3 h-3 mr-1" />
-              Intent
+              {t("leads.intent")}
             </Badge>
           )}
           {isSent && hasEngagement && (
@@ -257,11 +261,11 @@ function LeadCard({
           )}
           {isSent && hasEngagement && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`text-engagement-stats-${lead.id}`}>
-              <span className="flex items-center gap-0.5" title="Email opens">
+              <span className="flex items-center gap-0.5" title={t("leads.engagement.opens")}>
                 <Eye className="w-3 h-3 text-sky-400" />
                 {lead.emailOpens || 0}
               </span>
-              <span className="flex items-center gap-0.5" title="Link clicks">
+              <span className="flex items-center gap-0.5" title={t("leads.engagement.clicks")}>
                 <MousePointerClick className="w-3 h-3 text-emerald-400" />
                 {lead.emailClicks || 0}
               </span>
@@ -270,25 +274,25 @@ function LeadCard({
           {lead.outreach && isSent && !hasEngagement && (
             <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
               <CheckCircle2 className="w-3 h-3 mr-1" />
-              Sent
+              {t("common.sent")}
             </Badge>
           )}
           {lead.outreach && !isSent && isScheduled && (
             <Badge variant="outline" className="text-xs bg-violet-500/10 text-violet-400 border-violet-500/20">
               <CalendarClock className="w-3 h-3 mr-1" />
-              Scheduled
+              {t("common.scheduled")}
             </Badge>
           )}
           {lead.outreach && !isSent && !isScheduled && (
             <Badge variant="outline" className="text-xs bg-sky-500/10 text-sky-400 border-sky-500/20">
               <Send className="w-3 h-3 mr-1" />
-              Ready
+              {t("leads.ready")}
             </Badge>
           )}
           {!lead.outreach && !isSent && (
             <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
               <Pencil className="w-3 h-3 mr-1" />
-              No Draft
+              {t("leads.noDraft")}
             </Badge>
           )}
           <span data-testid={`badge-lead-status-${lead.id}`}><LeadStatusBadge status={lead.status} /></span>
@@ -303,7 +307,7 @@ function LeadCard({
                 variant="ghost"
                 onClick={(e) => { e.stopPropagation(); onSmsClick(lead); }}
                 data-testid={`button-sms-lead-${lead.id}`}
-                title="Send SMS to this lead"
+                title={t("leads.smsLead")}
               >
                 <MessageSquare className="w-4 h-4 text-chart-2" />
               </Button>
@@ -313,7 +317,7 @@ function LeadCard({
                 onClick={(e) => { e.stopPropagation(); callMutation.mutate({ toNumber: lead.phone!, leadId: lead.id }); }}
                 disabled={callMutation.isPending}
                 data-testid={`button-call-lead-${lead.id}`}
-                title="Call this lead"
+                title={t("leads.callLead")}
               >
                 <PhoneCall className="w-4 h-4 text-primary" />
               </Button>
@@ -337,34 +341,34 @@ function LeadCard({
             <div className="border rounded-md p-3 bg-background" data-testid={`engagement-panel-${lead.id}`}>
               <div className="flex items-center gap-2 mb-2">
                 <Activity className="w-4 h-4 text-primary" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email Engagement</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("leads.engagement.emailEngagement")}</span>
                 <EngagementLevelBadge level={lead.engagementLevel || "none"} />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                 <div className="text-center p-2 rounded-md bg-muted/50">
                   <div className="text-sm font-bold text-sky-400">{lead.emailOpens || 0}</div>
-                  <div className="text-xs text-muted-foreground">Opens</div>
+                  <div className="text-xs text-muted-foreground">{t("leads.engagement.opens")}</div>
                 </div>
                 <div className="text-center p-2 rounded-md bg-muted/50">
                   <div className="text-sm font-bold text-emerald-400">{lead.emailClicks || 0}</div>
-                  <div className="text-xs text-muted-foreground">Clicks</div>
+                  <div className="text-xs text-muted-foreground">{t("leads.engagement.clicks")}</div>
                 </div>
                 <div className="text-center p-2 rounded-md bg-muted/50">
                   <div className="text-sm font-bold">{lead.engagementScore || 0}</div>
-                  <div className="text-xs text-muted-foreground">Score</div>
+                  <div className="text-xs text-muted-foreground">{t("leads.engagement.score")}</div>
                 </div>
                 <div className="text-center p-2 rounded-md bg-muted/50">
                   <div className="text-sm font-bold text-muted-foreground">
                     {lead.lastEngagedAt ? new Date(lead.lastEngagedAt).toLocaleDateString() : "N/A"}
                   </div>
-                  <div className="text-xs text-muted-foreground">Last Active</div>
+                  <div className="text-xs text-muted-foreground">{t("leads.engagement.lastActive")}</div>
                 </div>
               </div>
               {lead.nextStep && (
                 <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10">
                   <ArrowRight className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                   <div>
-                    <span className="text-xs font-semibold text-primary">Recommended Next Step</span>
+                    <span className="text-xs font-semibold text-primary">{t("leads.engagement.recommendedNextStep")}</span>
                     <p className="text-sm" data-testid={`text-next-step-${lead.id}`}>{lead.nextStep}</p>
                   </div>
                 </div>
@@ -376,7 +380,7 @@ function LeadCard({
             <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
               <Clock className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                Email sent {lead.outreachSentAt ? new Date(lead.outreachSentAt).toLocaleDateString() : ""} — waiting for engagement (opens, clicks)
+                {t("leads.engagement.waitingEngagement", { date: lead.outreachSentAt ? new Date(lead.outreachSentAt).toLocaleDateString() : "" })}
               </span>
             </div>
           )}
@@ -385,7 +389,7 @@ function LeadCard({
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Target className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Intent Signal</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("leads.intentSignal")}</span>
               </div>
               <p className="text-sm pl-6" data-testid={`text-intent-${lead.id}`}>{lead.intentSignal}</p>
             </div>
@@ -394,7 +398,7 @@ function LeadCard({
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <FileText className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Research Notes</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("leads.researchNotes")}</span>
               </div>
               <p className="text-sm pl-6" data-testid={`text-notes-${lead.id}`}>{lead.notes}</p>
             </div>
@@ -406,11 +410,11 @@ function LeadCard({
                 <div className="flex items-center gap-2">
                   <Send className="w-4 h-4 text-sky-400" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {isSent ? "Outreach Email (Sent)" : "Outreach Email Draft"}
+                    {isSent ? t("leads.outreachSent") : t("leads.outreachDraft")}
                   </span>
                   {isSent && lead.outreachSentAt && (
                     <span className="text-xs text-emerald-400">
-                      Sent {new Date(lead.outreachSentAt).toLocaleDateString()}
+                      {t("leads.sentOn", { date: new Date(lead.outreachSentAt).toLocaleDateString() })}
                     </span>
                   )}
                 </div>
@@ -422,7 +426,7 @@ function LeadCard({
                       onClick={(e) => { e.stopPropagation(); setDraftText(lead.outreach || ""); setIsEditingOutreach(true); }}
                       data-testid={`button-edit-outreach-${lead.id}`}
                     >
-                      <Pencil className="w-3 h-3 mr-1" /> Edit
+                      <Pencil className="w-3 h-3 mr-1" /> {t("common.edit")}
                     </Button>
                   )}
                   <Button
@@ -432,9 +436,9 @@ function LeadCard({
                     data-testid={`button-copy-outreach-${lead.id}`}
                   >
                     {copiedId === lead.id ? (
-                      <><Check className="w-3 h-3 mr-1" /> Copied</>
+                      <><Check className="w-3 h-3 mr-1" /> {t("leads.copied")}</>
                     ) : (
-                      <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                      <><Copy className="w-3 h-3 mr-1" /> {t("leads.copy")}</>
                     )}
                   </Button>
                   {!isSent && lead.email && !isScheduled && (
@@ -445,7 +449,7 @@ function LeadCard({
                         onClick={(e) => { e.stopPropagation(); setShowScheduler(!showScheduler); }}
                         data-testid={`button-schedule-outreach-${lead.id}`}
                       >
-                        <CalendarClock className="w-3 h-3 mr-1" /> Schedule
+                        <CalendarClock className="w-3 h-3 mr-1" /> {t("leads.scheduleOutreach")}
                       </Button>
                       <Button
                         size="sm"
@@ -454,9 +458,9 @@ function LeadCard({
                         data-testid={`button-send-outreach-${lead.id}`}
                       >
                         {sendOutreachMutation.isPending ? (
-                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Sending...</>
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> {t("common.sending")}</>
                         ) : (
-                          <><Send className="w-3 h-3 mr-1" /> Send Now</>
+                          <><Send className="w-3 h-3 mr-1" /> {t("leads.sendNow")}</>
                         )}
                       </Button>
                     </>
@@ -469,7 +473,7 @@ function LeadCard({
                       disabled={cancelScheduleMutation.isPending}
                       data-testid={`button-cancel-schedule-${lead.id}`}
                     >
-                      <X className="w-3 h-3 mr-1" /> Cancel Schedule
+                      <X className="w-3 h-3 mr-1" /> {t("leads.cancelSchedule")}
                     </Button>
                   )}
                 </div>
@@ -479,7 +483,7 @@ function LeadCard({
                 <div className="pl-6 mb-2 flex items-center gap-2 p-2 rounded-md bg-violet-500/5 border border-violet-500/20" data-testid={`schedule-info-${lead.id}`}>
                   <CalendarClock className="w-4 h-4 text-violet-400" />
                   <span className="text-sm text-violet-400">
-                    Scheduled to send on {new Date(lead.scheduledSendAt).toLocaleDateString()} at {new Date(lead.scheduledSendAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {t("leads.scheduledToSend", { date: new Date(lead.scheduledSendAt).toLocaleDateString(), time: new Date(lead.scheduledSendAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) })}
                   </span>
                 </div>
               )}
@@ -509,9 +513,9 @@ function LeadCard({
                     data-testid={`button-confirm-schedule-${lead.id}`}
                   >
                     {scheduleMutation.isPending ? (
-                      <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Scheduling...</>
+                      <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> {t("leads.scheduling")}</>
                     ) : (
-                      <><Check className="w-3 h-3 mr-1" /> Confirm</>
+                      <><Check className="w-3 h-3 mr-1" /> {t("common.confirm")}</>
                     )}
                   </Button>
                   <Button
@@ -520,7 +524,7 @@ function LeadCard({
                     onClick={(e) => { e.stopPropagation(); setShowScheduler(false); setScheduleDateTime(""); }}
                     data-testid={`button-close-scheduler-${lead.id}`}
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
                 </div>
               )}
@@ -536,7 +540,7 @@ function LeadCard({
               <div className="flex items-center gap-2 mb-2">
                 <Pencil className="w-4 h-4 text-sky-400" />
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {lead.outreach ? "Edit Outreach Draft" : "Write Outreach Email"}
+                  {lead.outreach ? t("leads.editOutreachDraft") : t("leads.writeOutreachEmail")}
                 </span>
               </div>
               <Textarea
@@ -554,7 +558,7 @@ function LeadCard({
                     onClick={() => { setDraftText(lead.outreach || ""); setIsEditingOutreach(false); }}
                     data-testid={`button-cancel-outreach-${lead.id}`}
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
                 )}
                 <Button
@@ -564,9 +568,9 @@ function LeadCard({
                   data-testid={`button-save-outreach-${lead.id}`}
                 >
                   {updateLeadMutation.isPending ? (
-                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Saving...</>
+                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> {t("common.saving")}</>
                   ) : (
-                    <><Check className="w-3 h-3 mr-1" /> Save Draft</>
+                    <><Check className="w-3 h-3 mr-1" /> {t("leads.saveDraft")}</>
                   )}
                 </Button>
               </div>
@@ -579,7 +583,8 @@ function LeadCard({
 }
 
 export default function LeadsPage() {
-  usePageTitle("Leads & CRM");
+  const { t } = useTranslation();
+  usePageTitle(t("leads.title"));
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -605,12 +610,12 @@ export default function LeadsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
-      toast({ title: "Lead created successfully" });
+      toast({ title: t("leads.leadCreated") });
       form.reset();
       setDialogOpen(false);
     },
     onError: () => {
-      toast({ title: "Failed to create lead", variant: "destructive" });
+      toast({ title: t("leads.createFailed"), variant: "destructive" });
     },
   });
 
@@ -622,10 +627,10 @@ export default function LeadsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
-      toast({ title: "Lead deleted" });
+      toast({ title: t("leads.leadDeleted") });
     },
     onError: () => {
-      toast({ title: "Failed to delete lead", variant: "destructive" });
+      toast({ title: t("leads.deleteFailed"), variant: "destructive" });
     },
   });
 
@@ -637,10 +642,10 @@ export default function LeadsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
-      toast({ title: "All leads cleared" });
+      toast({ title: t("leads.allCleared") });
     },
     onError: () => {
-      toast({ title: "Failed to clear leads", variant: "destructive" });
+      toast({ title: t("leads.clearFailed"), variant: "destructive" });
     },
   });
 
@@ -652,10 +657,10 @@ export default function LeadsPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
-      toast({ title: data.message || "Outreach email sent" });
+      toast({ title: data.message || t("leads.outreachEmailSent") });
     },
     onError: async (error: any) => {
-      let message = "Failed to send outreach";
+      let message = t("leads.sendOutreachFailed");
       try {
         if (error?.message) message = error.message;
       } catch {}
@@ -670,10 +675,10 @@ export default function LeadsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      toast({ title: "Outreach draft saved" });
+      toast({ title: t("leads.draftSaved") });
     },
     onError: () => {
-      toast({ title: "Failed to save draft", variant: "destructive" });
+      toast({ title: t("leads.draftSaveFailed"), variant: "destructive" });
     },
   });
 
@@ -684,10 +689,10 @@ export default function LeadsPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      toast({ title: data.message || "Outreach scheduled" });
+      toast({ title: data.message || t("leads.outreachScheduled") });
     },
     onError: async (error: any) => {
-      let message = "Failed to schedule outreach";
+      let message = t("leads.scheduleFailed");
       try { if (error?.message) message = error.message; } catch {}
       toast({ title: message, variant: "destructive" });
     },
@@ -700,10 +705,10 @@ export default function LeadsPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      toast({ title: data.message || "Schedule cancelled" });
+      toast({ title: data.message || t("leads.scheduleCancelled") });
     },
     onError: () => {
-      toast({ title: "Failed to cancel schedule", variant: "destructive" });
+      toast({ title: t("leads.cancelScheduleFailed"), variant: "destructive" });
     },
   });
 
@@ -713,10 +718,10 @@ export default function LeadsPage() {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Call initiated", description: "The AI agent is calling this lead now." });
+      toast({ title: t("leads.callInitiated"), description: t("leads.callingNow") });
     },
     onError: (err: any) => {
-      toast({ title: "Call failed", description: err.message || "Could not initiate call.", variant: "destructive" });
+      toast({ title: t("leads.callFailed"), description: err.message || t("leads.couldNotCall"), variant: "destructive" });
     },
   });
 
@@ -726,12 +731,12 @@ export default function LeadsPage() {
       return res.json();
     },
     onSuccess: (data) => {
-      toast({ title: "SMS Sent", description: `Text message sent to ${data.leadName || "lead"}.` });
+      toast({ title: t("leads.smsSentTitle"), description: t("leads.smsSentDesc", { name: data.leadName || "lead" }) });
       setSmsLead(null);
       setSmsBody("");
     },
     onError: (err: any) => {
-      toast({ title: "SMS failed", description: err.message || "Could not send text message.", variant: "destructive" });
+      toast({ title: t("leads.smsFailedTitle"), description: err.message || t("leads.couldNotSms"), variant: "destructive" });
     },
   });
 
@@ -743,11 +748,11 @@ export default function LeadsPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
-      const msg = `Sent ${data.sent} email${data.sent !== 1 ? "s" : ""}${data.failed > 0 ? `, ${data.failed} failed` : ""}`;
+      const msg = `${t("leads.sentEmailsCount", { sent: data.sent })}${data.failed > 0 ? `, ${t("leads.sentEmailsFailed", { failed: data.failed })}` : ""}`;
       toast({ title: msg });
     },
     onError: async (error: any) => {
-      let message = "Failed to send outreach emails";
+      let message = t("leads.sendAllFailed");
       try {
         if (error?.message) message = error.message;
       } catch {}
@@ -771,7 +776,7 @@ export default function LeadsPage() {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-    toast({ title: "Outreach email copied to clipboard" });
+    toast({ title: t("leads.outreachCopied") });
   };
 
   const allLeads = leads || [];
@@ -794,9 +799,9 @@ export default function LeadsPage() {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-leads-title">Leads & CRM</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-leads-title">{t("leads.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            Manage and track all your leads in one place.
+            {t("leads.manageAndTrack")}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -805,7 +810,7 @@ export default function LeadsPage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                if (confirm("Are you sure you want to delete all leads? This cannot be undone.")) {
+                if (confirm(t("leads.confirmDeleteAll"))) {
                   deleteAllMutation.mutate();
                 }
               }}
@@ -813,19 +818,19 @@ export default function LeadsPage() {
               data-testid="button-clear-all-leads"
             >
               <Trash2 className="w-4 h-4 mr-2" />
-              {deleteAllMutation.isPending ? "Clearing..." : "Clear All"}
+              {deleteAllMutation.isPending ? t("leads.clearing") : t("leads.clearAll")}
             </Button>
           )}
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-lead">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Lead
+                {t("leads.addLead")}
               </Button>
             </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Lead</DialogTitle>
+              <DialogTitle>{t("leads.addNewLead")}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
@@ -834,7 +839,7 @@ export default function LeadsPage() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name</FormLabel>
+                      <FormLabel>{t("leads.fullName")}</FormLabel>
                       <FormControl>
                         <Input placeholder="John Doe" {...field} data-testid="input-lead-name" />
                       </FormControl>
@@ -846,7 +851,7 @@ export default function LeadsPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t("common.email")}</FormLabel>
                       <FormControl>
                         <Input placeholder="john@company.com" {...field} data-testid="input-lead-email" />
                       </FormControl>
@@ -858,7 +863,7 @@ export default function LeadsPage() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>{t("common.phone")}</FormLabel>
                       <FormControl>
                         <Input placeholder="+1 (555) 000-0000" {...field} data-testid="input-lead-phone" />
                       </FormControl>
@@ -870,20 +875,20 @@ export default function LeadsPage() {
                   name="source"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Source</FormLabel>
+                      <FormLabel>{t("leads.source")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-lead-source">
-                            <SelectValue placeholder="Select source" />
+                            <SelectValue placeholder={t("leads.selectSource")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Google Ads">Google Ads</SelectItem>
-                          <SelectItem value="Facebook">Facebook</SelectItem>
-                          <SelectItem value="Instagram">Instagram</SelectItem>
-                          <SelectItem value="Referral">Referral</SelectItem>
-                          <SelectItem value="Website">Website</SelectItem>
-                          <SelectItem value="Cold Outreach">Cold Outreach</SelectItem>
+                          <SelectItem value="Google Ads">{t("leads.googleAds")}</SelectItem>
+                          <SelectItem value="Facebook">{t("leads.facebook")}</SelectItem>
+                          <SelectItem value="Instagram">{t("leads.instagram")}</SelectItem>
+                          <SelectItem value="Referral">{t("leads.referral")}</SelectItem>
+                          <SelectItem value="Website">{t("leads.website")}</SelectItem>
+                          <SelectItem value="Cold Outreach">{t("leads.coldOutreach")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormItem>
@@ -894,26 +899,26 @@ export default function LeadsPage() {
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>{t("common.status")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-lead-status">
-                            <SelectValue placeholder="Select status" />
+                            <SelectValue placeholder={t("leads.selectStatus")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="new">New</SelectItem>
-                          <SelectItem value="warm">Warm</SelectItem>
-                          <SelectItem value="hot">Hot</SelectItem>
-                          <SelectItem value="qualified">Qualified</SelectItem>
-                          <SelectItem value="cold">Cold</SelectItem>
+                          <SelectItem value="new">{t("leads.statusNew")}</SelectItem>
+                          <SelectItem value="warm">{t("leads.statusWarm")}</SelectItem>
+                          <SelectItem value="hot">{t("leads.statusHot")}</SelectItem>
+                          <SelectItem value="qualified">{t("leads.statusQualified")}</SelectItem>
+                          <SelectItem value="cold">{t("leads.statusCold")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormItem>
                   )}
                 />
                 <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-lead">
-                  {createMutation.isPending ? "Creating..." : "Add Lead"}
+                  {createMutation.isPending ? t("leads.creating") : t("leads.addLead")}
                 </Button>
               </form>
             </Form>
@@ -935,7 +940,7 @@ export default function LeadsPage() {
           data-testid="tab-new-leads"
         >
           <Sparkles className="w-4 h-4" />
-          New Leads
+          {t("leads.newLeads")}
           <Badge variant="secondary" className="text-xs ml-1">{newLeads.length}</Badge>
         </button>
         <button
@@ -948,7 +953,7 @@ export default function LeadsPage() {
           data-testid="tab-engaged-leads"
         >
           <UserCheck className="w-4 h-4" />
-          Engaged Leads
+          {t("leads.engagedLeads")}
           <Badge variant="secondary" className="text-xs ml-1">{engagedLeads.length}</Badge>
         </button>
       </div>
@@ -958,7 +963,7 @@ export default function LeadsPage() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder={activeTab === "new" ? "Search new leads..." : "Search engaged leads..."}
+              placeholder={activeTab === "new" ? t("leads.searchNewLeads") : t("leads.searchEngagedLeads")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
@@ -972,9 +977,9 @@ export default function LeadsPage() {
               data-testid="button-send-all-outreach"
             >
               {sendAllOutreachMutation.isPending ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</>
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t("common.sending")}</>
               ) : (
-                <><Send className="w-4 h-4 mr-2" />Engage All ({unsentCount})</>
+                <><Send className="w-4 h-4 mr-2" />{t("leads.engageAll", { count: unsentCount })}</>
               )}
             </Button>
           )}
@@ -995,14 +1000,14 @@ export default function LeadsPage() {
             {activeTab === "new" ? (
               <>
                 <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                <p className="font-medium">No new leads</p>
-                <p className="text-sm">Add leads manually or use the AI chat to generate them.</p>
+                <p className="font-medium">{t("leads.noNewLeads")}</p>
+                <p className="text-sm">{t("leads.addLeadsManually")}</p>
               </>
             ) : (
               <>
                 <UserCheck className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                <p className="font-medium">No engaged leads yet</p>
-                <p className="text-sm">Send outreach to your new leads and they'll appear here.</p>
+                <p className="font-medium">{t("leads.noEngagedLeads")}</p>
+                <p className="text-sm">{t("leads.sendOutreachToSee")}</p>
               </>
             )}
           </div>
@@ -1034,37 +1039,37 @@ export default function LeadsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-chart-2" />
-              Send SMS to {smsLead?.name}
+              {t("leads.sendSmsTo", { name: smsLead?.name })}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="text-sm text-muted-foreground">
-              Sending to: <span className="font-medium text-foreground">{smsLead?.phone}</span>
+              {t("leads.sendingTo")} <span className="font-medium text-foreground">{smsLead?.phone}</span>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sms-body">Message</Label>
+              <Label htmlFor="sms-body">{t("leads.message")}</Label>
               <Textarea
                 id="sms-body"
                 data-testid="input-sms-body"
                 value={smsBody}
                 onChange={(e) => setSmsBody(e.target.value)}
                 rows={4}
-                placeholder="Type your text message here..."
+                placeholder={t("leads.msgPlaceholder")}
                 maxLength={1600}
               />
-              <p className="text-xs text-muted-foreground text-right">{smsBody.length}/160 characters {smsBody.length > 160 ? `(${Math.ceil(smsBody.length / 160)} segments)` : ""}</p>
+              <p className="text-xs text-muted-foreground text-right">{t("leads.charCount", { count: smsBody.length })} {smsBody.length > 160 ? t("leads.segmentInfo", { count: Math.ceil(smsBody.length / 160) }) : ""}</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSmsLead(null)} data-testid="button-cancel-sms">
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => smsLead && smsMutation.mutate({ leadId: smsLead.id, body: smsBody })}
               disabled={smsMutation.isPending || !smsBody.trim()}
               data-testid="button-send-sms"
             >
-              {smsMutation.isPending ? "Sending..." : "Send SMS"}
+              {smsMutation.isPending ? t("common.sending") : t("leads.sendSms")}
             </Button>
           </DialogFooter>
         </DialogContent>

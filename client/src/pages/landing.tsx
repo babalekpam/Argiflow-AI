@@ -1,4 +1,5 @@
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 import heroRobotImg from "@assets/image_1770823639986.png";
 import agentTeamImg from "@assets/image_1770823690247.png";
 import { Button } from "@/components/ui/button";
@@ -52,190 +53,165 @@ import {
 import { SiX, SiLinkedin, SiInstagram, SiVenmo } from "react-icons/si";
 import { CompactFlowchart } from "@/components/animated-flowchart";
 
-const services = [
-  {
-    icon: Phone,
-    number: "01",
-    title: "Voice AI Agents",
-    description:
-      "Custom voice AI agents that handle inbound and outbound calls, qualify leads, answer questions, and schedule appointments 24/7 — so you never miss an opportunity.",
-  },
-  {
-    icon: Boxes,
-    number: "02",
-    title: "Specialized AI Agent Catalog",
-    description:
-      "10+ industry-specific AI agents — from Tax Lien Hunters and Govt Contract Finders to Cross-Border Trade Agents. Each agent runs autonomously with its own lifecycle: discover, analyze, enrich, act, and monitor.",
-  },
-  {
-    icon: Workflow,
-    number: "03",
-    title: "Process Automation",
-    description:
-      "We audit your workflows and automate repetitive tasks across marketing, sales, and operations using custom AI solutions that save time and eliminate errors.",
-  },
-  {
-    icon: MessageSquare,
-    number: "04",
-    title: "Lead Gen Chatbots",
-    description:
-      "AI chatbots powered by Claude that engage visitors, answer questions, qualify leads, and book appointments — with full context of your business, website, and services.",
-  },
-  {
-    icon: Filter,
-    number: "05",
-    title: "Sales Funnels & Pipeline",
-    description:
-      "Visual Kanban-style sales pipelines to manage deals through stages. Create custom funnels, drag-and-drop deals, and track conversion rates with stage-level analytics.",
-  },
-  {
-    icon: Target,
-    number: "06",
-    title: "Email & Engagement Intelligence",
-    description:
-      "Automated outreach with open/click tracking. AI scores leads as Hot, Warm, or Interested based on engagement and recommends next steps — call, follow-up, or try a different channel.",
-  },
-];
-
-const platformFeatures = [
-  {
-    icon: Brain,
-    title: "AI-Generated Marketing Strategy",
-    description: "Claude analyzes your business and generates a full marketing strategy on signup — automatically tailored to your industry, services, and target audience.",
-  },
-  {
-    icon: Globe,
-    title: "Website Intelligence",
-    description: "AI scans and analyzes your website to extract services, value propositions, pricing, FAQs, and contact info — then injects that knowledge into every AI interaction.",
-  },
-  {
-    icon: Send,
-    title: "Omnichannel Outreach",
-    description: "Send personalized emails via SendGrid and SMS via Twilio directly from the platform. AI crafts outreach messages based on your business profile and lead data.",
-  },
-  {
-    icon: Eye,
-    title: "Email Open & Click Tracking",
-    description: "Know exactly which leads opened your emails, clicked your links, and when. Auto-scoring classifies leads by engagement level with recommended next actions.",
-  },
-  {
-    icon: Layers,
-    title: "Automation Arsenal",
-    description: "Pre-built workflow templates for lead nurturing, follow-ups, appointment reminders, and re-engagement campaigns. Activate, pause, and customize with one click.",
-  },
-  {
-    icon: GraduationCap,
-    title: "Training Center",
-    description: "Courses, tutorials, and resources to master the platform. From beginner guides to advanced AI strategy — with progress tracking and completion certificates.",
-  },
-  {
-    icon: Library,
-    title: "Resource Library",
-    description: "Bot templates for 12+ industries, ad templates with 9x ROI blueprints, VSL funnel builders, organic client acquisition blueprints, and agency SOPs.",
-  },
-  {
-    icon: BarChart,
-    title: "Advanced Analytics",
-    description: "Real-time dashboards tracking leads, appointments, agent performance, email engagement rates, funnel conversion, and revenue attribution across all channels.",
-  },
-];
-
-const agentShowcase = [
-  { icon: Landmark, name: "Tax Lien Hunter", region: "Western", desc: "Crawl county records, analyze ROI, track auctions, auto-bid" },
-  { icon: FileText, name: "Tax Deed Agent", region: "Western", desc: "Find tax deed properties at county auctions nationwide" },
-  { icon: Building2, name: "Wholesale RE Agent", region: "Western", desc: "Off-market deals, run comps, connect with cash buyers" },
-  { icon: Landmark, name: "Govt Contracts Agent", region: "Western", desc: "Scan SAM.gov, filter by NAICS, evaluate requirements" },
-  { icon: RefreshCw, name: "Arbitrage Agent", region: "Western", desc: "Profitable arbitrage across Amazon, eBay, Walmart" },
-  { icon: Search, name: "Lead Gen Agent", region: "Western", desc: "AI-powered prospecting across multiple channels" },
-  { icon: Globe, name: "Govt Tender Agent", region: "Africa", desc: "Find and auto-apply to government tenders continent-wide" },
-  { icon: Globe, name: "Cross-Border Trade", region: "Africa", desc: "Identify import/export opportunities, match trade partners" },
-  { icon: Tractor, name: "Agri Market Agent", region: "Africa", desc: "Market intelligence for agricultural commodities" },
-  { icon: Users, name: "Diaspora Services", region: "Africa", desc: "Connect diaspora with investment & service opportunities" },
-];
-
-const process_steps = [
-  {
-    step: "01",
-    title: "Sign Up & Tell Us About Your Business",
-    description:
-      "Create your account and tell us about your company, industry, and goals. Our AI immediately generates a customized marketing strategy and begins analyzing your website.",
-    icon: Rocket,
-  },
-  {
-    step: "02",
-    title: "Deploy AI Agents",
-    description:
-      "Browse the Agent Catalog, enable specialized agents for your industry, and configure their settings. They start finding opportunities, leads, and deals immediately.",
-    icon: Bot,
-  },
-  {
-    step: "03",
-    title: "Engage, Convert & Scale",
-    description:
-      "AI agents find leads, send outreach, track engagement, and move deals through your pipeline. You focus on closing while the platform handles everything else.",
-    icon: TrendingUp,
-  },
-];
-
-const testimonials = [
-  {
-    name: "Marcus Chen",
-    company: "Apex Real Estate Group",
-    initials: "MC",
-    quote:
-      "ArgiFlow's Tax Lien Hunter found 47 properties in our first week. The voice AI handles 80% of our calls. We booked 3x more appointments without hiring anyone.",
-    rating: 5,
-    result: "47 deals found",
-  },
-  {
-    name: "Sarah Williams",
-    company: "Pinnacle Legal",
-    initials: "SW",
-    quote:
-      "The process automation saved us 40+ hours per week. Email tracking shows us exactly who's interested. Our team went from drowning in admin to focused on closing.",
-    rating: 5,
-    result: "40hrs/week saved",
-  },
-  {
-    name: "David Park",
-    company: "ScaleUp Digital",
-    initials: "DP",
-    quote:
-      "The AI chatbot qualified more leads in one week than our SDR team did in a month. The engagement scoring tells us exactly who to call first. Game changer.",
-    rating: 5,
-    result: "10x lead qualification",
-  },
-];
-
-const faqs = [
-  {
-    q: "What are AI Agents and how do they work?",
-    a: "AI Agents are specialized autonomous systems that run specific tasks for your industry — like finding tax liens, scanning government contracts, or generating leads. Each agent follows a lifecycle: discover opportunities, analyze them, enrich with data, take action (send outreach, bid), and monitor results. You configure them once and they work 24/7.",
-  },
-  {
-    q: "How long does implementation take?",
-    a: "Sign up, configure your agents, and they start working immediately. Most users see their first leads within 24 hours. For more complex multi-system integrations, 2-4 weeks to fully optimize.",
-  },
-  {
-    q: "Do I need technical knowledge?",
-    a: "Not at all. The platform is designed for non-technical users. Browse the agent catalog, flip a switch to enable, and configure with simple settings. Our AI handles the complex parts.",
-  },
-  {
-    q: "What regions do you support?",
-    a: "We operate globally with two specialized brands: ArgiFlow for Western markets (US, EU, UK, Canada, Australia) and TradeFlow for African markets (Nigeria, Kenya, Ghana, South Africa, and 26+ more countries) — each with region-specific agents and pricing.",
-  },
-  {
-    q: "Can you integrate with my existing tools?",
-    a: "Yes. We integrate with CRMs (Salesforce, HubSpot), email platforms (SendGrid), SMS (Twilio), calendars, and virtually any tool with an API. All integrations are configured from your Settings dashboard.",
-  },
-  {
-    q: "What if it doesn't work for my business?",
-    a: "Every plan starts with a 14-day free trial — no credit card required. If it's not the right fit, cancel anytime with zero risk.",
-  },
-];
-
 export default function LandingPage() {
   usePageTitle();
+  const { t } = useTranslation();
+
+  const services = [
+    {
+      icon: Phone,
+      number: "01",
+      title: t("landing.services.s0title"),
+      description: t("landing.services.s0desc"),
+    },
+    {
+      icon: Boxes,
+      number: "02",
+      title: t("landing.services.s1title"),
+      description: t("landing.services.s1desc"),
+    },
+    {
+      icon: Workflow,
+      number: "03",
+      title: t("landing.services.s2title"),
+      description: t("landing.services.s2desc"),
+    },
+    {
+      icon: MessageSquare,
+      number: "04",
+      title: t("landing.services.s3title"),
+      description: t("landing.services.s3desc"),
+    },
+    {
+      icon: Filter,
+      number: "05",
+      title: t("landing.services.s4title"),
+      description: t("landing.services.s4desc"),
+    },
+    {
+      icon: Target,
+      number: "06",
+      title: t("landing.services.s5title"),
+      description: t("landing.services.s5desc"),
+    },
+  ];
+
+  const platformFeatures = [
+    {
+      icon: Brain,
+      title: t("landing.platformFeatures.f0title"),
+      description: t("landing.platformFeatures.f0desc"),
+    },
+    {
+      icon: Globe,
+      title: t("landing.platformFeatures.f1title"),
+      description: t("landing.platformFeatures.f1desc"),
+    },
+    {
+      icon: Send,
+      title: t("landing.platformFeatures.f2title"),
+      description: t("landing.platformFeatures.f2desc"),
+    },
+    {
+      icon: Eye,
+      title: t("landing.platformFeatures.f3title"),
+      description: t("landing.platformFeatures.f3desc"),
+    },
+    {
+      icon: Layers,
+      title: t("landing.platformFeatures.f4title"),
+      description: t("landing.platformFeatures.f4desc"),
+    },
+    {
+      icon: GraduationCap,
+      title: t("landing.platformFeatures.f5title"),
+      description: t("landing.platformFeatures.f5desc"),
+    },
+    {
+      icon: Library,
+      title: t("landing.platformFeatures.f6title"),
+      description: t("landing.platformFeatures.f6desc"),
+    },
+    {
+      icon: BarChart,
+      title: t("landing.platformFeatures.f7title"),
+      description: t("landing.platformFeatures.f7desc"),
+    },
+  ];
+
+  const westernAgents = [
+    { icon: Landmark, name: t("landing.agents.w0name"), desc: t("landing.agents.w0desc") },
+    { icon: FileText, name: t("landing.agents.w1name"), desc: t("landing.agents.w1desc") },
+    { icon: Building2, name: t("landing.agents.w2name"), desc: t("landing.agents.w2desc") },
+    { icon: Landmark, name: t("landing.agents.w3name"), desc: t("landing.agents.w3desc") },
+    { icon: RefreshCw, name: t("landing.agents.w4name"), desc: t("landing.agents.w4desc") },
+    { icon: Search, name: t("landing.agents.w5name"), desc: t("landing.agents.w5desc") },
+  ];
+
+  const africanAgents = [
+    { icon: Globe, name: t("landing.agents.a0name"), desc: t("landing.agents.a0desc") },
+    { icon: Globe, name: t("landing.agents.a1name"), desc: t("landing.agents.a1desc") },
+    { icon: Tractor, name: t("landing.agents.a2name"), desc: t("landing.agents.a2desc") },
+    { icon: Users, name: t("landing.agents.a3name"), desc: t("landing.agents.a3desc") },
+  ];
+
+  const process_steps = [
+    {
+      step: "01",
+      title: t("landing.process.step1Title"),
+      description: t("landing.process.step1Desc"),
+      icon: Rocket,
+    },
+    {
+      step: "02",
+      title: t("landing.process.step2Title"),
+      description: t("landing.process.step2Desc"),
+      icon: Bot,
+    },
+    {
+      step: "03",
+      title: t("landing.process.step3Title"),
+      description: t("landing.process.step3Desc"),
+      icon: TrendingUp,
+    },
+  ];
+
+  const testimonials = [
+    {
+      name: t("landing.testimonials.t0name"),
+      company: t("landing.testimonials.t0company"),
+      initials: "MC",
+      quote: t("landing.testimonials.t0quote"),
+      rating: 5,
+      result: t("landing.testimonials.t0result"),
+    },
+    {
+      name: t("landing.testimonials.t1name"),
+      company: t("landing.testimonials.t1company"),
+      initials: "SW",
+      quote: t("landing.testimonials.t1quote"),
+      rating: 5,
+      result: t("landing.testimonials.t1result"),
+    },
+    {
+      name: t("landing.testimonials.t2name"),
+      company: t("landing.testimonials.t2company"),
+      initials: "DP",
+      quote: t("landing.testimonials.t2quote"),
+      rating: 5,
+      result: t("landing.testimonials.t2result"),
+    },
+  ];
+
+  const faqs = [
+    { q: t("landing.faq.q0"), a: t("landing.faq.a0") },
+    { q: t("landing.faq.q1"), a: t("landing.faq.a1") },
+    { q: t("landing.faq.q2"), a: t("landing.faq.a2") },
+    { q: t("landing.faq.q3"), a: t("landing.faq.a3") },
+    { q: t("landing.faq.q4"), a: t("landing.faq.a4") },
+    { q: t("landing.faq.q5"), a: t("landing.faq.a5") },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -243,36 +219,36 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
           <a href="/" className="flex items-center gap-2" data-testid="link-home">
             <Zap className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold gradient-text">ArgiFlow</span>
-            <Badge variant="outline" className="text-[10px] ml-1 border-primary/30 text-primary">AI</Badge>
+            <span className="text-xl font-bold gradient-text">{t("common.brandName")}</span>
+            <Badge variant="outline" className="text-[10px] ml-1 border-primary/30 text-primary">{t("common.brandTag")}</Badge>
           </a>
           <div className="hidden md:flex items-center gap-1">
             <a href="#services" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              Services
+              {t("nav.services")}
             </a>
             <a href="#agents" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              AI Agents
+              {t("nav.aiAgents")}
             </a>
             <a href="#platform" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              Platform
+              {t("nav.platform")}
             </a>
             <a href="#pricing" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              Pricing
+              {t("nav.pricing")}
             </a>
             <a href="#testimonials" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              Results
+              {t("nav.results")}
             </a>
             <a href="#faq" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              FAQ
+              {t("nav.faq")}
             </a>
           </div>
           <div className="flex items-center gap-3">
             <a href="/login" data-testid="button-login">
-              <Button variant="ghost" size="sm">Client Login</Button>
+              <Button variant="ghost" size="sm">{t("nav.clientLogin")}</Button>
             </a>
             <a href="/signup" data-testid="button-get-started">
               <Button size="sm">
-                Get Started
+                {t("nav.getStarted")}
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </a>
@@ -292,33 +268,31 @@ export default function LandingPage() {
           <div>
             <Badge variant="outline" className="mb-6 py-1.5 px-4 border-primary/30 bg-primary/5">
               <Sparkles className="w-3.5 h-3.5 mr-2 text-primary" />
-              AI Automation Platform for Revenue-Driven Businesses
+              {t("landing.hero.badge")}
             </Badge>
             <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
-              Deploy AI Agents That{" "}
-              <span className="gradient-text">Find, Engage & Close</span>{" "}
-              Deals For You
+              {t("landing.hero.titlePart1")}{" "}
+              <span className="gradient-text">{t("landing.hero.titleHighlight")}</span>{" "}
+              {t("landing.hero.titlePart2")}
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed">
-              10+ specialized AI agents that discover opportunities, generate leads,
-              send outreach, track engagement, and manage your pipeline — all on autopilot.
-              Available for Western and African markets.
+              {t("landing.hero.description")}
             </p>
 
             <div className="flex flex-wrap items-center gap-6 mb-10">
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">10+</span>
-                <span className="text-sm text-muted-foreground">AI Agents Available</span>
+                <span className="text-3xl font-extrabold gradient-text">{t("landing.hero.stat1Value")}</span>
+                <span className="text-sm text-muted-foreground">{t("landing.hero.stat1Label")}</span>
               </div>
               <div className="w-px h-10 bg-border" />
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">24/7</span>
-                <span className="text-sm text-muted-foreground">Autonomous Operation</span>
+                <span className="text-3xl font-extrabold gradient-text">{t("landing.hero.stat2Value")}</span>
+                <span className="text-sm text-muted-foreground">{t("landing.hero.stat2Label")}</span>
               </div>
               <div className="w-px h-10 bg-border" />
               <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">2</span>
-                <span className="text-sm text-muted-foreground">Global Regions</span>
+                <span className="text-3xl font-extrabold gradient-text">{t("landing.hero.stat3Value")}</span>
+                <span className="text-sm text-muted-foreground">{t("landing.hero.stat3Label")}</span>
               </div>
             </div>
 
@@ -326,13 +300,13 @@ export default function LandingPage() {
               <a href="/signup" data-testid="button-hero-cta">
                 <Button size="lg" className="text-base px-8">
                   <Rocket className="w-4 h-4 mr-2" />
-                  Get Started Free
+                  {t("landing.hero.ctaGetStarted")}
                 </Button>
               </a>
               <a href="#agents">
                 <Button variant="outline" size="lg" className="text-base px-8">
                   <Boxes className="w-4 h-4 mr-2" />
-                  Explore AI Agents
+                  {t("landing.hero.ctaExplore")}
                 </Button>
               </a>
             </div>
@@ -340,15 +314,15 @@ export default function LandingPage() {
             <div className="mt-8 flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
               <div className="flex items-center gap-1.5">
                 <Shield className="w-4 h-4 text-chart-3" />
-                <span>14-Day Free Trial</span>
+                <span>{t("landing.hero.trust1")}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Globe className="w-4 h-4 text-chart-3" />
-                <span>Western + African Markets</span>
+                <span>{t("landing.hero.trust2")}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-chart-3" />
-                <span>Results in 24 Hours</span>
+                <span>{t("landing.hero.trust3")}</span>
               </div>
             </div>
           </div>
@@ -361,11 +335,11 @@ export default function LandingPage() {
               <div className="absolute bottom-0 left-0 right-0 p-6">
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { icon: Boxes, label: "AI Agent Catalog", value: "10+ Agents", color: "bg-primary/10 text-primary" },
-                    { icon: Filter, label: "Sales Funnels", value: "Kanban View", color: "bg-chart-3/10 text-chart-3" },
-                    { icon: Eye, label: "Engagement Tracking", value: "Real-Time", color: "bg-chart-4/10 text-chart-4" },
-                    { icon: Brain, label: "AI Strategy Engine", value: "Auto-Generated", color: "bg-chart-2/10 text-chart-2" },
-                    { icon: Globe, label: "Multi-Region", value: "Global", color: "bg-amber-500/10 text-amber-400" },
+                    { icon: Boxes, label: t("landing.heroVisual.agentCatalog"), value: t("landing.heroVisual.agentCatalogVal"), color: "bg-primary/10 text-primary" },
+                    { icon: Filter, label: t("landing.heroVisual.salesFunnels"), value: t("landing.heroVisual.salesFunnelsVal"), color: "bg-chart-3/10 text-chart-3" },
+                    { icon: Eye, label: t("landing.heroVisual.engagement"), value: t("landing.heroVisual.engagementVal"), color: "bg-chart-4/10 text-chart-4" },
+                    { icon: Brain, label: t("landing.heroVisual.aiStrategy"), value: t("landing.heroVisual.aiStrategyVal"), color: "bg-chart-2/10 text-chart-2" },
+                    { icon: Globe, label: t("landing.heroVisual.multiRegion"), value: t("landing.heroVisual.multiRegionVal"), color: "bg-amber-500/10 text-amber-400" },
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-2 p-2.5 rounded-md bg-background/70 backdrop-blur-sm border border-border/30">
                       <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${item.color}`}>
@@ -389,15 +363,14 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Core Capabilities
+              {t("landing.services.badge")}
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Everything You Need to{" "}
-              <span className="gradient-text">Automate Revenue</span>
+              {t("landing.services.title")}{" "}
+              <span className="gradient-text">{t("landing.services.titleHighlight")}</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              From autonomous AI agents to engagement intelligence — a complete platform
-              for finding opportunities, engaging leads, and closing deals.
+              {t("landing.services.description")}
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -429,15 +402,14 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
               <Boxes className="w-3.5 h-3.5 mr-2" />
-              AI Agent Catalog
+              {t("landing.agents.badge")}
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              10+ Specialized AI Agents Ready to{" "}
-              <span className="gradient-text">Work For You</span>
+              {t("landing.agents.title")}{" "}
+              <span className="gradient-text">{t("landing.agents.titleHighlight")}</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Each agent is purpose-built for a specific industry or task. Enable with one click,
-              configure your preferences, and let them run autonomously.
+              {t("landing.agents.description")}
             </p>
           </div>
 
@@ -446,8 +418,8 @@ export default function LandingPage() {
             <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent" />
             <div className="absolute inset-0 flex items-center p-8">
               <div>
-                <p className="text-2xl font-bold mb-2">Autonomous AI Agents</p>
-                <p className="text-sm text-muted-foreground max-w-md">Each agent runs its own lifecycle — discover, analyze, enrich, act, and monitor — working 24/7 to find and close opportunities.</p>
+                <p className="text-2xl font-bold mb-2">{t("landing.agents.autonomousTitle")}</p>
+                <p className="text-sm text-muted-foreground max-w-md">{t("landing.agents.autonomousDesc")}</p>
               </div>
             </div>
           </div>
@@ -460,13 +432,13 @@ export default function LandingPage() {
                   <Zap className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-bold">ArgiFlow</h3>
-                  <p className="text-xs text-muted-foreground">Western Markets</p>
+                  <h3 className="font-bold">{t("landing.agents.argiflow")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("landing.agents.westernMarkets")}</p>
                 </div>
-                <Badge variant="outline" className="ml-auto text-xs">US / EU / UK / CA / AU</Badge>
+                <Badge variant="outline" className="ml-auto text-xs">{t("landing.agents.westernRegions")}</Badge>
               </div>
               <div className="space-y-3">
-                {agentShowcase.filter(a => a.region === "Western").map((agent) => (
+                {westernAgents.map((agent) => (
                   <div key={agent.name} className="flex items-center gap-3 p-2.5 rounded-md bg-secondary/30">
                     <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                       <agent.icon className="w-4 h-4 text-primary" />
@@ -487,13 +459,13 @@ export default function LandingPage() {
                   <Globe className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="font-bold">TradeFlow</h3>
-                  <p className="text-xs text-muted-foreground">African Markets</p>
+                  <h3 className="font-bold">{t("landing.agents.tradeflow")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("landing.agents.africanMarkets")}</p>
                 </div>
-                <Badge variant="outline" className="ml-auto text-xs">NG / KE / GH / ZA / 26+</Badge>
+                <Badge variant="outline" className="ml-auto text-xs">{t("landing.agents.africanRegions")}</Badge>
               </div>
               <div className="space-y-3">
-                {agentShowcase.filter(a => a.region === "Africa").map((agent) => (
+                {africanAgents.map((agent) => (
                   <div key={agent.name} className="flex items-center gap-3 p-2.5 rounded-md bg-secondary/30">
                     <div className="w-8 h-8 rounded-md bg-amber-500/10 flex items-center justify-center shrink-0">
                       <agent.icon className="w-4 h-4 text-amber-400" />
@@ -507,7 +479,7 @@ export default function LandingPage() {
               </div>
               <div className="mt-4 p-3 rounded-md bg-amber-500/5 border border-amber-500/10">
                 <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-amber-400">Pay-Per-Result available</span> — No monthly fee. Only pay when agents deliver results.
+                  <span className="font-medium text-amber-400">{t("landing.agents.payPerResult")}</span> — {t("landing.agents.payPerResultDesc")}
                 </p>
               </div>
             </Card>
@@ -517,7 +489,7 @@ export default function LandingPage() {
             <a href="/signup">
               <Button size="lg" className="text-base px-8">
                 <Bot className="w-4 h-4 mr-2" />
-                Deploy Your First Agent Free
+                {t("landing.agents.deployCta")}
               </Button>
             </a>
           </div>
@@ -532,14 +504,14 @@ export default function LandingPage() {
         <div className="relative max-w-5xl mx-auto px-6">
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              The AI Pipeline
+              {t("landing.agents.pipelineBadge")}
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Your Automated{" "}
-              <span className="gradient-text">Client Acquisition Engine</span>
+              {t("landing.agents.pipelineTitle")}{" "}
+              <span className="gradient-text">{t("landing.agents.pipelineTitleHighlight")}</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Watch how AI agents work together to find, qualify, nurture, and convert leads into paying clients — fully automated, 24/7.
+              {t("landing.agents.pipelineDesc")}
             </p>
           </div>
           <Card className="p-8" data-testid="card-landing-pipeline">
@@ -547,10 +519,10 @@ export default function LandingPage() {
           </Card>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
             {[
-              { value: "10+", label: "AI Agents Deployed", color: "text-primary" },
-              { value: "24/7", label: "Autonomous Operation", color: "text-chart-3" },
-              { value: "80%", label: "Lower Acquisition Cost", color: "text-chart-4" },
-              { value: "5min", label: "Setup to First Results", color: "text-amber-400" },
+              { value: t("landing.agents.pipelineStat1Value"), label: t("landing.agents.pipelineStat1Label"), color: "text-primary" },
+              { value: t("landing.agents.pipelineStat2Value"), label: t("landing.agents.pipelineStat2Label"), color: "text-chart-3" },
+              { value: t("landing.agents.pipelineStat3Value"), label: t("landing.agents.pipelineStat3Label"), color: "text-chart-4" },
+              { value: t("landing.agents.pipelineStat4Value"), label: t("landing.agents.pipelineStat4Label"), color: "text-amber-400" },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
@@ -569,14 +541,14 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Complete Platform
+              {t("landing.platform.badge")}
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Built-in Tools to{" "}
-              <span className="gradient-text">Run Your Entire Operation</span>
+              {t("landing.platform.title")}{" "}
+              <span className="gradient-text">{t("landing.platform.titleHighlight")}</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Every tool you need — from AI strategy generation to email tracking, training resources, and analytics — all in one dashboard.
+              {t("landing.platform.description")}
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -603,14 +575,14 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Get Started in Minutes
+              {t("landing.process.badge")}
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Three Steps to{" "}
-              <span className="gradient-text">AI-Powered Growth</span>
+              {t("landing.process.title")}{" "}
+              <span className="gradient-text">{t("landing.process.titleHighlight")}</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              From signup to your first leads in under 5 minutes.
+              {t("landing.process.description")}
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
@@ -624,7 +596,7 @@ export default function LandingPage() {
                     <step.icon className="w-5 h-5 text-primary" />
                   </div>
                   <Badge variant="outline" className="mb-3 border-primary/30 text-primary text-xs">
-                    Step {step.step}
+                    {t("landing.process.step")} {step.step}
                   </Badge>
                   <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
@@ -638,7 +610,7 @@ export default function LandingPage() {
             <a href="/signup">
               <Button size="lg" className="text-base px-8">
                 <Rocket className="w-4 h-4 mr-2" />
-                Get Started Now
+                {t("landing.process.cta")}
               </Button>
             </a>
           </div>
@@ -650,13 +622,13 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-6">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Packages & Pricing
+              {t("landing.pricing.badge")}
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Plans That <span className="gradient-text">Scale With You</span>
+              {t("landing.pricing.title")} <span className="gradient-text">{t("landing.pricing.titleHighlight")}</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Start free, upgrade as you grow. Every plan includes the full platform.
+              {t("landing.pricing.description")}
             </p>
           </div>
 
@@ -664,32 +636,24 @@ export default function LandingPage() {
           <div className="mb-8">
             <div className="flex items-center justify-center gap-2 mb-6">
               <Zap className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-bold">ArgiFlow</h3>
-              <Badge variant="outline" className="text-xs">Western Markets</Badge>
+              <h3 className="text-lg font-bold">{t("landing.agents.argiflow")}</h3>
+              <Badge variant="outline" className="text-xs">{t("landing.agents.westernMarkets")}</Badge>
             </div>
             <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
               {/* Starter */}
               <Card className="p-6 relative">
                 <div className="text-center mb-6 pt-2">
-                  <h3 className="text-lg font-semibold mb-1">Starter</h3>
+                  <h3 className="text-lg font-semibold mb-1">{t("landing.pricing.starterName")}</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Launch your first AI agent
+                    {t("landing.pricing.starterDesc")}
                   </p>
                   <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-extrabold">$297</span>
-                    <span className="text-muted-foreground">/month</span>
+                    <span className="text-4xl font-extrabold">{t("landing.pricing.starterPrice")}</span>
+                    <span className="text-muted-foreground">{t("landing.pricing.perMonth")}</span>
                   </div>
                 </div>
                 <ul className="space-y-3 mb-6">
-                  {[
-                    "1 AI agent from the catalog",
-                    "100 leads/month",
-                    "Email & SMS outreach",
-                    "CRM & lead management",
-                    "AI marketing strategy",
-                    "Community support",
-                    "14-day free trial",
-                  ].map((f) => (
+                  {(t("landing.pricing.starterFeatures", { returnObjects: true }) as string[]).map((f) => (
                     <li key={f} className="flex items-start gap-3 text-sm">
                       <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
                       <span>{f}</span>
@@ -699,14 +663,14 @@ export default function LandingPage() {
                 <div className="space-y-2">
                   <a href="/signup" className="block">
                     <Button className="w-full" variant="outline" data-testid="button-starter-trial">
-                      Start Free Trial
+                      {t("landing.pricing.starterCta")}
                       <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </a>
                   <a href="https://venmo.com/argilette?txn=pay&amount=297&note=ArgiFlow%20Starter%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
                     <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-starter-venmo">
                       <SiVenmo className="w-4 h-4 mr-1" />
-                      Pay with Venmo
+                      {t("landing.pricing.payWith")} Venmo
                     </Button>
                   </a>
                 </div>
@@ -715,28 +679,20 @@ export default function LandingPage() {
               {/* Pro */}
               <Card className="p-6 relative border-primary/40 glow-purple">
                 <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
-                  Most Popular
+                  {t("landing.pricing.proPopular")}
                 </Badge>
                 <div className="text-center mb-6 pt-2">
-                  <h3 className="text-lg font-semibold mb-1">Pro</h3>
+                  <h3 className="text-lg font-semibold mb-1">{t("landing.pricing.proName")}</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Scale with multiple agents
+                    {t("landing.pricing.proDesc")}
                   </p>
                   <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-extrabold">$597</span>
-                    <span className="text-muted-foreground">/month</span>
+                    <span className="text-4xl font-extrabold">{t("landing.pricing.proPrice")}</span>
+                    <span className="text-muted-foreground">{t("landing.pricing.perMonth")}</span>
                   </div>
                 </div>
                 <ul className="space-y-3 mb-6">
-                  {[
-                    "3 AI agents from the catalog",
-                    "500 leads/month",
-                    "Voice AI & telephony agents",
-                    "Sales funnels with Kanban",
-                    "Engagement tracking & scoring",
-                    "Priority support + strategy calls",
-                    "Advanced analytics",
-                  ].map((f) => (
+                  {(t("landing.pricing.proFeatures", { returnObjects: true }) as string[]).map((f) => (
                     <li key={f} className="flex items-start gap-3 text-sm">
                       <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
                       <span>{f}</span>
@@ -746,14 +702,14 @@ export default function LandingPage() {
                 <div className="space-y-2">
                   <a href="/signup" className="block">
                     <Button className="w-full" data-testid="button-pro-trial">
-                      Start Free Trial
+                      {t("landing.pricing.proCta")}
                       <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </a>
                   <a href="https://venmo.com/argilette?txn=pay&amount=597&note=ArgiFlow%20Pro%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
                     <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-pro-venmo">
                       <SiVenmo className="w-4 h-4 mr-1" />
-                      Pay with Venmo
+                      {t("landing.pricing.payWith")} Venmo
                     </Button>
                   </a>
                 </div>
@@ -762,25 +718,17 @@ export default function LandingPage() {
               {/* Enterprise */}
               <Card className="p-6 relative">
                 <div className="text-center mb-6 pt-2">
-                  <h3 className="text-lg font-semibold mb-1">Enterprise</h3>
+                  <h3 className="text-lg font-semibold mb-1">{t("landing.pricing.entName")}</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Unlimited AI power
+                    {t("landing.pricing.entDesc")}
                   </p>
                   <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-extrabold">$1,497</span>
-                    <span className="text-muted-foreground">/month</span>
+                    <span className="text-4xl font-extrabold">{t("landing.pricing.entPrice")}</span>
+                    <span className="text-muted-foreground">{t("landing.pricing.perMonth")}</span>
                   </div>
                 </div>
                 <ul className="space-y-3 mb-6">
-                  {[
-                    "Unlimited AI agents",
-                    "Unlimited leads",
-                    "Custom agent development",
-                    "API access & white-label",
-                    "Multi-system integrations",
-                    "Dedicated account manager",
-                    "SLA & onboarding support",
-                  ].map((f) => (
+                  {(t("landing.pricing.entFeatures", { returnObjects: true }) as string[]).map((f) => (
                     <li key={f} className="flex items-start gap-3 text-sm">
                       <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
                       <span>{f}</span>
@@ -790,14 +738,14 @@ export default function LandingPage() {
                 <div className="space-y-2">
                   <a href="/signup" className="block">
                     <Button className="w-full" variant="outline" data-testid="button-enterprise-trial">
-                      Contact Sales
+                      {t("landing.pricing.entCta")}
                       <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </a>
                   <a href="https://venmo.com/argilette?txn=pay&amount=1497&note=ArgiFlow%20Enterprise%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
                     <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-enterprise-venmo">
                       <SiVenmo className="w-4 h-4 mr-1" />
-                      Pay with Venmo
+                      {t("landing.pricing.payWith")} Venmo
                     </Button>
                   </a>
                 </div>
@@ -809,19 +757,19 @@ export default function LandingPage() {
           <div className="mt-16">
             <div className="flex items-center justify-center gap-2 mb-6">
               <Globe className="w-5 h-5 text-amber-400" />
-              <h3 className="text-lg font-bold">TradeFlow</h3>
-              <Badge variant="outline" className="text-xs">African Markets</Badge>
+              <h3 className="text-lg font-bold">{t("landing.agents.tradeflow")}</h3>
+              <Badge variant="outline" className="text-xs">{t("landing.agents.africanMarkets")}</Badge>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
               {[
-                { name: "Hustle", price: "$5", agents: "1 Agent", leads: "50 leads/mo", fee: "5% success fee", features: ["WhatsApp alerts", "Mobile dashboard"] },
-                { name: "Business", price: "$15", agents: "3 Agents", leads: "200 leads/mo", fee: "3% success fee", features: ["Full dashboard", "Tender auto-apply"], popular: true },
-                { name: "Mogul", price: "$25", agents: "Unlimited", leads: "Unlimited leads", fee: "2% success fee", features: ["Priority matching", "API access"] },
-                { name: "Pay Per Result", price: "$0", agents: "1 Agent", leads: "20 leads/mo", fee: "8% success fee", features: ["No monthly fee", "Pay when you earn"] },
+                { name: t("landing.pricing.tfHustleName"), price: t("landing.pricing.tfHustlePrice"), agents: t("landing.pricing.tfHustleAgents"), leads: t("landing.pricing.tfHustleLeads"), fee: t("landing.pricing.tfHustleFee"), features: t("landing.pricing.tfHustleFeatures", { returnObjects: true }) as string[] },
+                { name: t("landing.pricing.tfBusinessName"), price: t("landing.pricing.tfBusinessPrice"), agents: t("landing.pricing.tfBusinessAgents"), leads: t("landing.pricing.tfBusinessLeads"), fee: t("landing.pricing.tfBusinessFee"), features: t("landing.pricing.tfBusinessFeatures", { returnObjects: true }) as string[], popular: true },
+                { name: t("landing.pricing.tfMogulName"), price: t("landing.pricing.tfMogulPrice"), agents: t("landing.pricing.tfMogulAgents"), leads: t("landing.pricing.tfMogulLeads"), fee: t("landing.pricing.tfMogulFee"), features: t("landing.pricing.tfMogulFeatures", { returnObjects: true }) as string[] },
+                { name: t("landing.pricing.tfPayPerResultName"), price: t("landing.pricing.tfPayPerResultPrice"), agents: t("landing.pricing.tfPayPerResultAgents"), leads: t("landing.pricing.tfPayPerResultLeads"), fee: t("landing.pricing.tfPayPerResultFee"), features: t("landing.pricing.tfPayPerResultFeatures", { returnObjects: true }) as string[] },
               ].map((plan) => (
                 <Card key={plan.name} className={`p-4 ${plan.popular ? "border-amber-500/40" : ""}`}>
                   {plan.popular && (
-                    <Badge className="mb-2 bg-amber-500 text-white text-[10px]">Popular</Badge>
+                    <Badge className="mb-2 bg-amber-500 text-white text-[10px]">{t("landing.pricing.tfBusinessPopular")}</Badge>
                   )}
                   <h4 className="font-semibold text-sm">{plan.name}</h4>
                   <div className="flex items-baseline gap-0.5 mt-1 mb-3">
@@ -843,7 +791,7 @@ export default function LandingPage() {
                   </ul>
                   <a href="/signup" className="block mt-3">
                     <Button size="sm" variant="outline" className="w-full text-xs" data-testid={`button-africa-${plan.name.toLowerCase().replace(/\s/g, "-")}`}>
-                      Get Started
+                      {t("landing.pricing.getStarted")}
                     </Button>
                   </a>
                 </Card>
@@ -861,35 +809,35 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              Client Results
+              {t("landing.testimonials.badge")}
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Real Businesses, <span className="gradient-text">Real Results</span>
+              {t("landing.testimonials.title")} <span className="gradient-text">{t("landing.testimonials.titleHighlight")}</span>
             </h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((t) => (
-              <Card key={t.name} className="p-6">
+            {testimonials.map((item) => (
+              <Card key={item.name} className="p-6">
                 <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: t.rating }).map((_, i) => (
+                    {Array.from({ length: item.rating }).map((_, i) => (
                       <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                     ))}
                   </div>
                   <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20 text-xs">
-                    {t.result}
+                    {item.result}
                   </Badge>
                 </div>
                 <p className="text-sm mb-6 leading-relaxed italic text-foreground/90">
-                  "{t.quote}"
+                  "{item.quote}"
                 </p>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                    {t.initials}
+                    {item.initials}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{t.company}</p>
+                    <p className="text-sm font-semibold">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">{item.company}</p>
                   </div>
                 </div>
               </Card>
@@ -903,10 +851,10 @@ export default function LandingPage() {
         <div className="max-w-3xl mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              FAQ
+              {t("landing.faq.badge")}
             </Badge>
             <h2 className="text-4xl font-bold mb-4">
-              Common <span className="gradient-text">Questions</span>
+              {t("landing.faq.title")} <span className="gradient-text">{t("landing.faq.titleHighlight")}</span>
             </h2>
           </div>
           <div className="space-y-4">
@@ -930,28 +878,27 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <Card className="p-12 gradient-border glow-purple">
             <h2 className="text-4xl font-bold mb-4">
-              Ready to Deploy <span className="gradient-text">AI Agents?</span>
+              {t("landing.cta.title")} <span className="gradient-text">{t("landing.cta.titleHighlight")}</span>
             </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-              Sign up free, browse the agent catalog, and deploy your first AI agent in under 5 minutes.
-              Let autonomous AI find opportunities, engage leads, and grow your revenue.
+              {t("landing.cta.description")}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
               <a href="/signup" data-testid="button-cta-final">
                 <Button size="lg" className="text-base px-8">
                   <Rocket className="w-4 h-4 mr-2" />
-                  Get Started Free
+                  {t("landing.cta.button")}
                 </Button>
               </a>
               <a href="mailto:abel@argilette.com">
                 <Button variant="outline" size="lg" className="text-base px-8">
                   <Mail className="w-4 h-4 mr-2" />
-                  Email Us
+                  {t("landing.cta.emailUs")}
                 </Button>
               </a>
             </div>
             <p className="text-xs text-muted-foreground">
-              14-day free trial. No credit card required. Cancel anytime.
+              {t("landing.cta.trialNote")}
             </p>
           </Card>
         </div>
@@ -964,10 +911,10 @@ export default function LandingPage() {
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
                 <Zap className="w-5 h-5 text-primary" />
-                <span className="font-bold gradient-text">ArgiFlow AI</span>
+                <span className="font-bold gradient-text">{t("landing.footer.brandName")}</span>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                AI Automation Platform helping businesses scale with autonomous AI agents across Western and African markets.
+                {t("landing.footer.description")}
               </p>
               <div className="flex items-center gap-3">
                 <Button size="icon" variant="ghost"><SiX className="w-4 h-4" /></Button>
@@ -976,44 +923,44 @@ export default function LandingPage() {
               </div>
             </div>
             <div>
-              <h4 className="font-semibold text-sm mb-4">Platform</h4>
+              <h4 className="font-semibold text-sm mb-4">{t("landing.footer.platformTitle")}</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#agents" className="hover:text-foreground transition-colors">AI Agent Catalog</a></li>
-                <li><a href="#services" className="hover:text-foreground transition-colors">Voice AI Agents</a></li>
-                <li><a href="#services" className="hover:text-foreground transition-colors">Sales Funnels</a></li>
-                <li><a href="#platform" className="hover:text-foreground transition-colors">Engagement Tracking</a></li>
-                <li><a href="#platform" className="hover:text-foreground transition-colors">AI Strategy Engine</a></li>
+                <li><a href="#agents" className="hover:text-foreground transition-colors">{t("landing.footer.aiAgentCatalog")}</a></li>
+                <li><a href="#services" className="hover:text-foreground transition-colors">{t("landing.footer.voiceAiAgents")}</a></li>
+                <li><a href="#services" className="hover:text-foreground transition-colors">{t("landing.footer.salesFunnels")}</a></li>
+                <li><a href="#platform" className="hover:text-foreground transition-colors">{t("landing.footer.engagementTracking")}</a></li>
+                <li><a href="#platform" className="hover:text-foreground transition-colors">{t("landing.footer.aiStrategyEngine")}</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-sm mb-4">Company</h4>
+              <h4 className="font-semibold text-sm mb-4">{t("landing.footer.companyTitle")}</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#process" className="hover:text-foreground transition-colors">How It Works</a></li>
-                <li><a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
-                <li><a href="#testimonials" className="hover:text-foreground transition-colors">Results</a></li>
-                <li><a href="#faq" className="hover:text-foreground transition-colors">FAQ</a></li>
+                <li><a href="#process" className="hover:text-foreground transition-colors">{t("landing.footer.howItWorks")}</a></li>
+                <li><a href="#pricing" className="hover:text-foreground transition-colors">{t("landing.footer.pricing")}</a></li>
+                <li><a href="#testimonials" className="hover:text-foreground transition-colors">{t("landing.footer.results")}</a></li>
+                <li><a href="#faq" className="hover:text-foreground transition-colors">{t("landing.footer.faq")}</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-sm mb-4">Contact</h4>
+              <h4 className="font-semibold text-sm mb-4">{t("landing.footer.contactTitle")}</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="/signup" className="hover:text-foreground transition-colors">Get Started</a></li>
+                <li><a href="/signup" className="hover:text-foreground transition-colors">{t("landing.footer.getStarted")}</a></li>
                 <li><a href="mailto:abel@argilette.com" className="hover:text-foreground transition-colors">abel@argilette.com</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Terms of Service</a></li>
+                <li><a href="#" className="hover:text-foreground transition-colors">{t("landing.footer.privacy")}</a></li>
+                <li><a href="#" className="hover:text-foreground transition-colors">{t("landing.footer.terms")}</a></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-border/50 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()} ArgiFlow AI (argilette.co). All rights reserved.
+              &copy; {new Date().getFullYear()} {t("landing.footer.copyright")}
             </p>
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <Shield className="w-3 h-3" /> SOC 2 Compliant
+                <Shield className="w-3 h-3" /> {t("landing.footer.soc2")}
               </span>
               <span className="flex items-center gap-1.5">
-                <Zap className="w-3 h-3" /> Powered by Claude AI
+                <Zap className="w-3 h-3" /> {t("landing.footer.poweredBy")}
               </span>
             </div>
           </div>

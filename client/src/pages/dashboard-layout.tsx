@@ -1,6 +1,7 @@
 import { Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
@@ -39,6 +40,7 @@ type SubscriptionData = {
 };
 
 function TrialBanner({ subData }: { subData: SubscriptionData }) {
+  const { t } = useTranslation();
   if (!subData) return null;
 
   if (subData.trialActive && subData.daysRemaining > 0) {
@@ -47,12 +49,12 @@ function TrialBanner({ subData }: { subData: SubscriptionData }) {
         <div className="flex items-center gap-2 text-sm">
           <Sparkles className="w-4 h-4 text-primary shrink-0" />
           <span className="text-muted-foreground">
-            <span className="font-medium text-foreground">Pro Trial</span> — {subData.daysRemaining} day{subData.daysRemaining !== 1 ? "s" : ""} remaining.
-            Full access to all features.
+            <span className="font-medium text-foreground">{t("dashboardLayout.proTrial")}</span> — {t("dashboardLayout.daysRemaining", { count: subData.daysRemaining })}{" "}
+            {t("dashboardLayout.fullAccess")}
           </span>
         </div>
         <a href="/#pricing" data-testid="link-trial-upgrade">
-          <Button size="sm" variant="default">Choose a Plan</Button>
+          <Button size="sm" variant="default">{t("dashboardLayout.choosePlan")}</Button>
         </a>
       </div>
     );
@@ -64,11 +66,11 @@ function TrialBanner({ subData }: { subData: SubscriptionData }) {
         <div className="flex items-center gap-2 text-sm">
           <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
           <span className="text-muted-foreground">
-            <span className="font-medium text-foreground">Your Pro trial has ended.</span> Choose a plan to continue using ArgiFlow.
+            <span className="font-medium text-foreground">{t("dashboardLayout.trialEnded")}</span> {t("dashboardLayout.continueUsing")}
           </span>
         </div>
         <a href="/#pricing" data-testid="link-expired-upgrade">
-          <Button size="sm" variant="default">Upgrade Now</Button>
+          <Button size="sm" variant="default">{t("dashboardLayout.upgradeNow")}</Button>
         </a>
       </div>
     );
@@ -77,20 +79,21 @@ function TrialBanner({ subData }: { subData: SubscriptionData }) {
   return null;
 }
 
-function getPlanLabel(subData: SubscriptionData | undefined, user: any) {
+function getPlanLabel(subData: SubscriptionData | undefined, user: any, t: (key: string, options?: any) => string) {
   if (subData?.subscription) {
     const { plan, status } = subData.subscription;
     const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
-    if (status === "trial") return `${planName} Trial`;
-    if (status === "active") return `${planName} Plan`;
-    if (status === "expired" || status === "cancelled") return "No Plan";
+    if (status === "trial") return t("dashboardLayout.trialPlan", { plan: planName });
+    if (status === "active") return t("dashboardLayout.activePlan", { plan: planName });
+    if (status === "expired" || status === "cancelled") return t("dashboardLayout.noPlan");
     return planName;
   }
   if (user?.planLabel) return user.planLabel;
-  return "Free";
+  return t("dashboardLayout.free");
 }
 
 export default function DashboardLayout() {
+  const { t } = useTranslation();
   const { user, isLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -103,8 +106,8 @@ export default function DashboardLayout() {
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       toast({
-        title: "Unauthorized",
-        description: "Logging in again...",
+        title: t("dashboardLayout.unauthorized"),
+        description: t("dashboardLayout.loggingIn"),
         variant: "destructive",
       });
       setTimeout(() => {
@@ -118,7 +121,7 @@ export default function DashboardLayout() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -146,7 +149,7 @@ export default function DashboardLayout() {
               <div className="relative hidden sm:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search..."
+                  placeholder={t("dashboardLayout.search")}
                   className="pl-10 w-64 bg-secondary/50"
                   data-testid="input-search"
                 />
@@ -155,7 +158,7 @@ export default function DashboardLayout() {
             <div className="flex items-center gap-3">
               <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hidden sm:flex">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 animate-pulse" />
-                AI Active
+                {t("common.aiActive")}
               </Badge>
               <NotificationsDropdown />
               <div className="flex items-center gap-2">
@@ -166,8 +169,8 @@ export default function DashboardLayout() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium" data-testid="text-user-name">{user?.firstName || "User"}</p>
-                  <p className="text-xs text-muted-foreground" data-testid="text-plan-label">{getPlanLabel(subData, user)}</p>
+                  <p className="text-sm font-medium" data-testid="text-user-name">{user?.firstName || t("dashboardLayout.defaultUser")}</p>
+                  <p className="text-xs text-muted-foreground" data-testid="text-plan-label">{getPlanLabel(subData, user, t)}</p>
                 </div>
               </div>
             </div>

@@ -216,7 +216,22 @@
       "a2name": "Agent de Marché Agricole",
       "a2desc": "Intelligence de marché pour les matières premières agricoles",
       "a3name": "Services Diaspora",
-      "a3desc": "Connecter la diaspora avec les opportunités d'investissement et de services"
+      "a3desc": "Connecter la diaspora avec les opportunités d'investissement et de services",
+      "payPerResult": "Paiement par résultat disponible",
+      "payPerResultDesc": "— Pas de frais mensuel. Payez uniquement lorsque les agents livrent des résultats.",
+      "deployCta": "Déployez Votre Premier Agent Gratuitement",
+      "pipelineBadge": "Le Pipeline IA",
+      "pipelineTitle": "Votre Moteur Automatisé",
+      "pipelineTitleHighlight": "d'Acquisition de Clients",
+      "pipelineDesc": "Découvrez comment les agents IA collaborent pour trouver, qualifier, nourrir et convertir les leads en clients payants — entièrement automatisé, 24h/24.",
+      "pipelineStat1Value": "10+",
+      "pipelineStat1Label": "Agents IA Déployés",
+      "pipelineStat2Value": "24/7",
+      "pipelineStat2Label": "Fonctionnement Autonome",
+      "pipelineStat3Value": "80%",
+      "pipelineStat3Label": "Coût d'Acquisition Réduit",
+      "pipelineStat4Value": "5min",
+      "pipelineStat4Label": "Configuration aux Premiers Résultats"
     },
     "platform": {
       "badge": "Plateforme Complète",
@@ -235,7 +250,8 @@
       "step2Desc": "Parcourez le Catalogue d'Agents, activez des agents spécialisés pour votre industrie et configurez leurs paramètres. Ils commencent à trouver des opportunités, leads et affaires immédiatement.",
       "step3Title": "Engagez, Convertissez & Grandissez",
       "step3Desc": "Les agents IA trouvent des leads, envoient des messages de prospection, suivent l'engagement et font avancer les affaires dans votre pipeline. Vous vous concentrez sur la conclusion pendant que la plateforme gère tout le reste.",
-      "cta": "Commencez Votre Essai Gratuit"
+      "cta": "Commencez Votre Essai Gratuit",
+      "step": "Étape"
     },
     "pricing": {
       "badge": "Tarifs Simples",
@@ -247,24 +263,84 @@
       "starterName": "Starter",
       "starterPrice": "97 $",
       "starterDesc": "Pour les solopreneurs et petites entreprises débutant avec l'automatisation IA.",
-      "starterFeatures": ["3 Agents IA", "500 leads/mois", "Prospection par e-mail", "Analyses basiques", "Support communautaire"],
+      "starterFeatures": [
+        "3 Agents IA",
+        "500 leads/mois",
+        "Prospection par e-mail",
+        "Analyses basiques",
+        "Support communautaire"
+      ],
       "starterCta": "Commencer l'Essai Gratuit",
       "proName": "Professionnel",
       "proPrice": "297 $",
       "proPopular": "Le Plus Populaire",
       "proDesc": "Pour les entreprises en croissance qui ont besoin de la suite d'automatisation complète.",
-      "proFeatures": ["Tous les Agents IA", "5 000 leads/mois", "Prospection e-mail + SMS", "Agents IA vocaux", "Tunnels de vente", "Analyses avancées", "Support prioritaire"],
+      "proFeatures": [
+        "Tous les Agents IA",
+        "5 000 leads/mois",
+        "Prospection e-mail + SMS",
+        "Agents IA vocaux",
+        "Tunnels de vente",
+        "Analyses avancées",
+        "Support prioritaire"
+      ],
       "proCta": "Commencer l'Essai Gratuit",
       "entName": "Entreprise",
       "entPrice": "997 $",
       "entDesc": "Pour les agences et entreprises qui ont besoin de solutions personnalisées à grande échelle.",
-      "entFeatures": ["Tout dans Pro", "Leads illimités", "Agents IA personnalisés", "Options marque blanche", "Accès API", "Gestionnaire de compte dédié", "Intégrations personnalisées"],
+      "entFeatures": [
+        "Tout dans Pro",
+        "Leads illimités",
+        "Agents IA personnalisés",
+        "Options marque blanche",
+        "Accès API",
+        "Gestionnaire de compte dédié",
+        "Intégrations personnalisées"
+      ],
       "entCta": "Contacter les Ventes",
       "tfTitle": "Plans TradeFlow Afrique",
       "tfDesc": "Tarifs spécifiques à la région pour les marchés africains. Toutes les fonctionnalités incluses.",
       "tfStarterPrice": "47 $/mois",
       "tfProPrice": "147 $/mois",
-      "tfEntPrice": "497 $/mois"
+      "tfEntPrice": "497 $/mois",
+      "tfHustleName": "Hustle",
+      "tfHustlePrice": "5$",
+      "tfHustleAgents": "1 Agent",
+      "tfHustleLeads": "50 leads/mois",
+      "tfHustleFee": "5% frais de succès",
+      "tfHustleFeatures": [
+        "Alertes WhatsApp",
+        "Tableau de bord mobile"
+      ],
+      "tfBusinessName": "Business",
+      "tfBusinessPrice": "15$",
+      "tfBusinessAgents": "3 Agents",
+      "tfBusinessLeads": "200 leads/mois",
+      "tfBusinessFee": "3% frais de succès",
+      "tfBusinessFeatures": [
+        "Tableau de bord complet",
+        "Auto-candidature aux appels d offres"
+      ],
+      "tfBusinessPopular": "Populaire",
+      "tfMogulName": "Mogul",
+      "tfMogulPrice": "25$",
+      "tfMogulAgents": "Illimité",
+      "tfMogulLeads": "Leads illimités",
+      "tfMogulFee": "2% frais de succès",
+      "tfMogulFeatures": [
+        "Correspondance prioritaire",
+        "Accès API"
+      ],
+      "tfPayPerResultName": "Paiement par Résultat",
+      "tfPayPerResultPrice": "0$",
+      "tfPayPerResultAgents": "1 Agent",
+      "tfPayPerResultLeads": "20 leads/mois",
+      "tfPayPerResultFee": "8% frais de succès",
+      "tfPayPerResultFeatures": [
+        "Pas de frais mensuel",
+        "Payez quand vous gagnez"
+      ],
+      "getStarted": "Commencer"
     },
     "testimonials": {
       "badge": "Résultats Clients",
@@ -308,7 +384,9 @@
       "secondary": "Réserver une Démo",
       "trust1": "Essai Gratuit de 14 Jours",
       "trust2": "Aucune Carte de Crédit Requise",
-      "trust3": "Annulation à Tout Moment"
+      "trust3": "Annulation à Tout Moment",
+      "emailUs": "Écrivez-nous",
+      "trialNote": "Essai gratuit de 14 jours. Pas de carte de crédit requise. Annulez à tout moment."
     },
     "footer": {
       "description": "Plateforme d'automatisation propulsée par l'IA pour l'acquisition de clients. Déployez des agents intelligents qui trouvent, engagent et convertissent des leads en pilote automatique.",
@@ -327,7 +405,18 @@
       "terms": "Conditions d'Utilisation",
       "cookiePolicy": "Politique de Cookies",
       "copyright": "ArgiFlow. Tous droits réservés.",
-      "builtWith": "Construit avec l'IA"
+      "builtWith": "Construit avec l'IA",
+      "brandName": "ArgiFlow AI",
+      "engagementTracking": "Suivi d'Engagement",
+      "aiStrategyEngine": "Moteur de Stratégie IA",
+      "howItWorks": "Comment ça Marche",
+      "pricing": "Tarification",
+      "results": "Résultats",
+      "faq": "FAQ",
+      "contactTitle": "Contact",
+      "getStarted": "Commencer",
+      "soc2": "SOC 2 Conforme",
+      "poweredBy": "Propulsé par Claude IA"
     }
   },
   "auth": {

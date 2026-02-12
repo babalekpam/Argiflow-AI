@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -105,6 +106,7 @@ function StageColumn({
   funnelId: string;
   onMoveDeal: (dealId: string, newStageId: string) => void;
 }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -122,7 +124,7 @@ function StageColumn({
       setNewName("");
       setNewEmail("");
       setNewValue("");
-      toast({ title: "Deal added" });
+      toast({ title: t("salesFunnels.dealAdded") });
     },
   });
 
@@ -149,7 +151,7 @@ function StageColumn({
       </div>
       {totalValue > 0 && (
         <div className="text-xs text-muted-foreground px-1 mb-2">
-          ${totalValue.toLocaleString()} total
+          ${totalValue.toLocaleString()} {t("salesFunnels.total")}
         </div>
       )}
 
@@ -188,7 +190,7 @@ function StageColumn({
               onValueChange={(val) => onMoveDeal(deal.id, val)}
             >
               <SelectTrigger className="mt-2 h-7 text-xs" data-testid={`select-move-deal-${deal.id}`}>
-                <SelectValue placeholder="Move to..." />
+                <SelectValue placeholder={t("salesFunnels.moveTo")} />
               </SelectTrigger>
               <SelectContent>
                 {allStages.map((s) => (
@@ -209,28 +211,28 @@ function StageColumn({
         <DialogTrigger asChild>
           <Button variant="ghost" size="sm" className="mt-2 w-full justify-start gap-2 text-muted-foreground" data-testid={`button-add-deal-${stage.id}`}>
             <Plus className="w-3.5 h-3.5" />
-            Add deal
+            {t("salesFunnels.addDeal")}
           </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Deal to {stage.name}</DialogTitle>
+            <DialogTitle>{t("salesFunnels.addDealTo", { stage: stage.name })}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 mt-2">
             <Input
-              placeholder="Contact name"
+              placeholder={t("salesFunnels.contactNamePlaceholder")}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               data-testid="input-deal-name"
             />
             <Input
-              placeholder="Email (optional)"
+              placeholder={t("salesFunnels.contactEmailPlaceholder")}
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               data-testid="input-deal-email"
             />
             <Input
-              placeholder="Deal value ($)"
+              placeholder={t("salesFunnels.dealValue")}
               type="number"
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
@@ -254,7 +256,7 @@ function StageColumn({
               ) : (
                 <Plus className="w-4 h-4 mr-2" />
               )}
-              Add Deal
+              {t("salesFunnels.addDealBtn")}
             </Button>
           </div>
         </DialogContent>
@@ -264,6 +266,7 @@ function StageColumn({
 }
 
 function PipelineView({ funnel }: { funnel: Funnel }) {
+  const { t } = useTranslation();
   const { data: stages = [], isLoading: stagesLoading } = useQuery<FunnelStage[]>({
     queryKey: [`/api/funnels/${funnel.id}/stages`],
   });
@@ -313,28 +316,28 @@ function PipelineView({ funnel }: { funnel: Funnel }) {
         <Card className="p-3">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <Users className="w-3.5 h-3.5" />
-            <span className="text-xs">Total Deals</span>
+            <span className="text-xs">{t("salesFunnels.totalDeals")}</span>
           </div>
           <p className="text-lg font-bold" data-testid="text-total-deals">{totalDeals}</p>
         </Card>
         <Card className="p-3">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <DollarSign className="w-3.5 h-3.5" />
-            <span className="text-xs">Pipeline Value</span>
+            <span className="text-xs">{t("salesFunnels.pipelineValue")}</span>
           </div>
           <p className="text-lg font-bold" data-testid="text-pipeline-value">${totalValue.toLocaleString()}</p>
         </Card>
         <Card className="p-3">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <CheckCircle className="w-3.5 h-3.5 text-chart-3" />
-            <span className="text-xs">Won</span>
+            <span className="text-xs">{t("salesFunnels.won")}</span>
           </div>
           <p className="text-lg font-bold text-chart-3" data-testid="text-deals-won">{wonDeals}</p>
         </Card>
         <Card className="p-3">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <TrendingUp className="w-3.5 h-3.5" />
-            <span className="text-xs">Win Rate</span>
+            <span className="text-xs">{t("salesFunnels.winRate")}</span>
           </div>
           <p className="text-lg font-bold" data-testid="text-win-rate">{convRate}%</p>
         </Card>
@@ -379,7 +382,8 @@ function PipelineView({ funnel }: { funnel: Funnel }) {
 }
 
 export default function SalesFunnelsPage() {
-  usePageTitle("Sales Funnels");
+  const { t } = useTranslation();
+  usePageTitle(t("salesFunnels.title"));
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedFunnelId, setSelectedFunnelId] = useState<string | null>(null);
@@ -402,10 +406,10 @@ export default function SalesFunnelsPage() {
       setCreateOpen(false);
       setCustomName("");
       setCustomDesc("");
-      toast({ title: "Funnel created", description: `"${funnel.name}" is ready to use.` });
+      toast({ title: t("salesFunnels.funnelCreated"), description: t("salesFunnels.readyToUse", { name: funnel.name }) });
     },
     onError: () => {
-      toast({ title: "Failed to create funnel", variant: "destructive" });
+      toast({ title: t("salesFunnels.createFunnelFailed"), variant: "destructive" });
     },
   });
 
@@ -416,7 +420,7 @@ export default function SalesFunnelsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setSelectedFunnelId(null);
-      toast({ title: "Funnel deleted" });
+      toast({ title: t("salesFunnels.funnelDeleted") });
     },
   });
 
@@ -441,25 +445,25 @@ export default function SalesFunnelsPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-funnels-title">
             <Filter className="w-6 h-6 text-primary" />
-            Sales Funnels
+            {t("salesFunnels.title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Track deals through your pipeline from lead to close
+            {t("salesFunnels.subtitle")}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-funnel">
               <Plus className="w-4 h-4 mr-2" />
-              New Funnel
+              {t("salesFunnels.newFunnel")}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Create Sales Funnel</DialogTitle>
+              <DialogTitle>{t("salesFunnels.createFunnel")}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-2">
-              <p className="text-sm text-muted-foreground">Choose a template or create custom:</p>
+              <p className="text-sm text-muted-foreground">{t("salesFunnels.chooseTemplate")}</p>
               <div className="grid gap-2">
                 {funnelTemplates.map((tpl, i) => (
                   <Card
@@ -493,16 +497,16 @@ export default function SalesFunnelsPage() {
               </div>
 
               <div className="border-t border-border pt-4">
-                <p className="text-xs font-medium mb-2 text-muted-foreground">Or create custom:</p>
+                <p className="text-xs font-medium mb-2 text-muted-foreground">{t("salesFunnels.orCreateCustom")}</p>
                 <Input
-                  placeholder="Funnel name"
+                  placeholder={t("salesFunnels.funnelName")}
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
                   className="mb-2"
                   data-testid="input-custom-funnel-name"
                 />
                 <Input
-                  placeholder="Description (optional)"
+                  placeholder={t("salesFunnels.descriptionOptional")}
                   value={customDesc}
                   onChange={(e) => setCustomDesc(e.target.value)}
                   className="mb-2"
@@ -533,7 +537,7 @@ export default function SalesFunnelsPage() {
                   ) : (
                     <Plus className="w-4 h-4 mr-2" />
                   )}
-                  Create Custom Funnel
+                  {t("salesFunnels.createCustomFunnel")}
                 </Button>
               </div>
             </div>
@@ -544,13 +548,13 @@ export default function SalesFunnelsPage() {
       {userFunnels.length === 0 ? (
         <Card className="p-8 text-center">
           <Filter className="w-12 h-12 text-primary mx-auto mb-4 opacity-50" />
-          <h2 className="text-lg font-semibold mb-2">No Funnels Yet</h2>
+          <h2 className="text-lg font-semibold mb-2">{t("salesFunnels.noFunnels")}</h2>
           <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-            Create your first sales funnel to start tracking deals through your pipeline. Choose from templates or build your own.
+            {t("salesFunnels.noFunnelsDesc")}
           </p>
           <Button onClick={() => setCreateOpen(true)} data-testid="button-create-first-funnel">
             <Plus className="w-4 h-4 mr-2" />
-            Create Your First Funnel
+            {t("salesFunnels.createFirstFunnel")}
           </Button>
         </Card>
       ) : (
@@ -585,14 +589,14 @@ export default function SalesFunnelsPage() {
                   size="sm"
                   className="text-destructive"
                   onClick={() => {
-                    if (confirm("Delete this funnel and all its deals?")) {
+                    if (confirm(t("salesFunnels.confirmDeleteFunnel"))) {
                       deleteFunnelMutation.mutate(selectedFunnel.id);
                     }
                   }}
                   data-testid="button-delete-funnel"
                 >
                   <Trash2 className="w-4 h-4 mr-1.5" />
-                  Delete
+                  {t("common.delete")}
                 </Button>
               </div>
               <PipelineView funnel={selectedFunnel} />
@@ -600,7 +604,7 @@ export default function SalesFunnelsPage() {
           ) : (
             <Card className="p-8 text-center">
               <BarChart3 className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <p className="text-sm text-muted-foreground">Select a funnel above to view its pipeline</p>
+              <p className="text-sm text-muted-foreground">{t("salesFunnels.selectFunnelPrompt")}</p>
             </Card>
           )}
         </>

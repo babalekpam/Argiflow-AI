@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +56,8 @@ function LeadStatusBadge({ status }: { status: string }) {
 }
 
 export default function DashboardPage() {
-  usePageTitle("Dashboard");
+  const { t } = useTranslation();
+  usePageTitle(t("dashboard.title"));
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/stats"],
   });
@@ -72,13 +74,13 @@ export default function DashboardPage() {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">Dashboard Overview</h1>
-          <p className="text-muted-foreground text-sm">Track your business performance at a glance.</p>
+          <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">{t("dashboard.title")}</h1>
+          <p className="text-muted-foreground text-sm">{t("dashboard.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 animate-pulse" />
-            AI Active
+            {t("common.aiActive")}
           </Badge>
         </div>
       </div>
@@ -95,25 +97,25 @@ export default function DashboardPage() {
         ) : (
           <>
             <StatCard
-              title="Total Leads"
+              title={t("dashboard.totalLeads")}
               value={stats?.totalLeads?.toLocaleString() || "0"}
               icon={Users}
               color="bg-primary/10 text-primary"
             />
             <StatCard
-              title="Active Leads"
+              title={t("dashboard.activeLeads")}
               value={stats?.activeLeads?.toLocaleString() || "0"}
               icon={TrendingUp}
               color="bg-chart-2/10 text-chart-2"
             />
             <StatCard
-              title="Appointments"
+              title={t("dashboard.appointments")}
               value={stats?.appointmentsBooked?.toLocaleString() || "0"}
               icon={Calendar}
               color="bg-chart-3/10 text-chart-3"
             />
             <StatCard
-              title="Revenue"
+              title={t("dashboard.revenue")}
               value={`$${(stats?.revenue || 0).toLocaleString()}`}
               icon={DollarSign}
               color="bg-chart-4/10 text-chart-4"
@@ -125,10 +127,10 @@ export default function DashboardPage() {
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="p-5">
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-            <h3 className="font-semibold" data-testid="text-recent-leads">Recent Leads</h3>
+            <h3 className="font-semibold" data-testid="text-recent-leads">{t("dashboard.recentLeads")}</h3>
             <a href="/dashboard/leads">
               <Button variant="ghost" size="sm">
-                View All
+                {t("common.viewAll")}
               </Button>
             </a>
           </div>
@@ -156,7 +158,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{lead.name}</p>
-                    <p className="text-xs text-muted-foreground">From {lead.source}</p>
+                    <p className="text-xs text-muted-foreground">{t("dashboard.fromSource", { source: lead.source })}</p>
                   </div>
                   <LeadStatusBadge status={lead.status} />
                 </div>
@@ -165,7 +167,7 @@ export default function DashboardPage() {
             {!leadsLoading && (!leads || leads.length === 0) && (
               <div className="text-center py-8 text-muted-foreground text-sm">
                 <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                No leads yet. Your AI agents will start generating them.
+                {t("dashboard.noLeads")}
               </div>
             )}
           </div>
@@ -173,10 +175,10 @@ export default function DashboardPage() {
 
         <Card className="p-5">
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-            <h3 className="font-semibold" data-testid="text-upcoming-appointments">Upcoming Appointments</h3>
+            <h3 className="font-semibold" data-testid="text-upcoming-appointments">{t("dashboard.upcomingAppointments")}</h3>
             <a href="/dashboard/appointments">
               <Button variant="ghost" size="sm">
-                View All
+                {t("common.viewAll")}
               </Button>
             </a>
           </div>
@@ -233,7 +235,7 @@ export default function DashboardPage() {
             {!appointmentsLoading && (!appointments || appointments.length === 0) && (
               <div className="text-center py-8 text-muted-foreground text-sm">
                 <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                No upcoming appointments.
+                {t("dashboard.noAppointments")}
               </div>
             )}
           </div>
@@ -242,15 +244,15 @@ export default function DashboardPage() {
 
       <Card className="p-5">
         <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-          <h3 className="font-semibold">AI Activity Feed</h3>
+          <h3 className="font-semibold">{t("dashboard.aiActivityFeed")}</h3>
           <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse" />
-            Live
+            {t("common.live")}
           </Badge>
         </div>
         <div className="text-center py-8 text-muted-foreground text-sm">
           <Bot className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          No activity yet. Your AI agents will log actions here.
+          {t("dashboard.noActivity")}
         </div>
       </Card>
     </div>

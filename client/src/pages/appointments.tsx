@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ type EnrichedAppointment = Appointment & {
 };
 
 function AppointmentStatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   const styles: Record<string, { class: string; icon: any }> = {
     scheduled: { class: "bg-blue-500/10 text-blue-400 border-blue-500/20", icon: Clock },
     completed: { class: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", icon: CheckCircle2 },
@@ -33,10 +35,16 @@ function AppointmentStatusBadge({ status }: { status: string }) {
   };
   const s = styles[status] || styles.scheduled;
   const Icon = s.icon;
+  const statusLabels: Record<string, string> = {
+    scheduled: t("appointments.statuses.scheduled"),
+    completed: t("appointments.statuses.completed"),
+    cancelled: t("appointments.statuses.cancelled"),
+    pending: t("appointments.statuses.pending"),
+  };
   return (
     <Badge className={s.class}>
       <Icon className="w-3 h-3 mr-1" />
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {statusLabels[status] || status.charAt(0).toUpperCase() + status.slice(1)}
     </Badge>
   );
 }
@@ -110,7 +118,8 @@ function AppointmentCard({ apt, opaque }: { apt: EnrichedAppointment; opaque?: b
 }
 
 export default function AppointmentsPage() {
-  usePageTitle("Appointments");
+  const { t } = useTranslation();
+  usePageTitle(t("appointments.title"));
   const { data: appointments, isLoading } = useQuery<EnrichedAppointment[]>({
     queryKey: ["/api/appointments"],
   });
@@ -126,9 +135,9 @@ export default function AppointmentsPage() {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-appointments-title">Appointments</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-appointments-title">{t("appointments.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            Manage your schedule and upcoming calls.
+            {t("appointments.subtitle")}
           </p>
         </div>
       </div>
@@ -141,7 +150,7 @@ export default function AppointmentsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold" data-testid="text-total-appointments">{appointments?.length || 0}</p>
-              <p className="text-sm text-muted-foreground">Total</p>
+              <p className="text-sm text-muted-foreground">{t("appointments.total")}</p>
             </div>
           </div>
         </Card>
@@ -152,7 +161,7 @@ export default function AppointmentsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{upcoming.length}</p>
-              <p className="text-sm text-muted-foreground">Upcoming</p>
+              <p className="text-sm text-muted-foreground">{t("appointments.upcoming")}</p>
             </div>
           </div>
         </Card>
@@ -165,14 +174,14 @@ export default function AppointmentsPage() {
               <p className="text-2xl font-bold">
                 {(appointments || []).filter((a) => a.status === "completed").length}
               </p>
-              <p className="text-sm text-muted-foreground">Completed</p>
+              <p className="text-sm text-muted-foreground">{t("appointments.completed")}</p>
             </div>
           </div>
         </Card>
       </div>
 
       <Card className="p-5">
-        <h3 className="font-semibold mb-4" data-testid="text-upcoming-section">Upcoming Appointments</h3>
+        <h3 className="font-semibold mb-4" data-testid="text-upcoming-section">{t("appointments.upcomingAppointments")}</h3>
         <div className="space-y-3">
           {isLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
@@ -188,7 +197,7 @@ export default function AppointmentsPage() {
           ) : upcoming.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
               <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              No upcoming appointments.
+              {t("appointments.noUpcoming")}
             </div>
           ) : (
             upcoming.map((apt) => (
@@ -200,7 +209,7 @@ export default function AppointmentsPage() {
 
       {past.length > 0 && (
         <Card className="p-5">
-          <h3 className="font-semibold mb-4">Past Appointments</h3>
+          <h3 className="font-semibold mb-4">{t("appointments.pastAppointments")}</h3>
           <div className="space-y-3">
             {past.map((apt) => (
               <AppointmentCard key={apt.id} apt={apt} opaque />
