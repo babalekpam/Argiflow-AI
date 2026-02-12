@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { SiX, SiLinkedin, SiInstagram, SiVenmo } from "react-icons/si";
 import { CompactFlowchart } from "@/components/animated-flowchart";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 export default function LandingPage() {
   usePageTitle();
@@ -243,6 +244,7 @@ export default function LandingPage() {
             </a>
           </div>
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             <a href="/login" data-testid="button-login">
               <Button variant="ghost" size="sm">{t("nav.clientLogin")}</Button>
             </a>

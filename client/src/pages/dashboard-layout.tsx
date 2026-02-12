@@ -27,6 +27,7 @@ import SalesFunnelsPage from "./sales-funnels";
 import AgentCatalogPage from "./agent-catalog";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 type SubscriptionData = {
   subscription: {
@@ -160,6 +161,7 @@ export default function DashboardLayout() {
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 animate-pulse" />
                 {t("common.aiActive")}
               </Badge>
+              <LanguageSwitcher variant="compact" />
               <NotificationsDropdown />
               <div className="flex items-center gap-2">
                 <Avatar className="w-8 h-8">
