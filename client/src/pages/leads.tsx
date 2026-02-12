@@ -772,14 +772,46 @@ export default function LeadsPage() {
     },
   });
 
+  const [outreachGenerating, setOutreachGenerating] = useState(false);
+  const [outreachProgress, setOutreachProgress] = useState("");
+
   const generateOutreachMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/leads/generate-outreach");
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      toast({ title: data.message || t("leads.outreachGenerated") });
+      if (data.status === "processing") {
+        setOutreachGenerating(true);
+        setOutreachProgress(`0/${data.total}`);
+        toast({ title: data.message });
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await fetch("/api/leads/generate-outreach/status", { credentials: "include" });
+            const status = await statusRes.json();
+            setOutreachProgress(`${status.generated}/${status.total}`);
+            if (status.status === "complete") {
+              clearInterval(pollInterval);
+              setOutreachGenerating(false);
+              setOutreachProgress("");
+              queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+              toast({ title: t("leads.outreachGenerated") + ` (${status.generated}/${status.total})` });
+            } else if (status.status === "error") {
+              clearInterval(pollInterval);
+              setOutreachGenerating(false);
+              setOutreachProgress("");
+              toast({ title: t("leads.outreachGenerateFailed"), variant: "destructive" });
+            }
+          } catch {
+            clearInterval(pollInterval);
+            setOutreachGenerating(false);
+            setOutreachProgress("");
+          }
+        }, 3000);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+        toast({ title: data.message || t("leads.outreachGenerated") });
+      }
     },
     onError: (err: any) => {
       toast({ title: err.message || t("leads.outreachGenerateFailed"), variant: "destructive" });
@@ -997,15 +1029,15 @@ export default function LeadsPage() {
               data-testid="input-search-leads"
             />
           </div>
-          {activeTab === "new" && missingOutreachCount > 0 && (
+          {activeTab === "new" && (missingOutreachCount > 0 || outreachGenerating) && (
             <Button
               variant="outline"
               onClick={() => generateOutreachMutation.mutate()}
-              disabled={generateOutreachMutation.isPending}
+              disabled={generateOutreachMutation.isPending || outreachGenerating}
               data-testid="button-generate-outreach"
             >
-              {generateOutreachMutation.isPending ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t("leads.generatingDrafts")}</>
+              {generateOutreachMutation.isPending || outreachGenerating ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t("leads.generatingDrafts")} {outreachProgress && `(${outreachProgress})`}</>
               ) : (
                 <><Sparkles className="w-4 h-4 mr-2" />{t("leads.generateDrafts", { count: missingOutreachCount })}</>
               )}

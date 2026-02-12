@@ -1724,6 +1724,8 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
   // ---- GENERATE MISSING OUTREACH DRAFTS ----
 
+  const outreachGenerationStatus = new Map<string, { status: string; generated: number; total: number; error?: string }>();
+
   app.post("/api/leads/generate-outreach", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -1731,14 +1733,17 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       const needsOutreach = allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
 
       if (needsOutreach.length === 0) {
-        return res.json({ message: "All leads already have outreach drafts!", generated: 0 });
+        return res.json({ message: "All leads already have outreach drafts!", generated: 0, status: "complete" });
       }
+
+      outreachGenerationStatus.set(userId, { status: "processing", generated: 0, total: needsOutreach.length });
+      res.json({ message: `Generating drafts for ${needsOutreach.length} leads in the background...`, total: needsOutreach.length, status: "processing" });
 
       const user = await storage.getUserById(userId);
       const userSettings = await storage.getSettingsByUser(userId);
       const bookingLink = userSettings?.calendarLink || "";
 
-      const batchSize = 5;
+      const batchSize = 10;
       let generated = 0;
       const batches = [];
       for (let i = 0; i < needsOutreach.length; i += batchSize) {
@@ -1746,17 +1751,17 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       }
 
       for (const batch of batches) {
-        const leadsInfo = batch.map(l =>
-          `- Name: ${l.name}, Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Industry notes: ${l.notes || "N/A"}, Intent signal: ${l.intentSignal || "N/A"}, Score: ${l.score}`
+        const leadsInfo = batch.map((l, idx) =>
+          `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Notes: ${l.notes || "N/A"}, Intent: ${l.intentSignal || "N/A"}`
         ).join("\n");
 
         try {
           const response = await anthropic.messages.create({
             model: "claude-sonnet-4-5",
-            max_tokens: 2000,
+            max_tokens: 4000,
             messages: [{
               role: "user",
-              content: `Generate personalized outreach email drafts for these leads. Each email should be 3-5 sentences, reference their specific situation, mention a relevant benefit, and include a clear call-to-action.${bookingLink ? ` Include this booking link: ${bookingLink}` : ""}\n\nCompany: ${user?.companyName || "Our company"} (${user?.industry || ""})\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array where each element has "name" (exact lead name) and "outreach" (the email draft). No other text.`
+              content: `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Booking link: ${bookingLink}` : ""}\n\nFrom: ${user?.companyName || "Our company"} (${user?.industry || ""})\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft"}]. No markdown, no explanation.`
             }],
           });
 
@@ -1775,12 +1780,26 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         } catch (batchError) {
           console.error("Error generating outreach batch:", batchError);
         }
+        outreachGenerationStatus.set(userId, { status: "processing", generated, total: needsOutreach.length });
       }
 
-      res.json({ message: `Generated outreach drafts for ${generated} out of ${needsOutreach.length} leads.`, generated, total: needsOutreach.length });
+      outreachGenerationStatus.set(userId, { status: "complete", generated, total: needsOutreach.length });
+      console.log(`Outreach generation complete for user ${userId}: ${generated}/${needsOutreach.length}`);
     } catch (error) {
       console.error("Error generating outreach drafts:", error);
-      res.status(500).json({ message: "Failed to generate outreach drafts" });
+      outreachGenerationStatus.set(req.session.userId!, { status: "error", generated: 0, total: 0, error: "Failed to generate outreach drafts" });
+    }
+  });
+
+  app.get("/api/leads/generate-outreach/status", isAuthenticated, async (req, res) => {
+    const userId = req.session.userId!;
+    const status = outreachGenerationStatus.get(userId);
+    if (!status) {
+      return res.json({ status: "idle", generated: 0, total: 0 });
+    }
+    res.json(status);
+    if (status.status === "complete" || status.status === "error") {
+      outreachGenerationStatus.delete(userId);
     }
   });
 
