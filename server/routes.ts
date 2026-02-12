@@ -624,7 +624,30 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
 // CRM actions via custom tools that call executeAction()
 // ============================================================
 
+const aiRequestTimestamps = new Map<string, number[]>();
+const AI_RATE_WINDOW_MS = 60000;
+const AI_MAX_REQUESTS_PER_WINDOW = 4;
+
+function checkAiRateLimit(userId: string): boolean {
+  const now = Date.now();
+  let timestamps = aiRequestTimestamps.get(userId) || [];
+  timestamps = timestamps.filter(t => t >= now - AI_RATE_WINDOW_MS);
+  if (timestamps.length >= AI_MAX_REQUESTS_PER_WINDOW) {
+    aiRequestTimestamps.set(userId, timestamps);
+    return false;
+  }
+  timestamps.push(now);
+  aiRequestTimestamps.set(userId, timestamps);
+  return true;
+}
+
 async function handleAiAction(userId: string, userMessage: string, chatHistory: { role: string; content: string }[] = []): Promise<string> {
+  if (!checkAiRateLimit(userId)) {
+    const timestamps = aiRequestTimestamps.get(userId) || [];
+    const oldestMs = timestamps[0] || Date.now();
+    const waitSecs = Math.ceil((oldestMs + AI_RATE_WINDOW_MS - Date.now()) / 1000);
+    return `I'm pacing requests to stay within API limits. Please try again in about ${waitSecs} seconds. Your actions like booking appointments and activating agents still work instantly!`;
+  }
   const allLeads = await storage.getLeadsByUser(userId);
   const allAppts = await storage.getAppointmentsByUser(userId);
   const allAgents = await storage.getAiAgentsByUser(userId);
@@ -650,76 +673,25 @@ Use this knowledge when advising the client. Reference their actual services, pr
     ? `\nCLIENT COMPANY: ${user.companyName} (${user.industry || "unknown industry"})${user.website ? ` | ${user.website}` : ""}${user.companyDescription ? `\nAbout: ${user.companyDescription}` : ""}${bookingLink ? `\nBOOKING LINK: ${bookingLink}` : ""}`
     : "";
 
-  const systemPrompt = `You are ArgiFlow AI — the senior AI strategist and automation expert at ArgiFlow, a premium AI Automation Agency specializing in Voice AI, Process Automation, Lead Generation Chatbots, AI Receptionists, and CRM Integration.
-
-You are a trusted business advisor, not a generic chatbot. Communicate with the authority and polish of a top-tier marketing consultant. Be direct, data-driven, and action-oriented.
+  const systemPrompt = `You are ArgiFlow AI — senior AI strategist at ArgiFlow, an AI Automation Agency (Voice AI, Lead Gen Chatbots, CRM Integration). Be direct, data-driven, action-oriented. Communicate like a top-tier marketing consultant.
 ${companyBlock}
-CURRENT CLIENT DATA:
-- Leads: ${allLeads.length} total (${allLeads.filter(l => l.status === "hot").length} hot, ${allLeads.filter(l => l.status === "qualified").length} qualified, ${allLeads.filter(l => l.status === "warm").length} warm, ${allLeads.filter(l => l.status === "new").length} new)
-- Appointments: ${allAppts.length} total (${allAppts.filter(a => a.status === "scheduled").length} scheduled, ${allAppts.filter(a => a.status === "completed").length} completed)
-- AI Agents: ${allAgents.length} deployed (${allAgents.filter(a => a.status === "active").length} active)
-${allLeads.length > 0 ? `- Pipeline: ${allLeads.slice(0, 5).map(l => `${l.name} (${l.status}, score: ${l.score})`).join(", ")}` : "- Pipeline is empty — ready for lead generation"}
-${allAgents.length > 0 ? `- Active agents: ${allAgents.map(a => `${a.name} (${a.status})`).join(", ")}` : "- No agents deployed yet"}${websiteKnowledgeBlock}
+CRM DATA: ${allLeads.length} leads (${allLeads.filter(l => l.status === "hot").length} hot, ${allLeads.filter(l => l.status === "qualified").length} qualified, ${allLeads.filter(l => l.status === "warm").length} warm, ${allLeads.filter(l => l.status === "new").length} new) | ${allAppts.length} appointments (${allAppts.filter(a => a.status === "scheduled").length} scheduled) | ${allAgents.length} agents (${allAgents.filter(a => a.status === "active").length} active)${websiteKnowledgeBlock}
 
-CAPABILITIES:
-You have CRM management tools and web search at your disposal. Use them proactively:
-- **Lead Generation**: When the user asks for leads, you MUST use web_search FIRST to find REAL businesses and contacts. Search for real companies in their industry, extract actual names, emails, phone numbers, and website URLs from public directories, business listings, and company websites. Then save them using the generate_leads tool. NEVER make up fictional contact information — every lead must come from actual web search results.
-- **Direct Outreach**: After generating leads, if the user says to "engage", "reach out", "email", "send", or "contact" them, IMMEDIATELY use the send_outreach tool to send the personalized outreach emails directly. You can also use this when the user asks you to follow up or engage existing leads.
-- **SMS Messaging**: If the user asks to "text", "SMS", or "send a text" to leads or a phone number, use the send_sms tool. You can text individual leads by ID, a direct phone number, or all leads with phone numbers at once.
-- **Sales Funnels**: When the user asks to "start a funnel", "create a pipeline", "build a funnel", or "start the funnel", use the create_funnel tool to set up a sales funnel with pipeline stages. It automatically adds existing leads as deals in the first stage. You can customize stage names and colors.
-- **CRM Tools**: Book appointments, activate AI agents, follow up with prospects, pull performance stats
-- **Web Search**: Research market trends, competitors, industry data, real-time information, and find real business contacts
-- Combine multiple tools in a single response when beneficial. For example, generate leads AND send outreach in the same flow when the user asks to "find and engage prospects".
+LEAD GENERATION (CRITICAL):
+1. ALWAYS use web_search FIRST to find REAL businesses. NEVER fabricate contacts.
+2. Intent-based prospecting: find companies actively seeking services (RFPs, job listings, forum posts, competitor complaints). Score: 80-100 active seekers, 60-79 intent signals, 40-59 profile match only.
+3. Extract REAL contact details from web results. If no direct email found, use company contact page or patterns (info@, contact@).
+4. EVERY lead MUST include all fields: name, email, phone, company, source, status="new", score, intent_signal (what buying signal found), notes (research about prospect), outreach (personalized 3-5 sentence email referencing their situation/pain point).${bookingLink ? ` Include booking link in outreach: ${bookingLink}` : ' Include CTA: "Would you be open to a 15-minute call this week?"'}
+5. ALWAYS end outreach with signature: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246
 
-LEAD GENERATION RULES (CRITICAL):
-1. ALWAYS search the web first before generating leads
-2. Focus on INTENT-BASED prospecting — find companies that are ACTIVELY LOOKING FOR the services your client offers. Use smart search strategies:
-   - Search for companies posting job listings or RFPs related to the client's services (e.g., "companies looking for medical billing services", "RFP medical billing outsourcing 2025")
-   - Search for businesses that recently lost a provider or are switching (e.g., "company switching billing provider", "medical practice needs new billing company")
-   - Search forums, Reddit, LinkedIn, and review sites where businesses ask for recommendations (e.g., "recommend medical billing company reddit", "best medical billing service reviews")
-   - Search for businesses in pain-point situations (e.g., "medical practice billing challenges", "healthcare providers struggling with claims")
-   - Search industry directories and lead sources (e.g., "new medical practices opening [location]", "healthcare startups 2025")
-   - Search for companies currently using a competitor and may be ready to switch (e.g., "[competitor name] alternatives", "[competitor] reviews complaints")
-3. Extract REAL contact details: actual business names, real email addresses, real phone numbers from their websites and public profiles
-4. If you can't find a direct email, look for the company's contact page or use common patterns (info@company.com, contact@company.com)
-5. Include the company name and source (where you found them) for each lead
-6. Score leads based on INTENT signals — higher scores for companies actively seeking the service:
-   - 80-100: Actively posted an RFP or job listing seeking this service
-   - 60-79: Showed clear intent signals (asked for recommendations, posted complaints about current provider)
-   - 40-59: Fits the target profile but no clear active-search signal yet
-7. If the user doesn't specify an industry or location, use their company profile information
-8. When presenting leads, explain WHY each lead is a good prospect — what intent signal did you find? Why might they need the client's service right now?
-9. For EVERY lead, you MUST generate a personalized outreach email draft (3-5 sentences). The outreach should:
-   - Reference their specific situation or pain point you discovered
-   - Mention a relevant benefit of the client's service
-   - Include a clear call-to-action with a booking link if available. ${bookingLink ? `ALWAYS include this booking link in the outreach: ${bookingLink} — e.g., "I'd love to chat — you can book a quick call here: ${bookingLink}"` : 'Use a generic CTA like "Would you be open to a 15-minute call this week?"'}
-   - Sound human, warm, and consultative — not salesy or spammy
-   - ALWAYS end the email with this exact signature block:
-     Best regards,
-     Clara Motena
-     Client Acquisition Director
-     Track-Med Billing Solutions
-     +1(615)482-6768 / (636) 244-8246
-10. Also include an intent_signal field describing what buying signal you found (e.g., "Posted looking for billing help", "New practice opening", "Switching providers")
-11. Include research notes about each prospect — what you learned about their business, size, challenges
+TOOL SEQUENCING: web_search → generate_leads → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results and suggest next steps. Combine tools in one flow when beneficial.
 
-COMMUNICATION STANDARDS:
-- Use **bold** for key terms, metrics, and action items
-- Use bullet points and numbered lists for clarity
-- Structure longer responses with clear sections
-- Lead with insights and recommendations, not just data
-- Be concise but thorough — every sentence should add value
-- When presenting data, provide context and actionable takeaways
-- Proactively suggest next steps and strategic recommendations
-- Use professional business language appropriate for C-suite executives
-- When the user asks to do something, execute it immediately using the tools — then summarize what was done and recommend next steps
-- If the pipeline is empty, recommend a strategic approach to lead generation
-- Reference specific ArgiFlow capabilities (Voice AI, RCM automation, lead gen chatbots) where relevant`;
+FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise but thorough.`;
 
   // Build message history for Claude
   const claudeMessages: Anthropic.MessageParam[] = chatHistory
     .filter(m => m.role === "user" || m.role === "assistant")
-    .slice(-20)
+    .slice(-10)
     .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
 
   if (claudeMessages.length === 0 || (claudeMessages[claudeMessages.length - 1] as any).content !== userMessage) {
@@ -736,28 +708,27 @@ COMMUNICATION STANDARDS:
     // CRM Tools
     {
       name: "generate_leads",
-      description: "Save researched leads to the CRM. IMPORTANT: You MUST use web_search FIRST to find real businesses/contacts before calling this tool. Search for real companies in the user's industry and location. Extract real names, emails, phone numbers, and company names from search results. NEVER invent or fabricate contact information.",
+      description: "Save leads to CRM. MUST use web_search FIRST. Never fabricate data.",
       input_schema: {
         type: "object" as const,
         properties: {
           leads: {
             type: "array",
-            description: "Array of real leads found via web search, each with personalized outreach",
             items: {
               type: "object",
               properties: {
-                name: { type: "string", description: "Real contact name (person or business name)" },
-                email: { type: "string", description: "Real email address found from website or directory" },
-                phone: { type: "string", description: "Real phone number found from website or directory" },
-                company: { type: "string", description: "Company/business name" },
-                source: { type: "string", description: "Where found: 'Web Research', 'Google', 'LinkedIn', 'Directory', etc." },
-                status: { type: "string", description: "Lead status: 'new'" },
-                score: { type: "number", description: "Lead score 1-100 based on intent signals" },
-                intent_signal: { type: "string", description: "What buying signal was detected — e.g. 'Posted RFP for billing services', 'Complained about current provider on Reddit', 'New practice opening Q1 2025'" },
-                notes: { type: "string", description: "Research notes about this prospect — why they're a good fit, what you learned about their situation" },
-                outreach: { type: "string", description: "A personalized outreach email draft (3-5 sentences) referencing their specific situation, pain point, or intent signal. Include a clear call-to-action like booking a call." },
+                name: { type: "string", description: "Real contact/business name from web" },
+                email: { type: "string", description: "Real email from website/directory" },
+                phone: { type: "string", description: "Real phone from website/directory" },
+                company: { type: "string", description: "Company name" },
+                source: { type: "string", description: "Where found: Web Research, Google, LinkedIn, etc." },
+                status: { type: "string", description: "Must be 'new'" },
+                score: { type: "number", description: "1-100 based on intent signals" },
+                intent_signal: { type: "string", description: "Buying signal detected" },
+                notes: { type: "string", description: "Research notes about prospect" },
+                outreach: { type: "string", description: "Personalized 3-5 sentence outreach email with CTA and signature" },
               },
-              required: ["name"],
+              required: ["name", "email", "company", "source", "score", "outreach"],
             },
           },
         },
@@ -766,40 +737,34 @@ COMMUNICATION STANDARDS:
     },
     {
       name: "book_appointments",
-      description: "Book appointments with the user's existing leads. Use when the user asks to book, schedule, or create appointments.",
+      description: "Book appointments with existing leads.",
       input_schema: {
         type: "object" as const,
-        properties: {
-          count: { type: "number", description: "Number of appointments to book (1-10)", default: 3 },
-        },
+        properties: { count: { type: "number", default: 3 } },
         required: [],
       },
     },
     {
       name: "activate_agents",
-      description: "Activate AI automation agents (Lead Qualifier, Email Nurturing, Appointment Setter, Chat Responder, Ad Optimizer, Follow-Up Agent, Voice AI Agent, Social Media Agent). Use when the user asks to set up, activate, or deploy AI agents.",
+      description: "Activate AI automation agents.",
       input_schema: {
         type: "object" as const,
-        properties: {
-          count: { type: "number", description: "Number of agents to activate", default: 8 },
-        },
+        properties: { count: { type: "number", default: 8 } },
         required: [],
       },
     },
     {
       name: "follow_up_leads",
-      description: "Create follow-up calls for warm and new leads. Use when the user asks to follow up with leads.",
+      description: "Follow up with warm/new leads.",
       input_schema: {
         type: "object" as const,
-        properties: {
-          count: { type: "number", description: "Number of leads to follow up with (1-5)", default: 3 },
-        },
+        properties: { count: { type: "number", default: 3 } },
         required: [],
       },
     },
     {
       name: "get_stats",
-      description: "Get the user's current dashboard statistics including leads, appointments, and agent counts. Use when the user asks for stats, reports, performance, or an overview.",
+      description: "Get dashboard stats (leads, appointments, agents).",
       input_schema: {
         type: "object" as const,
         properties: {},
@@ -808,75 +773,39 @@ COMMUNICATION STANDARDS:
     },
     {
       name: "send_outreach",
-      description: "Send the personalized outreach emails to leads that have outreach drafts. Use this IMMEDIATELY after generating leads when the user says to 'engage', 'reach out', 'email', 'send', or 'contact' the prospects. Can send to all unsent leads at once or specific lead IDs.",
+      description: "Send outreach emails to leads with drafts. Use when user says engage/reach out/email/send.",
       input_schema: {
         type: "object" as const,
         properties: {
-          lead_ids: {
-            type: "array",
-            items: { type: "string" },
-            description: "Specific lead IDs to send outreach to. If empty, sends to ALL leads with unsent outreach drafts.",
-          },
-          send_all: {
-            type: "boolean",
-            description: "If true, sends outreach to ALL leads with unsent drafts. Defaults to true if no lead_ids provided.",
-          },
+          lead_ids: { type: "array", items: { type: "string" } },
+          send_all: { type: "boolean" },
         },
         required: [],
       },
     },
     {
       name: "create_funnel",
-      description: "Create a sales funnel with pipeline stages and optionally add existing leads as deals. Use when the user asks to 'start a funnel', 'create a pipeline', 'set up a sales funnel', 'build a funnel', or 'start the funnel'. Creates a funnel with customizable stages and can automatically add the user's existing leads as deals in the first stage.",
+      description: "Create sales funnel with pipeline stages. Adds existing leads as deals.",
       input_schema: {
         type: "object" as const,
         properties: {
-          name: {
-            type: "string",
-            description: "Name for the funnel (e.g. 'Client Acquisition Pipeline', 'Sales Funnel Q1')",
-          },
-          description: {
-            type: "string",
-            description: "Brief description of the funnel purpose",
-          },
-          stages: {
-            type: "array",
-            description: "Pipeline stages in order. If not provided, uses default stages: Prospects, Qualified, Proposal, Negotiation, Closed Won",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string", description: "Stage name" },
-                color: { type: "string", description: "Hex color for the stage (e.g. '#3b82f6')" },
-              },
-              required: ["name"],
-            },
-          },
-          add_leads_as_deals: {
-            type: "boolean",
-            description: "If true, automatically adds all existing leads as deals in the first pipeline stage. Defaults to true.",
-          },
+          name: { type: "string" },
+          description: { type: "string" },
+          stages: { type: "array", items: { type: "object", properties: { name: { type: "string" }, color: { type: "string" } }, required: ["name"] } },
+          add_leads_as_deals: { type: "boolean" },
         },
         required: ["name"],
       },
     },
     {
       name: "send_sms",
-      description: "Send an SMS text message to a lead or phone number using Twilio. Use when the user asks to 'text', 'SMS', 'message', or 'send a text' to leads or a phone number.",
+      description: "Send SMS to a lead or phone number.",
       input_schema: {
         type: "object" as const,
         properties: {
-          phone: {
-            type: "string",
-            description: "Direct phone number to send to (e.g. +15551234567). Use this OR lead_id, not both.",
-          },
-          lead_id: {
-            type: "string",
-            description: "ID of a specific lead to send SMS to. The lead must have a phone number on file.",
-          },
-          message: {
-            type: "string",
-            description: "The SMS message body to send.",
-          },
+          phone: { type: "string" },
+          lead_id: { type: "string" },
+          message: { type: "string" },
         },
         required: ["message"],
       },
@@ -887,7 +816,7 @@ COMMUNICATION STANDARDS:
     // First Claude call — may use tools
     let response = await anthropic.messages.create({
       model: CLAUDE_MODEL,
-      max_tokens: 4096,
+      max_tokens: 2048,
       system: systemPrompt,
       messages: claudeMessages,
       tools,
@@ -925,7 +854,7 @@ COMMUNICATION STANDARDS:
 
       response = await anthropic.messages.create({
         model: CLAUDE_MODEL,
-        max_tokens: 4096,
+        max_tokens: 2048,
         system: systemPrompt,
         messages: currentMessages,
         tools,
@@ -956,7 +885,7 @@ COMMUNICATION STANDARDS:
       try {
         const retryResponse = await anthropic.messages.create({
           model: CLAUDE_MODEL,
-          max_tokens: 4096,
+          max_tokens: 2048,
           system: systemPrompt,
           messages: claudeMessages,
         });
