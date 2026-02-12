@@ -1026,7 +1026,20 @@
     "agentUpdated": "Agent updated",
     "agentConfigured": "Agent configured successfully",
     "agentRunning": "Agent running...",
-    "agentRunningDesc": "Results will appear in your notifications"
+    "agentRunningDesc": "Results will appear in your notifications",
+    "viewLeads": "View Leads",
+    "leadsFoundBy": "Leads Found by {{name}}",
+    "leadsFoundByDesc": "{{count}} leads discovered by this agent",
+    "noLeadsYet": "No leads found yet",
+    "noLeadsYetDesc": "Run this agent to start discovering leads",
+    "signal": "Signal",
+    "sendEmail": "Send Email",
+    "sent": "Sent",
+    "openInCrm": "Open in CRM",
+    "goToCrm": "Go to CRM",
+    "close": "Close",
+    "outreachSent": "Outreach email sent successfully",
+    "outreachFailed": "Failed to send outreach email"
   },
   "emailSms": {
     "title": "Email & SMS",

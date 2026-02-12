@@ -1861,7 +1861,11 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     try {
       const userId = req.session.userId!;
       const businessId = req.query.businessId as string | undefined;
-      const result = await storage.getLeadsByUser(userId, businessId);
+      const source = req.query.source as string | undefined;
+      let result = await storage.getLeadsByUser(userId, businessId);
+      if (source) {
+        result = result.filter(l => l.source === source);
+      }
       res.json(result);
     } catch (error) {
       console.error("Error fetching leads:", error);
