@@ -57,6 +57,31 @@ const voiceAgentTemplates = [
     icon: PhoneIncoming,
     color: "text-primary",
     bgColor: "bg-primary/10",
+    defaultScript: `OPENING:
+"Thank you for calling [Company Name], this is [Agent Name]. How can I help you today?"
+
+QUALIFYING THE CALLER:
+- Ask: "May I have your name, please?"
+- Ask: "And what is this regarding?" or "How can I direct your call?"
+- If they need services: "Great, let me get some details so I can connect you with the right person."
+- Ask: "What's the best number to reach you at?"
+- Ask: "And your email address?"
+
+BOOKING APPOINTMENTS:
+- "I'd love to get you scheduled. We have availability [suggest times]. What works best for you?"
+- Confirm: "Perfect, I have you down for [date/time]. You'll receive a confirmation shortly."
+
+HANDLING COMMON QUESTIONS:
+- Hours: "Our office hours are Monday through Friday, 9 AM to 5 PM."
+- Location: "We're located at [address]. Would you like directions?"
+- Pricing: "I can have someone reach out with a detailed quote. May I take your contact info?"
+
+OBJECTION HANDLING:
+- "I understand. Would it help if I had someone call you back at a more convenient time?"
+- "No problem at all. Can I take your information so we can follow up?"
+
+CLOSING:
+- "Thank you for calling [Company Name]. We'll be in touch shortly. Have a great day!"`,
   },
   {
     name: "Outbound Caller",
@@ -65,6 +90,33 @@ const voiceAgentTemplates = [
     icon: PhoneOutgoing,
     color: "text-chart-4",
     bgColor: "bg-chart-4/10",
+    defaultScript: `OPENING:
+"Hi [Lead Name], this is [Agent Name] from [Company Name]. How are you doing today?"
+(Wait for response, then continue)
+"Great! I'm reaching out because [reason for call / how they came to your attention]."
+
+DISCOVERY PHASE:
+- "I'd love to learn a little about your current situation. What are you currently using for [relevant service]?"
+- "What's your biggest challenge with [pain point area] right now?"
+- "If you could change one thing about how you handle [topic], what would it be?"
+
+VALUE PROPOSITION:
+- "That's actually exactly what we help with. We [brief description of solution]."
+- "Our clients typically see [specific benefit, e.g., 30% increase in efficiency]."
+- "What makes us different is [key differentiator]."
+
+OBJECTION HANDLING:
+- "I'm not interested": "I totally understand. Many of our best clients felt the same way initially. Could I just share one quick thing that might change your mind?"
+- "I'm too busy": "I completely respect your time. How about I send you a quick summary by email, and we can chat for just 10 minutes when it's convenient?"
+- "We already have a solution": "That's great! I'm curious, how's that working out for you? A lot of people come to us when they want to [specific improvement]."
+- "It's too expensive": "I hear you. The good news is we offer flexible plans. Most clients find it pays for itself within the first month."
+
+CLOSING / BOOKING:
+- "Based on what you've shared, I think a quick 15-minute demo would be really valuable. Would [day] at [time] work, or is [alternative] better?"
+- "I'll send you a calendar invite right away. Looking forward to showing you what we can do!"
+
+WRAP-UP:
+- "Thanks so much for your time, [Lead Name]. I'll follow up with an email. Have a wonderful day!"`,
   },
   {
     name: "IVR Navigator",
@@ -73,6 +125,27 @@ const voiceAgentTemplates = [
     icon: Phone,
     color: "text-chart-2",
     bgColor: "bg-chart-2/10",
+    defaultScript: `OPENING:
+"Welcome to [Company Name]. I'm your virtual assistant and I can help route your call. Just tell me what you need and I'll connect you to the right person."
+
+UNDERSTANDING INTENT:
+- If they mention sales/buying: "Let me connect you with our sales team right away."
+- If they mention support/help/issue: "I'll get you to our support team. Can you briefly describe the issue?"
+- If they mention billing/payment: "I'll transfer you to our billing department."
+- If they mention appointments/scheduling: "I can help you schedule or manage an appointment."
+- If unclear: "Could you tell me a bit more about what you're looking for? I want to make sure I connect you with the right department."
+
+GATHERING INFO BEFORE TRANSFER:
+- "Before I transfer you, may I have your name?"
+- "And your account number or the phone number on your account?"
+- "Got it. Let me connect you now. One moment please."
+
+IF NO AGENTS AVAILABLE:
+- "It looks like all of our team members are currently assisting other callers. Would you like to leave a message, or should I have someone call you back?"
+- "What's the best number and time to reach you?"
+
+CLOSING:
+- "I'm transferring you now. Thank you for calling [Company Name]!"`,
   },
   {
     name: "Survey Caller",
@@ -81,6 +154,33 @@ const voiceAgentTemplates = [
     icon: Mic,
     color: "text-chart-3",
     bgColor: "bg-chart-3/10",
+    defaultScript: `OPENING:
+"Hi [Name], this is [Agent Name] from [Company Name]. I hope I'm not catching you at a bad time. We're doing a quick satisfaction survey and your feedback would really help us improve. Do you have about 2 minutes?"
+
+IF THEY AGREE:
+"Wonderful, thank you! I just have a few quick questions."
+
+SURVEY QUESTIONS:
+1. "On a scale of 1 to 10, how satisfied are you with our [product/service] overall?"
+   - Follow up if low (1-6): "I'm sorry to hear that. What's the main thing we could improve?"
+   - Follow up if high (7-10): "That's great to hear! What do you like most about working with us?"
+
+2. "How would you rate your most recent experience with our team? Was it excellent, good, fair, or poor?"
+   - If fair/poor: "Could you tell me what happened? We want to make it right."
+
+3. "How likely are you to recommend us to a friend or colleague? Very likely, somewhat likely, or not likely?"
+   - If not likely: "I understand. What would need to change for you to feel comfortable recommending us?"
+
+4. "Is there anything else you'd like us to know or any suggestions for improvement?"
+
+CLOSING:
+- "That's all I have. Your feedback is incredibly valuable to us and we'll use it to keep improving."
+- "As a thank you, [mention any incentive if applicable, e.g., we'll send you a 10% discount code]."
+- "Thank you so much for your time, [Name]. Have a wonderful day!"
+
+IF THEY DECLINE:
+- "No problem at all! Would there be a better time for me to call back?"
+- If no: "Understood. Thank you for your time, and feel free to reach out if you ever need anything. Take care!"`,
   },
 ];
 
@@ -151,6 +251,7 @@ export default function VoiceAiPage() {
   const [editStatus, setEditStatus] = useState("");
   const [deployName, setDeployName] = useState("");
   const [deployDesc, setDeployDesc] = useState("");
+  const [deployScript, setDeployScript] = useState("");
   const [showCallDialog, setShowCallDialog] = useState(false);
   const [callPhone, setCallPhone] = useState("");
   const [callAgentId, setCallAgentId] = useState<string>("");
@@ -169,7 +270,7 @@ export default function VoiceAiPage() {
   const voiceAgents = allAgents?.filter((a) => a.type === "Voice AI") || [];
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; type: string; description: string; status: string }) => {
+    mutationFn: async (data: { name: string; type: string; description: string; status: string; script?: string }) => {
       const res = await apiRequest("POST", "/api/ai-agents", data);
       return res.json();
     },
@@ -210,6 +311,7 @@ export default function VoiceAiPage() {
     setSelectedTemplate(template);
     setDeployName(template.name);
     setDeployDesc(template.description);
+    setDeployScript(template.defaultScript);
     setShowDeploy(true);
   };
 
@@ -220,6 +322,7 @@ export default function VoiceAiPage() {
         name: deployName,
         type: "Voice AI",
         description: deployDesc,
+        script: deployScript,
         status: "active",
       },
       {
@@ -229,6 +332,7 @@ export default function VoiceAiPage() {
           setSelectedTemplate(null);
           setDeployName("");
           setDeployDesc("");
+          setDeployScript("");
         },
         onError: () => {
           toast({ title: "Error", description: "Failed to deploy agent.", variant: "destructive" });
@@ -670,7 +774,7 @@ export default function VoiceAiPage() {
       </Dialog>
 
       <Dialog open={showDeploy} onOpenChange={(open) => !open && setShowDeploy(false)}>
-        <DialogContent data-testid="dialog-deploy-voice">
+        <DialogContent className="max-h-[85vh] overflow-y-auto" data-testid="dialog-deploy-voice">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedTemplate && <selectedTemplate.icon className={`w-5 h-5 ${selectedTemplate.color}`} />}
@@ -698,6 +802,18 @@ export default function VoiceAiPage() {
                 rows={3}
                 placeholder="What should this agent do?"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="deploy-script">Call Script / Talking Points</Label>
+              <Textarea
+                id="deploy-script"
+                data-testid="input-deploy-script"
+                value={deployScript}
+                onChange={(e) => setDeployScript(e.target.value)}
+                rows={10}
+                placeholder="The script this agent follows during phone calls."
+              />
+              <p className="text-xs text-muted-foreground">Customize the script above or paste your own. The AI will use it as a conversation guide during calls.</p>
             </div>
           </div>
           <DialogFooter>

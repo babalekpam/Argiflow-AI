@@ -2061,7 +2061,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
   app.post("/api/ai-agents", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const { name, type, description, status, generateScript, templateIndustry, templateFeatures } = req.body;
+      const { name, type, description, status, script, generateScript, templateIndustry, templateFeatures } = req.body;
       if (!name || !type) {
         return res.status(400).json({ message: "Name and type are required" });
       }
@@ -2073,6 +2073,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         tasksCompleted: 0,
         successRate: 0,
         description: description || "",
+        script: script || null,
       });
 
       if (generateScript) {
