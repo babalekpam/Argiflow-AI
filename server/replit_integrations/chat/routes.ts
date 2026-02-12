@@ -2,7 +2,8 @@ import type { Express, Request, Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { chatStorage } from "./storage";
 
-const useDirectKey = !!process.env.ANTHROPIC_API_KEY;
+const isValidKey = (key?: string) => key && key.startsWith("sk-ant-");
+const useDirectKey = isValidKey(process.env.ANTHROPIC_API_KEY);
 
 const anthropic = new Anthropic(
   useDirectKey

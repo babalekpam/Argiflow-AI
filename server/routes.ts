@@ -19,28 +19,35 @@ import { REGIONS, detectRegion, getRegionConfig } from "./region-config";
 // Robust config: tries Replit AI integration first, falls back to direct API
 // ============================================================
 
-const anthropicConfig: { apiKey: string; baseURL?: string } = (() => {
-  if (process.env.ANTHROPIC_API_KEY) {
+const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
+
+const anthropicConfig: { apiKey: string; baseURL?: string; usingDirectKey: boolean } = (() => {
+  if (isValidAnthropicKey(process.env.ANTHROPIC_API_KEY)) {
     console.log("[AI] Using direct Anthropic API key (user-provided)");
     return {
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey: process.env.ANTHROPIC_API_KEY!,
       baseURL: "https://api.anthropic.com",
+      usingDirectKey: true,
     };
+  }
+  if (process.env.ANTHROPIC_API_KEY) {
+    console.warn("[AI] WARNING: ANTHROPIC_API_KEY is set but does not look like a valid key (should start with 'sk-ant-'). Falling back to Replit AI Integration.");
   }
   if (process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
     console.log("[AI] Using Replit AI Integration for Anthropic");
     return {
       apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
       baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+      usingDirectKey: false,
     };
   }
   console.error("[AI] WARNING: No Anthropic API key found! AI features will not work.");
-  return { apiKey: "" };
+  return { apiKey: "", usingDirectKey: false };
 })();
 
-const anthropic = new Anthropic(anthropicConfig);
+const anthropic = new Anthropic({ apiKey: anthropicConfig.apiKey, baseURL: anthropicConfig.baseURL });
 
-const CLAUDE_MODEL = process.env.ANTHROPIC_API_KEY
+const CLAUDE_MODEL = anthropicConfig.usingDirectKey
   ? "claude-sonnet-4-20250514"
   : "claude-sonnet-4-5";
 
