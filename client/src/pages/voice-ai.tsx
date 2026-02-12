@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,8 @@ import voiceRobotImg from "@assets/image_1770823707603.png";
 const voiceAgentTemplates = [
   {
     name: "AI Receptionist",
+    nameKey: "voiceAi.receptionist",
+    descKey: "voiceAi.receptionistDesc",
     type: "Voice AI",
     description: "Answers inbound calls 24/7, qualifies leads, and books appointments automatically.",
     icon: PhoneIncoming,
@@ -85,6 +88,8 @@ CLOSING:
   },
   {
     name: "Outbound Caller",
+    nameKey: "voiceAi.outbound",
+    descKey: "voiceAi.outboundDesc",
     type: "Voice AI",
     description: "Makes automated follow-up calls, appointment reminders, and lead outreach campaigns.",
     icon: PhoneOutgoing,
@@ -120,6 +125,8 @@ WRAP-UP:
   },
   {
     name: "IVR Navigator",
+    nameKey: "voiceAi.ivr",
+    descKey: "voiceAi.ivrDesc",
     type: "Voice AI",
     description: "Intelligent call routing with natural language understanding — no more press-1 menus.",
     icon: Phone,
@@ -149,6 +156,8 @@ CLOSING:
   },
   {
     name: "Survey Caller",
+    nameKey: "voiceAi.survey",
+    descKey: "voiceAi.surveyDesc",
     type: "Voice AI",
     description: "Conducts automated customer satisfaction surveys and collects structured feedback.",
     icon: Mic,
@@ -185,41 +194,43 @@ IF THEY DECLINE:
 ];
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   if (status === "active") {
     return (
       <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse" />
-        Live
+        {t("voiceAi.statusLive")}
       </Badge>
     );
   }
   if (status === "paused") {
     return (
       <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">
-        Paused
+        {t("voiceAi.statusPaused")}
       </Badge>
     );
   }
   return (
     <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">
-      Inactive
+      {t("voiceAi.statusInactive")}
     </Badge>
   );
 }
 
 function CallStatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   switch (status) {
     case "completed":
-      return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"><CheckCircle className="w-3 h-3 mr-1" />Completed</Badge>;
+      return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"><CheckCircle className="w-3 h-3 mr-1" />{t("voiceAi.statusCompleted")}</Badge>;
     case "in-progress":
-      return <Badge className="bg-primary/10 text-primary border-primary/20"><Loader2 className="w-3 h-3 mr-1 animate-spin" />In Progress</Badge>;
+      return <Badge className="bg-primary/10 text-primary border-primary/20"><Loader2 className="w-3 h-3 mr-1 animate-spin" />{t("voiceAi.statusInProgress")}</Badge>;
     case "ringing":
     case "initiated":
-      return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20"><Phone className="w-3 h-3 mr-1" />Ringing</Badge>;
+      return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20"><Phone className="w-3 h-3 mr-1" />{t("voiceAi.statusRinging")}</Badge>;
     case "queued":
-      return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20"><Clock className="w-3 h-3 mr-1" />Queued</Badge>;
+      return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20"><Clock className="w-3 h-3 mr-1" />{t("voiceAi.statusQueued")}</Badge>;
     case "failed":
-      return <Badge className="bg-red-500/10 text-red-400 border-red-500/20"><XCircle className="w-3 h-3 mr-1" />Failed</Badge>;
+      return <Badge className="bg-red-500/10 text-red-400 border-red-500/20"><XCircle className="w-3 h-3 mr-1" />{t("voiceAi.statusFailed")}</Badge>;
     default:
       return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">{status}</Badge>;
   }
@@ -240,7 +251,8 @@ function formatPhoneDisplay(phone: string): string {
 }
 
 export default function VoiceAiPage() {
-  usePageTitle("Voice AI Agents");
+  const { t } = useTranslation();
+  usePageTitle(t("voiceAi.title"));
   const { toast } = useToast();
   const [showDeploy, setShowDeploy] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<typeof voiceAgentTemplates[0] | null>(null);
@@ -296,14 +308,14 @@ export default function VoiceAiPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/voice/calls"] });
-      toast({ title: "Call initiated", description: "The AI agent is now calling the number." });
+      toast({ title: t("voiceAi.callInitiated"), description: t("voiceAi.callInitiatedDesc") });
       setShowCallDialog(false);
       setCallPhone("");
       setCallAgentId("");
       setCallScript("");
     },
     onError: (err: any) => {
-      toast({ title: "Call failed", description: err.message || "Could not initiate the call.", variant: "destructive" });
+      toast({ title: t("voiceAi.callFailed"), description: err.message || t("voiceAi.callFailedDesc"), variant: "destructive" });
     },
   });
 
@@ -327,7 +339,7 @@ export default function VoiceAiPage() {
       },
       {
         onSuccess: () => {
-          toast({ title: "Voice Agent Deployed", description: `${deployName} is now live and handling calls.` });
+          toast({ title: t("voiceAi.voiceDeployed"), description: t("voiceAi.voiceDeployedDesc", { name: deployName }) });
           setShowDeploy(false);
           setSelectedTemplate(null);
           setDeployName("");
@@ -335,7 +347,7 @@ export default function VoiceAiPage() {
           setDeployScript("");
         },
         onError: () => {
-          toast({ title: "Error", description: "Failed to deploy agent.", variant: "destructive" });
+          toast({ title: t("voiceAi.deployError"), description: t("voiceAi.deployErrorDesc"), variant: "destructive" });
         },
       }
     );
@@ -358,11 +370,11 @@ export default function VoiceAiPage() {
       },
       {
         onSuccess: () => {
-          toast({ title: "Agent updated", description: `${editName} configuration saved.` });
+          toast({ title: t("voiceAi.agentUpdated"), description: t("voiceAi.agentUpdatedDesc", { name: editName }) });
           setConfigAgent(null);
         },
         onError: () => {
-          toast({ title: "Error", description: "Failed to update agent.", variant: "destructive" });
+          toast({ title: t("voiceAi.updateError"), description: t("voiceAi.updateErrorDesc"), variant: "destructive" });
         },
       }
     );
@@ -375,12 +387,12 @@ export default function VoiceAiPage() {
       {
         onSuccess: () => {
           toast({
-            title: newStatus === "active" ? "Agent activated" : "Agent paused",
-            description: `${agent.name} is now ${newStatus}.`,
+            title: newStatus === "active" ? t("voiceAi.agentActivated") : t("voiceAi.agentPaused"),
+            description: t("voiceAi.agentStatusDesc", { name: agent.name, status: newStatus }),
           });
         },
         onError: () => {
-          toast({ title: "Error", description: "Failed to toggle agent.", variant: "destructive" });
+          toast({ title: t("voiceAi.toggleError"), description: t("voiceAi.toggleErrorDesc"), variant: "destructive" });
         },
       }
     );
@@ -414,30 +426,30 @@ export default function VoiceAiPage() {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-voice-ai-title">Voice AI</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-voice-ai-title">{t("voiceAi.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            Deploy and manage AI-powered voice agents that handle calls 24/7.
+            {t("voiceAi.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20">
             <Mic className="w-3 h-3 mr-1.5" />
-            {activeCount} Live
+            {t("voiceAi.liveCount", { count: activeCount })}
           </Badge>
           <Button onClick={() => setShowCallDialog(true)} data-testid="button-make-call">
             <PhoneCall className="w-4 h-4 mr-1.5" />
-            Make a Call
+            {t("voiceAi.makeCall")}
           </Button>
         </div>
       </div>
 
       <Card className="relative overflow-hidden">
-        <img src={voiceRobotImg} alt="Voice AI" className="w-full h-40 object-cover" />
+        <img src={voiceRobotImg} alt={t("voiceAi.title")} className="w-full h-40 object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
         <div className="absolute inset-0 flex items-center p-6">
           <div>
-            <p className="text-lg font-bold">Voice AI Agents</p>
-            <p className="text-sm text-muted-foreground max-w-sm">AI-powered voice agents that handle calls, qualify leads, and book appointments around the clock.</p>
+            <p className="text-lg font-bold">{t("voiceAi.heroTitle")}</p>
+            <p className="text-sm text-muted-foreground max-w-sm">{t("voiceAi.heroDesc")}</p>
           </div>
         </div>
       </Card>
@@ -450,7 +462,7 @@ export default function VoiceAiPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{activeCount}</p>
-              <p className="text-sm text-muted-foreground">Active Lines</p>
+              <p className="text-sm text-muted-foreground">{t("voiceAi.activeLines")}</p>
             </div>
           </div>
         </Card>
@@ -461,7 +473,7 @@ export default function VoiceAiPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{totalCalls.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Total Calls</p>
+              <p className="text-sm text-muted-foreground">{t("voiceAi.totalCalls")}</p>
             </div>
           </div>
         </Card>
@@ -472,7 +484,7 @@ export default function VoiceAiPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{avgSuccess}%</p>
-              <p className="text-sm text-muted-foreground">Success Rate</p>
+              <p className="text-sm text-muted-foreground">{t("voiceAi.successRate")}</p>
             </div>
           </div>
         </Card>
@@ -483,7 +495,7 @@ export default function VoiceAiPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{voiceAgents.length}</p>
-              <p className="text-sm text-muted-foreground">Total Agents</p>
+              <p className="text-sm text-muted-foreground">{t("voiceAi.totalAgents")}</p>
             </div>
           </div>
         </Card>
@@ -491,7 +503,7 @@ export default function VoiceAiPage() {
 
       {voiceAgents.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold mb-3">Your Voice Agents</h2>
+          <h2 className="text-lg font-semibold mb-3">{t("voiceAi.yourVoiceAgents")}</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {voiceAgents.map((agent) => (
               <Card key={agent.id} className="p-5" data-testid={`voice-agent-card-${agent.id}`}>
@@ -520,18 +532,18 @@ export default function VoiceAiPage() {
                 </p>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-muted-foreground">Success Rate</span>
+                    <span className="text-muted-foreground">{t("voiceAi.successRate")}</span>
                     <span className="font-medium">{agent.successRate}%</span>
                   </div>
                   <Progress value={agent.successRate || 0} className="h-1.5" />
                   <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Zap className="w-3 h-3" />
-                      {agent.tasksCompleted} calls handled
+                      {t("voiceAi.callsHandled", { count: agent.tasksCompleted })}
                     </div>
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      24/7
+                      {t("voiceAi.allDay")}
                     </div>
                   </div>
                 </div>
@@ -544,7 +556,7 @@ export default function VoiceAiPage() {
                     onClick={() => openConfig(agent)}
                   >
                     <Settings className="w-3.5 h-3.5 mr-1.5" />
-                    Configure
+                    {t("voiceAi.configure")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -556,7 +568,7 @@ export default function VoiceAiPage() {
                     }}
                   >
                     <PhoneOutgoing className="w-3.5 h-3.5 mr-1.5" />
-                    Call
+                    {t("voiceAi.call")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -576,7 +588,7 @@ export default function VoiceAiPage() {
 
       <div>
         <h2 className="text-lg font-semibold mb-3">
-          {voiceAgents.length > 0 ? "Deploy More Agents" : "Deploy Your First Voice Agent"}
+          {voiceAgents.length > 0 ? t("voiceAi.deployMore") : t("voiceAi.deployFirst")}
         </h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {voiceAgentTemplates.map((template) => {
@@ -593,13 +605,13 @@ export default function VoiceAiPage() {
                     <template.icon className={`w-5 h-5 ${template.color}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">{template.name}</p>
+                    <p className="font-semibold text-sm">{t(template.nameKey)}</p>
                     {alreadyDeployed && (
-                      <p className="text-xs text-emerald-400">Deployed</p>
+                      <p className="text-xs text-emerald-400">{t("voiceAi.deployed")}</p>
                     )}
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4">{template.description}</p>
+                <p className="text-sm text-muted-foreground mb-4">{t(template.descKey)}</p>
                 <Button
                   variant={alreadyDeployed ? "outline" : "default"}
                   size="sm"
@@ -607,10 +619,10 @@ export default function VoiceAiPage() {
                   disabled={alreadyDeployed}
                   data-testid={`button-deploy-${template.name.toLowerCase().replace(/\s+/g, "-")}`}
                 >
-                  {alreadyDeployed ? "Already Deployed" : (
+                  {alreadyDeployed ? t("voiceAi.alreadyDeployed") : (
                     <>
                       <Plus className="w-3.5 h-3.5 mr-1.5" />
-                      Deploy Agent
+                      {t("voiceAi.deployAgent")}
                     </>
                   )}
                 </Button>
@@ -622,7 +634,7 @@ export default function VoiceAiPage() {
 
       {(callLogs && callLogs.length > 0) && (
         <div>
-          <h2 className="text-lg font-semibold mb-3">Call History</h2>
+          <h2 className="text-lg font-semibold mb-3">{t("voiceAi.callHistory")}</h2>
           <Card className="divide-y divide-border/50">
             {callLogs.slice(0, 20).map((call) => (
               <div key={call.id} className="flex items-center justify-between gap-4 p-4 flex-wrap" data-testid={`call-log-${call.id}`}>
@@ -657,7 +669,7 @@ export default function VoiceAiPage() {
                       data-testid={`button-transcript-${call.id}`}
                     >
                       <Volume2 className="w-3.5 h-3.5 mr-1" />
-                      Transcript
+                      {t("voiceAi.transcript")}
                     </Button>
                   )}
                   {call.outcome && call.outcome !== "completed" && (
@@ -673,16 +685,16 @@ export default function VoiceAiPage() {
       <Card className="p-6" data-testid="card-voice-capabilities">
         <h3 className="font-semibold mb-4 flex items-center gap-2">
           <Volume2 className="w-4 h-4 text-primary" />
-          Voice AI Capabilities
+          {t("voiceAi.voiceCapabilities")}
         </h3>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
-            { icon: PhoneIncoming, title: "Inbound Call Handling", desc: "Answer every call instantly, qualify leads, and route to the right team" },
-            { icon: PhoneOutgoing, title: "Outbound Campaigns", desc: "Automated cold outreach and follow-up sequences at scale" },
-            { icon: Clock, title: "Appointment Booking", desc: "Schedule meetings directly during calls with calendar integration" },
-            { icon: Activity, title: "Sentiment Analysis", desc: "Real-time emotion detection to adapt conversation tone" },
-            { icon: BarChart3, title: "Call Analytics", desc: "Track performance metrics, call duration, and conversion rates" },
-            { icon: Zap, title: "Instant Transfers", desc: "Seamlessly hand off to human agents when needed" },
+            { icon: PhoneIncoming, title: t("voiceAi.capInbound"), desc: t("voiceAi.capInboundDesc") },
+            { icon: PhoneOutgoing, title: t("voiceAi.capOutbound"), desc: t("voiceAi.capOutboundDesc") },
+            { icon: Clock, title: t("voiceAi.capAppointment"), desc: t("voiceAi.capAppointmentDesc") },
+            { icon: Activity, title: t("voiceAi.capSentiment"), desc: t("voiceAi.capSentimentDesc") },
+            { icon: BarChart3, title: t("voiceAi.capAnalytics"), desc: t("voiceAi.capAnalyticsDesc") },
+            { icon: Zap, title: t("voiceAi.capTransfers"), desc: t("voiceAi.capTransfersDesc") },
           ].map((cap) => (
             <div key={cap.title} className="flex items-start gap-3 p-3 rounded-md bg-secondary/30">
               <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -702,30 +714,30 @@ export default function VoiceAiPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PhoneCall className="w-5 h-5 text-primary" />
-              Make an AI Call
+              {t("voiceAi.makeAiCall")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="call-phone">Phone Number</Label>
+              <Label htmlFor="call-phone">{t("voiceAi.phoneNumber")}</Label>
               <Input
                 id="call-phone"
                 data-testid="input-call-phone"
                 value={callPhone}
                 onChange={(e) => setCallPhone(e.target.value)}
-                placeholder="+1 (555) 123-4567"
+                placeholder={t("voiceAi.phonePlaceholder")}
               />
-              <p className="text-xs text-muted-foreground">Include country code (e.g. +1 for US)</p>
+              <p className="text-xs text-muted-foreground">{t("voiceAi.phoneHint")}</p>
             </div>
             {voiceAgents.length > 0 && (
               <div className="space-y-2">
-                <Label>Voice Agent</Label>
+                <Label>{t("voiceAi.voiceAgent")}</Label>
                 <Select value={callAgentId} onValueChange={setCallAgentId}>
                   <SelectTrigger data-testid="select-call-agent">
-                    <SelectValue placeholder="Select an agent (optional)" />
+                    <SelectValue placeholder={t("voiceAi.selectAgentOptional")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Default AI Agent</SelectItem>
+                    <SelectItem value="none">{t("voiceAi.defaultAiAgent")}</SelectItem>
                     {voiceAgents.map((agent) => (
                       <SelectItem key={agent.id} value={agent.id}>
                         {agent.name}
@@ -736,21 +748,21 @@ export default function VoiceAiPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="call-script">Call Script / Talking Points</Label>
+              <Label htmlFor="call-script">{t("voiceAi.callScriptLabel")}</Label>
               <Textarea
                 id="call-script"
                 data-testid="input-call-script"
                 value={callScript}
                 onChange={(e) => setCallScript(e.target.value)}
                 rows={5}
-                placeholder="Write what the AI should say and discuss on this call. Example: 'Hi, this is Sarah from XYZ Marketing. I'm calling about the proposal we sent last week for your digital advertising campaign. I'd love to walk you through the key benefits and answer any questions.' Leave blank to use the agent's default script."
+                placeholder={t("voiceAi.callScriptPlaceholder")}
               />
-              <p className="text-xs text-muted-foreground">The AI will use this as its opening greeting and guide for the entire conversation.</p>
+              <p className="text-xs text-muted-foreground">{t("voiceAi.callScriptHint")}</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCallDialog(false)} data-testid="button-cancel-call">
-              Cancel
+              {t("voiceAi.cancel")}
             </Button>
             <Button
               onClick={initiateCall}
@@ -760,12 +772,12 @@ export default function VoiceAiPage() {
               {callMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                  Calling...
+                  {t("voiceAi.calling")}
                 </>
               ) : (
                 <>
                   <PhoneCall className="w-4 h-4 mr-1.5" />
-                  Call Now
+                  {t("voiceAi.callNow")}
                 </>
               )}
             </Button>
@@ -778,54 +790,54 @@ export default function VoiceAiPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedTemplate && <selectedTemplate.icon className={`w-5 h-5 ${selectedTemplate.color}`} />}
-              Deploy {selectedTemplate?.name}
+              {t("voiceAi.deployTitle", { name: selectedTemplate?.name })}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="deploy-name">Agent Name</Label>
+              <Label htmlFor="deploy-name">{t("voiceAi.agentName")}</Label>
               <Input
                 id="deploy-name"
                 data-testid="input-deploy-name"
                 value={deployName}
                 onChange={(e) => setDeployName(e.target.value)}
-                placeholder="e.g. AI Receptionist"
+                placeholder={t("voiceAi.agentNamePlaceholder")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="deploy-desc">Description</Label>
+              <Label htmlFor="deploy-desc">{t("voiceAi.description")}</Label>
               <Textarea
                 id="deploy-desc"
                 data-testid="input-deploy-desc"
                 value={deployDesc}
                 onChange={(e) => setDeployDesc(e.target.value)}
                 rows={3}
-                placeholder="What should this agent do?"
+                placeholder={t("voiceAi.descPlaceholder")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="deploy-script">Call Script / Talking Points</Label>
+              <Label htmlFor="deploy-script">{t("voiceAi.deployScriptLabel")}</Label>
               <Textarea
                 id="deploy-script"
                 data-testid="input-deploy-script"
                 value={deployScript}
                 onChange={(e) => setDeployScript(e.target.value)}
                 rows={10}
-                placeholder="The script this agent follows during phone calls."
+                placeholder={t("voiceAi.deployScriptPlaceholder")}
               />
-              <p className="text-xs text-muted-foreground">Customize the script above or paste your own. The AI will use it as a conversation guide during calls.</p>
+              <p className="text-xs text-muted-foreground">{t("voiceAi.deployScriptHint")}</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeploy(false)} data-testid="button-cancel-deploy">
-              Cancel
+              {t("voiceAi.cancel")}
             </Button>
             <Button
               onClick={deployAgent}
               disabled={createMutation.isPending || !deployName.trim()}
               data-testid="button-confirm-deploy"
             >
-              {createMutation.isPending ? "Deploying..." : "Deploy Now"}
+              {createMutation.isPending ? t("voiceAi.deploying") : t("voiceAi.deployNow")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -834,11 +846,11 @@ export default function VoiceAiPage() {
       <Dialog open={!!configAgent} onOpenChange={(open) => !open && setConfigAgent(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto" data-testid="dialog-configure-voice">
           <DialogHeader>
-            <DialogTitle>Configure Voice Agent</DialogTitle>
+            <DialogTitle>{t("voiceAi.configureVoiceAgent")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="voice-name">Name</Label>
+              <Label htmlFor="voice-name">{t("voiceAi.name")}</Label>
               <Input
                 id="voice-name"
                 data-testid="input-voice-name"
@@ -847,7 +859,7 @@ export default function VoiceAiPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="voice-desc">Description</Label>
+              <Label htmlFor="voice-desc">{t("voiceAi.descriptionLabel")}</Label>
               <Textarea
                 id="voice-desc"
                 data-testid="input-voice-desc"
@@ -857,19 +869,19 @@ export default function VoiceAiPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="voice-script">Call Script / Talking Points</Label>
+              <Label htmlFor="voice-script">{t("voiceAi.voiceScriptLabel")}</Label>
               <Textarea
                 id="voice-script"
                 data-testid="input-voice-script"
                 value={editScript}
                 onChange={(e) => setEditScript(e.target.value)}
                 rows={8}
-                placeholder="Paste or write the script this agent should follow during phone calls. Include the greeting, talking points, objection handling, and closing."
+                placeholder={t("voiceAi.voiceScriptPlaceholder")}
               />
-              <p className="text-xs text-muted-foreground">The AI will use this as its conversation guide during calls -- not read it word-for-word.</p>
+              <p className="text-xs text-muted-foreground">{t("voiceAi.voiceScriptHint")}</p>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <Label htmlFor="voice-active">Active (Live)</Label>
+              <Label htmlFor="voice-active">{t("voiceAi.activeLive")}</Label>
               <Switch
                 id="voice-active"
                 data-testid="switch-voice-status"
@@ -880,10 +892,10 @@ export default function VoiceAiPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfigAgent(null)} data-testid="button-cancel-voice-config">
-              Cancel
+              {t("voiceAi.cancel")}
             </Button>
             <Button onClick={saveConfig} disabled={updateMutation.isPending} data-testid="button-save-voice-config">
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              {updateMutation.isPending ? t("voiceAi.saving") : t("voiceAi.saveChanges")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -894,7 +906,7 @@ export default function VoiceAiPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Volume2 className="w-5 h-5 text-primary" />
-              Call Transcript
+              {t("voiceAi.callTranscript")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2 max-h-80 overflow-y-auto">
@@ -909,19 +921,19 @@ export default function VoiceAiPage() {
                 </div>
                 <div className={`rounded-md p-3 text-sm max-w-[80%] ${entry.role === "agent" ? "bg-primary/5" : "bg-secondary/50"}`}>
                   <p className="text-xs text-muted-foreground mb-1 font-medium">
-                    {entry.role === "agent" ? "AI Agent" : "Caller"}
+                    {entry.role === "agent" ? t("voiceAi.aiAgentLabel") : t("voiceAi.callerLabel")}
                   </p>
                   {entry.text}
                 </div>
               </div>
             ))}
             {showTranscript && parseTranscript(showTranscript.transcript).length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">No transcript available for this call.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t("voiceAi.noTranscript")}</p>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTranscript(null)} data-testid="button-close-transcript">
-              Close
+              {t("voiceAi.close")}
             </Button>
           </DialogFooter>
         </DialogContent>

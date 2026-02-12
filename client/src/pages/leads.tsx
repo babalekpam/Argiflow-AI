@@ -65,15 +65,18 @@ import {
 import type { Lead } from "@shared/schema";
 import { useState, useEffect } from "react";
 
-const addLeadSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email"),
-  phone: z.string().optional(),
-  source: z.string().min(1, "Source is required"),
-  status: z.string().default("new"),
-});
+function getAddLeadSchema(t: (key: string) => string) {
+  return z.object({
+    name: z.string().min(1, t("leads.validation.nameRequired")),
+    email: z.string().email(t("leads.validation.invalidEmail")),
+    phone: z.string().optional(),
+    source: z.string().min(1, t("leads.validation.sourceRequired")),
+    status: z.string().default("new"),
+  });
+}
 
 function LeadStatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   const styles: Record<string, string> = {
     hot: "bg-red-500/10 text-red-400 border-red-500/20",
     warm: "bg-amber-500/10 text-amber-400 border-amber-500/20",
@@ -81,9 +84,16 @@ function LeadStatusBadge({ status }: { status: string }) {
     cold: "bg-slate-500/10 text-slate-400 border-slate-500/20",
     qualified: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   };
+  const statusLabels: Record<string, string> = {
+    hot: t("leads.statuses.hot"),
+    warm: t("leads.statuses.warm"),
+    new: t("leads.statuses.new"),
+    cold: t("leads.statuses.cold"),
+    qualified: t("leads.statuses.qualified"),
+  };
   return (
     <Badge className={styles[status] || styles.new}>
-      {status.toUpperCase()}
+      {statusLabels[status] || status.toUpperCase()}
     </Badge>
   );
 }
@@ -359,7 +369,7 @@ function LeadCard({
                 </div>
                 <div className="text-center p-2 rounded-md bg-muted/50">
                   <div className="text-sm font-bold text-muted-foreground">
-                    {lead.lastEngagedAt ? new Date(lead.lastEngagedAt).toLocaleDateString() : "N/A"}
+                    {lead.lastEngagedAt ? new Date(lead.lastEngagedAt).toLocaleDateString() : t("leads.engagement.na")}
                   </div>
                   <div className="text-xs text-muted-foreground">{t("leads.engagement.lastActive")}</div>
                 </div>
@@ -546,7 +556,7 @@ function LeadCard({
               <Textarea
                 value={draftText}
                 onChange={(e) => setDraftText(e.target.value)}
-                placeholder={`Hi ${lead.name.split(" ")[0]}, I wanted to reach out about...`}
+                placeholder={t("leads.outreachPlaceholder", { name: lead.name.split(" ")[0] })}
                 className="min-h-[120px] text-sm"
                 data-testid={`textarea-outreach-${lead.id}`}
               />
@@ -591,6 +601,8 @@ export default function LeadsPage() {
   const [activeTab, setActiveTab] = useState<"new" | "engaged">("new");
   const [smsLead, setSmsLead] = useState<Lead | null>(null);
   const [smsBody, setSmsBody] = useState("");
+
+  const addLeadSchema = getAddLeadSchema(t);
 
   const { data: leads, isLoading } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
@@ -841,7 +853,7 @@ export default function LeadsPage() {
                     <FormItem>
                       <FormLabel>{t("leads.fullName")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="John Doe" {...field} data-testid="input-lead-name" />
+                        <Input placeholder={t("leads.leadNamePlaceholder")} {...field} data-testid="input-lead-name" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -853,7 +865,7 @@ export default function LeadsPage() {
                     <FormItem>
                       <FormLabel>{t("common.email")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="john@company.com" {...field} data-testid="input-lead-email" />
+                        <Input placeholder={t("leads.emailPlaceholder")} {...field} data-testid="input-lead-email" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -865,7 +877,7 @@ export default function LeadsPage() {
                     <FormItem>
                       <FormLabel>{t("common.phone")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="+1 (555) 000-0000" {...field} data-testid="input-lead-phone" />
+                        <Input placeholder={t("leads.phonePlaceholder")} {...field} data-testid="input-lead-phone" />
                       </FormControl>
                     </FormItem>
                   )}

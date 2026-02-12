@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,29 +84,31 @@ interface WorkflowStep {
 }
 
 function AgentStatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   if (status === "active") {
     return (
       <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse" />
-        Active
+        {t("aiAgents.statusActive")}
       </Badge>
     );
   }
   if (status === "paused") {
     return (
       <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">
-        Paused
+        {t("aiAgents.statusPaused")}
       </Badge>
     );
   }
   return (
     <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">
-      Inactive
+      {t("aiAgents.statusInactive")}
     </Badge>
   );
 }
 
 function WorkflowDiagram({ steps }: { steps: WorkflowStep[] }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-1" data-testid="workflow-diagram">
       {steps.map((step, i) => {
@@ -119,7 +122,7 @@ function WorkflowDiagram({ steps }: { steps: WorkflowStep[] }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                    Step {i + 1}
+                    {t("aiAgents.step", { num: i + 1 })}
                   </Badge>
                   <p className="text-sm font-medium">{step.title}</p>
                 </div>
@@ -162,7 +165,8 @@ function ScriptViewer({ script }: { script: string }) {
 }
 
 export default function AiAgentsPage() {
-  usePageTitle("AI Agents");
+  const { t } = useTranslation();
+  usePageTitle(t("aiAgents.title"));
   const { toast } = useToast();
   const [configAgent, setConfigAgent] = useState<AiAgent | null>(null);
   const [editName, setEditName] = useState("");
@@ -211,11 +215,11 @@ export default function AiAgentsPage() {
       },
       {
         onSuccess: () => {
-          toast({ title: "Agent updated", description: `${editName} configuration saved.` });
+          toast({ title: t("aiAgents.agentUpdated"), description: t("aiAgents.agentUpdatedDesc", { name: editName }) });
           setConfigAgent(null);
         },
         onError: () => {
-          toast({ title: "Error", description: "Failed to update agent.", variant: "destructive" });
+          toast({ title: t("aiAgents.updateError"), description: t("aiAgents.updateErrorDesc"), variant: "destructive" });
         },
       }
     );
@@ -228,12 +232,12 @@ export default function AiAgentsPage() {
       {
         onSuccess: () => {
           toast({
-            title: newStatus === "active" ? "Agent activated" : "Agent paused",
-            description: `${agent.name} is now ${newStatus}.`,
+            title: newStatus === "active" ? t("aiAgents.agentActivated") : t("aiAgents.agentPaused"),
+            description: t("aiAgents.agentStatusDesc", { name: agent.name, status: newStatus }),
           });
         },
         onError: () => {
-          toast({ title: "Error", description: "Failed to toggle agent.", variant: "destructive" });
+          toast({ title: t("aiAgents.toggleError"), description: t("aiAgents.toggleErrorDesc"), variant: "destructive" });
         },
       }
     );
@@ -255,26 +259,26 @@ export default function AiAgentsPage() {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-agents-title">AI Agents</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-agents-title">{t("aiAgents.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            Your AI team working 24/7 to grow your business.
+            {t("aiAgents.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 animate-pulse" />
-            {activeCount} Active
+            {t("aiAgents.activeCount", { count: activeCount })}
           </Badge>
         </div>
       </div>
 
       <Card className="relative overflow-hidden">
-        <img src={agentRobotImg} alt="AI Agents" className="w-full h-40 object-cover" />
+        <img src={agentRobotImg} alt={t("aiAgents.title")} className="w-full h-40 object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
         <div className="absolute inset-0 flex items-center p-6">
           <div>
-            <p className="text-lg font-bold">Your AI Workforce</p>
-            <p className="text-sm text-muted-foreground max-w-sm">AI agents working 24/7 to qualify leads, send emails, book appointments, and grow your business.</p>
+            <p className="text-lg font-bold">{t("aiAgents.heroTitle")}</p>
+            <p className="text-sm text-muted-foreground max-w-sm">{t("aiAgents.heroDesc")}</p>
           </div>
         </div>
       </Card>
@@ -287,7 +291,7 @@ export default function AiAgentsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{activeCount}</p>
-              <p className="text-sm text-muted-foreground">Active Agents</p>
+              <p className="text-sm text-muted-foreground">{t("aiAgents.activeAgents")}</p>
             </div>
           </div>
         </Card>
@@ -298,7 +302,7 @@ export default function AiAgentsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{totalTasks.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Tasks Completed</p>
+              <p className="text-sm text-muted-foreground">{t("aiAgents.tasksCompleted")}</p>
             </div>
           </div>
         </Card>
@@ -309,7 +313,7 @@ export default function AiAgentsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{avgSuccess}%</p>
-              <p className="text-sm text-muted-foreground">Avg Success Rate</p>
+              <p className="text-sm text-muted-foreground">{t("aiAgents.avgSuccessRate")}</p>
             </div>
           </div>
         </Card>
@@ -368,18 +372,18 @@ export default function AiAgentsPage() {
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2 text-sm">
-                      <span className="text-muted-foreground">Success Rate</span>
+                      <span className="text-muted-foreground">{t("aiAgents.successRate")}</span>
                       <span className="font-medium">{agent.successRate}%</span>
                     </div>
                     <Progress value={agent.successRate || 0} className="h-1.5" />
                     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Zap className="w-3 h-3" />
-                        {agent.tasksCompleted} tasks
+                        {t("aiAgents.tasks", { count: agent.tasksCompleted })}
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        24/7
+                        {t("aiAgents.allDay")}
                       </div>
                     </div>
                   </div>
@@ -396,7 +400,7 @@ export default function AiAgentsPage() {
                         >
                           <span className="flex items-center gap-1.5">
                             <FileText className="w-3.5 h-3.5" />
-                            AI Script & Workflow
+                            {t("aiAgents.scriptAndWorkflow")}
                           </span>
                           {isExpanded ? (
                             <ChevronUp className="w-3.5 h-3.5" />
@@ -416,7 +420,7 @@ export default function AiAgentsPage() {
                                 onClick={() => setViewTab("workflow")}
                                 data-testid={`tab-workflow-${agent.id}`}
                               >
-                                Workflow
+                                {t("aiAgents.workflow")}
                               </Button>
                             )}
                             {hasScript && (
@@ -426,7 +430,7 @@ export default function AiAgentsPage() {
                                 onClick={() => setViewTab("script")}
                                 data-testid={`tab-script-${agent.id}`}
                               >
-                                Bot Script
+                                {t("aiAgents.botScript")}
                               </Button>
                             )}
                           </div>
@@ -454,7 +458,7 @@ export default function AiAgentsPage() {
                       onClick={() => openConfig(agent)}
                     >
                       <Settings className="w-3.5 h-3.5 mr-1.5" />
-                      Configure
+                      {t("aiAgents.configure")}
                     </Button>
                     <Button
                       variant="ghost"
@@ -474,9 +478,9 @@ export default function AiAgentsPage() {
       {!isLoading && (!agents || agents.length === 0) && (
         <Card className="p-12 text-center">
           <Bot className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-          <h3 className="text-lg font-semibold mb-2">No AI Agents Yet</h3>
+          <h3 className="text-lg font-semibold mb-2">{t("aiAgents.noAgents")}</h3>
           <p className="text-muted-foreground text-sm mb-4">
-            Install bot templates from Resources to get started with AI-powered scripts.
+            {t("aiAgents.noAgentsDesc")}
           </p>
         </Card>
       )}
@@ -484,11 +488,11 @@ export default function AiAgentsPage() {
       <Dialog open={!!configAgent} onOpenChange={(open) => !open && setConfigAgent(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto" data-testid="dialog-configure-agent">
           <DialogHeader>
-            <DialogTitle>Configure Agent</DialogTitle>
+            <DialogTitle>{t("aiAgents.configureAgent")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="agent-name">Name</Label>
+              <Label htmlFor="agent-name">{t("aiAgents.name")}</Label>
               <Input
                 id="agent-name"
                 data-testid="input-agent-name"
@@ -497,24 +501,24 @@ export default function AiAgentsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-type">Category</Label>
+              <Label htmlFor="agent-type">{t("aiAgents.category")}</Label>
               <Select value={editType} onValueChange={setEditType}>
                 <SelectTrigger data-testid="select-agent-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Lead Generation">Lead Generation</SelectItem>
-                  <SelectItem value="Nurturing">Nurturing</SelectItem>
-                  <SelectItem value="Scheduling">Scheduling</SelectItem>
-                  <SelectItem value="Communication">Communication</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="Retention">Retention</SelectItem>
-                  <SelectItem value="Chat Responder">Chat Responder</SelectItem>
+                  <SelectItem value="Lead Generation">{t("aiAgents.categories.leadGeneration")}</SelectItem>
+                  <SelectItem value="Nurturing">{t("aiAgents.categories.nurturing")}</SelectItem>
+                  <SelectItem value="Scheduling">{t("aiAgents.categories.scheduling")}</SelectItem>
+                  <SelectItem value="Communication">{t("aiAgents.categories.communication")}</SelectItem>
+                  <SelectItem value="Marketing">{t("aiAgents.categories.marketing")}</SelectItem>
+                  <SelectItem value="Retention">{t("aiAgents.categories.retention")}</SelectItem>
+                  <SelectItem value="Chat Responder">{t("aiAgents.categories.chatResponder")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-desc">Description</Label>
+              <Label htmlFor="agent-desc">{t("aiAgents.description")}</Label>
               <Textarea
                 id="agent-desc"
                 data-testid="input-agent-description"
@@ -524,19 +528,19 @@ export default function AiAgentsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-script">Call Script / Talking Points</Label>
+              <Label htmlFor="agent-script">{t("aiAgents.callScript")}</Label>
               <Textarea
                 id="agent-script"
                 data-testid="input-agent-script"
                 value={editScript}
                 onChange={(e) => setEditScript(e.target.value)}
                 rows={8}
-                placeholder="Paste or write the script this agent should follow during phone calls. Include the greeting, talking points, objection handling, and closing. The AI will use this as its guide for the entire conversation."
+                placeholder={t("aiAgents.callScriptPlaceholder")}
               />
-              <p className="text-xs text-muted-foreground">This script will be used automatically when this agent makes Voice AI calls.</p>
+              <p className="text-xs text-muted-foreground">{t("aiAgents.callScriptHint")}</p>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <Label htmlFor="agent-active">Active</Label>
+              <Label htmlFor="agent-active">{t("aiAgents.active")}</Label>
               <Switch
                 id="agent-active"
                 data-testid="switch-agent-status"
@@ -547,10 +551,10 @@ export default function AiAgentsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfigAgent(null)} data-testid="button-cancel-config">
-              Cancel
+              {t("aiAgents.cancel")}
             </Button>
             <Button onClick={saveConfig} disabled={updateMutation.isPending} data-testid="button-save-config">
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              {updateMutation.isPending ? t("aiAgents.saving") : t("aiAgents.saveChanges")}
             </Button>
           </DialogFooter>
         </DialogContent>

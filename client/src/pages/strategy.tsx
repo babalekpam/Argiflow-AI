@@ -43,28 +43,42 @@ import {
   Bot,
   Save,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { AnimatedFlowchart } from "@/components/animated-flowchart";
 import type { MarketingStrategy } from "@shared/schema";
 
-const industries = [
-  "Marketing Agency", "Real Estate", "Healthcare", "Legal Services",
-  "Financial Services", "E-Commerce", "SaaS / Software", "Consulting",
-  "Construction", "Home Services", "Fitness & Wellness", "Education",
-  "Insurance", "Automotive", "Restaurant / Food", "Other",
-];
-
-const workflowSteps = [
-  { icon: Building2, label: "Analyzing Business Profile", description: "Reading your company details and goals" },
-  { icon: Search, label: "Researching Industry Trends", description: "Scanning market data for your sector" },
-  { icon: Globe, label: "Mapping Competitor Strategies", description: "Identifying gaps and opportunities" },
-  { icon: Target, label: "Building Lead Gen Plan", description: "Designing your acquisition funnel" },
-  { icon: BrainCircuit, label: "Crafting AI Automation", description: "Selecting the best AI agent workflows" },
-  { icon: FileText, label: "Finalizing Your Strategy", description: "Compiling the full marketing plan" },
+const industryOptions = [
+  { value: "Marketing Agency", labelKey: "marketingAgency" },
+  { value: "Real Estate", labelKey: "realEstate" },
+  { value: "Healthcare", labelKey: "healthcare" },
+  { value: "Legal Services", labelKey: "legalServices" },
+  { value: "Financial Services", labelKey: "financialServices" },
+  { value: "E-Commerce", labelKey: "eCommerce" },
+  { value: "SaaS / Software", labelKey: "saas" },
+  { value: "Consulting", labelKey: "consulting" },
+  { value: "Construction", labelKey: "construction" },
+  { value: "Home Services", labelKey: "homeServices" },
+  { value: "Fitness & Wellness", labelKey: "fitnessWellness" },
+  { value: "Education", labelKey: "education" },
+  { value: "Insurance", labelKey: "insurance" },
+  { value: "Automotive", labelKey: "automotive" },
+  { value: "Restaurant / Food", labelKey: "restaurantFood" },
+  { value: "Other", labelKey: "other" },
 ];
 
 
 function WorkflowVisual() {
+  const { t } = useTranslation();
   const [activeStep, setActiveStep] = useState(0);
+
+  const workflowSteps = [
+    { icon: Building2, label: t("strategy.workflowStep1Label"), description: t("strategy.workflowStep1Desc") },
+    { icon: Search, label: t("strategy.workflowStep2Label"), description: t("strategy.workflowStep2Desc") },
+    { icon: Globe, label: t("strategy.workflowStep3Label"), description: t("strategy.workflowStep3Desc") },
+    { icon: Target, label: t("strategy.workflowStep4Label"), description: t("strategy.workflowStep4Desc") },
+    { icon: BrainCircuit, label: t("strategy.workflowStep5Label"), description: t("strategy.workflowStep5Desc") },
+    { icon: FileText, label: t("strategy.workflowStep6Label"), description: t("strategy.workflowStep6Desc") },
+  ];
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -85,14 +99,14 @@ function WorkflowVisual() {
           <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-400 animate-pulse" />
         </div>
         <div>
-          <h3 className="text-base font-semibold">Building Your Strategy</h3>
+          <h3 className="text-base font-semibold">{t("strategy.buildingYourStrategy")}</h3>
           <p className="text-xs text-muted-foreground">
-            Step {activeStep + 1} of {workflowSteps.length}
+            {t("strategy.stepOf", { current: activeStep + 1, total: workflowSteps.length })}
           </p>
         </div>
         <Badge className="ml-auto bg-amber-500/10 text-amber-400 border-amber-500/20 no-default-hover-elevate no-default-active-elevate">
           <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-          Processing
+          {t("strategy.processing")}
         </Badge>
       </div>
 
@@ -166,7 +180,7 @@ function WorkflowVisual() {
               )}
               {isComplete && (
                 <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20 text-[10px] no-default-hover-elevate no-default-active-elevate">
-                  Done
+                  {t("strategy.done")}
                 </Badge>
               )}
               {isPending && (
@@ -179,13 +193,14 @@ function WorkflowVisual() {
 
       <div className="mt-6 pt-4 border-t border-border/50 flex items-center gap-2 text-xs text-muted-foreground">
         <Sparkles className="w-3.5 h-3.5 text-primary" />
-        <span>Powered by AI &mdash; your custom strategy is almost ready</span>
+        <span>{t("strategy.poweredByAi")}</span>
       </div>
     </Card>
   );
 }
 
 function CompanyInfoForm({ onSuccess }: { onSuccess: () => void }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
@@ -202,17 +217,17 @@ function CompanyInfoForm({ onSuccess }: { onSuccess: () => void }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/strategy"] });
-      toast({ title: "Company profile saved", description: "Generating your AI marketing strategy now..." });
+      toast({ title: t("strategy.companyProfileSaved"), description: t("strategy.generatingNow") });
       onSuccess();
     },
     onError: () => {
-      toast({ title: "Failed to save", description: "Please check all fields and try again.", variant: "destructive" });
+      toast({ title: t("strategy.failedToSave"), description: t("strategy.checkFields"), variant: "destructive" });
     },
   });
 
   const handleSubmit = () => {
     if (!form.companyName || !form.industry || form.companyDescription.length < 10) {
-      toast({ title: "Missing information", description: "Please fill in company name, industry, and description (at least 10 characters).", variant: "destructive" });
+      toast({ title: t("strategy.missingInfo"), description: t("strategy.missingInfoDesc"), variant: "destructive" });
       return;
     }
     mutation.mutate(form);
@@ -223,10 +238,10 @@ function CompanyInfoForm({ onSuccess }: { onSuccess: () => void }) {
       <div>
         <h1 className="text-2xl font-bold" data-testid="text-strategy-title">
           <Sparkles className="w-6 h-6 inline-block mr-2 text-primary" />
-          AI Marketing Strategy
+          {t("strategy.aiMarketingStrategy")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Tell us about your business and our AI will generate a custom marketing strategy for you.
+          {t("strategy.tellUsAboutBusiness")}
         </p>
       </div>
 
@@ -237,58 +252,58 @@ function CompanyInfoForm({ onSuccess }: { onSuccess: () => void }) {
               <Building2 className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold">Your Business Profile</h3>
+              <h3 className="font-semibold">{t("strategy.yourBusinessProfile")}</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Fill in your company details so our AI can create a tailored strategy
+                {t("strategy.businessProfileDesc")}
               </p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Company Name</Label>
+              <Label>{t("strategy.companyName")}</Label>
               <Input
                 value={form.companyName}
                 onChange={(e) => setForm({ ...form, companyName: e.target.value })}
-                placeholder="Acme Corp"
+                placeholder={t("strategy.companyNamePlaceholder")}
                 data-testid="input-strategy-company-name"
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Industry</Label>
+              <Label>{t("strategy.industry")}</Label>
               <Select
                 value={form.industry}
                 onValueChange={(v) => setForm({ ...form, industry: v })}
               >
                 <SelectTrigger data-testid="select-strategy-industry">
-                  <SelectValue placeholder="Select your industry" />
+                  <SelectValue placeholder={t("strategy.selectIndustry")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {industries.map((ind) => (
-                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                  {industryOptions.map((ind) => (
+                    <SelectItem key={ind.value} value={ind.value}>{t(`auth.signup.industries.${ind.labelKey}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Website <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Label>{t("strategy.website")} <span className="text-muted-foreground text-xs">({t("common.optional")})</span></Label>
               <Input
                 value={form.website}
                 onChange={(e) => setForm({ ...form, website: e.target.value })}
-                placeholder="https://www.yourcompany.com"
+                placeholder={t("strategy.websitePlaceholder")}
                 data-testid="input-strategy-website"
               />
             </div>
             <div className="space-y-1.5">
-              <Label>What does your company do?</Label>
+              <Label>{t("strategy.whatDoesCompanyDo")}</Label>
               <Textarea
                 value={form.companyDescription}
                 onChange={(e) => setForm({ ...form, companyDescription: e.target.value })}
-                placeholder="Describe your products, services, target customers, and goals. The more detail you provide, the better strategy our AI can generate..."
+                placeholder={t("strategy.companyDescPlaceholder")}
                 className="resize-none min-h-[100px]"
                 data-testid="input-strategy-description"
               />
-              <p className="text-xs text-muted-foreground">Min 10 characters. Be specific for a better AI strategy.</p>
+              <p className="text-xs text-muted-foreground">{t("strategy.minCharsDesc")}</p>
             </div>
             <Button
               className="w-full"
@@ -301,7 +316,7 @@ function CompanyInfoForm({ onSuccess }: { onSuccess: () => void }) {
               ) : (
                 <Sparkles className="w-4 h-4 mr-2" />
               )}
-              {mutation.isPending ? "Saving & Generating..." : "Generate My AI Strategy"}
+              {mutation.isPending ? t("strategy.savingGenerating") : t("strategy.generateMyStrategy")}
             </Button>
           </div>
         </Card>
@@ -417,7 +432,8 @@ function renderMarkdown(text: string) {
 }
 
 export default function StrategyPage() {
-  usePageTitle("Marketing Strategy");
+  const { t } = useTranslation();
+  usePageTitle(t("strategy.title"));
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -437,13 +453,13 @@ export default function StrategyPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/strategy"] });
-      toast({ title: "Regenerating strategy", description: "Your updated strategy will be ready in a moment." });
+      toast({ title: t("strategy.regeneratingStrategy"), description: t("strategy.regeneratingDesc") });
     },
     onError: (error: any) => {
       if (error?.message?.includes("Company info missing")) {
-        toast({ title: "Company info needed", description: "Please fill in your company profile first.", variant: "destructive" });
+        toast({ title: t("strategy.companyInfoNeeded"), description: t("strategy.fillProfileFirst"), variant: "destructive" });
       } else {
-        toast({ title: "Failed to regenerate", description: "Please try again.", variant: "destructive" });
+        toast({ title: t("strategy.failedToRegenerate"), description: t("strategy.pleaseTryAgain"), variant: "destructive" });
       }
     },
   });
@@ -477,18 +493,18 @@ export default function StrategyPage() {
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-strategy-title">
             <Sparkles className="w-6 h-6 inline-block mr-2 text-primary" />
-            AI Marketing Strategy
+            {t("strategy.aiMarketingStrategy")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Generate a custom AI-powered marketing strategy based on your company profile.
+            {t("strategy.generateCustomStrategy")}
           </p>
         </div>
         <div className="grid lg:grid-cols-2 gap-6">
           <Card className="p-8 flex flex-col items-center justify-center text-center">
             <Sparkles className="w-12 h-12 text-primary mb-4 opacity-50" />
-            <h2 className="text-lg font-semibold mb-2">Ready to Generate</h2>
+            <h2 className="text-lg font-semibold mb-2">{t("strategy.readyToGenerate")}</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Your business profile is set up. Click below to generate a custom AI marketing strategy for <span className="text-foreground font-medium">{user?.companyName}</span>.
+              {t("strategy.readyToGenerateDesc")} <span className="text-foreground font-medium">{user?.companyName}</span>.
             </p>
             <Button
               onClick={() => regenerateMutation.mutate()}
@@ -500,7 +516,7 @@ export default function StrategyPage() {
               ) : (
                 <Sparkles className="w-4 h-4 mr-2" />
               )}
-              {regenerateMutation.isPending ? "Generating..." : "Generate Strategy"}
+              {regenerateMutation.isPending ? t("strategy.generating") : t("strategy.generateStrategy")}
             </Button>
           </Card>
           <AnimatedFlowchart />
@@ -518,22 +534,22 @@ export default function StrategyPage() {
           <div className="flex items-center gap-3 mb-1 flex-wrap">
             <h1 className="text-2xl font-bold" data-testid="text-strategy-title">
               <Sparkles className="w-6 h-6 inline-block mr-2 text-primary" />
-              Your Marketing Strategy
+              {t("strategy.yourMarketingStrategy")}
             </h1>
             {isGenerating ? (
               <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">
                 <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                Generating...
+                {t("strategy.generating")}
               </Badge>
             ) : (
               <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                 <CheckCircle className="w-3 h-3 mr-1" />
-                Ready
+                {t("strategy.ready")}
               </Badge>
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Custom strategy for <span className="text-foreground font-medium">{strategy.companyName}</span> in <span className="text-foreground font-medium">{strategy.industry}</span>
+            {t("strategy.customStrategyFor")} <span className="text-foreground font-medium">{strategy.companyName}</span> {t("strategy.in")} <span className="text-foreground font-medium">{strategy.industry}</span>
           </p>
         </div>
         <Button
@@ -544,7 +560,7 @@ export default function StrategyPage() {
           data-testid="button-regenerate-strategy"
         >
           <RefreshCw className={`w-4 h-4 mr-1.5 ${regenerateMutation.isPending ? "animate-spin" : ""}`} />
-          Regenerate
+          {t("strategy.regenerate")}
         </Button>
       </div>
 

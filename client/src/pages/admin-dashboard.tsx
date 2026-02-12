@@ -24,6 +24,7 @@ import {
   CreditCard, Plus, Pencil, Trash2, Building2, Mail, Globe, Eye,
   UserCheck, AlertCircle, Settings, CheckCircle2, XCircle,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Lead, Appointment, AiAgent, Subscription } from "@shared/schema";
 
 interface AdminStats {
@@ -126,6 +127,7 @@ function PlanBadge({ plan }: { plan: string }) {
 }
 
 function CreateSubscriptionDialog({ clients, onCreated }: { clients: ClientData[]; onCreated: () => void }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState("");
   const [plan, setPlan] = useState("starter");
@@ -145,7 +147,7 @@ function CreateSubscriptionDialog({ clients, onCreated }: { clients: ClientData[
       });
     },
     onSuccess: () => {
-      toast({ title: "Subscription created" });
+      toast({ title: t("admin.dashboard.subscriptionCreated") });
       onCreated();
       setOpen(false);
       setUserId("");
@@ -155,7 +157,7 @@ function CreateSubscriptionDialog({ clients, onCreated }: { clients: ClientData[
       setNotes("");
     },
     onError: () => {
-      toast({ title: "Failed to create subscription", variant: "destructive" });
+      toast({ title: t("admin.dashboard.subscriptionCreatedFailed"), variant: "destructive" });
     },
   });
 
@@ -166,19 +168,19 @@ function CreateSubscriptionDialog({ clients, onCreated }: { clients: ClientData[
       <DialogTrigger asChild>
         <Button data-testid="button-create-subscription">
           <Plus className="w-4 h-4 mr-2" />
-          Add Subscription
+          {t("admin.dashboard.addSubscription")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Subscription</DialogTitle>
+          <DialogTitle>{t("admin.dashboard.createSubscription")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Client</label>
+            <label className="text-sm text-muted-foreground mb-1 block">{t("admin.dashboard.client")}</label>
             <Select value={userId} onValueChange={setUserId}>
               <SelectTrigger data-testid="select-sub-client">
-                <SelectValue placeholder="Select a client" />
+                <SelectValue placeholder={t("admin.dashboard.selectClient")} />
               </SelectTrigger>
               <SelectContent>
                 {clientsWithoutSub.map(c => (
@@ -187,51 +189,51 @@ function CreateSubscriptionDialog({ clients, onCreated }: { clients: ClientData[
                   </SelectItem>
                 ))}
                 {clientsWithoutSub.length === 0 && (
-                  <SelectItem value="__none" disabled>All clients have subscriptions</SelectItem>
+                  <SelectItem value="__none" disabled>{t("admin.dashboard.allClientsHaveSubs")}</SelectItem>
                 )}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Plan</label>
+            <label className="text-sm text-muted-foreground mb-1 block">{t("admin.dashboard.plan")}</label>
             <Select value={plan} onValueChange={setPlan}>
               <SelectTrigger data-testid="select-sub-plan">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="starter">Starter ($297/mo)</SelectItem>
-                <SelectItem value="pro">Pro ($597/mo)</SelectItem>
-                <SelectItem value="enterprise">Enterprise ($1,497/mo)</SelectItem>
+                <SelectItem value="starter">{t("admin.dashboard.starterPlan")}</SelectItem>
+                <SelectItem value="pro">{t("admin.dashboard.proPlan")}</SelectItem>
+                <SelectItem value="enterprise">{t("admin.dashboard.enterprisePlan")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Status</label>
+            <label className="text-sm text-muted-foreground mb-1 block">{t("admin.dashboard.status")}</label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger data-testid="select-sub-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="trial">Trial (14-day)</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="past_due">Past Due</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="trial">{t("admin.dashboard.trial14Day")}</SelectItem>
+                <SelectItem value="active">{t("common.active")}</SelectItem>
+                <SelectItem value="past_due">{t("admin.dashboard.pastDue")}</SelectItem>
+                <SelectItem value="cancelled">{t("admin.dashboard.cancelled")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Venmo Handle</label>
+            <label className="text-sm text-muted-foreground mb-1 block">{t("admin.dashboard.venmoHandle")}</label>
             <Input
-              placeholder="@handle"
+              placeholder={t("admin.dashboard.venmoPlaceholder")}
               value={venmoHandle}
               onChange={e => setVenmoHandle(e.target.value)}
               data-testid="input-sub-venmo"
             />
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Notes</label>
+            <label className="text-sm text-muted-foreground mb-1 block">{t("admin.dashboard.notes")}</label>
             <Textarea
-              placeholder="Internal notes..."
+              placeholder={t("admin.dashboard.notesPlaceholder")}
               value={notes}
               onChange={e => setNotes(e.target.value)}
               className="resize-none"
@@ -241,14 +243,14 @@ function CreateSubscriptionDialog({ clients, onCreated }: { clients: ClientData[
         </div>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline">{t("admin.dashboard.cancel")}</Button>
           </DialogClose>
           <Button
             onClick={() => createMutation.mutate()}
             disabled={!userId || createMutation.isPending}
             data-testid="button-confirm-create-sub"
           >
-            {createMutation.isPending ? "Creating..." : "Create Subscription"}
+            {createMutation.isPending ? t("admin.dashboard.creating") : t("admin.dashboard.createSubscription")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -257,6 +259,7 @@ function CreateSubscriptionDialog({ clients, onCreated }: { clients: ClientData[
 }
 
 function EditSubscriptionDialog({ sub, onUpdated }: { sub: SubWithUser; onUpdated: () => void }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [plan, setPlan] = useState(sub.plan);
   const [status, setStatus] = useState(sub.status);
@@ -274,12 +277,12 @@ function EditSubscriptionDialog({ sub, onUpdated }: { sub: SubWithUser; onUpdate
       });
     },
     onSuccess: () => {
-      toast({ title: "Subscription updated" });
+      toast({ title: t("admin.dashboard.subscriptionUpdated") });
       onUpdated();
       setOpen(false);
     },
     onError: () => {
-      toast({ title: "Failed to update subscription", variant: "destructive" });
+      toast({ title: t("admin.dashboard.subscriptionUpdatedFailed"), variant: "destructive" });
     },
   });
 
@@ -292,55 +295,55 @@ function EditSubscriptionDialog({ sub, onUpdated }: { sub: SubWithUser; onUpdate
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Subscription</DialogTitle>
+          <DialogTitle>{t("admin.dashboard.editSubscription")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="text-sm text-muted-foreground">
-            Client: {sub.user?.firstName} {sub.user?.lastName} ({sub.user?.email})
+            {t("admin.dashboard.client")}: {sub.user?.firstName} {sub.user?.lastName} ({sub.user?.email})
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Plan</label>
+            <label className="text-sm text-muted-foreground mb-1 block">{t("admin.dashboard.plan")}</label>
             <Select value={plan} onValueChange={setPlan}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="starter">Starter ($297/mo)</SelectItem>
-                <SelectItem value="pro">Pro ($597/mo)</SelectItem>
-                <SelectItem value="enterprise">Enterprise ($1,497/mo)</SelectItem>
+                <SelectItem value="starter">{t("admin.dashboard.starterPlan")}</SelectItem>
+                <SelectItem value="pro">{t("admin.dashboard.proPlan")}</SelectItem>
+                <SelectItem value="enterprise">{t("admin.dashboard.enterprisePlan")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Status</label>
+            <label className="text-sm text-muted-foreground mb-1 block">{t("admin.dashboard.status")}</label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="trial">Trial</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="past_due">Past Due</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
+                <SelectItem value="trial">{t("admin.dashboard.trial")}</SelectItem>
+                <SelectItem value="active">{t("common.active")}</SelectItem>
+                <SelectItem value="past_due">{t("admin.dashboard.pastDue")}</SelectItem>
+                <SelectItem value="cancelled">{t("admin.dashboard.cancelled")}</SelectItem>
+                <SelectItem value="expired">{t("admin.dashboard.expired")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Venmo Handle</label>
-            <Input value={venmoHandle} onChange={e => setVenmoHandle(e.target.value)} placeholder="@handle" />
+            <label className="text-sm text-muted-foreground mb-1 block">{t("admin.dashboard.venmoHandle")}</label>
+            <Input value={venmoHandle} onChange={e => setVenmoHandle(e.target.value)} placeholder={t("admin.dashboard.venmoPlaceholder")} />
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Notes</label>
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)} className="resize-none" placeholder="Internal notes..." />
+            <label className="text-sm text-muted-foreground mb-1 block">{t("admin.dashboard.notes")}</label>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} className="resize-none" placeholder={t("admin.dashboard.notesPlaceholder")} />
           </div>
         </div>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline">{t("admin.dashboard.cancel")}</Button>
           </DialogClose>
           <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            {updateMutation.isPending ? t("admin.dashboard.saving") : t("admin.dashboard.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -349,7 +352,8 @@ function EditSubscriptionDialog({ sub, onUpdated }: { sub: SubWithUser; onUpdate
 }
 
 export default function AdminDashboard() {
-  usePageTitle("Admin Dashboard");
+  const { t } = useTranslation();
+  usePageTitle(t("admin.dashboard.title"));
   const { admin, isLoading, isAuthenticated } = useAdmin();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -379,8 +383,8 @@ export default function AdminDashboard() {
     },
     onError: (error: any) => {
       toast({
-        title: "Cannot switch",
-        description: error?.message || "No user account found.",
+        title: t("admin.dashboard.cannotSwitch"),
+        description: error?.message || t("admin.dashboard.noUserAccount"),
         variant: "destructive",
       });
     },
@@ -443,7 +447,7 @@ export default function AdminDashboard() {
       await apiRequest("DELETE", `/api/admin/subscriptions/${id}`);
     },
     onSuccess: () => {
-      toast({ title: "Subscription deleted" });
+      toast({ title: t("admin.dashboard.subscriptionDeleted") });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/subscriptions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/clients"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
@@ -474,8 +478,8 @@ export default function AdminDashboard() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold" data-testid="text-admin-header">ARGILETTE</h1>
-                <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Platform Admin</Badge>
+                <h1 className="text-sm font-bold" data-testid="text-admin-header">{t("common.brandName")}</h1>
+                <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">{t("admin.dashboard.title")}</Badge>
               </div>
               <p className="text-xs text-muted-foreground">{admin?.email}</p>
             </div>
@@ -489,7 +493,7 @@ export default function AdminDashboard() {
               data-testid="button-go-to-dashboard"
             >
               <Eye className="w-4 h-4 mr-2" />
-              {switchToUserMutation.isPending ? "Switching..." : "My Account"}
+              {switchToUserMutation.isPending ? t("admin.dashboard.switching") : t("admin.dashboard.myAccount")}
             </Button>
             <Button
               variant="ghost"
@@ -498,7 +502,7 @@ export default function AdminDashboard() {
               data-testid="button-admin-logout"
             >
               <LogOut className="w-4 h-4 mr-2" />
-              Logout
+              {t("admin.dashboard.logout")}
             </Button>
           </div>
         </div>
@@ -506,34 +510,34 @@ export default function AdminDashboard() {
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          <StatCard label="Clients" value={stats?.totalUsers || 0} icon={Users} />
-          <StatCard label="Active Subs" value={stats?.activeSubscriptions || 0} icon={UserCheck} accent />
-          <StatCard label="MRR" value={`$${(stats?.monthlyRevenue || 0).toLocaleString()}`} icon={DollarSign} accent />
-          <StatCard label="Total Leads" value={stats?.totalLeads || 0} icon={BarChart3} />
-          <StatCard label="Appointments" value={stats?.totalAppointments || 0} icon={CalendarDays} />
-          <StatCard label="AI Agents" value={stats?.totalAgents || 0} icon={Bot} />
+          <StatCard label={t("admin.dashboard.clients")} value={stats?.totalUsers || 0} icon={Users} />
+          <StatCard label={t("admin.dashboard.activeSubs")} value={stats?.activeSubscriptions || 0} icon={UserCheck} accent />
+          <StatCard label={t("admin.dashboard.mrr")} value={`$${(stats?.monthlyRevenue || 0).toLocaleString()}`} icon={DollarSign} accent />
+          <StatCard label={t("admin.dashboard.totalLeads")} value={stats?.totalLeads || 0} icon={BarChart3} />
+          <StatCard label={t("admin.dashboard.appointments")} value={stats?.totalAppointments || 0} icon={CalendarDays} />
+          <StatCard label={t("admin.dashboard.aiAgents")} value={stats?.totalAgents || 0} icon={Bot} />
         </div>
 
         <Tabs defaultValue="clients">
           <TabsList data-testid="tabs-admin">
             <TabsTrigger value="clients" data-testid="tab-admin-clients">
-              Clients ({clients?.length || 0})
+              {t("admin.dashboard.clients")} ({clients?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="subscriptions" data-testid="tab-admin-subscriptions">
-              Subscriptions ({subscriptionsList?.length || 0})
+              {t("admin.dashboard.subscriptions")} ({subscriptionsList?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="leads" data-testid="tab-admin-leads">
-              Leads ({leads?.length || 0})
+              {t("admin.dashboard.leads")} ({leads?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="appointments" data-testid="tab-admin-appointments">
-              Appointments ({appointments?.length || 0})
+              {t("admin.dashboard.appointments")} ({appointments?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="agents" data-testid="tab-admin-agents">
-              Agents ({agents?.length || 0})
+              {t("admin.dashboard.agents")} ({agents?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="platform" data-testid="tab-admin-platform">
               <Settings className="w-3.5 h-3.5 mr-1.5" />
-              Platform
+              {t("admin.dashboard.platform")}
             </TabsTrigger>
           </TabsList>
 
@@ -543,14 +547,14 @@ export default function AdminDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Industry</TableHead>
-                      <TableHead>Plan</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Leads</TableHead>
-                      <TableHead>Agents</TableHead>
-                      <TableHead>Joined</TableHead>
+                      <TableHead>{t("admin.dashboard.client")}</TableHead>
+                      <TableHead>{t("admin.dashboard.company")}</TableHead>
+                      <TableHead>{t("admin.dashboard.industry")}</TableHead>
+                      <TableHead>{t("admin.dashboard.plan")}</TableHead>
+                      <TableHead>{t("admin.dashboard.status")}</TableHead>
+                      <TableHead>{t("admin.dashboard.leads")}</TableHead>
+                      <TableHead>{t("admin.dashboard.agents")}</TableHead>
+                      <TableHead>{t("admin.dashboard.joined")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -577,7 +581,7 @@ export default function AdminDashboard() {
                           {client.subscription ? (
                             <PlanBadge plan={client.subscription.plan} />
                           ) : (
-                            <Badge variant="outline" className="text-muted-foreground">No plan</Badge>
+                            <Badge variant="outline" className="text-muted-foreground">{t("admin.dashboard.noPlan")}</Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -597,7 +601,7 @@ export default function AdminDashboard() {
                     {(!clients || clients.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                          No clients yet
+                          {t("admin.dashboard.noClientsYet")}
                         </TableCell>
                       </TableRow>
                     )}
@@ -612,13 +616,13 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Subscription Management</span>
+                  <span className="text-sm font-medium">{t("admin.dashboard.subscriptionManagement")}</span>
                 </div>
                 <Badge variant="outline">
-                  {subscriptionsList?.filter(s => s.status === "active").length || 0} active
+                  {subscriptionsList?.filter(s => s.status === "active").length || 0} {t("admin.dashboard.active")}
                 </Badge>
                 <Badge variant="outline">
-                  {subscriptionsList?.filter(s => s.status === "trial").length || 0} trials
+                  {subscriptionsList?.filter(s => s.status === "trial").length || 0} {t("admin.dashboard.trials")}
                 </Badge>
               </div>
               <CreateSubscriptionDialog clients={clients || []} onCreated={refreshAll} />
@@ -628,14 +632,14 @@ export default function AdminDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Plan</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead>Period End</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead>{t("admin.dashboard.client")}</TableHead>
+                      <TableHead>{t("admin.dashboard.plan")}</TableHead>
+                      <TableHead>{t("admin.dashboard.status")}</TableHead>
+                      <TableHead>{t("admin.dashboard.amount")}</TableHead>
+                      <TableHead>{t("admin.dashboard.payment")}</TableHead>
+                      <TableHead>{t("admin.dashboard.periodEnd")}</TableHead>
+                      <TableHead>{t("admin.dashboard.notes")}</TableHead>
+                      <TableHead>{t("admin.dashboard.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -674,7 +678,7 @@ export default function AdminDashboard() {
                               size="icon"
                               variant="ghost"
                               onClick={() => {
-                                if (confirm("Delete this subscription?")) {
+                                if (confirm(t("admin.dashboard.deleteSubscriptionConfirm"))) {
                                   deleteSubMutation.mutate(sub.id);
                                 }
                               }}
@@ -691,8 +695,8 @@ export default function AdminDashboard() {
                         <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           <div className="flex flex-col items-center gap-2">
                             <AlertCircle className="w-6 h-6 text-muted-foreground/50" />
-                            <span>No subscriptions yet</span>
-                            <span className="text-xs">Add a subscription to start tracking payments</span>
+                            <span>{t("admin.dashboard.noSubscriptionsYet")}</span>
+                            <span className="text-xs">{t("admin.dashboard.noSubscriptionsDesc")}</span>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -709,14 +713,14 @@ export default function AdminDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Score</TableHead>
-                      <TableHead>Engagement</TableHead>
-                      <TableHead>User ID</TableHead>
-                      <TableHead>Date</TableHead>
+                      <TableHead>{t("admin.dashboard.name")}</TableHead>
+                      <TableHead>{t("admin.dashboard.email")}</TableHead>
+                      <TableHead>{t("admin.dashboard.source")}</TableHead>
+                      <TableHead>{t("admin.dashboard.status")}</TableHead>
+                      <TableHead>{t("admin.dashboard.score")}</TableHead>
+                      <TableHead>{t("admin.dashboard.engagement")}</TableHead>
+                      <TableHead>{t("admin.dashboard.userId")}</TableHead>
+                      <TableHead>{t("admin.dashboard.date")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -743,7 +747,7 @@ export default function AdminDashboard() {
                     {(!leads || leads.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                          No leads found
+                          {t("admin.dashboard.noLeadsFound")}
                         </TableCell>
                       </TableRow>
                     )}
@@ -759,11 +763,11 @@ export default function AdminDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Lead</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>User ID</TableHead>
+                      <TableHead>{t("admin.dashboard.lead")}</TableHead>
+                      <TableHead>{t("admin.dashboard.type")}</TableHead>
+                      <TableHead>{t("admin.dashboard.date")}</TableHead>
+                      <TableHead>{t("admin.dashboard.status")}</TableHead>
+                      <TableHead>{t("admin.dashboard.userId")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -781,7 +785,7 @@ export default function AdminDashboard() {
                     {(!appointments || appointments.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          No appointments found
+                          {t("admin.dashboard.noAppointmentsFound")}
                         </TableCell>
                       </TableRow>
                     )}
@@ -797,12 +801,12 @@ export default function AdminDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Tasks Done</TableHead>
-                      <TableHead>Success Rate</TableHead>
-                      <TableHead>User ID</TableHead>
+                      <TableHead>{t("admin.dashboard.name")}</TableHead>
+                      <TableHead>{t("admin.dashboard.type")}</TableHead>
+                      <TableHead>{t("admin.dashboard.status")}</TableHead>
+                      <TableHead>{t("admin.dashboard.tasksDone")}</TableHead>
+                      <TableHead>{t("admin.dashboard.successRate")}</TableHead>
+                      <TableHead>{t("admin.dashboard.userId")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -819,7 +823,7 @@ export default function AdminDashboard() {
                     {(!agents || agents.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                          No agents found
+                          {t("admin.dashboard.noAgentsFound")}
                         </TableCell>
                       </TableRow>
                     )}
@@ -834,21 +838,21 @@ export default function AdminDashboard() {
               <Card className="p-5">
                 <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
                   <Mail className="w-4 h-4 text-primary" />
-                  Email Service (SendGrid)
+                  {t("admin.dashboard.emailService")}
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <span className="text-sm text-muted-foreground">API Key</span>
+                    <span className="text-sm text-muted-foreground">{t("admin.dashboard.apiKey")}</span>
                     <div className="flex items-center gap-1.5" data-testid="status-sendgrid-key">
                       {platformConfig?.sendgridApiKey ? (
-                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">{t("admin.dashboard.configured")}</span></>
                       ) : (
-                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">{t("admin.dashboard.missing")}</span></>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <span className="text-sm text-muted-foreground">Platform Sender</span>
+                    <span className="text-sm text-muted-foreground">{t("admin.dashboard.platformSender")}</span>
                     <span className="text-sm font-mono" data-testid="text-platform-sender">{platformConfig?.platformSenderEmail || "N/A"}</span>
                   </div>
                 </div>
@@ -857,36 +861,36 @@ export default function AdminDashboard() {
               <Card className="p-5">
                 <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
                   <Globe className="w-4 h-4 text-primary" />
-                  SMS Service (Twilio)
+                  {t("admin.dashboard.smsService")}
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <span className="text-sm text-muted-foreground">Account SID</span>
+                    <span className="text-sm text-muted-foreground">{t("admin.dashboard.accountSid")}</span>
                     <div className="flex items-center gap-1.5" data-testid="status-twilio-sid">
                       {platformConfig?.twilioAccountSid ? (
-                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">{t("admin.dashboard.configured")}</span></>
                       ) : (
-                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">{t("admin.dashboard.missing")}</span></>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <span className="text-sm text-muted-foreground">Auth Token</span>
+                    <span className="text-sm text-muted-foreground">{t("admin.dashboard.authToken")}</span>
                     <div className="flex items-center gap-1.5" data-testid="status-twilio-token">
                       {platformConfig?.twilioAuthToken ? (
-                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">{t("admin.dashboard.configured")}</span></>
                       ) : (
-                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">{t("admin.dashboard.missing")}</span></>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <span className="text-sm text-muted-foreground">Phone Number</span>
+                    <span className="text-sm text-muted-foreground">{t("admin.dashboard.phoneNumber")}</span>
                     <div className="flex items-center gap-1.5" data-testid="status-twilio-phone">
                       {platformConfig?.twilioPhoneNumber ? (
-                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">{t("admin.dashboard.configured")}</span></>
                       ) : (
-                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">{t("admin.dashboard.missing")}</span></>
                       )}
                     </div>
                   </div>
@@ -896,16 +900,16 @@ export default function AdminDashboard() {
               <Card className="p-5">
                 <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
                   <Bot className="w-4 h-4 text-primary" />
-                  AI Service (Anthropic)
+                  {t("admin.dashboard.aiService")}
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <span className="text-sm text-muted-foreground">API Key</span>
+                    <span className="text-sm text-muted-foreground">{t("admin.dashboard.apiKey")}</span>
                     <div className="flex items-center gap-1.5" data-testid="status-anthropic-key">
                       {platformConfig?.anthropicApiKey ? (
-                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">{t("admin.dashboard.configured")}</span></>
                       ) : (
-                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">{t("admin.dashboard.missing")}</span></>
                       )}
                     </div>
                   </div>
@@ -915,26 +919,26 @@ export default function AdminDashboard() {
               <Card className="p-5">
                 <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
                   <Shield className="w-4 h-4 text-primary" />
-                  Security
+                  {t("admin.dashboard.security")}
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <span className="text-sm text-muted-foreground">Session Secret</span>
+                    <span className="text-sm text-muted-foreground">{t("admin.dashboard.sessionSecret")}</span>
                     <div className="flex items-center gap-1.5" data-testid="status-session-secret">
                       {platformConfig?.sessionSecret ? (
-                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">{t("admin.dashboard.configured")}</span></>
                       ) : (
-                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">{t("admin.dashboard.missing")}</span></>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <span className="text-sm text-muted-foreground">Admin Password</span>
+                    <span className="text-sm text-muted-foreground">{t("admin.dashboard.adminPassword")}</span>
                     <div className="flex items-center gap-1.5" data-testid="status-admin-password">
                       {platformConfig?.adminPassword ? (
-                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">Configured</span></>
+                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-sm text-emerald-500">{t("admin.dashboard.configured")}</span></>
                       ) : (
-                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">Missing</span></>
+                        <><XCircle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-500">{t("admin.dashboard.missing")}</span></>
                       )}
                     </div>
                   </div>
@@ -942,7 +946,7 @@ export default function AdminDashboard() {
               </Card>
             </div>
             <p className="text-xs text-muted-foreground mt-4">
-              Platform secrets are managed via environment variables. To update them, go to the Secrets tab in your project settings.
+              {t("admin.dashboard.platformSecretsNote")}
             </p>
           </TabsContent>
         </Tabs>

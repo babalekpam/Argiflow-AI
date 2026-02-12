@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ const TYPE_ICONS: Record<string, typeof Bot> = {
 };
 
 export function NotificationsDropdown() {
+  const { t } = useTranslation();
   const { data } = useQuery<NotificationsData>({
     queryKey: ["/api/notifications"],
     refetchInterval: 15000,
@@ -71,7 +73,7 @@ export function NotificationsDropdown() {
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between gap-2 p-3 border-b border-border/50">
-          <h4 className="font-semibold text-sm">Notifications</h4>
+          <h4 className="font-semibold text-sm">{t("notifications.title")}</h4>
           {unread > 0 && (
             <Button
               size="sm"
@@ -81,7 +83,7 @@ export function NotificationsDropdown() {
               data-testid="button-mark-all-read"
             >
               <CheckCheck className="w-3 h-3 mr-1" />
-              Mark all read
+              {t("notifications.markAllRead")}
             </Button>
           )}
         </div>
@@ -89,7 +91,7 @@ export function NotificationsDropdown() {
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center px-4">
               <Bell className="w-8 h-8 text-muted-foreground/30 mb-2" />
-              <p className="text-sm text-muted-foreground">No notifications yet</p>
+              <p className="text-sm text-muted-foreground">{t("notifications.noNotifications")}</p>
             </div>
           ) : (
             <div>

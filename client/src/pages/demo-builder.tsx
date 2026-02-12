@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,76 +37,77 @@ import { useToast } from "@/hooks/use-toast";
 
 type TabKey = "voice-demo" | "ai-demo" | "checklist";
 
-const tabs: { key: TabKey; label: string; icon: typeof Mic }[] = [
-  { key: "voice-demo", label: "Voice Demo Builder", icon: Mic },
-  { key: "ai-demo", label: "AI Demo Builder", icon: Sparkles },
-  { key: "checklist", label: "Installation Checklist", icon: ListChecks },
-];
-
-const voiceOptions = [
-  { value: "professional-female", label: "Professional Female" },
-  { value: "professional-male", label: "Professional Male" },
-  { value: "friendly-female", label: "Friendly Female" },
-  { value: "friendly-male", label: "Friendly Male" },
-  { value: "authoritative", label: "Authoritative" },
-  { value: "warm-casual", label: "Warm & Casual" },
-];
-
-const industries = [
-  "Real Estate",
-  "Dental / Medical",
-  "Law Firm",
-  "Automotive",
-  "Home Services",
-  "Restaurant",
-  "Insurance",
-  "Fitness / Wellness",
-  "Education",
-  "Other",
-];
-
-const checklistItems = [
-  {
-    phase: "Setup",
-    items: [
-      { title: "Log into ArgiFlow dashboard", time: "30 sec", description: "Access your client's workspace and navigate to Voice AI." },
-      { title: "Select bot template for client's industry", time: "1 min", description: "Choose from 10 proven templates. Each has pre-built conversation flows." },
-      { title: "Customize greeting with business name", time: "1 min", description: "Update the welcome message, business hours, and key services offered." },
-      { title: "Set business hours & after-hours behavior", time: "1 min", description: "Configure when AI answers live vs. takes messages for callback." },
-    ],
-  },
-  {
-    phase: "Connect",
-    items: [
-      { title: "Connect phone number (port or new)", time: "2 min", description: "Forward existing number or provision a new local/toll-free number." },
-      { title: "Set up calendar integration", time: "2 min", description: "Connect Google Calendar, Calendly, or other scheduling tool." },
-      { title: "Configure CRM connection", time: "2 min", description: "Route leads to client's CRM automatically. Supports all major CRMs." },
-      { title: "Set up notification preferences", time: "1 min", description: "Configure email/SMS alerts for new leads, bookings, and urgent calls." },
-    ],
-  },
-  {
-    phase: "Test & Launch",
-    items: [
-      { title: "Run 3 test calls (inbound scenarios)", time: "3 min", description: "Test booking, inquiry, and after-hours scenarios." },
-      { title: "Verify CRM entries are created", time: "1 min", description: "Confirm leads from test calls appear in the client's CRM." },
-      { title: "Send client welcome email + training video", time: "30 sec", description: "Use the pre-written template. Includes dashboard login and quick-start video." },
-      { title: "Mark installation complete", time: "15 sec", description: "Flag the account as live. Monitoring begins automatically." },
-    ],
-  },
-];
-
-const lifetimeUpdates = [
-  { title: "New Bot Templates", description: "Every new industry template added to the library, included free." },
-  { title: "AI Model Upgrades", description: "When AI models improve, your bots automatically get smarter." },
-  { title: "Feature Releases", description: "New platform features, integrations, and tools as they ship." },
-  { title: "Strategy Updates", description: "Updated playbooks, ad templates, and SOPs based on market changes." },
-  { title: "Bug Fixes & Security", description: "Continuous platform improvements and security patches." },
-];
-
 export default function DemoBuilderPage() {
-  usePageTitle("Demos & Install");
+  const { t } = useTranslation();
+  usePageTitle(t("demoBuilder.title"));
   const [activeTab, setActiveTab] = useState<TabKey>("voice-demo");
   const { toast } = useToast();
+
+  const tabs: { key: TabKey; label: string; icon: typeof Mic }[] = [
+    { key: "voice-demo", label: t("demoBuilder.voiceDemoBuilder"), icon: Mic },
+    { key: "ai-demo", label: t("demoBuilder.aiDemoBuilder"), icon: Sparkles },
+    { key: "checklist", label: t("demoBuilder.installationChecklist"), icon: ListChecks },
+  ];
+
+  const voiceOptions = [
+    { value: "professional-female", label: t("demoBuilder.professionalFemale") },
+    { value: "professional-male", label: t("demoBuilder.professionalMale") },
+    { value: "friendly-female", label: t("demoBuilder.friendlyFemale") },
+    { value: "friendly-male", label: t("demoBuilder.friendlyMale") },
+    { value: "authoritative", label: t("demoBuilder.authoritative") },
+    { value: "warm-casual", label: t("demoBuilder.warmCasual") },
+  ];
+
+  const industries = [
+    { value: "Real Estate", label: t("demoBuilder.realEstate") },
+    { value: "Dental / Medical", label: t("demoBuilder.dentalMedical") },
+    { value: "Law Firm", label: t("demoBuilder.lawFirm") },
+    { value: "Automotive", label: t("demoBuilder.automotive") },
+    { value: "Home Services", label: t("demoBuilder.homeServices") },
+    { value: "Restaurant", label: t("demoBuilder.restaurant") },
+    { value: "Insurance", label: t("demoBuilder.insurance") },
+    { value: "Fitness / Wellness", label: t("demoBuilder.fitnessWellness") },
+    { value: "Education", label: t("demoBuilder.education") },
+    { value: "Other", label: t("demoBuilder.other") },
+  ];
+
+  const checklistItems = [
+    {
+      phase: t("demoBuilder.setup"),
+      items: [
+        { title: t("demoBuilder.checkItem1"), time: t("demoBuilder.checkItem1Time"), description: t("demoBuilder.checkItem1Desc") },
+        { title: t("demoBuilder.checkItem2"), time: t("demoBuilder.checkItem2Time"), description: t("demoBuilder.checkItem2Desc") },
+        { title: t("demoBuilder.checkItem3"), time: t("demoBuilder.checkItem3Time"), description: t("demoBuilder.checkItem3Desc") },
+        { title: t("demoBuilder.checkItem4"), time: t("demoBuilder.checkItem4Time"), description: t("demoBuilder.checkItem4Desc") },
+      ],
+    },
+    {
+      phase: t("demoBuilder.connectPhase"),
+      items: [
+        { title: t("demoBuilder.checkItem5"), time: t("demoBuilder.checkItem5Time"), description: t("demoBuilder.checkItem5Desc") },
+        { title: t("demoBuilder.checkItem6"), time: t("demoBuilder.checkItem6Time"), description: t("demoBuilder.checkItem6Desc") },
+        { title: t("demoBuilder.checkItem7"), time: t("demoBuilder.checkItem7Time"), description: t("demoBuilder.checkItem7Desc") },
+        { title: t("demoBuilder.checkItem8"), time: t("demoBuilder.checkItem8Time"), description: t("demoBuilder.checkItem8Desc") },
+      ],
+    },
+    {
+      phase: t("demoBuilder.testLaunch"),
+      items: [
+        { title: t("demoBuilder.checkItem9"), time: t("demoBuilder.checkItem9Time"), description: t("demoBuilder.checkItem9Desc") },
+        { title: t("demoBuilder.checkItem10"), time: t("demoBuilder.checkItem10Time"), description: t("demoBuilder.checkItem10Desc") },
+        { title: t("demoBuilder.checkItem11"), time: t("demoBuilder.checkItem11Time"), description: t("demoBuilder.checkItem11Desc") },
+        { title: t("demoBuilder.checkItem12"), time: t("demoBuilder.checkItem12Time"), description: t("demoBuilder.checkItem12Desc") },
+      ],
+    },
+  ];
+
+  const lifetimeUpdates = [
+    { title: t("demoBuilder.newBotTemplates"), description: t("demoBuilder.newBotTemplatesDesc") },
+    { title: t("demoBuilder.aiModelUpgrades"), description: t("demoBuilder.aiModelUpgradesDesc") },
+    { title: t("demoBuilder.featureReleases"), description: t("demoBuilder.featureReleasesDesc") },
+    { title: t("demoBuilder.strategyUpdates"), description: t("demoBuilder.strategyUpdatesDesc") },
+    { title: t("demoBuilder.bugFixesSecurity"), description: t("demoBuilder.bugFixesSecurityDesc") },
+  ];
 
   const [voiceForm, setVoiceForm] = useState({
     businessName: "",
@@ -129,27 +131,27 @@ export default function DemoBuilderPage() {
 
   const generateVoiceDemo = () => {
     if (!voiceForm.businessName || !voiceForm.industry || !voiceForm.voice) {
-      toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
+      toast({ title: t("demoBuilder.missingFields"), description: t("demoBuilder.missingFieldsDesc"), variant: "destructive" });
       return;
     }
     setVoiceGenerating(true);
     setTimeout(() => {
       setVoiceGenerating(false);
       setVoiceDemoGenerated(true);
-      toast({ title: "Demo Generated", description: `Voice demo for ${voiceForm.businessName} is ready to share.` });
+      toast({ title: t("demoBuilder.demoGenerated"), description: t("demoBuilder.voiceDemoReadyDesc", { name: voiceForm.businessName }) });
     }, 2500);
   };
 
   const generateAiDemo = () => {
     if (!demoForm.businessName || !demoForm.industry) {
-      toast({ title: "Missing fields", description: "Please fill in business name and industry.", variant: "destructive" });
+      toast({ title: t("demoBuilder.missingFieldsAi"), description: t("demoBuilder.missingFieldsAiDesc"), variant: "destructive" });
       return;
     }
     setAiGenerating(true);
     setTimeout(() => {
       setAiGenerating(false);
       setAiDemoGenerated(true);
-      toast({ title: "Demo Generated", description: `AI demo for ${demoForm.businessName} is ready to share.` });
+      toast({ title: t("demoBuilder.demoGenerated"), description: t("demoBuilder.aiDemoReadyDesc", { name: demoForm.businessName }) });
     }, 3000);
   };
 
@@ -170,14 +172,14 @@ export default function DemoBuilderPage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-demo-builder-title">Demos & Install</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-demo-builder-title">{t("demoBuilder.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            Generate personalized demos for prospects and install AI for clients in minutes.
+            {t("demoBuilder.subtitle")}
           </p>
         </div>
         <Badge className="bg-primary/10 text-primary border-primary/20">
           <Zap className="w-3 h-3 mr-1.5" />
-          1-Click Tools
+          {t("demoBuilder.oneClickTools")}
         </Badge>
       </div>
 
@@ -204,52 +206,51 @@ export default function DemoBuilderPage() {
                 <Mic className="w-6 h-6 text-chart-3" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg mb-1">1-Click AI Voice Demo Builder</h3>
+                <h3 className="font-semibold text-lg mb-1">{t("demoBuilder.oneClickVoiceDemo")}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Generate personalized voice demos for prospects instantly. They hear exactly how their
-                  AI receptionist will sound with their business name. One click creates an instant wow factor that closes deals.
+                  {t("demoBuilder.voiceDemoDesc")}
                 </p>
               </div>
             </div>
           </Card>
 
           <Card className="p-6" data-testid="card-voice-demo-form">
-            <h3 className="font-semibold mb-4">Create Voice Demo</h3>
+            <h3 className="font-semibold mb-4">{t("demoBuilder.createVoiceDemo")}</h3>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="vd-business">Business Name *</Label>
+                <Label htmlFor="vd-business">{t("demoBuilder.businessName")}</Label>
                 <Input
                   id="vd-business"
                   data-testid="input-vd-business"
-                  placeholder="e.g. Smith Family Dental"
+                  placeholder={t("demoBuilder.businessNamePlaceholder")}
                   value={voiceForm.businessName}
                   onChange={(e) => setVoiceForm({ ...voiceForm, businessName: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vd-industry">Industry *</Label>
+                <Label htmlFor="vd-industry">{t("demoBuilder.industryLabel")}</Label>
                 <Select
                   value={voiceForm.industry}
                   onValueChange={(v) => setVoiceForm({ ...voiceForm, industry: v })}
                 >
                   <SelectTrigger data-testid="select-vd-industry">
-                    <SelectValue placeholder="Select industry" />
+                    <SelectValue placeholder={t("demoBuilder.selectIndustry")} />
                   </SelectTrigger>
                   <SelectContent>
                     {industries.map((ind) => (
-                      <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                      <SelectItem key={ind.value} value={ind.value}>{ind.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vd-voice">Voice Type *</Label>
+                <Label htmlFor="vd-voice">{t("demoBuilder.voiceType")}</Label>
                 <Select
                   value={voiceForm.voice}
                   onValueChange={(v) => setVoiceForm({ ...voiceForm, voice: v })}
                 >
                   <SelectTrigger data-testid="select-vd-voice">
-                    <SelectValue placeholder="Select voice" />
+                    <SelectValue placeholder={t("demoBuilder.selectVoice")} />
                   </SelectTrigger>
                   <SelectContent>
                     {voiceOptions.map((v) => (
@@ -259,11 +260,11 @@ export default function DemoBuilderPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vd-greeting">Custom Greeting (optional)</Label>
+                <Label htmlFor="vd-greeting">{t("demoBuilder.customGreeting")}</Label>
                 <Input
                   id="vd-greeting"
                   data-testid="input-vd-greeting"
-                  placeholder="e.g. Thank you for calling..."
+                  placeholder={t("demoBuilder.customGreetingPlaceholder")}
                   value={voiceForm.greeting}
                   onChange={(e) => setVoiceForm({ ...voiceForm, greeting: e.target.value })}
                 />
@@ -278,12 +279,12 @@ export default function DemoBuilderPage() {
                 {voiceGenerating ? (
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin mr-1.5" />
-                    Generating...
+                    {t("demoBuilder.generating")}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                    Generate Voice Demo
+                    {t("demoBuilder.generateVoiceDemo")}
                   </>
                 )}
               </Button>
@@ -297,7 +298,7 @@ export default function DemoBuilderPage() {
                   data-testid="button-reset-voice-demo"
                 >
                   <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-                  New Demo
+                  {t("demoBuilder.newDemo")}
                 </Button>
               )}
             </div>
@@ -310,7 +311,7 @@ export default function DemoBuilderPage() {
                   <CheckCircle className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">Demo Ready for {voiceForm.businessName}</h3>
+                  <h3 className="font-semibold">{t("demoBuilder.demoReadyFor", { name: voiceForm.businessName })}</h3>
                   <p className="text-xs text-muted-foreground">
                     {voiceForm.industry} | {voiceOptions.find((v) => v.value === voiceForm.voice)?.label}
                   </p>
@@ -323,9 +324,9 @@ export default function DemoBuilderPage() {
                     <Phone className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium">AI Voice Preview</p>
+                    <p className="text-sm font-medium">{t("demoBuilder.aiVoicePreview")}</p>
                     <p className="text-xs text-muted-foreground">
-                      "Thank you for calling {voiceForm.businessName}. How can I help you today?"
+                      {t("demoBuilder.voicePreviewText", { name: voiceForm.businessName })}
                     </p>
                   </div>
                   <Button size="icon" variant="outline" data-testid="button-play-voice-demo">
@@ -344,15 +345,15 @@ export default function DemoBuilderPage() {
                   data-testid="button-copy-demo-link"
                   onClick={() => {
                     navigator.clipboard.writeText(`https://demo.argiflow.com/${voiceForm.businessName.toLowerCase().replace(/\s+/g, "-")}`);
-                    toast({ title: "Link copied", description: "Share this link with your prospect." });
+                    toast({ title: t("demoBuilder.linkCopied"), description: t("demoBuilder.linkCopiedDesc") });
                   }}
                 >
                   <Copy className="w-3.5 h-3.5 mr-1.5" />
-                  Copy Link
+                  {t("demoBuilder.copyLink")}
                 </Button>
                 <Button size="sm" data-testid="button-share-demo">
                   <Share2 className="w-3.5 h-3.5 mr-1.5" />
-                  Share with Prospect
+                  {t("demoBuilder.shareWithProspect")}
                 </Button>
               </div>
             </Card>
@@ -368,60 +369,59 @@ export default function DemoBuilderPage() {
                 <Sparkles className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg mb-1">1-Click AI Demo Builder</h3>
+                <h3 className="font-semibold text-lg mb-1">{t("demoBuilder.oneClickAiDemo")}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Creates personalized demos with the prospect's business in 3 minutes. They watch their business
-                  with AI already working. See exact savings. Book themselves. No calls needed. The demo closes them.
+                  {t("demoBuilder.aiDemoDesc")}
                 </p>
               </div>
             </div>
           </Card>
 
           <Card className="p-6" data-testid="card-ai-demo-form">
-            <h3 className="font-semibold mb-4">Create Personalized Demo</h3>
+            <h3 className="font-semibold mb-4">{t("demoBuilder.createPersonalizedDemo")}</h3>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ad-business">Business Name *</Label>
+                <Label htmlFor="ad-business">{t("demoBuilder.businessNameAi")}</Label>
                 <Input
                   id="ad-business"
                   data-testid="input-ad-business"
-                  placeholder="e.g. Pacific Coast Realty"
+                  placeholder={t("demoBuilder.businessNameAiPlaceholder")}
                   value={demoForm.businessName}
                   onChange={(e) => setDemoForm({ ...demoForm, businessName: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ad-industry">Industry *</Label>
+                <Label htmlFor="ad-industry">{t("demoBuilder.industryAi")}</Label>
                 <Select
                   value={demoForm.industry}
                   onValueChange={(v) => setDemoForm({ ...demoForm, industry: v })}
                 >
                   <SelectTrigger data-testid="select-ad-industry">
-                    <SelectValue placeholder="Select industry" />
+                    <SelectValue placeholder={t("demoBuilder.selectIndustry")} />
                   </SelectTrigger>
                   <SelectContent>
                     {industries.map((ind) => (
-                      <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                      <SelectItem key={ind.value} value={ind.value}>{ind.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ad-website">Website URL (optional)</Label>
+                <Label htmlFor="ad-website">{t("demoBuilder.websiteUrl")}</Label>
                 <Input
                   id="ad-website"
                   data-testid="input-ad-website"
-                  placeholder="e.g. https://pacificcoastrealty.com"
+                  placeholder={t("demoBuilder.websitePlaceholder")}
                   value={demoForm.website}
                   onChange={(e) => setDemoForm({ ...demoForm, website: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ad-pain">Key Pain Points (optional)</Label>
+                <Label htmlFor="ad-pain">{t("demoBuilder.keyPainPoints")}</Label>
                 <Input
                   id="ad-pain"
                   data-testid="input-ad-pain"
-                  placeholder="e.g. Missing calls, slow response time"
+                  placeholder={t("demoBuilder.painPointsPlaceholder")}
                   value={demoForm.painPoints}
                   onChange={(e) => setDemoForm({ ...demoForm, painPoints: e.target.value })}
                 />
@@ -436,12 +436,12 @@ export default function DemoBuilderPage() {
                 {aiGenerating ? (
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin mr-1.5" />
-                    Building Demo...
+                    {t("demoBuilder.buildingDemo")}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                    Generate AI Demo
+                    {t("demoBuilder.generateAiDemo")}
                   </>
                 )}
               </Button>
@@ -455,7 +455,7 @@ export default function DemoBuilderPage() {
                   data-testid="button-reset-ai-demo"
                 >
                   <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-                  New Demo
+                  {t("demoBuilder.newDemo")}
                 </Button>
               )}
             </div>
@@ -468,7 +468,7 @@ export default function DemoBuilderPage() {
                   <CheckCircle className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">Demo Ready for {demoForm.businessName}</h3>
+                  <h3 className="font-semibold">{t("demoBuilder.demoReadyFor", { name: demoForm.businessName })}</h3>
                   <p className="text-xs text-muted-foreground">{demoForm.industry}</p>
                 </div>
               </div>
@@ -476,25 +476,25 @@ export default function DemoBuilderPage() {
               <div className="grid sm:grid-cols-3 gap-4 mb-4">
                 <div className="bg-secondary/30 rounded-md p-4 text-center">
                   <p className="text-2xl font-bold text-primary">32%</p>
-                  <p className="text-xs text-muted-foreground mt-1">Calls Currently Missed</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("demoBuilder.callsCurrentlyMissed")}</p>
                 </div>
                 <div className="bg-secondary/30 rounded-md p-4 text-center">
                   <p className="text-2xl font-bold text-emerald-400">$14,200</p>
-                  <p className="text-xs text-muted-foreground mt-1">Monthly Revenue Recovered</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("demoBuilder.monthlyRevenueRecovered")}</p>
                 </div>
                 <div className="bg-secondary/30 rounded-md p-4 text-center">
                   <p className="text-2xl font-bold text-chart-2">14.2x</p>
-                  <p className="text-xs text-muted-foreground mt-1">Projected ROI</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("demoBuilder.projectedRoi")}</p>
                 </div>
               </div>
 
               <div className="space-y-2 mb-4">
                 {[
-                  "AI receptionist answers 100% of calls within 0.3 seconds",
-                  "Automatically qualifies leads and books appointments",
-                  "Personalized greetings using business name and services",
-                  "After-hours handling with smart voicemail and callbacks",
-                  "Real-time analytics dashboard with call recordings",
+                  t("demoBuilder.feature1"),
+                  t("demoBuilder.feature2"),
+                  t("demoBuilder.feature3"),
+                  t("demoBuilder.feature4"),
+                  t("demoBuilder.feature5"),
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm">
                     <CheckCircle className="w-3.5 h-3.5 text-chart-3 shrink-0" />
@@ -510,19 +510,19 @@ export default function DemoBuilderPage() {
                   data-testid="button-copy-ai-demo-link"
                   onClick={() => {
                     navigator.clipboard.writeText(`https://demo.argiflow.com/ai/${demoForm.businessName.toLowerCase().replace(/\s+/g, "-")}`);
-                    toast({ title: "Link copied", description: "Share this personalized demo with your prospect." });
+                    toast({ title: t("demoBuilder.aiLinkCopied"), description: t("demoBuilder.aiLinkCopiedDesc") });
                   }}
                 >
                   <Copy className="w-3.5 h-3.5 mr-1.5" />
-                  Copy Link
+                  {t("demoBuilder.copyAiLink")}
                 </Button>
                 <Button size="sm" data-testid="button-share-ai-demo">
                   <Share2 className="w-3.5 h-3.5 mr-1.5" />
-                  Share Demo
+                  {t("demoBuilder.shareDemo")}
                 </Button>
                 <Button variant="outline" size="sm" data-testid="button-preview-ai-demo">
                   <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                  Preview
+                  {t("demoBuilder.preview")}
                 </Button>
               </div>
             </Card>
@@ -539,14 +539,13 @@ export default function DemoBuilderPage() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-                  <h3 className="font-semibold text-lg">15-Minute Installation Process</h3>
+                  <h3 className="font-semibold text-lg">{t("demoBuilder.fifteenMinInstall")}</h3>
                   <Badge className={`${checkProgress === 100 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-primary/10 text-primary border-primary/20"}`}>
-                    {completedCheckItems}/{totalCheckItems} Done
+                    {completedCheckItems}/{totalCheckItems} {t("demoBuilder.done")}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mb-3">
-                  The checklist that turns 5-hour custom jobs into 15-minute profits.
-                  Login, paste, connect, test, deliver, get paid. Refined over 500+ installations.
+                  {t("demoBuilder.checklistDesc")}
                 </p>
                 <div className="w-full bg-secondary/50 rounded-full h-2">
                   <div
@@ -610,12 +609,12 @@ export default function DemoBuilderPage() {
                 <Zap className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold">Lifetime Updates</h3>
-                <p className="text-xs text-muted-foreground">Every new bot, improvement, and strategy - free forever.</p>
+                <h3 className="font-semibold">{t("demoBuilder.lifetimeUpdates")}</h3>
+                <p className="text-xs text-muted-foreground">{t("demoBuilder.lifetimeUpdatesDesc")}</p>
               </div>
               <Badge className="ml-auto bg-chart-3/10 text-chart-3 border-chart-3/20">
                 <Star className="w-3 h-3 mr-1" />
-                Included
+                {t("demoBuilder.included")}
               </Badge>
             </div>
             <div className="grid sm:grid-cols-2 gap-3">

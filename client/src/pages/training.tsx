@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +19,10 @@ import {
 } from "lucide-react";
 import trainingRobotImg from "@assets/image_1770823658874.png";
 
-const courses = [
+const courseDefs = [
   {
-    title: "Getting Started with ArgiFlow",
-    description: "Learn the basics of setting up your account and configuring your first AI agents.",
+    titleKey: "training.course1Title",
+    descKey: "training.course1Desc",
     duration: "15 min",
     lessons: 5,
     status: "available",
@@ -29,8 +30,8 @@ const courses = [
     color: "bg-primary/10 text-primary",
   },
   {
-    title: "Lead Generation Mastery",
-    description: "Master advanced lead generation techniques using AI-powered prospecting tools.",
+    titleKey: "training.course2Title",
+    descKey: "training.course2Desc",
     duration: "30 min",
     lessons: 8,
     status: "available",
@@ -38,8 +39,8 @@ const courses = [
     color: "bg-chart-2/10 text-chart-2",
   },
   {
-    title: "Email & SMS Campaigns",
-    description: "Create high-converting email and SMS campaigns with AI-generated copy.",
+    titleKey: "training.course3Title",
+    descKey: "training.course3Desc",
     duration: "25 min",
     lessons: 6,
     status: "available",
@@ -47,8 +48,8 @@ const courses = [
     color: "bg-chart-3/10 text-chart-3",
   },
   {
-    title: "AI Agent Configuration",
-    description: "Deep dive into configuring and optimizing your AI agents for maximum performance.",
+    titleKey: "training.course4Title",
+    descKey: "training.course4Desc",
     duration: "35 min",
     lessons: 10,
     status: "available",
@@ -56,8 +57,8 @@ const courses = [
     color: "bg-chart-4/10 text-chart-4",
   },
   {
-    title: "Lead Scoring & Qualification",
-    description: "Set up intelligent lead scoring models to prioritize your hottest prospects.",
+    titleKey: "training.course5Title",
+    descKey: "training.course5Desc",
     duration: "20 min",
     lessons: 5,
     status: "locked",
@@ -65,8 +66,8 @@ const courses = [
     color: "bg-amber-500/10 text-amber-400",
   },
   {
-    title: "Analytics & Reporting",
-    description: "Understand your metrics and create custom reports for data-driven decisions.",
+    titleKey: "training.course6Title",
+    descKey: "training.course6Desc",
     duration: "25 min",
     lessons: 7,
     status: "locked",
@@ -76,11 +77,12 @@ const courses = [
 ];
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   if (status === "completed") {
     return (
       <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
         <CheckCircle className="w-3 h-3 mr-1" />
-        Completed
+        {t("training.completed")}
       </Badge>
     );
   }
@@ -88,7 +90,7 @@ function StatusBadge({ status }: { status: string }) {
     return (
       <Badge className="bg-primary/10 text-primary border-primary/20">
         <Play className="w-3 h-3 mr-1" />
-        In Progress
+        {t("training.inProgress")}
       </Badge>
     );
   }
@@ -96,45 +98,46 @@ function StatusBadge({ status }: { status: string }) {
     return (
       <Badge className="bg-secondary text-muted-foreground border-border">
         <Lock className="w-3 h-3 mr-1" />
-        Locked
+        {t("training.locked")}
       </Badge>
     );
   }
   return (
     <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">
-      Available
+      {t("training.available")}
     </Badge>
   );
 }
 
 export default function TrainingPage() {
-  usePageTitle("Training Center");
-  const completedCount = courses.filter((c) => c.status === "completed").length;
-  const totalCount = courses.length;
+  const { t } = useTranslation();
+  usePageTitle(t("training.title"));
+  const completedCount = courseDefs.filter((c) => c.status === "completed").length;
+  const totalCount = courseDefs.length;
   const progressPercent = Math.round((completedCount / totalCount) * 100);
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-training-title">Training Center</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-training-title">{t("training.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            Level up your skills and get the most out of ArgiFlow.
+            {t("training.subtitle")}
           </p>
         </div>
         <Badge className="bg-primary/10 text-primary border-primary/20">
           <GraduationCap className="w-3.5 h-3.5 mr-1.5" />
-          {completedCount}/{totalCount} Completed
+          {t("training.completedCount", { completed: completedCount, total: totalCount })}
         </Badge>
       </div>
 
       <Card className="relative overflow-hidden">
-        <img src={trainingRobotImg} alt="Training Center" className="w-full h-40 object-cover" />
+        <img src={trainingRobotImg} alt={t("training.title")} className="w-full h-40 object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
         <div className="absolute inset-0 flex items-center p-6">
           <div>
-            <p className="text-lg font-bold">Master the Platform</p>
-            <p className="text-sm text-muted-foreground max-w-sm">Courses and tutorials to help you get the most out of every AI feature.</p>
+            <p className="text-lg font-bold">{t("training.masterPlatform")}</p>
+            <p className="text-sm text-muted-foreground max-w-sm">{t("training.masterPlatformDesc")}</p>
           </div>
         </div>
       </Card>
@@ -144,11 +147,11 @@ export default function TrainingPage() {
           <div className="flex items-center gap-3">
             <TrendingUp className="w-5 h-5 text-primary" />
             <div>
-              <p className="font-semibold">Your Progress</p>
-              <p className="text-sm text-muted-foreground">{progressPercent}% complete</p>
+              <p className="font-semibold">{t("training.yourProgress")}</p>
+              <p className="text-sm text-muted-foreground">{t("training.percentComplete", { percent: progressPercent })}</p>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">{completedCount} of {totalCount} courses completed</p>
+          <p className="text-sm text-muted-foreground">{t("training.coursesCompleted", { completed: completedCount, total: totalCount })}</p>
         </div>
         <div className="w-full bg-secondary/50 rounded-full h-2.5">
           <div
@@ -160,7 +163,7 @@ export default function TrainingPage() {
       </Card>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {courses.map((course, i) => (
+        {courseDefs.map((course, i) => (
           <Card
             key={i}
             className={`p-5 ${course.status === "locked" ? "opacity-60" : ""}`}
@@ -172,10 +175,10 @@ export default function TrainingPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-                  <h3 className="font-semibold text-sm">{course.title}</h3>
+                  <h3 className="font-semibold text-sm">{t(course.titleKey)}</h3>
                   <StatusBadge status={course.status} />
                 </div>
-                <p className="text-xs text-muted-foreground mb-3">{course.description}</p>
+                <p className="text-xs text-muted-foreground mb-3">{t(course.descKey)}</p>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
@@ -184,7 +187,7 @@ export default function TrainingPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <BookOpen className="w-3 h-3" />
-                      {course.lessons} lessons
+                      {t("training.lessonsCount", { count: course.lessons })}
                     </span>
                   </div>
                   {course.status !== "locked" && (
@@ -193,7 +196,7 @@ export default function TrainingPage() {
                       variant={course.status === "completed" ? "outline" : "default"}
                       data-testid={`button-course-${i}`}
                     >
-                      {course.status === "completed" ? "Review" : course.status === "in-progress" ? "Continue" : "Start"}
+                      {course.status === "completed" ? t("training.review") : course.status === "in-progress" ? t("training.continue") : t("training.start")}
                     </Button>
                   )}
                 </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { apiRequest } from "@/lib/queryClient";
@@ -60,99 +61,51 @@ type SettingKey = keyof Omit<UserSettings, "id" | "userId" | "updatedAt">;
 
 interface SettingItem {
   key: SettingKey;
-  label: string;
-  description: string;
+  labelKey: string;
+  descKey: string;
   icon: any;
   iconColor: string;
 }
 
-const settingsGroups: { title: string; sectionDescription: string; items: SettingItem[] }[] = [
+const settingsGroups: { titleKey: string; sectionDescKey: string; items: SettingItem[] }[] = [
   {
-    title: "Notifications",
-    sectionDescription: "Control how and when ArgiFlow notifies you about activity on your account.",
+    titleKey: "settings.notificationsTitle",
+    sectionDescKey: "settings.notificationsDesc",
     items: [
-      {
-        key: "emailNotifications",
-        label: "Email Notifications",
-        description: "When ON: You'll get email alerts whenever a new lead comes in, an appointment is booked, or a campaign finishes.",
-        icon: Mail,
-        iconColor: "text-primary",
-      },
-      {
-        key: "smsNotifications",
-        label: "SMS Notifications",
-        description: "When ON: You'll receive text messages for time-sensitive updates like new leads and appointment confirmations. Requires Twilio integration below.",
-        icon: MessageSquare,
-        iconColor: "text-chart-2",
-      },
-      {
-        key: "appointmentReminders",
-        label: "Appointment Reminders",
-        description: "When ON: Both you and your clients get automatic reminders before scheduled meetings so nobody forgets.",
-        icon: Calendar,
-        iconColor: "text-chart-3",
-      },
-      {
-        key: "weeklyReport",
-        label: "Weekly Report",
-        description: "When ON: Every Monday you'll receive a summary showing how many leads, appointments, and conversions happened last week.",
-        icon: BarChart3,
-        iconColor: "text-chart-4",
-      },
+      { key: "emailNotifications", labelKey: "settings.emailNotifications", descKey: "settings.emailNotificationsDesc", icon: Mail, iconColor: "text-primary" },
+      { key: "smsNotifications", labelKey: "settings.smsNotifications", descKey: "settings.smsNotificationsDesc", icon: MessageSquare, iconColor: "text-chart-2" },
+      { key: "appointmentReminders", labelKey: "settings.appointmentReminders", descKey: "settings.appointmentRemindersDesc", icon: Calendar, iconColor: "text-chart-3" },
+      { key: "weeklyReport", labelKey: "settings.weeklyReport", descKey: "settings.weeklyReportDesc", icon: BarChart3, iconColor: "text-chart-4" },
     ],
   },
   {
-    title: "AI & Automation",
-    sectionDescription: "These controls turn on AI-powered features that work in the background to help you capture and manage leads automatically.",
+    titleKey: "settings.aiAutomation",
+    sectionDescKey: "settings.aiAutomationDesc",
     items: [
-      {
-        key: "aiAutoRespond",
-        label: "AI Auto-Respond",
-        description: "When ON: Your AI bots will automatically reply to new leads and inquiries the moment they come in — even outside business hours.",
-        icon: Bot,
-        iconColor: "text-primary",
-      },
-      {
-        key: "leadScoring",
-        label: "Lead Scoring",
-        description: "When ON: Each lead gets an automatic quality score (1-100) based on their engagement level, helping you focus on the hottest prospects first.",
-        icon: Target,
-        iconColor: "text-chart-2",
-      },
+      { key: "aiAutoRespond", labelKey: "settings.aiAutoRespond", descKey: "settings.aiAutoRespondDesc", icon: Bot, iconColor: "text-primary" },
+      { key: "leadScoring", labelKey: "settings.leadScoring", descKey: "settings.leadScoringDesc", icon: Target, iconColor: "text-chart-2" },
     ],
   },
   {
-    title: "Preferences",
-    sectionDescription: "General account preferences for your ArgiFlow experience.",
+    titleKey: "settings.preferences",
+    sectionDescKey: "settings.preferencesDesc",
     items: [
-      {
-        key: "darkMode",
-        label: "Dark Mode",
-        description: "When ON: Switches the platform to a darker color scheme that's easier on your eyes.",
-        icon: Moon,
-        iconColor: "text-muted-foreground",
-      },
-      {
-        key: "twoFactorAuth",
-        label: "Two-Factor Authentication",
-        description: "When ON: Adds an extra security step when logging in to protect your account.",
-        icon: Shield,
-        iconColor: "text-emerald-400",
-      },
+      { key: "darkMode", labelKey: "settings.darkMode", descKey: "settings.darkModeDesc", icon: Moon, iconColor: "text-muted-foreground" },
+      { key: "twoFactorAuth", labelKey: "settings.twoFactorAuth", descKey: "settings.twoFactorAuthDesc", icon: Shield, iconColor: "text-emerald-400" },
     ],
   },
 ];
 
 interface IntegrationField {
   key: SettingKey;
-  label: string;
+  labelKey: string;
   placeholder: string;
   sensitive: boolean;
 }
 
 interface IntegrationConfig {
-  title: string;
-  description: string;
+  titleKey: string;
+  descKey: string;
   icon: any;
   iconColor: string;
   iconBg: string;
@@ -161,44 +114,44 @@ interface IntegrationConfig {
 
 const integrations: IntegrationConfig[] = [
   {
-    title: "Email (SendGrid)",
-    description: "Connect your SendGrid account to send outreach emails. Enter your API key and the verified sender email from your SendGrid account. Emails will be sent from your own domain.",
+    titleKey: "settings.emailSendGrid",
+    descKey: "settings.emailSendGridDesc",
     icon: Mail,
     iconColor: "text-primary",
     iconBg: "bg-primary/10",
     fields: [
-      { key: "sendgridApiKey", label: "SendGrid API Key", placeholder: "SG.xxxxxxxxxxxx", sensitive: true },
-      { key: "senderEmail", label: "Verified Sender Email", placeholder: "you@yourdomain.com", sensitive: false },
+      { key: "sendgridApiKey", labelKey: "settings.sendgridApiKey", placeholder: "SG.xxxxxxxxxxxx", sensitive: true },
+      { key: "senderEmail", labelKey: "settings.verifiedSenderEmail", placeholder: "you@yourdomain.com", sensitive: false },
     ],
   },
   {
-    title: "Grasshopper (Phone)",
-    description: "If you use Grasshopper as your business phone, enter the number here so your Voice AI agents can be linked to it for call routing and tracking.",
+    titleKey: "settings.grasshopperPhone",
+    descKey: "settings.grasshopperDesc",
     icon: Phone,
     iconColor: "text-chart-3",
     iconBg: "bg-chart-3/10",
     fields: [
-      { key: "grasshopperNumber", label: "Business Number", placeholder: "+1 (555) 123-4567", sensitive: false },
+      { key: "grasshopperNumber", labelKey: "settings.businessNumber", placeholder: "+1 (555) 123-4567", sensitive: false },
     ],
   },
   {
-    title: "Calendar Link",
-    description: "Paste your online booking link here (from Calendly, Cal.com, or similar). When your AI bot wants to schedule a meeting with a lead, it will share this link automatically.",
+    titleKey: "settings.calendarLink",
+    descKey: "settings.calendarLinkDesc",
     icon: Calendar,
     iconColor: "text-chart-4",
     iconBg: "bg-chart-4/10",
     fields: [
-      { key: "calendarLink", label: "Booking URL", placeholder: "https://calendly.com/your-name", sensitive: false },
+      { key: "calendarLink", labelKey: "settings.bookingUrl", placeholder: "https://calendly.com/your-name", sensitive: false },
     ],
   },
   {
-    title: "Webhook URL",
-    description: "A webhook sends your lead and appointment data to other tools you use — like Zapier, Make, or your own CRM system. If you don't use these tools, you can skip this one.",
+    titleKey: "settings.webhookUrl",
+    descKey: "settings.webhookDesc",
     icon: Webhook,
     iconColor: "text-muted-foreground",
     iconBg: "bg-secondary/50",
     fields: [
-      { key: "webhookUrl", label: "Webhook Endpoint", placeholder: "https://hooks.zapier.com/...", sensitive: false },
+      { key: "webhookUrl", labelKey: "settings.webhookEndpoint", placeholder: "https://hooks.zapier.com/...", sensitive: false },
     ],
   },
 ];
@@ -237,15 +190,29 @@ function MaskedInput({ value, onChange, placeholder, sensitive, testId }: {
   );
 }
 
-const industryOptions = [
-  "Medical Billing / RCM", "Healthcare", "Marketing Agency", "Real Estate",
-  "Legal Services", "Financial Services", "E-Commerce", "SaaS / Software",
-  "Consulting", "Construction", "Home Services", "Fitness & Wellness",
-  "Education", "Insurance", "Automotive", "Restaurant / Food", "Other",
+const industryOptionKeys = [
+  { value: "Medical Billing / RCM", labelKey: "settings.industryMedBilling" },
+  { value: "Healthcare", labelKey: "settings.industryHealthcare" },
+  { value: "Marketing Agency", labelKey: "settings.industryMarketing" },
+  { value: "Real Estate", labelKey: "settings.industryRealEstate" },
+  { value: "Legal Services", labelKey: "settings.industryLegal" },
+  { value: "Financial Services", labelKey: "settings.industryFinancial" },
+  { value: "E-Commerce", labelKey: "settings.industryEcommerce" },
+  { value: "SaaS / Software", labelKey: "settings.industrySaas" },
+  { value: "Consulting", labelKey: "settings.industryConsulting" },
+  { value: "Construction", labelKey: "settings.industryConstruction" },
+  { value: "Home Services", labelKey: "settings.industryHomeServices" },
+  { value: "Fitness & Wellness", labelKey: "settings.industryFitness" },
+  { value: "Education", labelKey: "settings.industryEducation" },
+  { value: "Insurance", labelKey: "settings.industryInsurance" },
+  { value: "Automotive", labelKey: "settings.industryAutomotive" },
+  { value: "Restaurant / Food", labelKey: "settings.industryRestaurant" },
+  { value: "Other", labelKey: "settings.industryOther" },
 ];
 
 export default function SettingsPage() {
-  usePageTitle("Settings");
+  const { t } = useTranslation();
+  usePageTitle(t("settings.title"));
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -278,10 +245,10 @@ export default function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/strategy"] });
-      toast({ title: "Company profile saved", description: "Your business information has been updated." });
+      toast({ title: t("settings.companyProfileSaved"), description: t("settings.companyProfileSavedDesc") });
     },
     onError: () => {
-      toast({ title: "Failed to save", description: "Please check all fields and try again.", variant: "destructive" });
+      toast({ title: t("settings.failedToSave"), description: t("settings.failedToSaveDesc"), variant: "destructive" });
     },
   });
 
@@ -302,10 +269,10 @@ export default function SettingsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/website-profile"] });
-      toast({ title: "Website analysis started", description: "Our AI is reading your website now. This usually takes 30-60 seconds." });
+      toast({ title: t("settings.websiteAnalysisStarted"), description: t("settings.websiteAnalysisStartedDesc") });
     },
     onError: () => {
-      toast({ title: "Training failed", description: "Could not analyze your website. Please check the URL and try again.", variant: "destructive" });
+      toast({ title: t("settings.trainingFailed"), description: t("settings.trainingFailedDesc"), variant: "destructive" });
     },
   });
 
@@ -320,10 +287,10 @@ export default function SettingsPage() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/settings"], data);
-      toast({ title: "Settings updated", description: "Your preferences have been saved." });
+      toast({ title: t("settings.settingsUpdated"), description: t("settings.settingsUpdatedDesc") });
     },
     onError: () => {
-      toast({ title: "Failed to update", description: "Please try again.", variant: "destructive" });
+      toast({ title: t("settings.failedToUpdate"), description: t("settings.failedToUpdateDesc"), variant: "destructive" });
     },
   });
 
@@ -354,7 +321,7 @@ export default function SettingsPage() {
         const newDirty = new Set(dirtyFields);
         config.fields.forEach((f) => newDirty.delete(f.key));
         setDirtyFields(newDirty);
-        toast({ title: `${config.title} saved`, description: "Integration settings updated successfully." });
+        toast({ title: t("settings.integrationSaved", { title: t(config.titleKey) }), description: t("settings.integrationSavedDesc") });
       },
     });
   };
@@ -375,10 +342,10 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold" data-testid="text-settings-title">
           <Settings className="w-6 h-6 inline-block mr-2 text-muted-foreground" />
-          Settings
+          {t("settings.title")}
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          This is your control center. Update your business info, connect external services, and turn features on or off. Each section below explains what it does and how it helps your business.
+          {t("settings.subtitle")}
         </p>
       </div>
 
@@ -389,21 +356,21 @@ export default function SettingsPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-lg" data-testid="text-settings-user-name">
-              {user?.firstName || "User"} {user?.lastName || ""}
+              {user?.firstName || t("settings.user")} {user?.lastName || ""}
             </p>
             <p className="text-sm text-muted-foreground" data-testid="text-settings-user-email">{user?.email}</p>
           </div>
-          <Badge className="bg-primary/10 text-primary border-primary/20">Pro Plan</Badge>
+          <Badge className="bg-primary/10 text-primary border-primary/20">{t("settings.proPlan")}</Badge>
         </div>
       </Card>
 
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
           <Building2 className="w-4 h-4" />
-          Company Profile
+          {t("settings.companyProfile")}
         </h2>
         <p className="text-xs text-muted-foreground mb-3">
-          Tell ArgiFlow about your business so the AI can create strategies and bot scripts tailored specifically to your industry and services.
+          {t("settings.companyProfileDesc")}
         </p>
         <Card className="p-5" data-testid="card-company-profile">
           <div className="flex items-start gap-3 mb-4">
@@ -411,64 +378,64 @@ export default function SettingsPage() {
               <Sparkles className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">Business Information</h3>
+              <h3 className="font-semibold text-sm">{t("settings.businessInformation")}</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                This info powers your AI marketing strategy, customizes your bot scripts, and helps the AI chat assistant understand your business. The more detail you add, the better results you'll get.
+                {t("settings.businessInfoDesc")}
               </p>
             </div>
           </div>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Company Name</Label>
+              <Label className="text-xs text-muted-foreground">{t("settings.companyName")}</Label>
               <Input
                 value={companyProfile.companyName}
                 onChange={(e) => setCompanyProfile({ ...companyProfile, companyName: e.target.value })}
-                placeholder="Acme Corp"
+                placeholder={t("settings.companyNamePlaceholder")}
                 data-testid="input-company-name"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Industry</Label>
+              <Label className="text-xs text-muted-foreground">{t("settings.industry")}</Label>
               <Select
                 value={companyProfile.industry}
                 onValueChange={(v) => setCompanyProfile({ ...companyProfile, industry: v })}
               >
                 <SelectTrigger data-testid="select-company-industry">
-                  <SelectValue placeholder="Select your industry" />
+                  <SelectValue placeholder={t("settings.selectIndustry")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {industryOptions.map((ind) => (
-                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                  {industryOptionKeys.map((ind) => (
+                    <SelectItem key={ind.value} value={ind.value}>{t(ind.labelKey)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Website <span className="text-muted-foreground/60">(optional)</span></Label>
+              <Label className="text-xs text-muted-foreground">{t("settings.websiteOptional")} <span className="text-muted-foreground/60">({t("settings.optional")})</span></Label>
               <Input
                 value={companyProfile.website}
                 onChange={(e) => setCompanyProfile({ ...companyProfile, website: e.target.value })}
-                placeholder="https://www.yourcompany.com"
+                placeholder={t("settings.websitePlaceholder")}
                 data-testid="input-company-website"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">What does your company do?</Label>
+              <Label className="text-xs text-muted-foreground">{t("settings.whatDoesCompanyDo")}</Label>
               <Textarea
                 value={companyProfile.companyDescription}
                 onChange={(e) => setCompanyProfile({ ...companyProfile, companyDescription: e.target.value })}
-                placeholder="Describe your products, services, target customers, and goals. The more detail you provide, the better strategy our AI can generate..."
+                placeholder={t("settings.companyDescPlaceholder")}
                 className="resize-none min-h-[80px]"
                 data-testid="input-company-description"
               />
-              <p className="text-[10px] text-muted-foreground">Min 10 characters. Be specific for a better AI strategy.</p>
+              <p className="text-[10px] text-muted-foreground">{t("settings.minCharsDesc")}</p>
             </div>
             <Button
               size="sm"
               className="mt-2"
               onClick={() => {
                 if (!companyProfile.companyName || !companyProfile.industry || companyProfile.companyDescription.length < 10) {
-                  toast({ title: "Missing information", description: "Please fill in company name, industry, and description (at least 10 characters).", variant: "destructive" });
+                  toast({ title: t("settings.missingInfo"), description: t("settings.missingInfoDesc"), variant: "destructive" });
                   return;
                 }
                 companyMutation.mutate(companyProfile);
@@ -481,7 +448,7 @@ export default function SettingsPage() {
               ) : (
                 <Save className="w-3.5 h-3.5 mr-1.5" />
               )}
-              {companyMutation.isPending ? "Saving..." : "Save Company Profile"}
+              {companyMutation.isPending ? t("settings.saving") : t("settings.saveCompanyProfile")}
             </Button>
           </div>
         </Card>
@@ -490,10 +457,10 @@ export default function SettingsPage() {
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
           <GraduationCap className="w-4 h-4" />
-          Website Training
+          {t("settings.websiteTraining")}
         </h2>
         <p className="text-xs text-muted-foreground mb-3">
-          Let AI read your website and learn about your services, pricing, and target audience. This knowledge is used to configure your AI agents so they can represent your business accurately and generate leads.
+          {t("settings.websiteTrainingDesc")}
         </p>
         <Card className="p-5" data-testid="card-website-training">
           <div className="flex items-start gap-3 mb-4">
@@ -502,34 +469,34 @@ export default function SettingsPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-semibold text-sm">AI Website Analysis</h3>
+                <h3 className="font-semibold text-sm">{t("settings.aiWebsiteAnalysis")}</h3>
                 {websiteProfile?.status === "trained" && (
                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" data-testid="badge-trained">
                     <CheckCircle className="w-3 h-3 mr-1" />
-                    Trained
+                    {t("settings.trained")}
                   </Badge>
                 )}
                 {websiteProfile?.status === "training" && (
                   <Badge className="bg-primary/10 text-primary border-primary/20" data-testid="badge-training">
                     <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                    Analyzing...
+                    {t("settings.analyzing")}
                   </Badge>
                 )}
                 {websiteProfile?.status === "failed" && (
                   <Badge className="bg-red-500/10 text-red-400 border-red-500/20" data-testid="badge-failed">
                     <AlertCircle className="w-3 h-3 mr-1" />
-                    Failed
+                    {t("settings.failed")}
                   </Badge>
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {websiteProfile?.status === "trained"
-                  ? `Last trained from ${websiteProfile.websiteUrl}${websiteProfile.trainedAt ? ` on ${new Date(websiteProfile.trainedAt).toLocaleDateString()}` : ""}`
+                  ? `${t("settings.lastTrainedFrom", { url: websiteProfile.websiteUrl })}${websiteProfile.trainedAt ? t("settings.lastTrainedOn", { date: new Date(websiteProfile.trainedAt).toLocaleDateString() }) : ""}`
                   : websiteProfile?.status === "training"
-                  ? "AI is currently reading and analyzing your website. This usually takes 30-60 seconds..."
+                  ? t("settings.trainingInProgressDesc")
                   : websiteProfile?.status === "failed"
-                  ? (websiteProfile.rawSummary || "Training failed. Please check your website URL and try again.")
-                  : "Click the button below to have AI analyze your website and learn about your business."}
+                  ? (websiteProfile.rawSummary || t("settings.trainingFailedDefault"))
+                  : t("settings.clickToAnalyze")}
               </p>
             </div>
           </div>
@@ -540,7 +507,7 @@ export default function SettingsPage() {
               onClick={() => {
                 const url = companyProfile.website || (user as any)?.website;
                 if (!url) {
-                  toast({ title: "No website URL", description: "Please enter your website URL in the Company Profile section above first.", variant: "destructive" });
+                  toast({ title: t("settings.noWebsiteUrl"), description: t("settings.noWebsiteUrlDesc"), variant: "destructive" });
                   return;
                 }
                 trainMutation.mutate(url);
@@ -556,10 +523,10 @@ export default function SettingsPage() {
                 <GraduationCap className="w-3.5 h-3.5 mr-1.5" />
               )}
               {websiteProfile?.status === "training"
-                ? "Analyzing..."
+                ? t("settings.analyzing")
                 : websiteProfile?.status === "trained"
-                ? "Re-train from Website"
-                : "Train AI from My Website"}
+                ? t("settings.retrainFromWebsite")
+                : t("settings.trainAiFromWebsite")}
             </Button>
             {websiteProfile?.status === "trained" && (
               <Button
@@ -573,7 +540,7 @@ export default function SettingsPage() {
                 ) : (
                   <ChevronDown className="w-3.5 h-3.5 mr-1.5" />
                 )}
-                {websiteExpanded ? "Hide Knowledge" : "View Learned Knowledge"}
+                {websiteExpanded ? t("settings.hideKnowledge") : t("settings.viewLearnedKnowledge")}
               </Button>
             )}
           </div>
@@ -584,7 +551,7 @@ export default function SettingsPage() {
                 <div className="rounded-md bg-secondary/30 p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <BookOpen className="w-4 h-4 text-primary" />
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Services Offered</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("settings.servicesOffered")}</h4>
                   </div>
                   <p className="text-sm whitespace-pre-line" data-testid="text-services">{websiteProfile.services}</p>
                 </div>
@@ -593,7 +560,7 @@ export default function SettingsPage() {
                 <div className="rounded-md bg-secondary/30 p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Sparkles className="w-4 h-4 text-chart-2" />
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Value Propositions</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("settings.valuePropositions")}</h4>
                   </div>
                   <p className="text-sm whitespace-pre-line" data-testid="text-value-props">{websiteProfile.valuePropositions}</p>
                 </div>
@@ -602,7 +569,7 @@ export default function SettingsPage() {
                 <div className="rounded-md bg-secondary/30 p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Users className="w-4 h-4 text-chart-3" />
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Target Audience</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("settings.targetAudience")}</h4>
                   </div>
                   <p className="text-sm whitespace-pre-line" data-testid="text-target-audience">{websiteProfile.targetAudience}</p>
                 </div>
@@ -611,7 +578,7 @@ export default function SettingsPage() {
                 <div className="rounded-md bg-secondary/30 p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <DollarSign className="w-4 h-4 text-chart-4" />
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pricing</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("settings.pricing")}</h4>
                   </div>
                   <p className="text-sm whitespace-pre-line" data-testid="text-pricing">{websiteProfile.pricing}</p>
                 </div>
@@ -620,7 +587,7 @@ export default function SettingsPage() {
                 <div className="rounded-md bg-secondary/30 p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <HelpCircle className="w-4 h-4 text-muted-foreground" />
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">FAQs</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("settings.faqs")}</h4>
                   </div>
                   <p className="text-sm whitespace-pre-line" data-testid="text-faqs">{websiteProfile.faqs}</p>
                 </div>
@@ -629,7 +596,7 @@ export default function SettingsPage() {
                 <div className="rounded-md bg-secondary/30 p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <MapPin className="w-4 h-4 text-primary" />
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Contact Information</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("settings.contactInformation")}</h4>
                   </div>
                   <p className="text-sm whitespace-pre-line" data-testid="text-contact-info">{websiteProfile.contactInfo}</p>
                 </div>
@@ -638,7 +605,7 @@ export default function SettingsPage() {
                 <div className="rounded-md bg-secondary/30 p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Bot className="w-4 h-4 text-chart-2" />
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI Summary</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("settings.aiSummary")}</h4>
                   </div>
                   <p className="text-sm whitespace-pre-line" data-testid="text-summary">{websiteProfile.rawSummary}</p>
                 </div>
@@ -651,37 +618,38 @@ export default function SettingsPage() {
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
           <Link2 className="w-4 h-4" />
-          Integrations
+          {t("settings.integrationsSection")}
         </h2>
         <p className="text-xs text-muted-foreground mb-3">
-          Connect your external services here so ArgiFlow can send emails, texts, and sync data on your behalf. Each card explains what the service does — only connect the ones you need.
+          {t("settings.integrationsSectionDesc")}
         </p>
         <div className="space-y-4">
           {integrations.map((config) => {
             const connected = isIntegrationConnected(config);
             const unsaved = hasUnsavedChanges(config);
+            const integrationTitle = t(config.titleKey);
             return (
-              <Card key={config.title} className="p-5" data-testid={`integration-${config.title.toLowerCase().replace(/[^a-z]/g, "-")}`}>
+              <Card key={config.titleKey} className="p-5" data-testid={`integration-${integrationTitle.toLowerCase().replace(/[^a-z]/g, "-")}`}>
                 <div className="flex items-start gap-3 mb-4">
                   <div className={`w-10 h-10 rounded-md ${config.iconBg} flex items-center justify-center shrink-0`}>
                     <config.icon className={`w-5 h-5 ${config.iconColor}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-sm">{config.title}</h3>
+                      <h3 className="font-semibold text-sm">{integrationTitle}</h3>
                       {connected ? (
                         <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                           <CheckCircle className="w-3 h-3 mr-1" />
-                          Connected
+                          {t("settings.connected")}
                         </Badge>
                       ) : (
                         <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">
                           <AlertCircle className="w-3 h-3 mr-1" />
-                          Not Connected
+                          {t("settings.notConnected")}
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{config.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t(config.descKey)}</p>
                   </div>
                 </div>
                 {isLoading ? (
@@ -692,7 +660,7 @@ export default function SettingsPage() {
                   <div className="space-y-3">
                     {config.fields.map((field) => (
                       <div key={field.key} className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">{field.label}</Label>
+                        <Label className="text-xs text-muted-foreground">{t(field.labelKey)}</Label>
                         <MaskedInput
                           value={getFieldValue(field.key)}
                           onChange={(v) => setFieldValue(field.key, v)}
@@ -707,10 +675,10 @@ export default function SettingsPage() {
                       className="mt-2"
                       onClick={() => saveIntegration(config)}
                       disabled={updateMutation.isPending || !unsaved}
-                      data-testid={`button-save-${config.title.toLowerCase().replace(/[^a-z]/g, "-")}`}
+                      data-testid={`button-save-${integrationTitle.toLowerCase().replace(/[^a-z]/g, "-")}`}
                     >
                       <Save className="w-3.5 h-3.5 mr-1.5" />
-                      {updateMutation.isPending ? "Saving..." : "Save"}
+                      {updateMutation.isPending ? t("settings.saving") : t("settings.save")}
                     </Button>
                   </div>
                 )}
@@ -721,9 +689,9 @@ export default function SettingsPage() {
       </div>
 
       {settingsGroups.map((group) => (
-        <div key={group.title}>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">{group.title}</h2>
-          <p className="text-xs text-muted-foreground mb-3">{group.sectionDescription}</p>
+        <div key={group.titleKey}>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">{t(group.titleKey)}</h2>
+          <p className="text-xs text-muted-foreground mb-3">{t(group.sectionDescKey)}</p>
           <Card className="divide-y divide-border/50">
             {group.items.map((item) => (
               <div key={item.key} className="flex items-center justify-between gap-4 p-4" data-testid={`setting-${item.key}`}>
@@ -732,8 +700,8 @@ export default function SettingsPage() {
                     <item.icon className={`w-4 h-4 ${item.iconColor}`} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium">{item.label}</p>
-                    <p className="text-xs text-muted-foreground">{item.description}</p>
+                    <p className="text-sm font-medium">{t(item.labelKey)}</p>
+                    <p className="text-xs text-muted-foreground">{t(item.descKey)}</p>
                   </div>
                 </div>
                 {isLoading ? (

@@ -45,50 +45,50 @@ import type { Funnel, FunnelStage, FunnelDeal } from "@shared/schema";
 
 const funnelTemplates = [
   {
-    name: "AI Agency Sales",
-    description: "Standard sales pipeline for AI automation agencies",
+    nameKey: "salesFunnels.templateAiAgencyName",
+    descKey: "salesFunnels.templateAiAgencyDesc",
     stages: [
-      { name: "Lead Captured", color: "#6366f1" },
-      { name: "Discovery Call", color: "#8b5cf6" },
-      { name: "Proposal Sent", color: "#f59e0b" },
-      { name: "Negotiation", color: "#f97316" },
-      { name: "Closed Won", color: "#10b981" },
-      { name: "Closed Lost", color: "#ef4444" },
+      { nameKey: "salesFunnels.stageLeadCaptured", color: "#6366f1" },
+      { nameKey: "salesFunnels.stageDiscoveryCall", color: "#8b5cf6" },
+      { nameKey: "salesFunnels.stageProposalSent", color: "#f59e0b" },
+      { nameKey: "salesFunnels.stageNegotiation", color: "#f97316" },
+      { nameKey: "salesFunnels.stageClosedWon", color: "#10b981" },
+      { nameKey: "salesFunnels.stageClosedLost", color: "#ef4444" },
     ],
   },
   {
-    name: "Voice AI Onboarding",
-    description: "Pipeline for voice AI agent deployments",
+    nameKey: "salesFunnels.templateVoiceAiName",
+    descKey: "salesFunnels.templateVoiceAiDesc",
     stages: [
-      { name: "Demo Requested", color: "#6366f1" },
-      { name: "Demo Completed", color: "#8b5cf6" },
-      { name: "Setup Started", color: "#f59e0b" },
-      { name: "Agent Live", color: "#10b981" },
-      { name: "Churned", color: "#ef4444" },
+      { nameKey: "salesFunnels.stageDemoRequested", color: "#6366f1" },
+      { nameKey: "salesFunnels.stageDemoCompleted", color: "#8b5cf6" },
+      { nameKey: "salesFunnels.stageSetupStarted", color: "#f59e0b" },
+      { nameKey: "salesFunnels.stageAgentLive", color: "#10b981" },
+      { nameKey: "salesFunnels.stageChurned", color: "#ef4444" },
     ],
   },
   {
-    name: "High-Ticket Closer",
-    description: "For $5K+ service packages",
+    nameKey: "salesFunnels.templateHighTicketName",
+    descKey: "salesFunnels.templateHighTicketDesc",
     stages: [
-      { name: "Application", color: "#6366f1" },
-      { name: "Qualified", color: "#8b5cf6" },
-      { name: "Strategy Call", color: "#3b82f6" },
-      { name: "Offer Made", color: "#f59e0b" },
-      { name: "Enrolled", color: "#10b981" },
-      { name: "Not Fit", color: "#ef4444" },
+      { nameKey: "salesFunnels.stageApplication", color: "#6366f1" },
+      { nameKey: "salesFunnels.stageQualified", color: "#8b5cf6" },
+      { nameKey: "salesFunnels.stageStrategyCall", color: "#3b82f6" },
+      { nameKey: "salesFunnels.stageOfferMade", color: "#f59e0b" },
+      { nameKey: "salesFunnels.stageEnrolled", color: "#10b981" },
+      { nameKey: "salesFunnels.stageNotFit", color: "#ef4444" },
     ],
   },
   {
-    name: "Chatbot Lead Funnel",
-    description: "Pipeline for chatbot lead generation clients",
+    nameKey: "salesFunnels.templateChatbotName",
+    descKey: "salesFunnels.templateChatbotDesc",
     stages: [
-      { name: "Interested", color: "#6366f1" },
-      { name: "Needs Analysis", color: "#8b5cf6" },
-      { name: "Bot Configured", color: "#3b82f6" },
-      { name: "Trial Active", color: "#f59e0b" },
-      { name: "Subscribed", color: "#10b981" },
-      { name: "Declined", color: "#ef4444" },
+      { nameKey: "salesFunnels.stageInterested", color: "#6366f1" },
+      { nameKey: "salesFunnels.stageNeedsAnalysis", color: "#8b5cf6" },
+      { nameKey: "salesFunnels.stageBotConfigured", color: "#3b82f6" },
+      { nameKey: "salesFunnels.stageTrialActive", color: "#f59e0b" },
+      { nameKey: "salesFunnels.stageSubscribed", color: "#10b981" },
+      { nameKey: "salesFunnels.stageDeclined", color: "#ef4444" },
     ],
   },
 ];
@@ -471,17 +471,17 @@ export default function SalesFunnelsPage() {
                     className="p-3 cursor-pointer hover-elevate"
                     onClick={() =>
                       createFunnelMutation.mutate({
-                        name: tpl.name,
-                        description: tpl.description,
-                        stages: tpl.stages,
+                        name: t(tpl.nameKey),
+                        description: t(tpl.descKey),
+                        stages: tpl.stages.map(s => ({ name: t(s.nameKey), color: s.color })),
                       })
                     }
                     data-testid={`template-funnel-${i}`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-medium">{tpl.name}</p>
-                        <p className="text-xs text-muted-foreground">{tpl.description}</p>
+                        <p className="text-sm font-medium">{t(tpl.nameKey)}</p>
+                        <p className="text-xs text-muted-foreground">{t(tpl.descKey)}</p>
                       </div>
                       <div className="flex gap-0.5 shrink-0">
                         {tpl.stages.slice(0, 4).map((s, si) => (
@@ -521,12 +521,12 @@ export default function SalesFunnelsPage() {
                       name: customName.trim(),
                       description: customDesc.trim(),
                       stages: [
-                        { name: "New Lead", color: "#6366f1" },
-                        { name: "Contacted", color: "#8b5cf6" },
-                        { name: "Qualified", color: "#3b82f6" },
-                        { name: "Proposal", color: "#f59e0b" },
-                        { name: "Closed Won", color: "#10b981" },
-                        { name: "Closed Lost", color: "#ef4444" },
+                        { name: t("salesFunnels.stageNewLead"), color: "#6366f1" },
+                        { name: t("salesFunnels.stageContacted"), color: "#8b5cf6" },
+                        { name: t("salesFunnels.stageQualified"), color: "#3b82f6" },
+                        { name: t("salesFunnels.stageProposal"), color: "#f59e0b" },
+                        { name: t("salesFunnels.stageClosedWon"), color: "#10b981" },
+                        { name: t("salesFunnels.stageClosedLost"), color: "#ef4444" },
                       ],
                     })
                   }

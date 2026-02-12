@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ function applyInline(text: string): string {
 }
 
 export function AiChatDialog() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -131,8 +133,8 @@ export function AiChatDialog() {
                 <Sparkles className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold">ArgiFlow AI</p>
-                <p className="text-[10px] text-emerald-400 font-medium">Powered by Anthropic Claude</p>
+                <p className="text-sm font-semibold">{t("chat.brandName")}</p>
+                <p className="text-[10px] text-emerald-400 font-medium">{t("common.poweredBy")}</p>
               </div>
             </div>
             {messages && messages.length > 0 && (
@@ -189,7 +191,7 @@ export function AiChatDialog() {
                     <div className="max-w-[85%] rounded-md p-2.5 bg-secondary/50 text-foreground">
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-3 h-3 text-primary animate-pulse" />
-                        <span className="text-[10px] text-muted-foreground">Thinking...</span>
+                        <span className="text-[10px] text-muted-foreground">{t("chat.thinking")}</span>
                         <div className="flex gap-1">
                           <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
                           <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -205,12 +207,12 @@ export function AiChatDialog() {
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
                   <Sparkles className="w-6 h-6 text-primary" />
                 </div>
-                <p className="text-sm font-semibold mb-1">ArgiFlow AI Strategist</p>
+                <p className="text-sm font-semibold mb-1">{t("chat.strategistTitle")}</p>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Your AI-powered business advisor. Ask me anything about lead generation, marketing strategy, or automation.
+                  {t("chat.welcomeMessage")}
                 </p>
                 <div className="flex flex-wrap gap-1.5 justify-center">
-                  {["Generate leads", "Marketing strategy", "Book appointments"].map((s) => (
+                  {[t("chat.suggestGenerateLeads"), t("chat.suggestMarketingStrategy"), t("chat.suggestBookAppointments")].map((s) => (
                     <button
                       key={s}
                       onClick={() => { setMessage(s); }}
@@ -232,7 +234,7 @@ export function AiChatDialog() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask your AI strategist..."
+                placeholder={t("chat.placeholder")}
                 disabled={sendMutation.isPending}
                 className="text-sm"
                 data-testid="input-dialog-chat-message"

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Shield, Eye, EyeOff } from "lucide-react";
 
 export default function AdminLoginPage() {
-  usePageTitle("Admin Login");
+  const { t } = useTranslation();
+  usePageTitle(t("admin.login.title"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -29,7 +31,7 @@ export default function AdminLoginPage() {
       setLocation("/admin/dashboard");
     },
     onError: () => {
-      toast({ title: "Invalid credentials", variant: "destructive" });
+      toast({ title: t("admin.login.loginFailed"), variant: "destructive" });
     },
   });
 
@@ -40,8 +42,8 @@ export default function AdminLoginPage() {
           <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
             <Shield className="w-7 h-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold" data-testid="text-admin-title">Super Admin</h1>
-          <p className="text-sm text-muted-foreground">Sign in to the admin panel</p>
+          <h1 className="text-2xl font-bold" data-testid="text-admin-title">{t("admin.login.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("admin.login.subtitle")}</p>
         </div>
 
         <Card className="p-6">
@@ -53,7 +55,7 @@ export default function AdminLoginPage() {
             className="space-y-4"
           >
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("common.email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -65,12 +67,12 @@ export default function AdminLoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("admin.login.password")}</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter password"
+                  placeholder={t("admin.login.passwordPlaceholder")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -94,13 +96,13 @@ export default function AdminLoginPage() {
               disabled={loginMutation.isPending}
               data-testid="button-admin-login"
             >
-              {loginMutation.isPending ? "Signing in..." : "Sign In"}
+              {loginMutation.isPending ? t("auth.login.signingIn") : t("admin.login.signIn")}
             </Button>
           </form>
         </Card>
 
         <p className="text-center text-xs text-muted-foreground">
-          ArgiFlow Admin Panel
+          {t("common.brandName")} {t("admin.dashboard.title")}
         </p>
       </div>
     </div>

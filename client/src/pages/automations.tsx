@@ -26,6 +26,7 @@ import {
   Plus,
   Power,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Automation } from "@shared/schema";
 import automationRobotImg from "@assets/robot-automation.png";
 
@@ -43,55 +44,56 @@ const iconMap: Record<string, any> = {
   Target, Calendar, Users, Mail, CheckCircle2, BarChart3, Bot,
 };
 
-const workflowTemplates = [
-  {
-    templateKey: "lead_capture_email",
-    title: "Lead Capture \u2192 CRM \u2192 Email Sequence",
-    icon: "Target",
-    steps: ["New Lead", "CRM Entry", "Score Lead", "Email Drip"],
-    description: "Automatically capture leads, add to CRM, score them, and start email nurture sequences",
-  },
-  {
-    templateKey: "appointment_reminder",
-    title: "Appointment Booking \u2192 Reminder \u2192 Follow-up",
-    icon: "Calendar",
-    steps: ["Booking", "Confirmation", "Reminder", "Follow-up"],
-    description: "Auto-confirm bookings, send reminders to cut no-shows, and follow up after meetings",
-  },
-  {
-    templateKey: "inbound_qualification",
-    title: "Inbound Lead \u2192 Qualification \u2192 Assignment",
-    icon: "Users",
-    steps: ["Capture", "AI Qualify", "Score", "Assign"],
-    description: "AI qualifies inbound leads, scores them by intent, and routes to the right rep",
-  },
-  {
-    templateKey: "email_campaign_retarget",
-    title: "Email Campaign \u2192 Track \u2192 Retarget",
-    icon: "Mail",
-    steps: ["Send", "Track Opens", "Analyze", "Retarget"],
-    description: "Send campaigns, track engagement, and automatically retarget non-openers",
-  },
-  {
-    templateKey: "client_onboarding",
-    title: "Client Onboarding \u2192 Tasks \u2192 Check-in",
-    icon: "CheckCircle2",
-    steps: ["Welcome", "Setup Tasks", "Progress", "Check-in"],
-    description: "Auto-send welcome emails, create onboarding tasks, and schedule check-in calls",
-  },
-  {
-    templateKey: "review_collection",
-    title: "Review Collection \u2192 Response \u2192 Showcase",
-    icon: "BarChart3",
-    steps: ["Request", "Collect", "Respond", "Publish"],
-    description: "Request reviews after positive interactions, auto-respond, and showcase them",
-  },
-];
-
 export default function AutomationsPage() {
-  usePageTitle("Automations");
+  const { t } = useTranslation();
+  usePageTitle(t("automations.title"));
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const workflowTemplates = [
+    {
+      templateKey: "lead_capture_email",
+      title: t("automations.templateLeadCaptureTitle"),
+      icon: "Target",
+      steps: [t("automations.templateLeadCaptureStep1"), t("automations.templateLeadCaptureStep2"), t("automations.templateLeadCaptureStep3"), t("automations.templateLeadCaptureStep4")],
+      description: t("automations.templateLeadCaptureDesc"),
+    },
+    {
+      templateKey: "appointment_reminder",
+      title: t("automations.templateAppointmentTitle"),
+      icon: "Calendar",
+      steps: [t("automations.templateAppointmentStep1"), t("automations.templateAppointmentStep2"), t("automations.templateAppointmentStep3"), t("automations.templateAppointmentStep4")],
+      description: t("automations.templateAppointmentDesc"),
+    },
+    {
+      templateKey: "inbound_qualification",
+      title: t("automations.templateInboundTitle"),
+      icon: "Users",
+      steps: [t("automations.templateInboundStep1"), t("automations.templateInboundStep2"), t("automations.templateInboundStep3"), t("automations.templateInboundStep4")],
+      description: t("automations.templateInboundDesc"),
+    },
+    {
+      templateKey: "email_campaign_retarget",
+      title: t("automations.templateEmailCampaignTitle"),
+      icon: "Mail",
+      steps: [t("automations.templateEmailCampaignStep1"), t("automations.templateEmailCampaignStep2"), t("automations.templateEmailCampaignStep3"), t("automations.templateEmailCampaignStep4")],
+      description: t("automations.templateEmailCampaignDesc"),
+    },
+    {
+      templateKey: "client_onboarding",
+      title: t("automations.templateClientOnboardingTitle"),
+      icon: "CheckCircle2",
+      steps: [t("automations.templateClientOnboardingStep1"), t("automations.templateClientOnboardingStep2"), t("automations.templateClientOnboardingStep3"), t("automations.templateClientOnboardingStep4")],
+      description: t("automations.templateClientOnboardingDesc"),
+    },
+    {
+      templateKey: "review_collection",
+      title: t("automations.templateReviewTitle"),
+      icon: "BarChart3",
+      steps: [t("automations.templateReviewStep1"), t("automations.templateReviewStep2"), t("automations.templateReviewStep3"), t("automations.templateReviewStep4")],
+      description: t("automations.templateReviewDesc"),
+    },
+  ];
 
   const { data: automationsData, isLoading } = useQuery<Automation[]>({
     queryKey: ["/api/automations"],
@@ -109,10 +111,10 @@ export default function AutomationsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/automations"] });
-      toast({ title: "Automation activated", description: "Workflow is now running" });
+      toast({ title: t("automations.automationActivated"), description: t("automations.workflowRunning") });
     },
     onError: () => {
-      toast({ title: "Failed to activate", variant: "destructive" });
+      toast({ title: t("automations.failedToActivate"), variant: "destructive" });
     },
   });
 
@@ -124,12 +126,12 @@ export default function AutomationsPage() {
     onSuccess: (data: Automation) => {
       queryClient.invalidateQueries({ queryKey: ["/api/automations"] });
       toast({
-        title: data.status === "active" ? "Automation resumed" : "Automation paused",
+        title: data.status === "active" ? t("automations.automationResumed") : t("automations.automationPaused"),
         description: data.title,
       });
     },
     onError: () => {
-      toast({ title: "Failed to update", variant: "destructive" });
+      toast({ title: t("automations.failedToUpdate"), variant: "destructive" });
     },
   });
 
@@ -139,16 +141,16 @@ export default function AutomationsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/automations"] });
-      toast({ title: "Automation removed" });
+      toast({ title: t("automations.automationRemoved") });
     },
     onError: () => {
-      toast({ title: "Failed to delete", variant: "destructive" });
+      toast({ title: t("automations.failedToDelete"), variant: "destructive" });
     },
   });
 
   const activeAutomations = automationsData || [];
   const activatedKeys = new Set(activeAutomations.map((a) => a.templateKey));
-  const availableTemplates = workflowTemplates.filter((t) => !activatedKeys.has(t.templateKey));
+  const availableTemplates = workflowTemplates.filter((tmpl) => !activatedKeys.has(tmpl.templateKey));
   const activeCount = activeAutomations.filter((a) => a.status === "active").length;
   const totalRuns = activeAutomations.reduce((sum, a) => sum + (a.runs || 0), 0);
   const runningAutomations = activeAutomations.filter((a) => (a.runs || 0) > 0);
@@ -156,28 +158,37 @@ export default function AutomationsPage() {
     ? (runningAutomations.reduce((sum, a) => sum + (a.successRate || 0), 0) / runningAutomations.length).toFixed(1)
     : "0";
 
+  const arsenalItems = [
+    { title: t("automations.arsenalClientOnboarding"), desc: t("automations.arsenalClientOnboardingDesc") },
+    { title: t("automations.arsenalLeadNurture"), desc: t("automations.arsenalLeadNurtureDesc") },
+    { title: t("automations.arsenalAppointmentReminders"), desc: t("automations.arsenalAppointmentRemindersDesc") },
+    { title: t("automations.arsenalMonthlyReport"), desc: t("automations.arsenalMonthlyReportDesc") },
+    { title: t("automations.arsenalReviewBot"), desc: t("automations.arsenalReviewBotDesc") },
+    { title: t("automations.arsenalInvoice"), desc: t("automations.arsenalInvoiceDesc") },
+  ];
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-automations-title">Automations</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-automations-title">{t("automations.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            End-to-end workflows automating your business processes.
+            {t("automations.subtitle")}
           </p>
         </div>
         <Badge className="bg-primary/10 text-primary border-primary/20 no-default-hover-elevate no-default-active-elevate">
           <Workflow className="w-3 h-3 mr-1.5" />
-          {activeCount} Active
+          {t("automations.activeCount", { count: activeCount })}
         </Badge>
       </div>
 
       <Card className="relative overflow-hidden">
-        <img src={automationRobotImg} alt="Automations" className="w-full h-40 object-cover" />
+        <img src={automationRobotImg} alt={t("automations.title")} className="w-full h-40 object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
         <div className="absolute inset-0 flex items-center p-6">
           <div>
-            <p className="text-lg font-bold">Workflow Automation</p>
-            <p className="text-sm text-muted-foreground max-w-sm">Set up automated workflows that handle lead nurturing, follow-ups, and client onboarding.</p>
+            <p className="text-lg font-bold">{t("automations.workflowAutomation")}</p>
+            <p className="text-sm text-muted-foreground max-w-sm">{t("automations.workflowAutomationDesc")}</p>
           </div>
         </div>
       </Card>
@@ -190,7 +201,7 @@ export default function AutomationsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{activeAutomations.length}</p>
-              <p className="text-sm text-muted-foreground">My Workflows</p>
+              <p className="text-sm text-muted-foreground">{t("automations.myWorkflows")}</p>
             </div>
           </div>
         </Card>
@@ -201,7 +212,7 @@ export default function AutomationsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{totalRuns.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Total Runs</p>
+              <p className="text-sm text-muted-foreground">{t("automations.totalRuns")}</p>
             </div>
           </div>
         </Card>
@@ -212,7 +223,7 @@ export default function AutomationsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{avgSuccess}%</p>
-              <p className="text-sm text-muted-foreground">Avg Success Rate</p>
+              <p className="text-sm text-muted-foreground">{t("automations.avgSuccessRate")}</p>
             </div>
           </div>
         </Card>
@@ -232,12 +243,12 @@ export default function AutomationsPage() {
         <>
           {activeAutomations.length > 0 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold" data-testid="text-active-section">Your Automations</h2>
+              <h2 className="text-lg font-semibold" data-testid="text-active-section">{t("automations.yourAutomations")}</h2>
               {activeAutomations.map((automation) => {
                 const steps: string[] = (() => {
                   try { return JSON.parse(automation.steps); } catch { return []; }
                 })();
-                const template = workflowTemplates.find((t) => t.templateKey === automation.templateKey);
+                const template = workflowTemplates.find((tmpl) => tmpl.templateKey === automation.templateKey);
                 const IconComponent = template ? iconMap[template.icon] || Workflow : Workflow;
 
                 return (
@@ -259,7 +270,7 @@ export default function AutomationsPage() {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground mr-2">
                           <div className="flex items-center gap-1">
                             <RefreshCw className="w-3.5 h-3.5" />
-                            {(automation.runs || 0).toLocaleString()} runs
+                            {t("automations.runs", { count: automation.runs || 0 })}
                           </div>
                           <div className="flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -275,7 +286,7 @@ export default function AutomationsPage() {
                             data-testid={`button-pause-${automation.id}`}
                           >
                             <Pause className="w-3.5 h-3.5 mr-1.5" />
-                            Pause
+                            {t("automations.pause")}
                           </Button>
                         ) : (
                           <Button
@@ -286,7 +297,7 @@ export default function AutomationsPage() {
                             data-testid={`button-resume-${automation.id}`}
                           >
                             <Play className="w-3.5 h-3.5 mr-1.5" />
-                            Resume
+                            {t("automations.resume")}
                           </Button>
                         )}
                         <Button
@@ -334,10 +345,10 @@ export default function AutomationsPage() {
           {availableTemplates.length > 0 && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold" data-testid="text-templates-section">
-                {activeAutomations.length > 0 ? "Add More Automations" : "Available Automations"}
+                {activeAutomations.length > 0 ? t("automations.addMoreAutomations") : t("automations.availableAutomations")}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Activate any of these pre-built workflows to automate your business processes.
+                {t("automations.availableDesc")}
               </p>
               {availableTemplates.map((template, idx) => {
                 const IconComponent = iconMap[template.icon] || Workflow;
@@ -360,7 +371,7 @@ export default function AutomationsPage() {
                         data-testid={`button-activate-${template.templateKey}`}
                       >
                         <Power className="w-3.5 h-3.5 mr-1.5" />
-                        Activate
+                        {t("automations.activate")}
                       </Button>
                     </div>
 
@@ -390,20 +401,13 @@ export default function AutomationsPage() {
             <Zap className="w-5 h-5 text-chart-4" />
           </div>
           <div>
-            <h3 className="font-semibold">Automation Arsenal</h3>
-            <p className="text-xs text-muted-foreground">Run your entire agency in 10 hours/week</p>
+            <h3 className="font-semibold">{t("automations.automationArsenal")}</h3>
+            <p className="text-xs text-muted-foreground">{t("automations.arsenalDesc")}</p>
           </div>
-          <Badge className="ml-auto bg-chart-4/10 text-chart-4 border-chart-4/20 no-default-hover-elevate no-default-active-elevate">Included</Badge>
+          <Badge className="ml-auto bg-chart-4/10 text-chart-4 border-chart-4/20 no-default-hover-elevate no-default-active-elevate">{t("automations.included")}</Badge>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[
-            { title: "Client Onboarding Automation", desc: "Auto-send welcome emails, create CRM entries, and schedule kickoff calls" },
-            { title: "Lead Nurture Sequences", desc: "7-day email/SMS drip that converts cold leads into booked calls" },
-            { title: "Appointment Reminders", desc: "Multi-channel reminders that cut no-shows by 80%" },
-            { title: "Monthly Report Generator", desc: "Auto-compile client metrics and send branded performance reports" },
-            { title: "Review Collection Bot", desc: "Trigger review requests after positive interactions" },
-            { title: "Invoice & Payment Automation", desc: "Auto-generate invoices and chase overdue payments" },
-          ].map((item, i) => (
+          {arsenalItems.map((item, i) => (
             <div key={i} className="flex items-start gap-2 p-3 rounded-md bg-secondary/30">
               <CheckCircle2 className="w-3.5 h-3.5 text-chart-3 shrink-0 mt-0.5" />
               <div>

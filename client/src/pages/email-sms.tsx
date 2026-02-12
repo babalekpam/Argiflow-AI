@@ -37,6 +37,7 @@ import {
   Phone,
   CheckCircle,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { AiChatMessage } from "@shared/schema";
 import emailRobotImg from "@assets/robot-email-outreach.png";
 
@@ -56,7 +57,8 @@ interface EmailAnalytics {
 }
 
 export default function EmailSmsPage() {
-  usePageTitle("Email & SMS Campaigns");
+  const { t } = useTranslation();
+  usePageTitle(t("emailSms.title"));
   const { toast } = useToast();
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState<"campaigns" | "analytics" | "sms">("campaigns");
@@ -107,12 +109,12 @@ export default function EmailSmsPage() {
       await apiRequest("POST", `/api/leads/${leadId}/send-sms`, { body });
     },
     onSuccess: () => {
-      toast({ title: "SMS sent successfully" });
+      toast({ title: t("emailSms.smsSentSuccess") });
       setSmsBody("");
       setSmsRecipient("");
     },
     onError: (err: any) => {
-      toast({ title: "Failed to send SMS", description: err.message, variant: "destructive" });
+      toast({ title: t("emailSms.smsFailedSend"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -133,10 +135,16 @@ export default function EmailSmsPage() {
   };
 
   const quickActions = [
-    "Create an email campaign for warm leads",
-    "Send SMS follow-ups to no-shows",
-    "Draft a nurture sequence for new leads",
-    "Schedule a weekly newsletter",
+    t("emailSms.quickAction1"),
+    t("emailSms.quickAction2"),
+    t("emailSms.quickAction3"),
+    t("emailSms.quickAction4"),
+  ];
+
+  const smsTemplates = [
+    t("emailSms.smsTemplate1"),
+    t("emailSms.smsTemplate2"),
+    t("emailSms.smsTemplate3"),
   ];
 
   const recentlyEngaged = (leads || [])
@@ -154,26 +162,26 @@ export default function EmailSmsPage() {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-email-sms-title">Email & SMS</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-email-sms-title">{t("emailSms.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            Run campaigns, track engagement, and manage outreach from one place.
+            {t("emailSms.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
             <Sparkles className="w-3 h-3 mr-1.5" />
-            AI Powered
+            {t("emailSms.aiPowered")}
           </Badge>
         </div>
       </div>
 
       <Card className="relative overflow-hidden">
-        <img src={emailRobotImg} alt="Email & SMS AI" className="w-full h-40 object-cover" />
+        <img src={emailRobotImg} alt={t("emailSms.title")} className="w-full h-40 object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/60 to-transparent" />
         <div className="absolute inset-0 flex items-center p-6">
           <div>
-            <p className="text-lg font-bold">AI Campaign Assistant</p>
-            <p className="text-sm text-muted-foreground max-w-sm">Tell your AI what campaigns to run — it crafts copy, sends emails, and tracks engagement automatically.</p>
+            <p className="text-lg font-bold">{t("emailSms.heroTitle")}</p>
+            <p className="text-sm text-muted-foreground max-w-sm">{t("emailSms.heroDesc")}</p>
           </div>
         </div>
       </Card>
@@ -185,7 +193,7 @@ export default function EmailSmsPage() {
           data-testid="tab-campaigns"
         >
           <MessageSquare className="w-4 h-4 mr-2" />
-          Campaigns
+          {t("emailSms.campaigns")}
         </Button>
         <Button
           variant={activeTab === "sms" ? "default" : "outline"}
@@ -193,7 +201,7 @@ export default function EmailSmsPage() {
           data-testid="tab-sms"
         >
           <Phone className="w-4 h-4 mr-2" />
-          SMS
+          {t("emailSms.sms")}
         </Button>
         <Button
           variant={activeTab === "analytics" ? "default" : "outline"}
@@ -201,7 +209,7 @@ export default function EmailSmsPage() {
           data-testid="tab-analytics"
         >
           <BarChart3 className="w-4 h-4 mr-2" />
-          Email Tracking
+          {t("emailSms.emailTracking")}
         </Button>
       </div>
 
@@ -210,15 +218,15 @@ export default function EmailSmsPage() {
           <Card className="lg:col-span-2 p-6 space-y-5">
             <div className="flex items-center gap-2">
               <Phone className="w-5 h-5 text-chart-2" />
-              <h3 className="font-semibold">Send SMS</h3>
+              <h3 className="font-semibold">{t("emailSms.sendSms")}</h3>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Recipient</Label>
+                <Label>{t("emailSms.recipient")}</Label>
                 <Select value={smsRecipient} onValueChange={setSmsRecipient}>
                   <SelectTrigger data-testid="select-sms-recipient">
-                    <SelectValue placeholder="Select a lead to message..." />
+                    <SelectValue placeholder={t("emailSms.recipientPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {(leads || [])
@@ -229,26 +237,26 @@ export default function EmailSmsPage() {
                         </SelectItem>
                       ))}
                     {(leads || []).filter((l: any) => l.phone).length === 0 && (
-                      <SelectItem value="none" disabled>No leads with phone numbers</SelectItem>
+                      <SelectItem value="none" disabled>{t("emailSms.noLeadsWithPhone")}</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="sms-compose-body">Message</Label>
+                <Label htmlFor="sms-compose-body">{t("emailSms.message")}</Label>
                 <Textarea
                   id="sms-compose-body"
                   data-testid="input-sms-compose-body"
                   value={smsBody}
                   onChange={(e) => setSmsBody(e.target.value)}
                   rows={5}
-                  placeholder="Type your text message..."
+                  placeholder={t("emailSms.msgPlaceholder")}
                   maxLength={1600}
                 />
                 <p className="text-xs text-muted-foreground text-right">
-                  {smsBody.length}/160 characters
-                  {smsBody.length > 160 ? ` (${Math.ceil(smsBody.length / 160)} segments)` : ""}
+                  {t("emailSms.charactersCount", { count: smsBody.length })}
+                  {smsBody.length > 160 ? ` ${t("emailSms.segmentsCount", { count: Math.ceil(smsBody.length / 160) })}` : ""}
                 </p>
               </div>
 
@@ -258,11 +266,11 @@ export default function EmailSmsPage() {
                 data-testid="button-send-sms-compose"
               >
                 {smsMutation.isPending ? (
-                  <>Sending...</>
+                  <>{t("common.sending")}</>
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Send SMS
+                    {t("emailSms.sendSms")}
                   </>
                 )}
               </Button>
@@ -273,26 +281,22 @@ export default function EmailSmsPage() {
             <Card className="p-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-primary" />
-                SMS Tips
+                {t("emailSms.smsTips")}
               </h3>
               <div className="space-y-3 text-sm text-muted-foreground">
-                <p>Keep messages under 160 characters for a single SMS segment.</p>
-                <p>Longer messages are split into multiple segments and may cost more.</p>
-                <p>Include a clear call-to-action for better response rates.</p>
+                <p>{t("emailSms.tip1")}</p>
+                <p>{t("emailSms.tip2")}</p>
+                <p>{t("emailSms.tip3")}</p>
               </div>
             </Card>
 
             <Card className="p-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-chart-2" />
-                Quick Templates
+                {t("emailSms.smsTemplates")}
               </h3>
               <div className="space-y-2">
-                {[
-                  "Hi {name}, just following up on our conversation. Would you be available for a quick call this week?",
-                  "Hi {name}, we have an exclusive offer for you. Reply YES to learn more!",
-                  "Hi {name}, your appointment is confirmed for tomorrow. Reply to reschedule.",
-                ].map((template, i) => (
+                {smsTemplates.map((template, i) => (
                   <Button
                     key={i}
                     variant="secondary"
@@ -313,7 +317,7 @@ export default function EmailSmsPage() {
             <div className="flex items-center justify-between gap-4 p-4 border-b border-border/50 flex-wrap">
               <div className="flex items-center gap-2">
                 <Bot className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold">AI Campaign Assistant</h3>
+                <h3 className="font-semibold">{t("emailSms.aiAssistant")}</h3>
               </div>
               {messages && messages.length > 0 && (
                 <Button
@@ -324,7 +328,7 @@ export default function EmailSmsPage() {
                   data-testid="button-clear-chat"
                 >
                   <Trash2 className="w-4 h-4 mr-1.5" />
-                  Clear
+                  {t("common.clear")}
                 </Button>
               )}
             </div>
@@ -385,9 +389,9 @@ export default function EmailSmsPage() {
                   <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                     <Bot className="w-8 h-8 text-primary" />
                   </div>
-                  <h3 className="font-semibold mb-1">Your AI Campaign Manager</h3>
+                  <h3 className="font-semibold mb-1">{t("emailSms.yourAiManager")}</h3>
                   <p className="text-sm text-muted-foreground max-w-sm">
-                    Tell me what campaigns you want to run. I'll handle the email copy, SMS messages, scheduling, and optimization.
+                    {t("emailSms.aiAssistantDesc")}
                   </p>
                 </div>
               )}
@@ -400,7 +404,7 @@ export default function EmailSmsPage() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Tell AI what campaign to create..."
+                  placeholder={t("emailSms.chatPlaceholder")}
                   disabled={sendMutation.isPending}
                   data-testid="input-chat-message"
                 />
@@ -419,7 +423,7 @@ export default function EmailSmsPage() {
             <Card className="p-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-primary" />
-                Quick Actions
+                {t("emailSms.quickActions")}
               </h3>
               <div className="space-y-2">
                 {quickActions.map((action, i) => (
@@ -439,7 +443,7 @@ export default function EmailSmsPage() {
             <Card className="p-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-chart-2" />
-                Quick Stats
+                {t("emailSms.quickStats")}
               </h3>
               {analyticsLoading ? (
                 <div className="space-y-3">
@@ -449,19 +453,19 @@ export default function EmailSmsPage() {
               ) : totalSent > 0 ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Emails Sent</span>
+                    <span className="text-muted-foreground">{t("emailSms.emailsSent")}</span>
                     <span className="font-semibold">{totalSent}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Open Rate</span>
+                    <span className="text-muted-foreground">{t("emailSms.openRate")}</span>
                     <span className="font-semibold text-sky-400">{analytics?.openRate || 0}%</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Click Rate</span>
+                    <span className="text-muted-foreground">{t("emailSms.clickRate")}</span>
                     <span className="font-semibold text-emerald-400">{analytics?.clickRate || 0}%</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Hot Leads</span>
+                    <span className="text-muted-foreground">{t("emailSms.hotLeads")}</span>
                     <span className="font-semibold text-orange-400">{analytics?.byLevel?.hot || 0}</span>
                   </div>
                   <Button
@@ -471,13 +475,13 @@ export default function EmailSmsPage() {
                     onClick={() => setActiveTab("analytics")}
                     data-testid="button-view-full-analytics"
                   >
-                    View Full Analytics
+                    {t("emailSms.viewFullAnalytics")}
                   </Button>
                 </div>
               ) : (
                 <div className="text-center py-4 text-muted-foreground text-sm">
                   <Mail className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                  No emails sent yet
+                  {t("emailSms.noEmailsSent")}
                 </div>
               )}
             </Card>
@@ -485,11 +489,11 @@ export default function EmailSmsPage() {
             <Card className="p-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-muted-foreground" />
-                Scheduled
+                {t("emailSms.scheduledTitle")}
               </h3>
               <div className="text-center py-4 text-muted-foreground text-sm">
                 <Clock className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                No scheduled campaigns.
+                {t("emailSms.noScheduled")}
               </div>
             </Card>
           </div>
@@ -511,37 +515,37 @@ export default function EmailSmsPage() {
                 <Card className="p-4" data-testid="stat-total-sent">
                   <div className="flex items-center gap-2 mb-2">
                     <Send className="w-4 h-4 text-primary" />
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Total Sent</span>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{t("emailSms.totalSent")}</span>
                   </div>
                   <div className="text-2xl font-bold">{analytics?.totalSent || 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Outreach emails delivered</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("emailSms.totalSentDesc")}</p>
                 </Card>
 
                 <Card className="p-4" data-testid="stat-open-rate">
                   <div className="flex items-center gap-2 mb-2">
                     <Eye className="w-4 h-4 text-sky-400" />
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Open Rate</span>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{t("emailSms.openRate")}</span>
                   </div>
                   <div className="text-2xl font-bold text-sky-400">{analytics?.openRate || 0}%</div>
-                  <p className="text-xs text-muted-foreground mt-1">{analytics?.totalOpens || 0} total opens</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("emailSms.openRateDesc", { count: analytics?.totalOpens || 0 })}</p>
                 </Card>
 
                 <Card className="p-4" data-testid="stat-click-rate">
                   <div className="flex items-center gap-2 mb-2">
                     <MousePointerClick className="w-4 h-4 text-emerald-400" />
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Click Rate</span>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{t("emailSms.clickRate")}</span>
                   </div>
                   <div className="text-2xl font-bold text-emerald-400">{analytics?.clickRate || 0}%</div>
-                  <p className="text-xs text-muted-foreground mt-1">{analytics?.totalClicks || 0} total clicks</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("emailSms.clickRateDesc", { count: analytics?.totalClicks || 0 })}</p>
                 </Card>
 
                 <Card className="p-4" data-testid="stat-engaged">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="w-4 h-4 text-chart-4" />
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Engaged</span>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{t("emailSms.engaged")}</span>
                   </div>
                   <div className="text-2xl font-bold">{analytics?.engaged || 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Contacts who opened</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("emailSms.engagedDesc")}</p>
                 </Card>
               </div>
 
@@ -549,20 +553,20 @@ export default function EmailSmsPage() {
                 <Card className="p-5" data-testid="card-engagement-breakdown">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-primary" />
-                    Engagement Breakdown
+                    {t("emailSms.engagementBreakdown")}
                   </h3>
                   {totalSent > 0 ? (
                     <div className="space-y-4">
-                      <EngagementBar label="Hot" count={analytics?.byLevel?.hot || 0} total={totalSent} color="bg-orange-500" />
-                      <EngagementBar label="Warm" count={analytics?.byLevel?.warm || 0} total={totalSent} color="bg-amber-500" />
-                      <EngagementBar label="Interested" count={analytics?.byLevel?.interested || 0} total={totalSent} color="bg-sky-500" />
-                      <EngagementBar label="No Engagement" count={analytics?.byLevel?.none || 0} total={totalSent} color="bg-muted-foreground/30" />
+                      <EngagementBar label={t("emailSms.hot")} count={analytics?.byLevel?.hot || 0} total={totalSent} color="bg-orange-500" />
+                      <EngagementBar label={t("emailSms.warm")} count={analytics?.byLevel?.warm || 0} total={totalSent} color="bg-amber-500" />
+                      <EngagementBar label={t("emailSms.interested")} count={analytics?.byLevel?.interested || 0} total={totalSent} color="bg-sky-500" />
+                      <EngagementBar label={t("emailSms.noEngagement")} count={analytics?.byLevel?.none || 0} total={totalSent} color="bg-muted-foreground/30" />
                     </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground text-sm">
                       <Activity className="w-8 h-8 mx-auto mb-3 opacity-40" />
-                      <p>Send outreach emails to see engagement data</p>
-                      <p className="text-xs mt-1">Go to Leads page to send emails, or ask the AI assistant</p>
+                      <p>{t("emailSms.sendToSee")}</p>
+                      <p className="text-xs mt-1">{t("emailSms.goToLeads")}</p>
                     </div>
                   )}
                 </Card>
@@ -570,7 +574,7 @@ export default function EmailSmsPage() {
                 <Card className="p-5" data-testid="card-recent-activity">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
                     <Activity className="w-4 h-4 text-chart-3" />
-                    Recent Email Activity
+                    {t("emailSms.recentActivity")}
                   </h3>
                   {recentlyEngaged.length > 0 ? (
                     <div className="space-y-3">
@@ -596,24 +600,24 @@ export default function EmailSmsPage() {
                             {lead.engagementLevel === "hot" && (
                               <Badge variant="outline" className="text-orange-400 border-orange-400/30">
                                 <Flame className="w-3 h-3 mr-1" />
-                                Hot
+                                {t("emailSms.hot")}
                               </Badge>
                             )}
                             {lead.engagementLevel === "warm" && (
                               <Badge variant="outline" className="text-amber-400 border-amber-400/30">
                                 <TrendingUp className="w-3 h-3 mr-1" />
-                                Warm
+                                {t("emailSms.warm")}
                               </Badge>
                             )}
                             {lead.engagementLevel === "interested" && (
                               <Badge variant="outline" className="text-sky-400 border-sky-400/30">
                                 <Eye className="w-3 h-3 mr-1" />
-                                Interested
+                                {t("emailSms.interested")}
                               </Badge>
                             )}
                             {(!lead.engagementLevel || lead.engagementLevel === "none") && (
                               <Badge variant="outline" className="text-muted-foreground">
-                                Sent
+                                {t("common.sent")}
                               </Badge>
                             )}
                           </div>
@@ -623,8 +627,8 @@ export default function EmailSmsPage() {
                   ) : (
                     <div className="text-center py-8 text-muted-foreground text-sm">
                       <Mail className="w-8 h-8 mx-auto mb-3 opacity-40" />
-                      <p>No outreach emails sent yet</p>
-                      <p className="text-xs mt-1">Use the Campaigns tab to start sending</p>
+                      <p>{t("emailSms.noOutreach")}</p>
+                      <p className="text-xs mt-1">{t("emailSms.useCampaigns")}</p>
                     </div>
                   )}
                 </Card>
@@ -634,13 +638,13 @@ export default function EmailSmsPage() {
                 <Card className="p-5" data-testid="card-engagement-funnel">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
                     <BarChart3 className="w-4 h-4 text-primary" />
-                    Email Funnel
+                    {t("emailSms.emailFunnel")}
                   </h3>
                   <div className="flex items-end justify-center gap-4 h-48">
-                    <FunnelBar label="Sent" value={analytics?.totalSent || 0} maxValue={analytics?.totalSent || 1} color="bg-primary/60" />
-                    <FunnelBar label="Opened" value={analytics?.engaged || 0} maxValue={analytics?.totalSent || 1} color="bg-sky-500/60" />
-                    <FunnelBar label="Clicked" value={(leads || []).filter((l: any) => (l.emailClicks || 0) > 0).length} maxValue={analytics?.totalSent || 1} color="bg-emerald-500/60" />
-                    <FunnelBar label="Hot" value={analytics?.byLevel?.hot || 0} maxValue={analytics?.totalSent || 1} color="bg-orange-500/60" />
+                    <FunnelBar label={t("emailSms.funnelSent")} value={analytics?.totalSent || 0} maxValue={analytics?.totalSent || 1} color="bg-primary/60" />
+                    <FunnelBar label={t("emailSms.funnelOpened")} value={analytics?.engaged || 0} maxValue={analytics?.totalSent || 1} color="bg-sky-500/60" />
+                    <FunnelBar label={t("emailSms.funnelClicked")} value={(leads || []).filter((l: any) => (l.emailClicks || 0) > 0).length} maxValue={analytics?.totalSent || 1} color="bg-emerald-500/60" />
+                    <FunnelBar label={t("emailSms.funnelHot")} value={analytics?.byLevel?.hot || 0} maxValue={analytics?.totalSent || 1} color="bg-orange-500/60" />
                   </div>
                 </Card>
               )}
