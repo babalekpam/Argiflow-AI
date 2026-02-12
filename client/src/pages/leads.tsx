@@ -62,8 +62,9 @@ import {
   PhoneCall,
   MessageSquare,
 } from "lucide-react";
-import type { Lead } from "@shared/schema";
+import type { Lead, Business } from "@shared/schema";
 import { useState, useEffect } from "react";
+import { Briefcase, Palette, Settings2 } from "lucide-react";
 
 function getAddLeadSchema(t: (key: string) => string) {
   return z.object({
@@ -592,6 +593,204 @@ function LeadCard({
   );
 }
 
+const BUSINESS_COLORS = [
+  "#38bdf8", "#f472b6", "#34d399", "#fbbf24", "#a78bfa", "#fb923c", "#22d3ee", "#f87171",
+];
+
+function BusinessSelector({
+  businesses,
+  selectedId,
+  onSelect,
+  onManage,
+}: {
+  businesses: Business[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onManage: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-2 flex-wrap" data-testid="business-selector">
+      <Button
+        variant={selectedId === null ? "secondary" : "ghost"}
+        size="sm"
+        className={`gap-1.5 ${selectedId === null ? "toggle-elevate toggle-elevated" : ""}`}
+        onClick={() => onSelect(null)}
+        data-testid="button-all-businesses"
+      >
+        <Briefcase className="w-3.5 h-3.5" />
+        {t("leads.allBusinesses")}
+      </Button>
+      {businesses.map((biz) => (
+        <Button
+          key={biz.id}
+          variant={selectedId === biz.id ? "secondary" : "ghost"}
+          size="sm"
+          className={`gap-1.5 ${selectedId === biz.id ? "toggle-elevate toggle-elevated" : ""}`}
+          style={selectedId === biz.id ? { backgroundColor: `${biz.color}15`, color: biz.color, borderColor: `${biz.color}40` } : undefined}
+          onClick={() => onSelect(biz.id)}
+          data-testid={`button-business-${biz.id}`}
+        >
+          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: biz.color }} />
+          {biz.name}
+        </Button>
+      ))}
+      {businesses.length < 4 && (
+        <Button variant="ghost" size="sm" onClick={onManage} data-testid="button-add-business">
+          <Plus className="w-3.5 h-3.5 mr-1" />
+          {t("leads.addBusiness")}
+        </Button>
+      )}
+      {businesses.length > 0 && (
+        <Button variant="ghost" size="icon" onClick={onManage} data-testid="button-manage-businesses">
+          <Settings2 className="w-4 h-4" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function BusinessManageDialog({
+  open,
+  onOpenChange,
+  businesses,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  businesses: Business[];
+  onCreated: () => void;
+}) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState(BUSINESS_COLORS[0]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const createMut = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/businesses", { name: newName, color: newColor });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/businesses"] });
+      setNewName("");
+      setNewColor(BUSINESS_COLORS[(businesses.length + 1) % BUSINESS_COLORS.length]);
+      onCreated();
+      toast({ title: t("leads.businessCreated") });
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || t("leads.businessCreateFailed"), variant: "destructive" });
+    },
+  });
+
+  const updateMut = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const res = await apiRequest("PATCH", `/api/businesses/${id}`, { name });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/businesses"] });
+      setEditingId(null);
+      toast({ title: t("leads.businessUpdated") });
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/businesses/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/businesses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: t("leads.businessDeleted") });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-primary" />
+            {t("leads.manageBusinesses")}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          {businesses.map((biz) => (
+            <div key={biz.id} className="flex items-center gap-2" data-testid={`business-row-${biz.id}`}>
+              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: biz.color }} />
+              {editingId === biz.id ? (
+                <>
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="flex-1"
+                    data-testid={`input-edit-business-${biz.id}`}
+                    onKeyDown={(e) => e.key === "Enter" && editName.trim() && updateMut.mutate({ id: biz.id, name: editName.trim() })}
+                  />
+                  <Button size="sm" onClick={() => editName.trim() && updateMut.mutate({ id: biz.id, name: editName.trim() })} disabled={updateMut.isPending} data-testid={`button-save-business-${biz.id}`}>
+                    <Check className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} data-testid={`button-cancel-edit-${biz.id}`}>
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm font-medium">{biz.name}</span>
+                  <Button size="icon" variant="ghost" onClick={() => { setEditingId(biz.id); setEditName(biz.name); }} data-testid={`button-edit-business-${biz.id}`}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => { if (confirm(t("leads.confirmDeleteBusiness"))) deleteMut.mutate(biz.id); }} data-testid={`button-delete-business-${biz.id}`}>
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                  </Button>
+                </>
+              )}
+            </div>
+          ))}
+
+          {businesses.length < 4 && (
+            <div className="flex items-center gap-2 pt-2 border-t">
+              <div className="flex gap-1">
+                {BUSINESS_COLORS.slice(0, 6).map((c) => (
+                  <Button
+                    key={c}
+                    size="icon"
+                    variant="ghost"
+                    className={`w-6 h-6 min-h-0 rounded-full p-0 ${newColor === c ? "ring-2 ring-offset-2 ring-offset-background" : ""}`}
+                    onClick={() => setNewColor(c)}
+                    data-testid={`button-color-${c.replace("#", "")}`}
+                  >
+                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: c }} />
+                  </Button>
+                ))}
+              </div>
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder={t("leads.businessNamePlaceholder")}
+                className="flex-1"
+                data-testid="input-new-business-name"
+                onKeyDown={(e) => e.key === "Enter" && newName.trim() && createMut.mutate()}
+              />
+              <Button onClick={() => newName.trim() && createMut.mutate()} disabled={createMut.isPending || !newName.trim()} data-testid="button-create-business">
+                <Plus className="w-4 h-4 mr-1" />
+                {t("common.add")}
+              </Button>
+            </div>
+          )}
+
+          {businesses.length >= 4 && (
+            <p className="text-xs text-muted-foreground text-center pt-2">{t("leads.maxBusinessesReached")}</p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function LeadsPage() {
   const { t } = useTranslation();
   usePageTitle(t("leads.title"));
@@ -601,11 +800,25 @@ export default function LeadsPage() {
   const [activeTab, setActiveTab] = useState<"new" | "engaged">("new");
   const [smsLead, setSmsLead] = useState<Lead | null>(null);
   const [smsBody, setSmsBody] = useState("");
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
+  const [businessDialogOpen, setBusinessDialogOpen] = useState(false);
 
   const addLeadSchema = getAddLeadSchema(t);
 
+  const { data: businessList = [] } = useQuery<Business[]>({
+    queryKey: ["/api/businesses"],
+  });
+
   const { data: leads, isLoading } = useQuery<Lead[]>({
-    queryKey: ["/api/leads"],
+    queryKey: ["/api/leads", selectedBusinessId],
+    queryFn: async () => {
+      const url = selectedBusinessId
+        ? `/api/leads?businessId=${selectedBusinessId}`
+        : "/api/leads";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch leads");
+      return res.json();
+    },
   });
 
   const form = useForm({
@@ -613,15 +826,21 @@ export default function LeadsPage() {
     defaultValues: { name: "", email: "", phone: "", source: "", status: "new" },
   });
 
+  const invalidateLeads = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof addLeadSchema>) => {
-      const res = await apiRequest("POST", "/api/leads", data);
+      const payload: any = { ...data };
+      if (selectedBusinessId) payload.businessId = selectedBusinessId;
+      const res = await apiRequest("POST", "/api/leads", payload);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+      invalidateLeads();
       toast({ title: t("leads.leadCreated") });
       form.reset();
       setDialogOpen(false);
@@ -636,9 +855,7 @@ export default function LeadsPage() {
       await apiRequest("DELETE", `/api/leads/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+      invalidateLeads();
       toast({ title: t("leads.leadDeleted") });
     },
     onError: () => {
@@ -651,9 +868,7 @@ export default function LeadsPage() {
       await apiRequest("DELETE", "/api/leads");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+      invalidateLeads();
       toast({ title: t("leads.allCleared") });
     },
     onError: () => {
@@ -667,8 +882,7 @@ export default function LeadsPage() {
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+      invalidateLeads();
       toast({ title: data.message || t("leads.outreachEmailSent") });
     },
     onError: async (error: any) => {
@@ -686,7 +900,7 @@ export default function LeadsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      invalidateLeads();
       toast({ title: t("leads.draftSaved") });
     },
     onError: () => {
@@ -700,7 +914,7 @@ export default function LeadsPage() {
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      invalidateLeads();
       toast({ title: data.message || t("leads.outreachScheduled") });
     },
     onError: async (error: any) => {
@@ -716,7 +930,7 @@ export default function LeadsPage() {
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      invalidateLeads();
       toast({ title: data.message || t("leads.scheduleCancelled") });
     },
     onError: () => {
@@ -774,8 +988,7 @@ export default function LeadsPage() {
               clearInterval(pollInterval);
               setBulkSending(false);
               setBulkSendProgress("");
-              queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-              queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+              invalidateLeads();
               const msg = `${t("leads.sentEmailsCount", { sent: status.sent })}${status.failed > 0 ? `, ${t("leads.sentEmailsFailed", { failed: status.failed })}` : ""}`;
               const errorDetail = status.errors?.length > 0 ? status.errors[0] : undefined;
               toast({ title: msg, description: errorDetail, variant: status.sent === 0 && status.failed > 0 ? "destructive" : "default" });
@@ -792,8 +1005,7 @@ export default function LeadsPage() {
           }
         }, 3000);
       } else {
-        queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+        invalidateLeads();
         const msg = `${t("leads.sentEmailsCount", { sent: data.sent })}${data.failed > 0 ? `, ${t("leads.sentEmailsFailed", { failed: data.failed })}` : ""}`;
         toast({ title: msg });
       }
@@ -825,7 +1037,7 @@ export default function LeadsPage() {
               clearInterval(pollInterval);
               setOutreachGenerating(false);
               setOutreachProgress("");
-              queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+              invalidateLeads();
               toast({ title: t("leads.outreachGenerated") + ` (${status.generated}/${status.total})` });
             } else if (status.status === "error") {
               clearInterval(pollInterval);
@@ -840,7 +1052,7 @@ export default function LeadsPage() {
           }
         }, 3000);
       } else {
-        queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+        invalidateLeads();
         toast({ title: data.message || t("leads.outreachGenerated") });
       }
     },
@@ -1016,6 +1228,29 @@ export default function LeadsPage() {
         </Dialog>
         </div>
       </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {businessList.length > 0 ? (
+          <BusinessSelector
+            businesses={businessList}
+            selectedId={selectedBusinessId}
+            onSelect={setSelectedBusinessId}
+            onManage={() => setBusinessDialogOpen(true)}
+          />
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => setBusinessDialogOpen(true)} data-testid="button-add-first-business">
+            <Briefcase className="w-3.5 h-3.5 mr-1.5" />
+            {t("leads.addBusiness")}
+          </Button>
+        )}
+      </div>
+
+      <BusinessManageDialog
+        open={businessDialogOpen}
+        onOpenChange={setBusinessDialogOpen}
+        businesses={businessList}
+        onCreated={() => {}}
+      />
 
       <EmailAnalyticsSummary />
 

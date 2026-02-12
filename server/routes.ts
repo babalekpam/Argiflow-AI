@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { leads, appointments, aiAgents, dashboardStats, aiChatMessages } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
-import { registerSchema, loginSchema, insertLeadSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
+import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
 import Anthropic from "@anthropic-ai/sdk";
@@ -1637,12 +1637,81 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     }
   });
 
+  // ---- BUSINESSES ----
+
+  app.get("/api/businesses", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const result = await storage.getBusinessesByUser(userId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching businesses:", error);
+      res.status(500).json({ message: "Failed to fetch businesses" });
+    }
+  });
+
+  app.post("/api/businesses", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const existing = await storage.getBusinessesByUser(userId);
+      if (existing.length >= 4) {
+        return res.status(400).json({ message: "Maximum of 4 businesses allowed" });
+      }
+      const parsed = insertBusinessSchema.safeParse({ ...req.body, userId });
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten() });
+      }
+      const business = await storage.createBusiness(parsed.data);
+      res.json(business);
+    } catch (error) {
+      console.error("Error creating business:", error);
+      res.status(500).json({ message: "Failed to create business" });
+    }
+  });
+
+  app.patch("/api/businesses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const biz = await storage.getBusinessById(req.params.id as string);
+      if (!biz || biz.userId !== userId) {
+        return res.status(404).json({ message: "Business not found" });
+      }
+      const updateSchema = z.object({
+        name: z.string().min(1).max(100).optional(),
+        industry: z.string().max(100).optional(),
+        description: z.string().max(500).optional(),
+        color: z.string().max(20).optional(),
+      });
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid data" });
+      }
+      const updated = await storage.updateBusiness(biz.id, userId, parsed.data);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating business:", error);
+      res.status(500).json({ message: "Failed to update business" });
+    }
+  });
+
+  app.delete("/api/businesses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      await storage.deleteBusiness(req.params.id as string, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting business:", error);
+      res.status(500).json({ message: "Failed to delete business" });
+    }
+  });
+
   // ---- LEADS ----
 
   app.get("/api/leads", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const result = await storage.getLeadsByUser(userId);
+      const businessId = req.query.businessId as string | undefined;
+      const result = await storage.getLeadsByUser(userId, businessId);
       res.json(result);
     } catch (error) {
       console.error("Error fetching leads:", error);

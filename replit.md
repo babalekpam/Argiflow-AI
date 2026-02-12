@@ -20,7 +20,7 @@ Do not make changes to the file `Y`.
 **Core Features**:
 - **User Management**: Registration, login, email verification, password reset.
 - **Dashboard**: Centralized overview of business metrics.
-- **CRM & Leads**: Lead tracking, scoring, engagement analysis (email opens/clicks), and automated outreach.
+- **CRM & Leads**: Lead tracking, scoring, engagement analysis (email opens/clicks), and automated outreach. Supports up to 4 separate business profiles per user, each with its own filtered leads list. Businesses are managed via the `businesses` table and leads reference them via nullable `businessId` column.
 - **Sales Funnels**: Kanban-style pipeline with deal management and stage analytics.
 - **Appointment Scheduling**: Management of client appointments.
 - **AI Agent Management**: Catalog of specialized AI agents (e.g., Tax Lien, Govt Contracts) with configuration, task queuing, and lifecycle management.

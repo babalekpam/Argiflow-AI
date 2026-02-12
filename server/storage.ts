@@ -1,8 +1,9 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
   funnels, funnelStages, funnelDeals, websiteProfiles, automations, emailEvents, subscriptions,
-  agentConfigs, agentTasks, notifications, passwordResetTokens, emailVerificationTokens, voiceCalls,
+  agentConfigs, agentTasks, notifications, passwordResetTokens, emailVerificationTokens, voiceCalls, businesses,
   type Lead, type InsertLead,
+  type Business, type InsertBusiness,
   type Appointment, type InsertAppointment,
   type AiAgent, type InsertAiAgent,
   type DashboardStats, type InsertDashboardStats,
@@ -32,7 +33,12 @@ export interface IStorage {
   getUserById(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: { email: string; passwordHash: string; firstName: string; lastName: string }): Promise<User>;
-  getLeadsByUser(userId: string): Promise<Lead[]>;
+  getBusinessesByUser(userId: string): Promise<Business[]>;
+  getBusinessById(id: string): Promise<Business | undefined>;
+  createBusiness(business: InsertBusiness): Promise<Business>;
+  updateBusiness(id: string, userId: string, data: Partial<Pick<Business, "name" | "industry" | "description" | "color">>): Promise<Business | undefined>;
+  deleteBusiness(id: string, userId: string): Promise<void>;
+  getLeadsByUser(userId: string, businessId?: string): Promise<Lead[]>;
   getLeadById(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined>;
@@ -134,7 +140,34 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getLeadsByUser(userId: string): Promise<Lead[]> {
+  async getBusinessesByUser(userId: string): Promise<Business[]> {
+    return db.select().from(businesses).where(eq(businesses.userId, userId)).orderBy(asc(businesses.createdAt));
+  }
+
+  async getBusinessById(id: string): Promise<Business | undefined> {
+    const [result] = await db.select().from(businesses).where(eq(businesses.id, id));
+    return result;
+  }
+
+  async createBusiness(business: InsertBusiness): Promise<Business> {
+    const [result] = await db.insert(businesses).values(business).returning();
+    return result;
+  }
+
+  async updateBusiness(id: string, userId: string, data: Partial<Pick<Business, "name" | "industry" | "description" | "color">>): Promise<Business | undefined> {
+    const [result] = await db.update(businesses).set(data).where(and(eq(businesses.id, id), eq(businesses.userId, userId))).returning();
+    return result;
+  }
+
+  async deleteBusiness(id: string, userId: string): Promise<void> {
+    await db.update(leads).set({ businessId: null }).where(and(eq(leads.businessId, id), eq(leads.userId, userId)));
+    await db.delete(businesses).where(and(eq(businesses.id, id), eq(businesses.userId, userId)));
+  }
+
+  async getLeadsByUser(userId: string, businessId?: string): Promise<Lead[]> {
+    if (businessId) {
+      return db.select().from(leads).where(and(eq(leads.userId, userId), eq(leads.businessId, businessId))).orderBy(desc(leads.createdAt));
+    }
     return db.select().from(leads).where(eq(leads.userId, userId)).orderBy(desc(leads.createdAt));
   }
 

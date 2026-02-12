@@ -5,9 +5,24 @@ import { z } from "zod";
 
 export * from "./models/auth";
 
+export const businesses = pgTable("businesses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  industry: text("industry"),
+  description: text("description"),
+  color: text("color").notNull().default("#38bdf8"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBusinessSchema = createInsertSchema(businesses).omit({ id: true, createdAt: true });
+export type Business = typeof businesses.$inferSelect;
+export type InsertBusiness = z.infer<typeof insertBusinessSchema>;
+
 export const leads = pgTable("leads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  businessId: varchar("business_id"),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
