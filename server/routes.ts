@@ -254,8 +254,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
 
       const hasSmtpEnv = !!(settings?.smtpHost || process.env.SMTP_HOST) && !!(settings?.smtpUsername || process.env.SMTP_USERNAME) && !!(settings?.smtpPassword || process.env.SMTP_PASSWORD);
       const hasSgKey = !!settings?.sendgridApiKey;
-      let eprov = settings?.emailProvider || "sendgrid";
-      if (eprov === "sendgrid" && !hasSgKey && hasSmtpEnv) eprov = "smtp";
+      let eprov = (hasSmtpEnv) ? "smtp" : (settings?.emailProvider || "sendgrid");
 
       if (eprov === "smtp") {
         if (!hasSmtpEnv) {
@@ -549,11 +548,13 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
 
   const hasSmtp = !!(smtpHost && smtpUsername && smtpPassword);
   const hasSendgrid = !!userSettings.sendgridApiKey;
+  const hasSmtpEnvVars = !!(process.env.SMTP_HOST && process.env.SMTP_USERNAME && process.env.SMTP_PASSWORD);
 
   let emailProvider = userSettings.emailProvider || "sendgrid";
-  if (emailProvider === "sendgrid" && !hasSendgrid && hasSmtp) {
+  if (hasSmtpEnvVars || hasSmtp) {
     emailProvider = "smtp";
   }
+  console.log(`[EMAIL] Provider: ${emailProvider}, hasSmtp: ${hasSmtp}, hasSmtpEnv: ${hasSmtpEnvVars}, hasSendgrid: ${hasSendgrid}`);
 
   if (emailProvider === "smtp") {
     if (!hasSmtp) {
@@ -561,9 +562,11 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
     }
   } else {
     if (!hasSendgrid) {
+      console.log(`[EMAIL] FATAL: No SendGrid key AND no SMTP fallback. Settings: emailProvider=${userSettings.emailProvider}, sgKey=${userSettings.sendgridApiKey ? 'SET' : 'UNSET'}`);
       return { success: false, error: "SendGrid API key required. Go to Settings > Integrations and enter your SendGrid API key to send emails." };
     }
   }
+  console.log(`[EMAIL] Sending via: ${emailProvider} to ${lead.email}`);
 
   const senderEmail = userSettings.senderEmail;
   const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
@@ -1797,8 +1800,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       const bulkSmtpPass = settings?.smtpPassword || process.env.SMTP_PASSWORD;
       const bulkHasSmtp = !!(bulkSmtpHost && bulkSmtpUser && bulkSmtpPass);
       const bulkHasSg = !!settings?.sendgridApiKey;
-      let bulkProvider = settings?.emailProvider || "sendgrid";
-      if (bulkProvider === "sendgrid" && !bulkHasSg && bulkHasSmtp) bulkProvider = "smtp";
+      let bulkProvider = bulkHasSmtp ? "smtp" : (settings?.emailProvider || "sendgrid");
 
       if (bulkProvider === "smtp") {
         if (!bulkHasSmtp) {
