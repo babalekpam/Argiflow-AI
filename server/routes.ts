@@ -803,7 +803,7 @@ COMMUNICATION STANDARDS:
     });
 
     let loopCount = 0;
-    const maxLoops = 10;
+    const maxLoops = 5;
     let currentMessages = [...claudeMessages];
 
     while (response.stop_reason === "tool_use" && loopCount < maxLoops) {
@@ -2271,14 +2271,23 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       const userMessage = await storage.createChatMessage({ userId, role: "user", content });
 
       const history = await storage.getChatMessages(userId);
-      const chatHistory = history.slice(-20).map(m => ({ role: m.role, content: m.content }));
+      const chatHistory = history.slice(-10).map(m => ({ role: m.role, content: m.content }));
 
-      const aiReply = await handleAiAction(userId, content, chatHistory);
+      const timeoutMs = 90000;
+      const aiReply = await Promise.race([
+        handleAiAction(userId, content, chatHistory),
+        new Promise<string>((_, reject) => setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs)),
+      ]);
       const aiMessage = await storage.createChatMessage({ userId, role: "assistant", content: aiReply });
 
       res.json({ userMessage, aiMessage });
-    } catch (error) {
-      console.error("Error sending chat message:", error);
+    } catch (error: any) {
+      console.error("Error sending chat message:", error?.message || error);
+      if (error?.message === "AI_TIMEOUT") {
+        const timeoutMsg = "The AI took too long to respond. This usually happens with complex requests like lead generation with web search. Please try again — simpler requests will be faster.";
+        const aiMessage = await storage.createChatMessage({ userId: req.session.userId!, role: "assistant", content: timeoutMsg });
+        return res.json({ userMessage: { userId: req.session.userId!, role: "user", content }, aiMessage });
+      }
       res.status(500).json({ message: "Failed to send message" });
     }
   });
