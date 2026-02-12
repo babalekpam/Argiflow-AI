@@ -777,7 +777,8 @@ export default function LeadsPage() {
               queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
               queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
               const msg = `${t("leads.sentEmailsCount", { sent: status.sent })}${status.failed > 0 ? `, ${t("leads.sentEmailsFailed", { failed: status.failed })}` : ""}`;
-              toast({ title: msg });
+              const errorDetail = status.errors?.length > 0 ? status.errors[0] : undefined;
+              toast({ title: msg, description: errorDetail, variant: status.sent === 0 && status.failed > 0 ? "destructive" : "default" });
             } else if (status.status === "error") {
               clearInterval(pollInterval);
               setBulkSending(false);
