@@ -946,8 +946,32 @@ COMMUNICATION STANDARDS:
       status: error?.status,
       type: error?.type,
       code: error?.error?.type,
-      errorBody: error?.error,
     });
+
+    if (error?.status === 429) {
+      const retryAfter = error?.headers?.["retry-after"];
+      const waitMs = retryAfter ? Math.min(parseInt(retryAfter) * 1000, 30000) : 5000;
+      console.log(`Rate limited — retrying in ${waitMs}ms...`);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+      try {
+        const retryResponse = await anthropic.messages.create({
+          model: CLAUDE_MODEL,
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: claudeMessages,
+        });
+        const retryText = retryResponse.content
+          .filter((b): b is Anthropic.TextBlock => b.type === "text")
+          .map(b => b.text)
+          .join("\n")
+          .trim();
+        if (retryText) return retryText;
+      } catch (retryErr: any) {
+        console.error("Retry also failed:", retryErr?.message);
+      }
+      return "The AI is currently handling a lot of requests. Please wait about 30 seconds and try again — your message will go through. In the meantime, actions like booking appointments and activating agents still work!";
+    }
+
     return fallbackResponse(userId, userMessage);
   }
 }
@@ -1013,8 +1037,21 @@ async function claudeWebSearch(query: string): Promise<string> {
       .join("\n");
 
     return text || "No results found.";
-  } catch (error) {
-    console.error("Claude web search error:", error);
+  } catch (error: any) {
+    console.error("Claude web search error:", error?.message || error);
+    if (error?.status === 429) {
+      await new Promise(r => setTimeout(r, 5000));
+      try {
+        const retry = await anthropic.messages.create({
+          model: CLAUDE_MODEL, max_tokens: 4000,
+          system: "You are a helpful research assistant. Provide a clear, concise summary.",
+          messages: [{ role: "user", content: query }],
+        });
+        const t = retry.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map(b => b.text).join("\n");
+        if (t) return t;
+      } catch {}
+      return "The AI is currently busy. Please wait about 30 seconds and try your search again.";
+    }
     return "Search temporarily unavailable. Please try again.";
   }
 }
@@ -1049,8 +1086,21 @@ async function claudeGenerate(prompt: string, type: string = "general"): Promise
       .join("\n");
 
     return text || "Unable to generate content. Please try again.";
-  } catch (error) {
-    console.error("Claude generate error:", error);
+  } catch (error: any) {
+    console.error("Claude generate error:", error?.message || error);
+    if (error?.status === 429) {
+      await new Promise(r => setTimeout(r, 5000));
+      try {
+        const retry = await anthropic.messages.create({
+          model: CLAUDE_MODEL, max_tokens: 2048,
+          system: systemPrompts[type] || systemPrompts.general,
+          messages: [{ role: "user", content: prompt }],
+        });
+        const t = retry.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map(b => b.text).join("\n");
+        if (t) return t;
+      } catch {}
+      return "The AI is currently busy. Please wait about 30 seconds and try again.";
+    }
     return "Content generation temporarily unavailable.";
   }
 }
