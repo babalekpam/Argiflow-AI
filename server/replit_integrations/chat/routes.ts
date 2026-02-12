@@ -3,13 +3,18 @@ import Anthropic from "@anthropic-ai/sdk";
 import { chatStorage } from "./storage";
 
 const anthropic = new Anthropic(
-  process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL
+  process.env.ANTHROPIC_API_KEY
+    ? {
+        apiKey: process.env.ANTHROPIC_API_KEY,
+        baseURL: "https://api.anthropic.com",
+      }
+    : process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL
     ? {
         apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
         baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
       }
     : {
-        apiKey: process.env.ANTHROPIC_API_KEY || "",
+        apiKey: "",
         baseURL: "https://api.anthropic.com",
       }
 );

@@ -20,18 +20,18 @@ import { REGIONS, detectRegion, getRegionConfig } from "./region-config";
 // ============================================================
 
 const anthropicConfig: { apiKey: string; baseURL?: string } = (() => {
+  if (process.env.ANTHROPIC_API_KEY) {
+    console.log("[AI] Using direct Anthropic API key (user-provided)");
+    return {
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      baseURL: "https://api.anthropic.com",
+    };
+  }
   if (process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
     console.log("[AI] Using Replit AI Integration for Anthropic");
     return {
       apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
       baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-    };
-  }
-  if (process.env.ANTHROPIC_API_KEY) {
-    console.log("[AI] Using direct Anthropic API key");
-    return {
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      baseURL: "https://api.anthropic.com",
     };
   }
   console.error("[AI] WARNING: No Anthropic API key found! AI features will not work.");
