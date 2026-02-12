@@ -1726,19 +1726,10 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
   const outreachGenerationStatus = new Map<string, { status: string; generated: number; total: number; error?: string }>();
 
-  app.post("/api/leads/generate-outreach", isAuthenticated, async (req, res) => {
+  async function processOutreachGeneration(userId: string) {
     try {
-      const userId = req.session.userId!;
       const allLeads = await storage.getLeadsByUser(userId);
       const needsOutreach = allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
-
-      if (needsOutreach.length === 0) {
-        return res.json({ message: "All leads already have outreach drafts!", generated: 0, status: "complete" });
-      }
-
-      outreachGenerationStatus.set(userId, { status: "processing", generated: 0, total: needsOutreach.length });
-      res.json({ message: `Generating drafts for ${needsOutreach.length} leads in the background...`, total: needsOutreach.length, status: "processing" });
-
       const user = await storage.getUserById(userId);
       const userSettings = await storage.getSettingsByUser(userId);
       const bookingLink = userSettings?.calendarLink || "";
@@ -1786,9 +1777,34 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       outreachGenerationStatus.set(userId, { status: "complete", generated, total: needsOutreach.length });
       console.log(`Outreach generation complete for user ${userId}: ${generated}/${needsOutreach.length}`);
     } catch (error) {
-      console.error("Error generating outreach drafts:", error);
-      outreachGenerationStatus.set(req.session.userId!, { status: "error", generated: 0, total: 0, error: "Failed to generate outreach drafts" });
+      console.error("Error in background outreach generation:", error);
+      outreachGenerationStatus.set(userId, { status: "error", generated: 0, total: 0, error: "Failed to generate outreach drafts" });
     }
+  }
+
+  app.post("/api/leads/generate-outreach", isAuthenticated, async (req, res) => {
+    const userId = req.session.userId!;
+    const allLeads = await storage.getLeadsByUser(userId);
+    const needsOutreach = allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
+
+    if (needsOutreach.length === 0) {
+      return res.json({ message: "All leads already have outreach drafts!", generated: 0, status: "complete" });
+    }
+
+    const existing = outreachGenerationStatus.get(userId);
+    if (existing && existing.status === "processing") {
+      return res.json({ message: "Already generating drafts...", total: existing.total, status: "processing" });
+    }
+
+    outreachGenerationStatus.set(userId, { status: "processing", generated: 0, total: needsOutreach.length });
+    res.json({ message: `Generating drafts for ${needsOutreach.length} leads...`, total: needsOutreach.length, status: "processing" });
+
+    setImmediate(() => {
+      processOutreachGeneration(userId).catch(err => {
+        console.error("Background outreach generation failed:", err);
+        outreachGenerationStatus.set(userId, { status: "error", generated: 0, total: 0, error: String(err) });
+      });
+    });
   });
 
   app.get("/api/leads/generate-outreach/status", isAuthenticated, async (req, res) => {
