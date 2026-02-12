@@ -147,6 +147,7 @@ export default function VoiceAiPage() {
   const [configAgent, setConfigAgent] = useState<AiAgent | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editScript, setEditScript] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [deployName, setDeployName] = useState("");
   const [deployDesc, setDeployDesc] = useState("");
@@ -240,6 +241,7 @@ export default function VoiceAiPage() {
     setConfigAgent(agent);
     setEditName(agent.name);
     setEditDescription(agent.description || "");
+    setEditScript(agent.script || "");
     setEditStatus(agent.status);
   };
 
@@ -248,7 +250,7 @@ export default function VoiceAiPage() {
     updateMutation.mutate(
       {
         id: configAgent.id,
-        data: { name: editName, description: editDescription, status: editStatus },
+        data: { name: editName, description: editDescription, script: editScript, status: editStatus },
       },
       {
         onSuccess: () => {
@@ -714,7 +716,7 @@ export default function VoiceAiPage() {
       </Dialog>
 
       <Dialog open={!!configAgent} onOpenChange={(open) => !open && setConfigAgent(null)}>
-        <DialogContent data-testid="dialog-configure-voice">
+        <DialogContent className="max-h-[85vh] overflow-y-auto" data-testid="dialog-configure-voice">
           <DialogHeader>
             <DialogTitle>Configure Voice Agent</DialogTitle>
           </DialogHeader>
@@ -737,6 +739,18 @@ export default function VoiceAiPage() {
                 onChange={(e) => setEditDescription(e.target.value)}
                 rows={3}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="voice-script">Call Script / Talking Points</Label>
+              <Textarea
+                id="voice-script"
+                data-testid="input-voice-script"
+                value={editScript}
+                onChange={(e) => setEditScript(e.target.value)}
+                rows={8}
+                placeholder="Paste or write the script this agent should follow during phone calls. Include the greeting, talking points, objection handling, and closing."
+              />
+              <p className="text-xs text-muted-foreground">The AI will use this as its conversation guide during calls -- not read it word-for-word.</p>
             </div>
             <div className="flex items-center justify-between gap-4">
               <Label htmlFor="voice-active">Active (Live)</Label>
