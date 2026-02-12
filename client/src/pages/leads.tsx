@@ -63,7 +63,8 @@ import {
   MessageSquare,
 } from "lucide-react";
 import type { Lead, Business } from "@shared/schema";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "wouter";
 import { Briefcase, Palette, Settings2 } from "lucide-react";
 
 function getAddLeadSchema(t: (key: string) => string) {
@@ -802,6 +803,13 @@ export default function LeadsPage() {
   const [smsBody, setSmsBody] = useState("");
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
   const [businessDialogOpen, setBusinessDialogOpen] = useState(false);
+  const [, setLocation] = useLocation();
+
+  const sourceFilter = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("source") || null;
+  }, []);
+  const [activeSourceFilter, setActiveSourceFilter] = useState<string | null>(sourceFilter);
 
   const addLeadSchema = getAddLeadSchema(t);
 
@@ -1082,8 +1090,12 @@ export default function LeadsPage() {
 
   const allLeads = leads || [];
 
-  const newLeads = allLeads.filter(l => !l.outreachSentAt);
-  const engagedLeads = allLeads.filter(l => !!l.outreachSentAt);
+  const sourceFilteredLeads = activeSourceFilter
+    ? allLeads.filter(l => l.source === activeSourceFilter)
+    : allLeads;
+
+  const newLeads = sourceFilteredLeads.filter(l => !l.outreachSentAt);
+  const engagedLeads = sourceFilteredLeads.filter(l => !!l.outreachSentAt);
 
   const currentLeads = activeTab === "new" ? newLeads : engagedLeads;
 
@@ -1099,6 +1111,26 @@ export default function LeadsPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {activeSourceFilter && (
+        <div className="flex items-center gap-2 flex-wrap" data-testid="banner-source-filter">
+          <Badge variant="secondary" className="text-sm py-1 px-3">
+            <Target className="w-3 h-3 mr-1.5" />
+            {activeSourceFilter}
+          </Badge>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setActiveSourceFilter(null);
+              setLocation("/dashboard/leads");
+            }}
+            data-testid="button-clear-source-filter"
+          >
+            <X className="w-3 h-3 mr-1" />
+            {t("leads.showAll")}
+          </Button>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-leads-title">{t("leads.title")}</h1>

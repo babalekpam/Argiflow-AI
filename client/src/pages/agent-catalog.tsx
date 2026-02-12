@@ -537,7 +537,7 @@ export default function AgentCatalogPage() {
                         variant="ghost"
                         onClick={() => {
                           setLeadsDialog(null);
-                          window.location.href = "/dashboard/leads";
+                          window.location.href = `/dashboard/leads?source=${encodeURIComponent(leadsDialog?.name + " Agent")}`;
                         }}
                         data-testid={`button-open-crm-${lead.id}`}
                       >
@@ -557,7 +557,7 @@ export default function AgentCatalogPage() {
             <Button
               onClick={() => {
                 setLeadsDialog(null);
-                window.location.href = "/dashboard/leads";
+                window.location.href = `/dashboard/leads?source=${encodeURIComponent(leadsDialog?.name + " Agent")}`;
               }}
               data-testid="button-go-to-crm"
             >

@@ -651,6 +651,7 @@
     "sentEmailsFailed": "{{failed}} failed",
     "sendAllFailed": "Failed to send outreach emails",
     "manageAndTrack": "Manage and track all your leads in one place.",
+    "showAll": "Show All Leads",
     "selectSource": "Select source",
     "selectStatus": "Select status",
     "googleAds": "Google Ads",
