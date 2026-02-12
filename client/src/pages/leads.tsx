@@ -786,8 +786,6 @@ export default function LeadsPage() {
     },
   });
 
-  const missingOutreachCount = newLeads.filter(l => !l.outreach || l.outreach.trim() === "").length;
-
   const [expandedLeads, setExpandedLeads] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -822,6 +820,7 @@ export default function LeadsPage() {
   );
 
   const unsentCount = newLeads.filter(l => l.outreach && l.email).length;
+  const missingOutreachCount = newLeads.filter(l => !l.outreach || l.outreach.trim() === "").length;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
