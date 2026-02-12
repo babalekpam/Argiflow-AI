@@ -6,36 +6,53 @@ export function LanguageSwitcher({ variant = "default" }: { variant?: "default" 
   const { i18n } = useTranslation();
   const currentLang = i18n.language?.startsWith("fr") ? "fr" : "en";
 
-  const toggleLanguage = () => {
-    const newLang = currentLang === "en" ? "fr" : "en";
-    i18n.changeLanguage(newLang);
-    localStorage.setItem("lang", newLang);
+  const switchToLanguage = (lang: string) => {
+    i18n.changeLanguage(lang);
+    localStorage.setItem("lang", lang);
   };
 
   if (variant === "compact") {
     return (
-      <Button
-        size="icon"
-        variant="ghost"
-        onClick={toggleLanguage}
-        data-testid="button-language-toggle"
-        title={currentLang === "en" ? "Passer en français" : "Switch to English"}
-      >
-        <span className="text-xs font-bold">{currentLang === "en" ? "FR" : "EN"}</span>
-      </Button>
+      <div className="flex items-center gap-0.5" data-testid="button-language-toggle">
+        <Button
+          size="sm"
+          variant={currentLang === "en" ? "default" : "ghost"}
+          onClick={() => switchToLanguage("en")}
+          className="px-2 min-h-8"
+        >
+          <span className="text-xs font-bold">EN</span>
+        </Button>
+        <Button
+          size="sm"
+          variant={currentLang === "fr" ? "default" : "ghost"}
+          onClick={() => switchToLanguage("fr")}
+          className="px-2 min-h-8"
+        >
+          <span className="text-xs font-bold">FR</span>
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={toggleLanguage}
-      data-testid="button-language-toggle"
-      className="gap-1.5"
-    >
-      <Globe className="w-4 h-4" />
-      <span className="text-xs font-medium">{currentLang === "en" ? "FR" : "EN"}</span>
-    </Button>
+    <div className="flex items-center gap-0.5" data-testid="button-language-toggle">
+      <Globe className="w-4 h-4 mr-1 text-muted-foreground" />
+      <Button
+        size="sm"
+        variant={currentLang === "en" ? "default" : "ghost"}
+        onClick={() => switchToLanguage("en")}
+        className="px-2 min-h-8"
+      >
+        <span className="text-xs font-medium">EN</span>
+      </Button>
+      <Button
+        size="sm"
+        variant={currentLang === "fr" ? "default" : "ghost"}
+        onClick={() => switchToLanguage("fr")}
+        className="px-2 min-h-8"
+      >
+        <span className="text-xs font-medium">FR</span>
+      </Button>
+    </div>
   );
 }
