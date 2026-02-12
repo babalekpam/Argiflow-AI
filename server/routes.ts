@@ -396,7 +396,7 @@ Brief overview of what you recommend and expected ROI timeline.
 Be specific, actionable, and tailored to their exact business. Use real-world examples relevant to their industry. Don't be generic — make this feel like a $5,000 consulting deliverable they're getting for free.`;
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-5",
       max_tokens: 4000,
       messages: [{ role: "user", content: prompt }],
     });
@@ -795,7 +795,7 @@ COMMUNICATION STANDARDS:
   try {
     // First Claude call — may use tools
     let response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-5",
       max_tokens: 4096,
       system: systemPrompt,
       messages: claudeMessages,
@@ -833,7 +833,7 @@ COMMUNICATION STANDARDS:
       }
 
       response = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-5",
         max_tokens: 4096,
         system: systemPrompt,
         messages: currentMessages,
@@ -850,7 +850,13 @@ COMMUNICATION STANDARDS:
 
     return finalText || "Done! I've completed the actions. Check your dashboard to see the updates.";
   } catch (error: any) {
-    console.error("Claude API error:", error);
+    console.error("Claude API error details:", {
+      message: error?.message,
+      status: error?.status,
+      type: error?.type,
+      code: error?.error?.type,
+      errorBody: error?.error,
+    });
     return fallbackResponse(userId, userMessage);
   }
 }
@@ -897,7 +903,7 @@ async function fallbackResponse(userId: string, msg: string): Promise<string> {
 async function claudeWebSearch(query: string): Promise<string> {
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-5",
       max_tokens: 4000,
       system: "You are a helpful research assistant. Search the web and provide a clear, concise summary of the findings. Include relevant source URLs when available.",
       messages: [{ role: "user", content: query }],
@@ -940,7 +946,7 @@ async function claudeGenerate(prompt: string, type: string = "general"): Promise
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-5",
       max_tokens: 2048,
       system: systemPrompts[type] || systemPrompts.general,
       messages: [{ role: "user", content: prompt }],
@@ -1481,7 +1487,7 @@ Phone numbers, email addresses, physical address, scheduling links, social media
 A comprehensive 3-4 paragraph summary of this business that an AI agent could use to represent the company professionally. Include the company name, what they do, who they serve, and what makes them different.`;
 
           const response = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
+            model: "claude-sonnet-4-5",
             max_tokens: 8000,
             system: "You are a business analyst. Your job is to thoroughly analyze business websites and extract structured information that will be used to train AI agents. Be thorough, specific, and use actual information from the website — never make things up. Always search the web to find real data from the website.",
             messages: [{ role: "user", content: searchPrompt }],
@@ -2152,7 +2158,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
 
         try {
           const response = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
+            model: "claude-sonnet-4-5",
             max_tokens: 2000,
             messages: [{ role: "user", content: scriptPrompt }],
           });
@@ -2490,7 +2496,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
           );
 
           const aiResponse = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
+            model: "claude-sonnet-4-5",
             max_tokens: 300,
             system: systemPrompt,
             messages: conversationHistory,
