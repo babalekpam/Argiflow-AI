@@ -852,6 +852,14 @@ LEAD GENERATION (CRITICAL):
 4. EVERY lead MUST include all fields: name, email, phone, company, source, status="new", score, intent_signal (what buying signal found), notes (research about prospect), outreach (personalized 3-5 sentence email referencing their situation/pain point).${bookingLink ? ` Include booking link in outreach: ${bookingLink}` : ' Include CTA: "Would you be open to a 15-minute call this week?"'}
 5. ALWAYS end outreach with signature: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246
 
+DECISION-MAKER TARGETING (MANDATORY):
+- ALWAYS target decision makers: CEO, Founder, Owner, President, Managing Director, VP, Director, Partner, CFO, COO, CTO, CMO, Head of Department, General Manager.
+- NEVER target gatekeepers: receptionist, assistant, secretary, front desk, office manager, coordinator, clerk.
+- When searching, add terms like "CEO", "founder", "owner", "director" to your queries.
+- Use LinkedIn, company About/Team pages, press releases, and industry directories to find C-suite and senior leadership contacts.
+- If only a general contact (info@, contact@) is found, note the decision maker's NAME in the lead and address the outreach to them personally.
+- In the lead's "notes" field, always include the person's title/role to confirm they are a decision maker.
+
 AGENT-TO-FUNNEL: When generating leads for a specific agent (Tax Lien, Govt Contracts, Lead Gen, etc.), ALWAYS include agent_type in generate_leads (e.g. agent_type="tax-lien"). This auto-creates or finds the matching funnel pipeline and adds leads as deals. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage.
 
 TOOL SEQUENCING: web_search → generate_leads (with agent_type if applicable) → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results and suggest next steps. Combine tools in one flow when beneficial.
@@ -878,7 +886,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
     // CRM Tools
     {
       name: "generate_leads",
-      description: "Save leads to CRM. MUST use web_search FIRST. Never fabricate data. If leads come from a specific agent (e.g. tax-lien, lead-gen), include agent_type to auto-add them to the matching funnel pipeline.",
+      description: "Save leads to CRM. MUST use web_search FIRST. Never fabricate data. ALWAYS target decision makers (CEO, Founder, Owner, Director, VP, Partner) — NEVER gatekeepers. If leads come from a specific agent (e.g. tax-lien, lead-gen), include agent_type to auto-add them to the matching funnel pipeline.",
       input_schema: {
         type: "object" as const,
         properties: {
@@ -888,7 +896,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
             items: {
               type: "object",
               properties: {
-                name: { type: "string", description: "Real contact/business name from web" },
+                name: { type: "string", description: "Decision maker's full name (CEO, Founder, Owner, Director, VP). Never use gatekeeper names." },
                 email: { type: "string", description: "Real email from website/directory" },
                 phone: { type: "string", description: "Real phone from website/directory" },
                 company: { type: "string", description: "Company name" },
