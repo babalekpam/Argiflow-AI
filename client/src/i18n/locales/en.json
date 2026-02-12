@@ -1,1991 +1,858 @@
 {
   "common": {
     "loading": "Loading...",
+    "aiActive": "AI Active",
+    "live": "Live",
     "save": "Save",
     "saving": "Saving...",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
-    "copy": "Copy",
-    "copied": "Copied",
     "close": "Close",
     "back": "Back",
     "next": "Next",
+    "continue": "Continue",
     "submit": "Submit",
+    "search": "Search...",
+    "viewAll": "View All",
     "confirm": "Confirm",
-    "search": "Search",
-    "filter": "Filter",
-    "reset": "Reset",
-    "preview": "Preview",
-    "download": "Download",
-    "install": "Install",
+    "create": "Create",
+    "update": "Update",
+    "add": "Add",
+    "enable": "Enable",
+    "disable": "Disable",
     "active": "Active",
-    "paused": "Paused",
-    "new": "New",
-    "status": "Status",
-    "actions": "Actions",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "completed": "Completed",
+    "failed": "Failed",
+    "error": "Error",
+    "success": "Success",
+    "send": "Send",
+    "sending": "Sending...",
+    "sent": "Sent",
+    "scheduled": "Scheduled",
+    "clear": "Clear",
+    "optional": "optional",
+    "characters": "characters",
+    "segments": "segments",
+    "new": "NEW",
+    "configure": "Configure",
+    "deploy": "Deploy",
+    "stop": "Stop",
+    "start": "Start",
+    "pause": "Pause",
+    "run": "Run",
+    "test": "Test",
+    "preview": "Preview",
     "name": "Name",
     "email": "Email",
     "phone": "Phone",
     "date": "Date",
+    "time": "Time",
+    "description": "Description",
+    "notes": "Notes",
+    "actions": "Actions",
+    "details": "Details",
+    "overview": "Overview",
+    "status": "Status",
     "type": "Type",
+    "from": "From",
     "score": "Score",
     "source": "Source",
-    "notes": "Notes",
-    "description": "Description",
-    "user": "User",
-    "or": "or",
-    "optional": "optional",
-    "required": "required",
-    "configured": "Configured",
-    "missing": "Missing",
-    "connected": "Connected",
-    "notConnected": "Not Connected",
-    "none": "-",
-    "noData": "No data",
-    "proPlan": "Pro Plan",
-    "includedFree": "Included Free",
-    "poweredBy": "Powered by Anthropic Claude",
     "thinking": "Thinking...",
     "generating": "Generating...",
-    "generatingAiScript": "Generating AI Script...",
     "brandName": "ArgiFlow",
-    "brandTagline": "AI",
-    "argilette": "ARGILETTE",
-    "platformAdmin": "Platform Admin"
+    "brandTag": "AI",
+    "poweredBy": "Powered by Anthropic Claude"
   },
   "nav": {
-    "home": "Home",
     "services": "Services",
-    "agents": "AI Agents",
+    "aiAgents": "AI Agents",
     "platform": "Platform",
     "pricing": "Pricing",
+    "results": "Results",
     "faq": "FAQ",
-    "login": "Login",
-    "getStarted": "Get Started",
-    "startFreeTrial": "Start Free Trial",
-    "bookDemo": "Book a Demo",
-    "learnMore": "Learn More",
-    "signUp": "Sign Up"
+    "clientLogin": "Client Login",
+    "getStarted": "Get Started"
+  },
+  "sidebar": {
+    "main": "Main",
+    "aiAutomation": "AI Automation",
+    "growth": "Growth",
+    "overview": "Overview",
+    "strategy": "Strategy",
+    "leadsCrm": "Leads & CRM",
+    "salesFunnels": "Sales Funnels",
+    "appointments": "Appointments",
+    "agentCatalog": "Agent Catalog",
+    "aiAgentsNav": "AI Agents",
+    "voiceAi": "Voice AI",
+    "chatbots": "Chatbots",
+    "emailSms": "Email & SMS",
+    "automations": "Automations",
+    "resources": "Resources",
+    "demosInstall": "Demos & Install",
+    "training": "Training",
+    "settings": "Settings",
+    "platformAdmin": "Platform Admin",
+    "logout": "Log out"
+  },
+  "dashboardLayout": {
+    "search": "Search...",
+    "proTrial": "Pro Trial",
+    "daysRemaining_one": "{{count}} day remaining.",
+    "daysRemaining_other": "{{count}} days remaining.",
+    "fullAccess": "Full access to all features.",
+    "choosePlan": "Choose a Plan",
+    "trialEnded": "Your Pro trial has ended.",
+    "continueUsing": "Choose a plan to continue using ArgiFlow.",
+    "upgradeNow": "Upgrade Now",
+    "trialPlan": "{{plan}} Trial",
+    "activePlan": "{{plan}} Plan",
+    "noPlan": "No Plan",
+    "free": "Free",
+    "unauthorized": "Unauthorized",
+    "loggingIn": "Logging in again..."
   },
   "landing": {
     "hero": {
-      "badge": "AI-Powered Marketing Automation",
-      "title": "Automate Your Marketing with AI That Actually Works",
-      "subtitle": "ArgiFlow combines 10 specialized AI agents to handle your leads, appointments, email campaigns, and sales funnels — so you can focus on closing deals.",
-      "cta": "Start Free 14-Day Trial",
-      "secondaryCta": "Watch Demo",
+      "badge": "AI Automation Platform for Revenue-Driven Businesses",
+      "titlePart1": "Deploy AI Agents That",
+      "titleHighlight": "Find, Engage & Close",
+      "titlePart2": "Deals For You",
+      "description": "10+ specialized AI agents that discover opportunities, generate leads, send outreach, track engagement, and manage your pipeline — all on autopilot. Available for Western and African markets.",
       "stat1Value": "10+",
-      "stat1Label": "AI Agents",
-      "stat2Value": "50K+",
-      "stat2Label": "Leads Generated",
-      "stat3Value": "99.9%",
-      "stat3Label": "Uptime",
-      "stat4Value": "24/7",
-      "stat4Label": "AI Support"
+      "stat1Label": "AI Agents Available",
+      "stat2Value": "24/7",
+      "stat2Label": "Autonomous Operation",
+      "stat3Value": "2",
+      "stat3Label": "Global Regions",
+      "ctaGetStarted": "Get Started Free",
+      "ctaExplore": "Explore AI Agents",
+      "trust1": "14-Day Free Trial",
+      "trust2": "Western + African Markets",
+      "trust3": "Results in 24 Hours"
+    },
+    "heroVisual": {
+      "agentCatalog": "AI Agent Catalog",
+      "agentCatalogVal": "10+ Agents",
+      "salesFunnels": "Sales Funnels",
+      "salesFunnelsVal": "Kanban View",
+      "engagement": "Engagement Tracking",
+      "engagementVal": "Real-Time",
+      "aiStrategy": "AI Strategy Engine",
+      "aiStrategyVal": "Auto-Generated",
+      "multiRegion": "Multi-Region",
+      "multiRegionVal": "Global"
     },
     "services": {
-      "sectionBadge": "What We Do",
-      "sectionTitle": "Everything You Need to Scale",
-      "sectionSubtitle": "From lead generation to closing deals, ArgiFlow handles every step of your marketing pipeline with specialized AI agents.",
-      "0": {
-        "title": "AI Lead Generation",
-        "description": "Capture and qualify leads automatically with AI-powered chatbots that work 24/7 across all your channels."
-      },
-      "1": {
-        "title": "Smart Email Campaigns",
-        "description": "AI writes, schedules, and optimizes email campaigns that consistently outperform industry benchmarks."
-      },
-      "2": {
-        "title": "Voice AI Calling",
-        "description": "AI-powered phone agents handle inbound and outbound calls, schedule appointments, and qualify leads."
-      },
-      "3": {
-        "title": "Sales Funnel Builder",
-        "description": "Build high-converting funnels with drag-and-drop simplicity. AI optimizes every step for maximum conversions."
-      },
-      "4": {
-        "title": "Appointment Scheduling",
-        "description": "Let AI manage your calendar, send reminders, handle reschedules, and eliminate no-shows."
-      },
-      "5": {
-        "title": "Marketing Strategy",
-        "description": "Get custom AI-generated marketing strategies tailored to your industry, audience, and goals."
-      }
+      "badge": "Core Capabilities",
+      "title": "Everything You Need to",
+      "titleHighlight": "Automate Revenue",
+      "description": "From autonomous AI agents to engagement intelligence — a complete platform for finding opportunities, engaging leads, and closing deals.",
+      "s0title": "Voice AI Agents",
+      "s0desc": "Custom voice AI agents that handle inbound and outbound calls, qualify leads, answer questions, and schedule appointments 24/7 — so you never miss an opportunity.",
+      "s1title": "Specialized AI Agent Catalog",
+      "s1desc": "10+ industry-specific AI agents — from Tax Lien Hunters and Govt Contract Finders to Cross-Border Trade Agents. Each agent runs autonomously with its own lifecycle: discover, analyze, enrich, act, and monitor.",
+      "s2title": "Process Automation",
+      "s2desc": "We audit your workflows and automate repetitive tasks across marketing, sales, and operations using custom AI solutions that save time and eliminate errors.",
+      "s3title": "Lead Gen Chatbots",
+      "s3desc": "AI chatbots powered by Claude that engage visitors, answer questions, qualify leads, and book appointments — with full context of your business, website, and services.",
+      "s4title": "Sales Funnels & Pipeline",
+      "s4desc": "Visual Kanban-style sales pipelines to manage deals through stages. Create custom funnels, drag-and-drop deals, and track conversion rates with stage-level analytics.",
+      "s5title": "Email & Engagement Intelligence",
+      "s5desc": "Automated outreach with open/click tracking. AI scores leads as Hot, Warm, or Interested based on engagement and recommends next steps — call, follow-up, or try a different channel."
+    },
+    "platformFeatures": {
+      "f0title": "AI-Generated Marketing Strategy",
+      "f0desc": "Claude analyzes your business and generates a full marketing strategy on signup — automatically tailored to your industry, services, and target audience.",
+      "f1title": "Website Intelligence",
+      "f1desc": "AI scans and analyzes your website to extract services, value propositions, pricing, FAQs, and contact info — then injects that knowledge into every AI interaction.",
+      "f2title": "Omnichannel Outreach",
+      "f2desc": "Send personalized emails via SendGrid and SMS via Twilio directly from the platform. AI crafts outreach messages based on your business profile and lead data.",
+      "f3title": "Email Open & Click Tracking",
+      "f3desc": "Know exactly which leads opened your emails, clicked your links, and when. Auto-scoring classifies leads by engagement level with recommended next actions.",
+      "f4title": "Automation Arsenal",
+      "f4desc": "Pre-built workflow templates for lead nurturing, follow-ups, appointment reminders, and re-engagement campaigns. Activate, pause, and customize with one click.",
+      "f5title": "Training Center",
+      "f5desc": "Courses, tutorials, and resources to master the platform. From beginner guides to advanced AI strategy — with progress tracking and completion certificates.",
+      "f6title": "Resource Library",
+      "f6desc": "Bot templates for 12+ industries, ad templates with 9x ROI blueprints, VSL funnel builders, organic client acquisition blueprints, and agency SOPs.",
+      "f7title": "Advanced Analytics",
+      "f7desc": "Real-time dashboards tracking leads, appointments, agent performance, email engagement rates, funnel conversion, and revenue attribution across all channels."
     },
     "agents": {
-      "sectionBadge": "AI Workforce",
-      "sectionTitle": "Meet Your AI Agents",
-      "sectionSubtitle": "Each agent specializes in a specific marketing task, working together to create a seamless automation pipeline.",
-      "0": {
-        "name": "Lead Qualifier",
-        "role": "Inbound Lead Processing",
-        "description": "Scores, qualifies, and routes leads instantly"
-      },
-      "1": {
-        "name": "Email Writer",
-        "role": "Campaign Content",
-        "description": "Writes high-converting email sequences"
-      },
-      "2": {
-        "name": "Voice Caller",
-        "role": "Phone Outreach",
-        "description": "Makes and receives calls with natural speech"
-      },
-      "3": {
-        "name": "Chat Responder",
-        "role": "Live Chat & Bots",
-        "description": "Engages website visitors in real-time"
-      },
-      "4": {
-        "name": "Scheduler",
-        "role": "Calendar Management",
-        "description": "Books appointments and manages schedules"
-      },
-      "5": {
-        "name": "Strategist",
-        "role": "Marketing Strategy",
-        "description": "Creates data-driven marketing plans"
-      },
-      "6": {
-        "name": "Ad Manager",
-        "role": "Paid Advertising",
-        "description": "Optimizes ad spend across platforms"
-      },
-      "7": {
-        "name": "Analytics Bot",
-        "role": "Data & Reporting",
-        "description": "Tracks performance and generates insights"
-      },
-      "8": {
-        "name": "Social Manager",
-        "role": "Social Media",
-        "description": "Schedules posts and manages engagement"
-      },
-      "9": {
-        "name": "CRM Agent",
-        "role": "Pipeline Management",
-        "description": "Manages contacts and deal pipeline"
-      }
+      "badge": "AI Agent Catalog",
+      "title": "10+ Specialized AI Agents Ready to",
+      "titleHighlight": "Work For You",
+      "description": "Each agent is purpose-built for a specific industry or task. Enable with one click, configure your preferences, and let them run autonomously.",
+      "autonomousTitle": "Autonomous AI Agents",
+      "autonomousDesc": "Each agent runs its own lifecycle — discover, analyze, enrich, act, and monitor — working 24/7 to find and close opportunities.",
+      "argiflow": "ArgiFlow",
+      "westernMarkets": "Western Markets",
+      "tradeflow": "TradeFlow",
+      "africanMarkets": "African Markets",
+      "westernRegions": "US / EU / UK / CA / AU",
+      "africanRegions": "NG / KE / GH / ZA / 26+",
+      "viewCatalog": "View Full Agent Catalog",
+      "exploreAgents": "Explore all 10+ agents with detailed capabilities",
+      "w0name": "Tax Lien Hunter",
+      "w0desc": "Crawl county records, analyze ROI, track auctions, auto-bid",
+      "w1name": "Tax Deed Agent",
+      "w1desc": "Find tax deed properties at county auctions nationwide",
+      "w2name": "Wholesale RE Agent",
+      "w2desc": "Off-market deals, run comps, connect with cash buyers",
+      "w3name": "Govt Contracts Agent",
+      "w3desc": "Scan SAM.gov, filter by NAICS, evaluate requirements",
+      "w4name": "Arbitrage Agent",
+      "w4desc": "Profitable arbitrage across Amazon, eBay, Walmart",
+      "w5name": "Lead Gen Agent",
+      "w5desc": "AI-powered prospecting across multiple channels",
+      "a0name": "Govt Tender Agent",
+      "a0desc": "Find and auto-apply to government tenders continent-wide",
+      "a1name": "Cross-Border Trade",
+      "a1desc": "Identify import/export opportunities, match trade partners",
+      "a2name": "Agri Market Agent",
+      "a2desc": "Market intelligence for agricultural commodities",
+      "a3name": "Diaspora Services",
+      "a3desc": "Connect diaspora with investment & service opportunities"
     },
     "platform": {
-      "sectionBadge": "Platform Features",
-      "sectionTitle": "Built for Scale",
-      "sectionSubtitle": "Enterprise-grade features that grow with your business.",
-      "0": {
-        "title": "Multi-Channel Integration",
-        "description": "Connect all your marketing channels in one dashboard."
-      },
-      "1": {
-        "title": "Real-Time Analytics",
-        "description": "Track every metric that matters with live dashboards."
-      },
-      "2": {
-        "title": "Custom Workflows",
-        "description": "Build automated workflows tailored to your process."
-      },
-      "3": {
-        "title": "Team Collaboration",
-        "description": "Work together with role-based access and shared workspaces."
-      },
-      "4": {
-        "title": "API Access",
-        "description": "Integrate with any tool using our comprehensive REST API."
-      },
-      "5": {
-        "title": "White Label",
-        "description": "Brand the platform as your own for agency use."
-      }
+      "badge": "Complete Platform",
+      "title": "Built for",
+      "titleHighlight": "Serious Growth",
+      "description": "Every tool you need to find, engage, and convert leads — powered by AI and designed for scale."
+    },
+    "process": {
+      "badge": "How It Works",
+      "title": "From Zero to Revenue in",
+      "titleHighlight": "3 Simple Steps",
+      "description": "Most users see their first leads within 24 hours of signing up.",
+      "step1Title": "Sign Up & Tell Us About Your Business",
+      "step1Desc": "Create your account and tell us about your company, industry, and goals. Our AI immediately generates a customized marketing strategy and begins analyzing your website.",
+      "step2Title": "Deploy AI Agents",
+      "step2Desc": "Browse the Agent Catalog, enable specialized agents for your industry, and configure their settings. They start finding opportunities, leads, and deals immediately.",
+      "step3Title": "Engage, Convert & Scale",
+      "step3Desc": "AI agents find leads, send outreach, track engagement, and move deals through your pipeline. You focus on closing while the platform handles everything else.",
+      "cta": "Start Your Free Trial"
     },
     "pricing": {
-      "sectionBadge": "Pricing",
-      "sectionTitle": "Simple, Transparent Pricing",
-      "sectionSubtitle": "Choose the plan that fits your business. All plans include a 14-day free trial.",
-      "monthly": "Monthly",
-      "annual": "Annual",
-      "annualDiscount": "Save 20%",
+      "badge": "Simple Pricing",
+      "title": "Choose Your",
+      "titleHighlight": "Growth Plan",
+      "description": "All plans include a 14-day free trial. No credit card required.",
+      "payWith": "Pay with",
       "perMonth": "/month",
-      "mostPopular": "Most Popular",
-      "starter": {
-        "name": "Starter",
-        "price": "$297",
-        "annualPrice": "$237",
-        "description": "Perfect for solo entrepreneurs and small businesses getting started with AI marketing.",
-        "cta": "Start Free Trial",
-        "features": {
-          "0": "3 AI Agents",
-          "1": "1,000 Leads/month",
-          "2": "5,000 Emails/month",
-          "3": "Basic Voice AI",
-          "4": "1 Sales Funnel",
-          "5": "Email Support"
-        }
-      },
-      "pro": {
-        "name": "Pro",
-        "price": "$597",
-        "annualPrice": "$477",
-        "description": "For growing businesses that need full marketing automation and advanced AI capabilities.",
-        "cta": "Start Free Trial",
-        "features": {
-          "0": "All 10 AI Agents",
-          "1": "10,000 Leads/month",
-          "2": "50,000 Emails/month",
-          "3": "Advanced Voice AI",
-          "4": "Unlimited Funnels",
-          "5": "Priority Support",
-          "6": "Custom Workflows",
-          "7": "API Access"
-        }
-      },
-      "enterprise": {
-        "name": "Enterprise",
-        "price": "$1,497",
-        "annualPrice": "$1,197",
-        "description": "For agencies and enterprises that need white-label solutions and dedicated support.",
-        "cta": "Contact Sales",
-        "features": {
-          "0": "Unlimited Everything",
-          "1": "White Label",
-          "2": "Dedicated Account Manager",
-          "3": "Custom AI Training",
-          "4": "SLA Guarantee",
-          "5": "On-boarding Support",
-          "6": "Custom Integrations",
-          "7": "Phone Support"
-        }
-      },
-      "africa": {
-        "sectionTitle": "TradeFlow Africa Pricing",
-        "sectionSubtitle": "Affordable AI-powered marketing automation designed for African businesses and entrepreneurs.",
-        "starter": {
-          "name": "Starter",
-          "price": "$5",
-          "description": "Get started with basic AI marketing tools",
-          "features": {
-            "0": "2 AI Agents",
-            "1": "500 Leads/month",
-            "2": "1,000 Emails/month",
-            "3": "Basic Chatbot",
-            "4": "Community Support"
-          }
-        },
-        "growth": {
-          "name": "Growth",
-          "price": "$15",
-          "description": "Scale your marketing with advanced AI",
-          "features": {
-            "0": "5 AI Agents",
-            "1": "2,500 Leads/month",
-            "2": "10,000 Emails/month",
-            "3": "Voice AI (Local Languages)",
-            "4": "WhatsApp Integration",
-            "5": "Priority Support"
-          }
-        },
-        "business": {
-          "name": "Business",
-          "price": "$25",
-          "description": "Full suite for serious businesses",
-          "features": {
-            "0": "All AI Agents",
-            "1": "Unlimited Leads",
-            "2": "Unlimited Emails",
-            "3": "Advanced Voice AI",
-            "4": "All Integrations",
-            "5": "Dedicated Support",
-            "6": "Success Fee Model"
-          }
-        },
-        "plusSuccessFee": "+ Success Fee",
-        "perMonthLabel": "/month"
-      }
+      "starterName": "Starter",
+      "starterPrice": "$97",
+      "starterDesc": "For solopreneurs and small businesses getting started with AI automation.",
+      "starterFeatures": ["3 AI Agents", "500 leads/month", "Email outreach", "Basic analytics", "Community support"],
+      "starterCta": "Start Free Trial",
+      "proName": "Professional",
+      "proPrice": "$297",
+      "proPopular": "Most Popular",
+      "proDesc": "For growing businesses that need the full automation suite.",
+      "proFeatures": ["All AI Agents", "5,000 leads/month", "Email + SMS outreach", "Voice AI agents", "Sales funnels", "Advanced analytics", "Priority support"],
+      "proCta": "Start Free Trial",
+      "entName": "Enterprise",
+      "entPrice": "$997",
+      "entDesc": "For agencies and enterprises that need custom solutions at scale.",
+      "entFeatures": ["Everything in Pro", "Unlimited leads", "Custom AI agents", "White-label options", "API access", "Dedicated account manager", "Custom integrations"],
+      "entCta": "Contact Sales",
+      "tfTitle": "TradeFlow Africa Plans",
+      "tfDesc": "Region-specific pricing for African markets. All features included.",
+      "tfStarterPrice": "$47/mo",
+      "tfProPrice": "$147/mo",
+      "tfEntPrice": "$497/mo"
     },
     "testimonials": {
-      "sectionBadge": "Testimonials",
-      "sectionTitle": "Trusted by Businesses Worldwide",
-      "sectionSubtitle": "See what our customers have to say about ArgiFlow.",
-      "0": {
-        "quote": "ArgiFlow transformed our lead generation. We went from 50 leads a month to over 500 with the same team size.",
-        "author": "Sarah Chen",
-        "role": "Marketing Director",
-        "company": "TechVentures Inc"
-      },
-      "1": {
-        "quote": "The Voice AI agent handles 80% of our inbound calls now. Our team can focus on closing deals instead of answering phones.",
-        "author": "Marcus Johnson",
-        "role": "CEO",
-        "company": "PropertyPros Real Estate"
-      },
-      "2": {
-        "quote": "We replaced 3 different marketing tools with ArgiFlow. The AI agents work together seamlessly and the results speak for themselves.",
-        "author": "Emily Rodriguez",
-        "role": "Founder",
-        "company": "GrowthLab Agency"
-      }
+      "badge": "Client Results",
+      "title": "Real Businesses.",
+      "titleHighlight": "Real Results.",
+      "t0name": "Marcus Chen",
+      "t0company": "Apex Real Estate Group",
+      "t0quote": "ArgiFlow's Tax Lien Hunter found 47 properties in our first week. The voice AI handles 80% of our calls. We booked 3x more appointments without hiring anyone.",
+      "t0result": "47 deals found",
+      "t1name": "Sarah Williams",
+      "t1company": "Pinnacle Legal",
+      "t1quote": "The process automation saved us 40+ hours per week. Email tracking shows us exactly who's interested. Our team went from drowning in admin to focused on closing.",
+      "t1result": "40hrs/week saved",
+      "t2name": "David Park",
+      "t2company": "ScaleUp Digital",
+      "t2quote": "The AI chatbot qualified more leads in one week than our SDR team did in a month. The engagement scoring tells us exactly who to call first. Game changer.",
+      "t2result": "10x lead qualification"
     },
     "faq": {
-      "sectionBadge": "FAQ",
-      "sectionTitle": "Frequently Asked Questions",
-      "sectionSubtitle": "Everything you need to know about ArgiFlow.",
-      "0": {
-        "question": "What is ArgiFlow?",
-        "answer": "ArgiFlow is an AI-powered marketing automation platform that uses specialized AI agents to handle lead generation, email campaigns, voice calling, sales funnels, and more."
-      },
-      "1": {
-        "question": "How does the free trial work?",
-        "answer": "You get full access to your chosen plan for 14 days. No credit card required. If you love it, choose a plan. If not, no charges."
-      },
-      "2": {
-        "question": "Can I change plans later?",
-        "answer": "Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately and billing is prorated."
-      },
-      "3": {
-        "question": "Do I need technical skills?",
-        "answer": "Not at all. ArgiFlow is designed for non-technical users. Our AI agents handle the complexity while you use a simple dashboard."
-      },
-      "4": {
-        "question": "What integrations are available?",
-        "answer": "ArgiFlow integrates with all major CRMs, email providers, phone systems, calendars, and social media platforms. We also offer a REST API for custom integrations."
-      },
-      "5": {
-        "question": "Is my data secure?",
-        "answer": "Absolutely. We use enterprise-grade encryption, SOC2 compliance, and never share your data with third parties."
-      }
+      "badge": "Common Questions",
+      "title": "Frequently Asked",
+      "titleHighlight": "Questions",
+      "q0": "What are AI Agents and how do they work?",
+      "a0": "AI Agents are specialized autonomous systems that run specific tasks for your industry — like finding tax liens, scanning government contracts, or generating leads. Each agent follows a lifecycle: discover opportunities, analyze them, enrich with data, take action (send outreach, bid), and monitor results. You configure them once and they work 24/7.",
+      "q1": "How long does implementation take?",
+      "a1": "Sign up, configure your agents, and they start working immediately. Most users see their first leads within 24 hours. For more complex multi-system integrations, 2-4 weeks to fully optimize.",
+      "q2": "Do I need technical knowledge?",
+      "a2": "Not at all. The platform is designed for non-technical users. Browse the agent catalog, flip a switch to enable, and configure with simple settings. Our AI handles the complex parts.",
+      "q3": "What regions do you support?",
+      "a3": "We operate globally with two specialized brands: ArgiFlow for Western markets (US, EU, UK, Canada, Australia) and TradeFlow for African markets (Nigeria, Kenya, Ghana, South Africa, and 26+ more countries) — each with region-specific agents and pricing.",
+      "q4": "Can you integrate with my existing tools?",
+      "a4": "Yes. We integrate with CRMs (Salesforce, HubSpot), email platforms (SendGrid), SMS (Twilio), calendars, and virtually any tool with an API. All integrations are configured from your Settings dashboard.",
+      "q5": "What if it doesn't work for my business?",
+      "a5": "Every plan starts with a 14-day free trial — no credit card required. If it's not the right fit, cancel anytime with zero risk."
+    },
+    "cta": {
+      "title": "Ready to Let AI",
+      "titleHighlight": "Grow Your Business?",
+      "description": "Join businesses using ArgiFlow to automate client acquisition. Start your 14-day free trial today.",
+      "button": "Get Started Free",
+      "secondary": "Book a Demo",
+      "trust1": "14-Day Free Trial",
+      "trust2": "No Credit Card Required",
+      "trust3": "Cancel Anytime"
     },
     "footer": {
-      "description": "AI-powered marketing automation that scales your business.",
-      "product": "Product",
-      "features": "Features",
-      "pricing": "Pricing",
-      "integrations": "Integrations",
-      "api": "API",
-      "company": "Company",
-      "about": "About",
-      "blog": "Blog",
+      "description": "AI-powered automation platform for client acquisition. Deploy intelligent agents that find, engage, and convert leads on autopilot.",
+      "platformTitle": "Platform",
+      "aiAgentCatalog": "AI Agent Catalog",
+      "voiceAiAgents": "Voice AI Agents",
+      "salesFunnels": "Sales Funnels",
+      "emailSmsOutreach": "Email & SMS Outreach",
+      "companyTitle": "Company",
+      "aboutUs": "About Us",
       "careers": "Careers",
+      "blog": "Blog",
       "contact": "Contact",
-      "legal": "Legal",
+      "legalTitle": "Legal",
       "privacy": "Privacy Policy",
       "terms": "Terms of Service",
-      "gdpr": "GDPR",
-      "security": "Security",
-      "copyright": "© {{year}} ArgiFlow. All rights reserved."
+      "cookiePolicy": "Cookie Policy",
+      "copyright": "ArgiFlow. All rights reserved.",
+      "builtWith": "Built with AI"
     }
   },
   "auth": {
     "login": {
-      "title": "Welcome Back",
-      "subtitle": "Sign in to your ArgiFlow account",
-      "emailLabel": "Email",
-      "emailPlaceholder": "Enter your email",
-      "passwordLabel": "Password",
+      "title": "Client Portal",
+      "subtitle": "Sign in to your AI automation dashboard",
+      "email": "Email",
+      "emailPlaceholder": "john@company.com",
+      "password": "Password",
       "passwordPlaceholder": "Enter your password",
-      "forgotPassword": "Forgot password?",
-      "submitButton": "Sign In",
-      "submitting": "Signing in...",
-      "noAccount": "Don't have an account?",
-      "signUpLink": "Sign up",
-      "orContinueWith": "Or continue with",
-      "loginWithReplit": "Continue with Replit"
+      "signIn": "Sign In",
+      "signingIn": "Signing in...",
+      "forgotPassword": "Forgot your password?",
+      "notClient": "Not a client yet?",
+      "bookDiscovery": "Book a discovery call",
+      "loginFailed": "Login failed",
+      "invalidCredentials": "Invalid email or password."
     },
     "signup": {
-      "title": "Create Account",
-      "subtitle": "Get started with ArgiFlow today",
-      "firstNameLabel": "First Name",
-      "firstNamePlaceholder": "Enter your first name",
-      "lastNameLabel": "Last Name",
-      "lastNamePlaceholder": "Enter your last name",
-      "emailLabel": "Email",
-      "emailPlaceholder": "Enter your email",
-      "passwordLabel": "Password",
-      "passwordPlaceholder": "Create a password",
-      "confirmPasswordLabel": "Confirm Password",
-      "confirmPasswordPlaceholder": "Confirm your password",
-      "submitButton": "Create Account",
-      "submitting": "Creating account...",
-      "hasAccount": "Already have an account?",
-      "signInLink": "Sign in",
-      "orContinueWith": "Or continue with",
-      "signUpWithReplit": "Continue with Replit",
-      "passwordRequirements": "Password must be at least 8 characters",
-      "passwordsDoNotMatch": "Passwords do not match",
-      "termsText": "By creating an account, you agree to our",
-      "termsLink": "Terms of Service",
-      "privacyLink": "Privacy Policy",
-      "and": "and"
+      "title": "Create Your Client Account",
+      "step1": "Step 1 of 2 — Account details",
+      "step2Title": "Tell Us About Your Business",
+      "step2": "Step 2 of 2 — Our AI will create a custom marketing strategy for you",
+      "firstName": "First Name",
+      "firstNamePlaceholder": "John",
+      "lastName": "Last Name",
+      "lastNamePlaceholder": "Smith",
+      "workEmail": "Work Email",
+      "emailPlaceholder": "john@company.com",
+      "password": "Password",
+      "passwordPlaceholder": "Min 6 characters",
+      "continue": "Continue",
+      "alreadyHaveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "companyName": "Company Name",
+      "companyNamePlaceholder": "Acme Corp",
+      "industry": "Industry",
+      "industryPlaceholder": "Select your industry",
+      "website": "Website",
+      "websitePlaceholder": "https://www.yourcompany.com",
+      "whatDoesCompanyDo": "What does your company do?",
+      "companyDescPlaceholder": "Tell us about your products, services, target customers, and goals. The more detail, the better strategy our AI can generate...",
+      "minChars": "Min 10 characters. Be specific for a better AI strategy.",
+      "back": "Back",
+      "createAccount": "Create Account & Generate Strategy",
+      "creatingAccount": "Creating account...",
+      "feature1": "AI-powered lead management & CRM",
+      "feature2": "Real-time automation dashboards",
+      "feature3": "Direct line to your ArgiFlow team",
+      "aiAnalyze": "Our AI will analyze your business and generate a complete marketing strategy automatically",
+      "missingInfo": "Missing information",
+      "missingInfoDesc": "Please fill in your company name, industry, and a brief description (at least 10 characters).",
+      "registrationFailed": "Registration failed",
+      "tryAgain": "Please try again.",
+      "industries": {
+        "marketingAgency": "Marketing Agency",
+        "realEstate": "Real Estate",
+        "healthcare": "Healthcare",
+        "legalServices": "Legal Services",
+        "financialServices": "Financial Services",
+        "eCommerce": "E-Commerce",
+        "saas": "SaaS / Software",
+        "consulting": "Consulting",
+        "construction": "Construction",
+        "homeServices": "Home Services",
+        "fitnessWellness": "Fitness & Wellness",
+        "education": "Education",
+        "insurance": "Insurance",
+        "automotive": "Automotive",
+        "restaurantFood": "Restaurant / Food",
+        "other": "Other"
+      }
     },
     "forgotPassword": {
       "title": "Forgot Password",
-      "subtitle": "Enter your email and we'll send you a reset link",
-      "emailLabel": "Email",
-      "emailPlaceholder": "Enter your email",
-      "submitButton": "Send Reset Link",
-      "submitting": "Sending...",
-      "backToLogin": "Back to login",
-      "successTitle": "Check your email",
-      "successMessage": "If an account exists with that email, we've sent a password reset link."
+      "subtitle": "Enter your email address and we'll send you a reset link.",
+      "checkEmail": "Check Your Email",
+      "checkEmailDesc": "We've sent you a password reset link if an account exists with that email.",
+      "emailAddress": "Email Address",
+      "emailPlaceholder": "john@company.com",
+      "sendResetLink": "Send Reset Link",
+      "sentTo": "Reset link sent to",
+      "linkExpires": "The link expires in 1 hour. Check your spam folder if you don't see it.",
+      "sendAgain": "Send again",
+      "backToSignIn": "Back to sign in",
+      "error": "Error",
+      "somethingWrong": "Something went wrong. Please try again."
     },
     "resetPassword": {
-      "title": "Reset Password",
-      "subtitle": "Enter your new password below",
-      "passwordLabel": "New Password",
-      "passwordPlaceholder": "Enter new password",
-      "confirmPasswordLabel": "Confirm New Password",
-      "confirmPasswordPlaceholder": "Confirm new password",
-      "submitButton": "Reset Password",
-      "submitting": "Resetting...",
-      "successTitle": "Password Reset",
-      "successMessage": "Your password has been reset successfully. You can now sign in.",
-      "signInLink": "Sign in",
-      "invalidToken": "Invalid or expired reset token",
-      "passwordRequirements": "Password must be at least 8 characters"
+      "setNewPassword": "Set New Password",
+      "enterNew": "Enter your new password below.",
+      "passwordReset": "Password Reset",
+      "passwordUpdated": "Your password has been updated successfully.",
+      "canSignIn": "You can now sign in with your new password.",
+      "goToSignIn": "Go to Sign In",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password",
+      "confirmPlaceholder": "Re-enter password",
+      "minChars": "Min 6 characters",
+      "resetBtn": "Reset Password",
+      "invalidLink": "Invalid Reset Link",
+      "invalidLinkDesc": "This password reset link is invalid or has expired.",
+      "requestNew": "Request a New Reset Link",
+      "dontMatch": "Passwords don't match",
+      "dontMatchDesc": "Please make sure both passwords are the same.",
+      "tooShort": "Password too short",
+      "tooShortDesc": "Password must be at least 6 characters.",
+      "resetFailed": "Reset failed",
+      "invalidOrExpired": "Invalid or expired reset link. Please request a new one."
     },
     "verifyEmail": {
-      "title": "Verify Your Email",
-      "subtitle": "We've sent a verification email to {{email}}",
-      "description": "Click the link in the email to verify your account. Check your spam folder if you don't see it.",
-      "resendButton": "Resend verification email",
-      "resending": "Resending...",
-      "resendSuccess": "Verification email resent",
       "verifying": "Verifying your email...",
-      "verified": "Email verified successfully!",
-      "verifyFailed": "Verification failed. Please try again.",
-      "continueButton": "Continue to Dashboard"
-    },
-    "errors": {
-      "invalidCredentials": "Invalid email or password",
-      "emailRequired": "Email is required",
-      "passwordRequired": "Password is required",
-      "accountExists": "An account with this email already exists",
-      "serverError": "Something went wrong. Please try again.",
-      "networkError": "Network error. Please check your connection."
+      "pleaseWait": "Please wait a moment.",
+      "verified": "Email Verified",
+      "goToLogin": "Go to Login",
+      "failed": "Verification Failed",
+      "backToLogin": "Back to Login",
+      "noToken": "No verification token found. Please check your email for the correct link.",
+      "somethingWrong": "Something went wrong. Please try again."
     }
   },
-  "discovery": {
-    "title": "Set Up Your Business",
-    "subtitle": "Tell us about your business so we can personalize your experience",
-    "companyNameLabel": "Company Name",
-    "companyNamePlaceholder": "Acme Corp",
-    "industryLabel": "Industry",
-    "industryPlaceholder": "Select your industry",
-    "websiteLabel": "Website",
-    "websitePlaceholder": "https://www.yourcompany.com",
-    "descriptionLabel": "What does your company do?",
-    "descriptionPlaceholder": "Describe your products, services, target customers, and goals...",
-    "submitButton": "Continue to Dashboard",
-    "submitting": "Setting up...",
-    "skipButton": "Skip for now",
-    "step": "Step {{current}} of {{total}}"
-  },
   "dashboard": {
-    "title": "Dashboard",
-    "welcomeBack": "Welcome back, {{name}}",
-    "overview": "Here's what's happening with your business today.",
-    "stats": {
-      "totalLeads": "Total Leads",
-      "activeAgents": "Active Agents",
-      "appointments": "Appointments",
-      "conversionRate": "Conversion Rate",
-      "emailsSent": "Emails Sent",
-      "callsMade": "Calls Made"
-    },
+    "title": "Dashboard Overview",
+    "subtitle": "Track your business performance at a glance.",
+    "totalLeads": "Total Leads",
+    "activeLeads": "Active Leads",
+    "appointments": "Appointments",
+    "revenue": "Revenue",
     "recentLeads": "Recent Leads",
-    "viewAllLeads": "View All Leads",
+    "fromSource": "From {{source}}",
+    "noLeads": "No leads yet. Your AI agents will start generating them.",
     "upcomingAppointments": "Upcoming Appointments",
-    "viewAllAppointments": "View All Appointments",
-    "agentPerformance": "Agent Performance",
-    "viewAllAgents": "View All Agents",
-    "quickActions": "Quick Actions",
-    "addLead": "Add Lead",
-    "createCampaign": "Create Campaign",
-    "scheduleCall": "Schedule Call",
-    "noLeads": "No leads yet",
-    "noAppointments": "No upcoming appointments",
-    "noAgents": "No agents configured",
-    "getStartedMessage": "Start by adding your first lead or configuring an AI agent.",
-    "trialBadge": "Trial",
-    "trialDaysRemaining": "{{count}} days remaining",
-    "upgradeNow": "Upgrade Now"
+    "noAppointments": "No upcoming appointments.",
+    "aiActivityFeed": "AI Activity Feed",
+    "noActivity": "No activity yet. Your AI agents will log actions here."
   },
   "leads": {
     "title": "Leads & CRM",
-    "subtitle": "Manage your leads, track engagement, and automate outreach.",
+    "subtitle": "Manage your contacts, track outreach, and nurture leads.",
     "addLead": "Add Lead",
-    "importLeads": "Import",
-    "exportLeads": "Export",
-    "totalLeads": "{{count}} Leads",
-    "searchPlaceholder": "Search leads...",
-    "filterByStatus": "Filter by status",
-    "filterBySource": "Filter by source",
-    "filterByEngagement": "Filter by engagement",
-    "allStatuses": "All Statuses",
-    "allSources": "All Sources",
-    "allEngagement": "All Engagement",
-    "sortBy": "Sort by",
-    "columns": {
-      "name": "Name",
-      "email": "Email",
-      "phone": "Phone",
-      "company": "Company",
-      "source": "Source",
-      "status": "Status",
-      "score": "Score",
-      "engagement": "Engagement",
-      "lastContact": "Last Contact",
-      "createdAt": "Created",
-      "actions": "Actions"
-    },
-    "status": {
-      "new": "New",
-      "contacted": "Contacted",
-      "qualified": "Qualified",
-      "converted": "Converted",
-      "lost": "Lost"
-    },
-    "engagement": {
-      "hot": "Hot",
-      "warm": "Warm",
-      "interested": "Interested",
-      "none": "None"
-    },
-    "source": {
+    "addNewLead": "Add New Lead",
+    "leadName": "Lead Name",
+    "leadNamePlaceholder": "Full name",
+    "emailPlaceholder": "email@company.com",
+    "phonePlaceholder": "+1 (555) 123-4567",
+    "source": "Source",
+    "sourcePlaceholder": "Select source",
+    "sources": {
       "website": "Website",
       "referral": "Referral",
       "social": "Social Media",
-      "ads": "Paid Ads",
-      "email": "Email",
-      "phone": "Phone",
-      "chatbot": "Chatbot",
-      "manual": "Manual"
+      "cold": "Cold Outreach",
+      "ai": "AI Agent",
+      "other": "Other"
     },
-    "dialog": {
-      "addTitle": "Add New Lead",
-      "editTitle": "Edit Lead",
-      "nameLabel": "Name",
-      "namePlaceholder": "Full name",
-      "emailLabel": "Email",
-      "emailPlaceholder": "email@example.com",
-      "phoneLabel": "Phone",
-      "phonePlaceholder": "+1 (555) 123-4567",
-      "companyLabel": "Company",
-      "companyPlaceholder": "Company name",
-      "sourceLabel": "Source",
-      "statusLabel": "Status",
-      "notesLabel": "Notes",
-      "notesPlaceholder": "Add any notes about this lead...",
-      "saveButton": "Save Lead",
-      "saving": "Saving...",
-      "deleteConfirm": "Are you sure you want to delete this lead?"
+    "allStatuses": "All Statuses",
+    "statuses": {
+      "new": "New",
+      "contacted": "Contacted",
+      "qualified": "Qualified",
+      "proposal": "Proposal",
+      "won": "Won",
+      "lost": "Lost",
+      "hot": "HOT",
+      "warm": "WARM",
+      "cold": "COLD"
     },
-    "emailAnalytics": {
-      "title": "Email Analytics",
+    "noLeadsFound": "No leads found",
+    "noLeadsDesc": "Add your first lead or import them from your marketing channels.",
+    "lastContact": "Last Contact",
+    "sendOutreach": "Send AI Outreach",
+    "outreachSent": "Outreach Sent",
+    "scheduleOutreach": "Schedule",
+    "cancelSchedule": "Cancel Schedule",
+    "scheduledFor": "Scheduled for",
+    "callLead": "Call",
+    "smsLead": "SMS",
+    "deleteLead": "Delete",
+    "sendSms": "Send SMS",
+    "sendSmsTo": "Send SMS to {{name}}",
+    "sendingTo": "Sending to:",
+    "message": "Message",
+    "msgPlaceholder": "Type your text message here...",
+    "charCount": "{{count}}/160 characters",
+    "segmentInfo": "({{count}} segments)",
+    "smsSent": "SMS sent successfully",
+    "smsFailed": "Failed to send SMS",
+    "engagement": {
       "opens": "Opens",
       "clicks": "Clicks",
-      "replies": "Replies",
-      "lastOpened": "Last opened {{time}}",
-      "engagementLevel": "Engagement Level"
-    },
-    "outreach": {
-      "sendEmail": "Send Email",
-      "sendSms": "Send SMS",
-      "callLead": "Call Lead",
-      "scheduleFollowUp": "Schedule Follow-up",
-      "emailSubjectPlaceholder": "Email subject",
-      "emailBodyPlaceholder": "Write your email...",
-      "smsBodyPlaceholder": "Write your message...",
-      "aiGenerateEmail": "AI Generate",
-      "sendingEmail": "Sending...",
-      "emailSent": "Email sent successfully",
-      "emailFailed": "Failed to send email",
-      "smsSent": "SMS sent successfully",
-      "smsFailed": "Failed to send SMS"
-    },
-    "scoring": {
-      "title": "Lead Score",
-      "high": "High",
-      "medium": "Medium",
-      "low": "Low",
-      "scoreOutOf": "{{score}}/100"
-    },
-    "empty": "No leads found",
-    "emptyDescription": "Add your first lead to get started.",
-    "toast": {
-      "created": "Lead created successfully",
-      "updated": "Lead updated successfully",
-      "deleted": "Lead deleted successfully",
-      "createFailed": "Failed to create lead",
-      "updateFailed": "Failed to update lead",
-      "deleteFailed": "Failed to delete lead"
+      "hot": "Hot",
+      "warm": "Warm",
+      "interested": "Interested",
+      "noEngagement": "No Engagement"
     }
   },
   "appointments": {
     "title": "Appointments",
-    "subtitle": "Manage your scheduled meetings and calls.",
-    "addAppointment": "Add Appointment",
-    "totalAppointments": "{{count}} Appointments",
-    "columns": {
-      "lead": "Lead",
-      "type": "Type",
-      "date": "Date & Time",
-      "status": "Status",
-      "notes": "Notes",
-      "actions": "Actions"
-    },
-    "status": {
-      "scheduled": "Scheduled",
-      "completed": "Completed",
-      "cancelled": "Cancelled",
-      "noShow": "No Show"
-    },
-    "type": {
-      "discovery": "Discovery Call",
+    "subtitle": "Manage scheduled meetings and calls with clients.",
+    "newAppointment": "New Appointment",
+    "leadName": "Lead Name",
+    "leadNamePlaceholder": "Enter lead name",
+    "dateTime": "Date & Time",
+    "type": "Type",
+    "types": {
+      "call": "Phone Call",
+      "video": "Video Call",
+      "inPerson": "In-Person",
       "demo": "Demo",
-      "followUp": "Follow-up",
-      "closing": "Closing Call",
-      "onboarding": "Onboarding"
+      "consultation": "Consultation"
     },
-    "dialog": {
-      "addTitle": "Schedule Appointment",
-      "editTitle": "Edit Appointment",
-      "leadLabel": "Lead",
-      "leadPlaceholder": "Select a lead",
-      "typeLabel": "Type",
-      "dateLabel": "Date & Time",
-      "notesLabel": "Notes",
-      "notesPlaceholder": "Add notes about this appointment...",
-      "saveButton": "Schedule",
-      "saving": "Scheduling..."
-    },
-    "empty": "No appointments scheduled",
-    "emptyDescription": "Schedule your first appointment to get started.",
-    "toast": {
-      "created": "Appointment scheduled",
-      "updated": "Appointment updated",
-      "deleted": "Appointment cancelled",
-      "createFailed": "Failed to schedule appointment",
-      "reminded": "Reminder sent"
-    }
+    "notesPlaceholder": "Add notes about this appointment...",
+    "noAppointments": "No appointments scheduled",
+    "noAppointmentsDesc": "Schedule your first meeting with a lead or client.",
+    "createAppointment": "Create Appointment"
   },
   "salesFunnels": {
     "title": "Sales Funnels",
-    "subtitle": "Build and manage your sales pipelines with drag-and-drop Kanban boards.",
-    "addFunnel": "Create Funnel",
-    "totalFunnels": "{{count}} Funnels",
-    "templates": {
-      "title": "Choose a Template",
-      "subtitle": "Start with a proven funnel template or build from scratch.",
-      "blank": {
-        "name": "Blank Funnel",
-        "description": "Start from scratch with a custom funnel."
-      },
-      "0": {
-        "name": "AI Agency Sales",
-        "description": "Perfect for selling AI automation services. Discovery → Demo → Proposal → Close pipeline."
-      },
-      "1": {
-        "name": "Voice AI Onboarding",
-        "description": "Onboard voice AI clients fast. Application → Setup → Training → Live pipeline."
-      },
-      "2": {
-        "name": "High-Ticket Closer",
-        "description": "Close high-value deals. Lead → Qualify → Present → Negotiate → Win pipeline."
-      },
-      "3": {
-        "name": "Chatbot Lead Funnel",
-        "description": "Capture and nurture chatbot leads. Visitor → Engaged → Qualified → Customer pipeline."
-      }
+    "subtitle": "Manage your deals through visual pipelines.",
+    "newDeal": "New Deal",
+    "createDeal": "Create Deal",
+    "editDeal": "Edit Deal",
+    "dealName": "Deal Name",
+    "dealNamePlaceholder": "Enter deal name",
+    "dealValue": "Value ($)",
+    "dealValuePlaceholder": "Enter value",
+    "stage": "Stage",
+    "stages": {
+      "discovery": "Discovery",
+      "proposal": "Proposal",
+      "negotiation": "Negotiation",
+      "closed": "Closed Won",
+      "lost": "Lost"
     },
-    "pipeline": {
-      "addStage": "Add Stage",
-      "addDeal": "Add Deal",
-      "stageName": "Stage Name",
-      "dealValue": "Deal Value",
-      "moveDeal": "Move deal",
-      "deleteDeal": "Delete deal",
-      "editDeal": "Edit deal",
-      "emptyStage": "No deals in this stage",
-      "dragHint": "Drag deals between stages"
-    },
-    "dialog": {
-      "createTitle": "Create Funnel",
-      "editTitle": "Edit Funnel",
-      "nameLabel": "Funnel Name",
-      "namePlaceholder": "My Sales Funnel",
-      "descriptionLabel": "Description",
-      "descriptionPlaceholder": "Describe this funnel...",
-      "templateLabel": "Template",
-      "saveButton": "Create Funnel",
-      "saving": "Creating..."
-    },
-    "empty": "No funnels yet",
-    "emptyDescription": "Create your first sales funnel to start managing your pipeline.",
-    "toast": {
-      "created": "Funnel created successfully",
-      "updated": "Funnel updated",
-      "deleted": "Funnel deleted"
-    }
+    "contactName": "Contact Name",
+    "contactNamePlaceholder": "Enter contact name",
+    "contactEmail": "Contact Email",
+    "contactEmailPlaceholder": "email@company.com",
+    "notesPlaceholder": "Add notes about this deal...",
+    "totalValue": "Total Value",
+    "dealCount": "{{count}} deals",
+    "noDeals": "No deals yet",
+    "noDealsDesc": "Create your first deal to start building your pipeline."
   },
   "aiAgents": {
     "title": "AI Agents",
-    "subtitle": "Configure and manage your AI automation agents.",
-    "addAgent": "Create Agent",
-    "totalAgents": "{{count}} Agents",
-    "liveAgents": "{{count}} Live",
-    "columns": {
-      "name": "Agent Name",
-      "type": "Type",
-      "status": "Status",
-      "tasksCompleted": "Tasks Done",
-      "successRate": "Success Rate",
-      "actions": "Actions"
-    },
-    "types": {
-      "leadQualifier": "Lead Qualifier",
-      "emailWriter": "Email Writer",
-      "voiceCaller": "Voice Caller",
-      "chatResponder": "Chat Responder",
-      "scheduler": "Scheduler",
-      "strategist": "Strategist"
-    },
-    "status": {
-      "active": "Active",
-      "paused": "Paused",
-      "training": "Training",
-      "error": "Error"
-    },
-    "dialog": {
-      "createTitle": "Create AI Agent",
-      "editTitle": "Edit Agent",
-      "nameLabel": "Agent Name",
-      "namePlaceholder": "My AI Agent",
-      "typeLabel": "Agent Type",
-      "descriptionLabel": "Description",
-      "descriptionPlaceholder": "What should this agent do?",
-      "saveButton": "Create Agent",
-      "saving": "Creating...",
-      "generateScript": "Generate AI Script"
-    },
-    "workflow": {
-      "title": "Agent Workflow",
-      "trigger": "Trigger",
-      "process": "Process",
-      "action": "Action",
-      "newLead": "New Lead Arrives",
-      "aiProcesses": "AI Processes Lead",
-      "qualifiedRouted": "Qualified & Routed"
-    },
-    "performance": {
-      "title": "Performance",
-      "tasksCompleted": "Tasks Completed",
-      "successRate": "Success Rate",
-      "avgResponseTime": "Avg Response Time"
-    },
-    "script": {
-      "title": "Agent Script",
-      "viewScript": "View Script",
-      "editScript": "Edit Script",
-      "regenerateScript": "Regenerate Script",
-      "noScript": "No script configured"
-    },
-    "empty": "No AI agents configured",
-    "emptyDescription": "Create your first AI agent to start automating tasks.",
-    "toast": {
-      "created": "Agent created and activated",
-      "createdWithScript": "AI script generated and agent activated. View it in AI Agents.",
-      "createdProcessing": "Agent activated. Script generation is processing — check AI Agents shortly.",
-      "updated": "Agent updated",
-      "deleted": "Agent deleted",
-      "activated": "Agent activated",
-      "paused": "Agent paused",
-      "createFailed": "Failed to create agent"
-    }
+    "subtitle": "Deploy and manage your intelligent automation agents.",
+    "deployAgent": "Deploy Agent",
+    "configure": "Configure",
+    "viewLogs": "View Logs",
+    "runTask": "Run Task",
+    "taskDesc": "Task Description",
+    "taskDescPlaceholder": "Describe what you want this agent to do...",
+    "noAgents": "No agents deployed yet",
+    "noAgentsDesc": "Deploy your first AI agent from the catalog to get started.",
+    "browseCatalog": "Browse Agent Catalog",
+    "statusIdle": "Idle",
+    "statusRunning": "Running",
+    "statusPaused": "Paused",
+    "statusError": "Error",
+    "statusCompleted": "Completed",
+    "taskQueue": "Task Queue",
+    "noTasks": "No tasks in queue",
+    "logs": "Agent Logs",
+    "noLogs": "No logs available",
+    "deployed": "Agent deployed successfully",
+    "removed": "Agent removed",
+    "taskQueued": "Task queued successfully"
   },
   "voiceAi": {
     "title": "Voice AI",
-    "subtitle": "Configure AI-powered voice agents for calls, IVR, and surveys.",
-    "badge": "AI Voice Technology",
-    "addAgent": "Create Voice Agent",
-    "templates": {
-      "title": "Voice Agent Templates",
-      "subtitle": "Start with a proven template or build your own voice agent.",
-      "0": {
-        "name": "AI Receptionist",
-        "description": "Answer all inbound calls 24/7. Greets callers, routes to departments, takes messages, and schedules appointments. Never miss a call again.",
-        "badge": "Most Popular"
-      },
-      "1": {
-        "name": "Outbound Caller",
-        "description": "Makes outbound calls to leads and prospects. Follows your script, qualifies leads, and books appointments automatically.",
-        "badge": "High ROI"
-      },
-      "2": {
-        "name": "IVR Navigator",
-        "description": "Intelligent phone tree that understands natural language. Routes calls based on intent, not button presses. Reduces hold times by 80%.",
-        "badge": "Enterprise"
-      },
-      "3": {
-        "name": "Survey Caller",
-        "description": "Conducts phone surveys and feedback calls. Natural conversation flow with branching logic. Collects and analyzes responses automatically.",
-        "badge": "Research"
-      }
-    },
-    "stats": {
-      "totalCalls": "Total Calls",
-      "avgDuration": "Avg Duration",
-      "successRate": "Success Rate",
-      "appointmentsBooked": "Appointments Booked"
-    },
-    "callLog": {
-      "title": "Recent Calls",
-      "caller": "Caller",
-      "duration": "Duration",
-      "outcome": "Outcome",
-      "transcript": "Transcript",
-      "viewTranscript": "View Transcript",
-      "noTranscript": "No transcript available",
-      "inbound": "Inbound",
-      "outbound": "Outbound"
-    },
-    "config": {
-      "greeting": "Greeting Message",
-      "greetingPlaceholder": "Thank you for calling {{businessName}}. How can I help you today?",
-      "voiceType": "Voice Type",
-      "language": "Language",
-      "businessHours": "Business Hours",
-      "afterHours": "After Hours Behavior",
-      "transferNumber": "Transfer Number",
-      "recordCalls": "Record Calls"
-    },
-    "voices": {
-      "professionalFemale": "Professional Female",
-      "professionalMale": "Professional Male",
-      "friendlyFemale": "Friendly Female",
-      "friendlyMale": "Friendly Male",
-      "authoritative": "Authoritative",
-      "warmCasual": "Warm & Casual"
-    },
-    "empty": "No voice agents configured",
-    "emptyDescription": "Create your first voice AI agent to start handling calls."
+    "subtitle": "AI-powered phone calling agents for sales, support, and surveys.",
+    "makeCall": "Make a Call",
+    "callHistory": "Call History",
+    "noCallHistory": "No calls made yet",
+    "noCallHistoryDesc": "Make your first AI-powered call to a lead.",
+    "phoneNumber": "Phone Number",
+    "phonePlaceholder": "+1 (555) 123-4567",
+    "selectAgent": "Select Agent",
+    "selectAgentPlaceholder": "Choose a voice agent...",
+    "calling": "Calling...",
+    "callInitiated": "Call initiated",
+    "callFailed": "Call failed",
+    "statusInitiated": "Initiated",
+    "statusRinging": "Ringing",
+    "statusInProgress": "In Progress",
+    "statusCompleted": "Completed",
+    "statusFailed": "Failed",
+    "statusNoAnswer": "No Answer",
+    "statusBusy": "Busy",
+    "duration": "Duration",
+    "transcript": "Transcript",
+    "recording": "Recording",
+    "configureScript": "Configure Script",
+    "script": "Call Script",
+    "scriptPlaceholder": "Enter your call script here...",
+    "greeting": "Greeting",
+    "greetingPlaceholder": "Hi, this is...",
+    "receptionist": "AI Receptionist",
+    "outbound": "Outbound Caller",
+    "ivr": "IVR Navigator",
+    "survey": "Survey Caller"
   },
   "agentCatalog": {
-    "title": "Agent Catalog",
-    "subtitle": "Browse and deploy pre-built AI agents for your industry.",
-    "badge": "Marketplace",
-    "searchPlaceholder": "Search agents...",
-    "filterByRegion": "Filter by region",
-    "filterByIndustry": "Filter by industry",
-    "regions": {
-      "all": "All Regions",
-      "western": "Western Markets",
-      "africa": "African Markets"
-    },
-    "deploy": "Deploy Agent",
-    "deploying": "Deploying...",
+    "title": "AI Agent Catalog",
+    "subtitle": "Browse and deploy specialized AI agents for your business.",
+    "western": "Western",
+    "african": "African",
+    "allAgents": "All Agents",
+    "deploy": "Deploy",
     "deployed": "Deployed",
     "viewDetails": "View Details",
-    "conversations": "{{count}} conversations",
-    "priceLabel": "From {{price}}",
-    "empty": "No agents found matching your filters"
+    "capabilities": "Capabilities",
+    "useCases": "Use Cases"
   },
   "emailSms": {
     "title": "Email & SMS",
-    "subtitle": "Create and manage your email and SMS marketing campaigns.",
-    "createCampaign": "Create Campaign",
-    "totalCampaigns": "{{count}} Campaigns",
-    "tabs": {
-      "campaigns": "Campaigns",
-      "templates": "Templates",
-      "analytics": "Analytics"
-    },
-    "campaign": {
-      "nameLabel": "Campaign Name",
-      "namePlaceholder": "My Campaign",
-      "subjectLabel": "Subject Line",
-      "subjectPlaceholder": "Enter email subject...",
-      "bodyLabel": "Email Body",
-      "bodyPlaceholder": "Write your email content...",
-      "recipientsLabel": "Recipients",
-      "scheduleLabel": "Schedule",
-      "sendNow": "Send Now",
-      "scheduleLater": "Schedule for Later",
-      "aiAssist": "AI Assist",
-      "aiAssistHint": "Let AI help you write better campaigns"
-    },
-    "status": {
-      "draft": "Draft",
-      "scheduled": "Scheduled",
-      "sending": "Sending",
-      "sent": "Sent",
-      "failed": "Failed"
-    },
-    "analytics": {
-      "sent": "Sent",
-      "delivered": "Delivered",
-      "opened": "Opened",
-      "clicked": "Clicked",
-      "bounced": "Bounced",
-      "unsubscribed": "Unsubscribed",
-      "openRate": "Open Rate",
-      "clickRate": "Click Rate",
-      "deliveryRate": "Delivery Rate"
-    },
-    "sms": {
-      "messageLabel": "SMS Message",
-      "messagePlaceholder": "Write your SMS...",
-      "charCount": "{{count}}/160 characters",
-      "recipientPhone": "Recipient Phone"
-    },
-    "empty": "No campaigns yet",
-    "emptyDescription": "Create your first campaign to start engaging with leads.",
-    "toast": {
-      "created": "Campaign created",
-      "sent": "Campaign sent successfully",
-      "scheduled": "Campaign scheduled",
-      "deleted": "Campaign deleted",
-      "sendFailed": "Failed to send campaign"
-    }
+    "subtitle": "Run campaigns, track engagement, and manage outreach from one place.",
+    "campaigns": "Campaigns",
+    "sms": "SMS",
+    "emailTracking": "Email Tracking",
+    "aiAssistant": "AI Campaign Assistant",
+    "aiAssistantDesc": "Tell me what campaigns you want to run. I'll handle the email copy, SMS messages, scheduling, and optimization.",
+    "chatPlaceholder": "Tell AI what campaign to create...",
+    "yourAiManager": "Your AI Campaign Manager",
+    "quickActions": "Quick Actions",
+    "quickAction1": "Create an email campaign for warm leads",
+    "quickAction2": "Send SMS follow-ups to no-shows",
+    "quickAction3": "Draft a nurture sequence for new leads",
+    "quickAction4": "Schedule a weekly newsletter",
+    "quickStats": "Quick Stats",
+    "emailsSent": "Emails Sent",
+    "openRate": "Open Rate",
+    "clickRate": "Click Rate",
+    "hotLeads": "Hot Leads",
+    "viewFullAnalytics": "View Full Analytics",
+    "noEmailsSent": "No emails sent yet",
+    "scheduledTitle": "Scheduled",
+    "noScheduled": "No scheduled campaigns.",
+    "sendSms": "Send SMS",
+    "recipient": "Recipient",
+    "recipientPlaceholder": "Select a lead to message...",
+    "noLeadsWithPhone": "No leads with phone numbers",
+    "msgPlaceholder": "Type your text message...",
+    "smsTips": "SMS Tips",
+    "tip1": "Keep messages under 160 characters for a single SMS segment.",
+    "tip2": "Longer messages are split into multiple segments and may cost more.",
+    "tip3": "Include a clear call-to-action for better response rates.",
+    "smsTemplates": "Quick Templates",
+    "totalSent": "Total Sent",
+    "totalSentDesc": "Outreach emails delivered",
+    "openRateDesc": "{{count}} total opens",
+    "clickRateDesc": "{{count}} total clicks",
+    "engaged": "Engaged",
+    "engagedDesc": "Contacts who opened",
+    "engagementBreakdown": "Engagement Breakdown",
+    "sendToSee": "Send outreach emails to see engagement data",
+    "goToLeads": "Go to Leads page to send emails, or ask the AI assistant",
+    "recentActivity": "Recent Email Activity",
+    "noOutreach": "No outreach emails sent yet",
+    "useCampaigns": "Use the Campaigns tab to start sending",
+    "emailFunnel": "Email Funnel",
+    "funnelSent": "Sent",
+    "funnelOpened": "Opened",
+    "funnelClicked": "Clicked",
+    "funnelHot": "Hot",
+    "hot": "Hot",
+    "warm": "Warm",
+    "interested": "Interested",
+    "noEngagement": "No Engagement"
   },
   "automations": {
     "title": "Automations",
-    "subtitle": "Build automated workflows to streamline your business processes.",
-    "addAutomation": "Create Automation",
-    "badge": "Workflows",
-    "totalAutomations": "{{count}} Automations",
-    "templates": {
-      "0": {
-        "name": "Lead Capture & Qualification",
-        "description": "Automatically capture new leads from web forms, score them using AI, and route hot leads to your sales team instantly.",
-        "trigger": "New form submission",
-        "action": "Score & route lead"
-      },
-      "1": {
-        "name": "Appointment Reminders",
-        "description": "Send automated email and SMS reminders before scheduled appointments. Reduce no-shows by up to 80%.",
-        "trigger": "24 hours before appointment",
-        "action": "Send email + SMS reminder"
-      },
-      "2": {
-        "name": "Inbound Call Qualification",
-        "description": "When a new call comes in, AI listens, qualifies the lead, and creates a lead card with all the details.",
-        "trigger": "Incoming phone call",
-        "action": "Qualify & create lead"
-      },
-      "3": {
-        "name": "Email Drip Campaign",
-        "description": "Nurture leads with a sequence of personalized emails over days or weeks. AI optimizes send times and content.",
-        "trigger": "Lead enters funnel",
-        "action": "Send email sequence"
-      },
-      "4": {
-        "name": "Client Onboarding",
-        "description": "Automate the entire client onboarding process from welcome email to account setup and first check-in.",
-        "trigger": "Deal closed/won",
-        "action": "Start onboarding flow"
-      },
-      "5": {
-        "name": "Review Collection",
-        "description": "Automatically request reviews from satisfied clients. Follow up with those who haven't responded.",
-        "trigger": "Service completed",
-        "action": "Request review"
-      }
-    },
-    "status": {
-      "active": "Active",
-      "paused": "Paused",
-      "draft": "Draft"
-    },
-    "workflow": {
-      "trigger": "Trigger",
-      "conditions": "Conditions",
-      "actions": "Actions",
-      "then": "Then"
-    },
-    "empty": "No automations configured",
-    "emptyDescription": "Create your first automation to start saving time.",
-    "toast": {
-      "created": "Automation created",
-      "activated": "Automation activated",
-      "paused": "Automation paused",
-      "deleted": "Automation deleted"
-    }
+    "subtitle": "Set up automated workflows to streamline your operations.",
+    "createAutomation": "Create Automation",
+    "templates": "Templates",
+    "noAutomations": "No automations yet",
+    "noAutomationsDesc": "Create your first automation or use a template to get started.",
+    "useTemplate": "Use Template",
+    "activate": "Activate",
+    "deactivate": "Deactivate"
   },
   "training": {
     "title": "Training Center",
-    "subtitle": "Learn how to get the most out of ArgiFlow with guided courses and tutorials.",
-    "badge": "Learning",
-    "progress": "{{completed}}/{{total}} completed",
-    "courses": {
-      "0": {
-        "title": "Getting Started with ArgiFlow",
-        "description": "Learn the basics of setting up your account, adding leads, and configuring your first AI agent.",
-        "duration": "15 min"
-      },
-      "1": {
-        "title": "Mastering Lead Generation",
-        "description": "Advanced techniques for capturing, scoring, and nurturing leads with AI automation.",
-        "duration": "25 min"
-      },
-      "2": {
-        "title": "Voice AI Configuration",
-        "description": "Set up and optimize your voice AI agents for maximum call handling efficiency.",
-        "duration": "20 min"
-      },
-      "3": {
-        "title": "Email Campaign Mastery",
-        "description": "Create high-converting email campaigns with AI-powered content and timing optimization.",
-        "duration": "30 min"
-      },
-      "4": {
-        "title": "Sales Funnel Optimization",
-        "description": "Build and optimize sales funnels that convert. Learn Kanban pipeline management.",
-        "duration": "25 min"
-      },
-      "5": {
-        "title": "Automation Workflows",
-        "description": "Create complex automation workflows that handle repetitive tasks automatically.",
-        "duration": "20 min"
-      }
-    },
+    "subtitle": "Learn how to maximize your results with ArgiFlow.",
+    "courses": "Courses",
+    "tutorials": "Tutorials",
+    "progress": "Progress",
+    "completed": "Completed",
+    "inProgress": "In Progress",
+    "notStarted": "Not Started",
     "startCourse": "Start Course",
     "continueCourse": "Continue",
-    "completedBadge": "Completed",
-    "inProgressBadge": "In Progress"
+    "certificate": "Certificate"
   },
   "strategy": {
-    "title": "AI Marketing Strategy",
-    "subtitle": "Generate a custom marketing strategy powered by AI for your business.",
-    "badge": "AI-Powered",
-    "generateButton": "Generate Strategy",
-    "regenerateButton": "Regenerate",
-    "generating": "Generating...",
-    "readyBadge": "Ready",
-    "generatingBadge": "Generating...",
-    "form": {
-      "companyNameLabel": "Company Name",
-      "companyNamePlaceholder": "Acme Corp",
-      "industryLabel": "Industry",
-      "industryPlaceholder": "Select your industry",
-      "descriptionLabel": "Business Description",
-      "descriptionPlaceholder": "Describe your business, products, and target audience...",
-      "goalsLabel": "Marketing Goals",
-      "goalsPlaceholder": "What do you want to achieve?",
-      "budgetLabel": "Monthly Budget",
-      "budgetPlaceholder": "Enter your monthly marketing budget"
-    },
-    "result": {
-      "title": "Your Marketing Strategy",
-      "customFor": "Custom strategy for {{companyName}} in {{industry}}",
-      "downloadPdf": "Download PDF",
-      "shareStrategy": "Share"
-    },
-    "workflow": {
-      "title": "Strategy Generation Process",
-      "step1": "Analyzing Your Business",
-      "step2": "Researching Market",
-      "step3": "Building Strategy",
-      "step4": "Generating Recommendations"
-    },
-    "empty": "No strategy generated yet",
-    "emptyDescription": "Fill in your business details and let AI create a custom marketing strategy for you."
+    "title": "Marketing Strategy",
+    "subtitle": "AI-generated marketing strategy tailored to your business.",
+    "generateStrategy": "Generate Strategy",
+    "regenerate": "Regenerate",
+    "generating": "Generating your strategy...",
+    "noStrategy": "No strategy generated yet",
+    "noStrategyDesc": "Tell us about your business and our AI will create a custom marketing strategy.",
+    "strategyOverview": "Strategy Overview",
+    "recommendations": "Recommendations",
+    "actionPlan": "Action Plan",
+    "targetAudience": "Target Audience",
+    "channels": "Channels",
+    "budget": "Budget"
   },
   "resources": {
-    "title": "Resources",
-    "subtitle": "Battle-tested templates, proven ads, funnels, and SOPs to scale your agency.",
-    "banner": {
-      "title": "Resource Library",
-      "description": "Bot templates, ad blueprints, funnel builders, and SOPs — everything you need to succeed."
-    },
-    "tabs": {
-      "botTemplates": "Bot Templates",
-      "adTemplates": "Ad Templates",
-      "vslFunnels": "VSL Funnels",
-      "clientBlueprint": "Client Blueprint",
-      "agencySops": "Agency SOPs"
-    },
-    "botTemplates": {
-      "subtitle": "{{count}} proven bot templates. Each one handled thousands of real conversations. Pick a template, install in 15 minutes, and start delivering results.",
-      "countBadge": "{{count}} Templates",
-      "chargeClients": "Charge clients {{price}}",
-      "installTemplate": "Install Template",
-      "installedActive": "Installed & Active",
-      "installedMessage": "AI agent created and active — View it in AI Agents to manage settings.",
-      "0": {
-        "name": "Real Estate Agent",
-        "industry": "Real Estate",
-        "conversations": "12,400+",
-        "price": "$2,500",
-        "description": "Qualifies buyers/sellers, schedules showings, handles objections. Pre-loaded with MLS integration scripts.",
-        "features": { "0": "Lead qualification", "1": "Showing scheduler", "2": "Follow-up sequences", "3": "Market analysis chat" }
-      },
-      "1": {
-        "name": "Dental Receptionist",
-        "industry": "Dental / Medical",
-        "conversations": "8,200+",
-        "price": "$2,500",
-        "description": "Books appointments, handles insurance questions, sends reminders. HIPAA-compliant conversation flows.",
-        "features": { "0": "Appointment booking", "1": "Insurance verification", "2": "Reminder system", "3": "Emergency routing" }
-      },
-      "2": {
-        "name": "Legal Intake Bot",
-        "industry": "Law Firms",
-        "conversations": "6,800+",
-        "price": "$2,500",
-        "description": "Screens potential cases, collects intake info, schedules consultations. Built for PI, family, and criminal law.",
-        "features": { "0": "Case screening", "1": "Intake forms", "2": "Consultation booking", "3": "Conflict checks" }
-      },
-      "3": {
-        "name": "Auto Dealership",
-        "industry": "Automotive",
-        "conversations": "9,100+",
-        "price": "$2,500",
-        "description": "Handles inventory questions, schedules test drives, captures trade-in info. Works with any DMS.",
-        "features": { "0": "Inventory search", "1": "Test drive booking", "2": "Trade-in estimator", "3": "Financing pre-qual" }
-      },
-      "4": {
-        "name": "Fitness Studio",
-        "industry": "Health & Fitness",
-        "conversations": "5,600+",
-        "price": "$2,500",
-        "description": "Books classes, handles membership questions, promotes personal training packages. Integrates with scheduling.",
-        "features": { "0": "Class booking", "1": "Membership management", "2": "PT upsells", "3": "Trial offers" }
-      },
-      "5": {
-        "name": "Home Services",
-        "industry": "HVAC / Plumbing",
-        "conversations": "11,300+",
-        "price": "$2,500",
-        "description": "Captures service requests, dispatches techs, handles emergency calls. Priority routing for urgent issues.",
-        "features": { "0": "Service booking", "1": "Emergency dispatch", "2": "Quote generation", "3": "Maintenance reminders" }
-      },
-      "6": {
-        "name": "Restaurant Concierge",
-        "industry": "Restaurants",
-        "conversations": "7,400+",
-        "price": "$2,500",
-        "description": "Takes reservations, handles catering inquiries, manages waitlists. Multi-location support built in.",
-        "features": { "0": "Reservations", "1": "Catering quotes", "2": "Waitlist management", "3": "Event booking" }
-      },
-      "7": {
-        "name": "Education Enrollor",
-        "industry": "Education",
-        "conversations": "4,900+",
-        "price": "$2,500",
-        "description": "Handles enrollment questions, schedules campus tours, processes applications. Perfect for schools and tutoring.",
-        "features": { "0": "Enrollment guidance", "1": "Tour scheduling", "2": "Application status", "3": "Financial aid info" }
-      },
-      "8": {
-        "name": "Insurance Quoter",
-        "industry": "Insurance",
-        "conversations": "10,200+",
-        "price": "$2,500",
-        "description": "Collects quote info, compares policies, books consultations. Works for auto, home, life, and commercial.",
-        "features": { "0": "Quote collection", "1": "Policy comparison", "2": "Claims guidance", "3": "Renewal reminders" }
-      },
-      "9": {
-        "name": "Wellness Clinic",
-        "industry": "Med Spa / Wellness",
-        "conversations": "6,100+",
-        "price": "$2,500",
-        "description": "Books treatments, handles consultation requests, promotes packages. Built for med spas and aesthetic clinics.",
-        "features": { "0": "Treatment booking", "1": "Consultation intake", "2": "Package upsells", "3": "Aftercare guidance" }
-      },
-      "10": {
-        "name": "Medical Billing Assistant",
-        "industry": "Medical Billing",
-        "conversations": "9,800+",
-        "price": "$3,500",
-        "description": "Handles patient billing inquiries, payment plans, insurance claim status, and collections follow-up. Reduces AR days and improves cash flow.",
-        "features": { "0": "Claim status lookup", "1": "Payment plan setup", "2": "Balance inquiries", "3": "Insurance verification" }
-      },
-      "11": {
-        "name": "Revenue Cycle Manager",
-        "industry": "Revenue Cycle Management",
-        "conversations": "7,600+",
-        "price": "$3,500",
-        "description": "End-to-end RCM automation: eligibility checks, prior authorizations, denial management, and patient statement follow-up. Built for healthcare practices and billing companies.",
-        "features": { "0": "Eligibility verification", "1": "Prior auth tracking", "2": "Denial follow-up", "3": "Payment reminders" }
-      },
-      "12": {
-        "name": "Tax Lien Hunter",
-        "industry": "Real Estate / Tax Liens",
-        "conversations": "6,300+",
-        "price": "$3,500",
-        "description": "Discovers tax lien properties, analyzes ROI, monitors auctions, and manages your lien portfolio automatically. Crawls county databases across 10+ states with AI-powered deal scoring.",
-        "features": { "0": "County database crawling", "1": "ROI analysis", "2": "Auction monitoring", "3": "Auto-bid strategies", "4": "Portfolio tracking" }
-      },
-      "13": {
-        "name": "Tax Deed Agent",
-        "industry": "Real Estate / Tax Deeds",
-        "conversations": "5,400+",
-        "price": "$3,500",
-        "description": "Finds tax deed properties before auction, evaluates title risk, estimates after-repair value, and tracks redemption periods. Built for investors seeking full property ownership.",
-        "features": { "0": "Deed property discovery", "1": "Title risk analysis", "2": "ARV estimation", "3": "Redemption tracking", "4": "Auction alerts" }
-      },
-      "14": {
-        "name": "Wholesale RE Agent",
-        "industry": "Real Estate / Wholesale",
-        "conversations": "8,900+",
-        "price": "$3,500",
-        "description": "Finds off-market wholesale deals, analyzes comps, generates contracts, and matches properties to your buyer list. Automates the entire wholesale pipeline from lead to assignment.",
-        "features": { "0": "Off-market discovery", "1": "Comp analysis", "2": "Contract generation", "3": "Buyer matching", "4": "Deal scoring" }
-      },
-      "15": {
-        "name": "Govt Contracts Agent",
-        "industry": "Government Contracting",
-        "conversations": "4,200+",
-        "price": "$3,500",
-        "description": "Monitors SAM.gov, GovWin, and agency portals for contract opportunities matching your NAICS codes. Analyzes RFPs, tracks deadlines, and scores win probability.",
-        "features": { "0": "SAM.gov monitoring", "1": "RFP analysis", "2": "Deadline tracking", "3": "Win probability scoring", "4": "Set-aside filtering" }
-      },
-      "16": {
-        "name": "Arbitrage Agent",
-        "industry": "E-Commerce / Arbitrage",
-        "conversations": "11,200+",
-        "price": "$3,500",
-        "description": "Scans retail and wholesale sources for profitable arbitrage opportunities. Tracks price differentials, calculates ROI after fees, and monitors inventory availability in real-time.",
-        "features": { "0": "Price scanning", "1": "ROI calculation", "2": "Inventory monitoring", "3": "Fee analysis", "4": "Profit alerts" }
-      },
-      "17": {
-        "name": "Lead Gen Agent",
-        "industry": "Services / B2B Lead Gen",
-        "conversations": "14,800+",
-        "price": "$3,500",
-        "description": "Multi-channel lead generation across web directories, social media, and intent data sources. Enriches contacts, scores leads by buying signals, and auto-drafts personalized outreach.",
-        "features": { "0": "Multi-source scraping", "1": "Contact enrichment", "2": "Intent scoring", "3": "Outreach drafting", "4": "Pipeline automation" }
-      }
-    },
-    "adTemplates": {
-      "subtitle": "Facebook ads that generated $450K from $50K spend. Copy and paste our winning creatives.",
-      "roiBadge": "9x Average ROI",
-      "hookHeadline": "Hook / Headline:",
-      "spend": "Spend: {{amount}}",
-      "revenue": "Revenue: {{amount}}",
-      "copyHook": "Copy Hook",
-      "useTemplate": "Use Template",
-      "copiedMessage": "Copied to clipboard — Paste into your ad manager to launch this campaign.",
-      "copiedToast": "Full ad copy and hook are in your clipboard. Paste into your Facebook/Instagram ad manager.",
-      "0": {
-        "name": "The Problem-Solution Ad",
-        "type": "Facebook / Instagram",
-        "spend": "$8,200",
-        "revenue": "$73,800",
-        "roi": "9x",
-        "hook": "Your phone rings. Nobody answers. That customer just called your competitor.",
-        "description": "Pain-point focused ad that highlights missed calls and lost revenue. Proven performer across 50+ campaigns."
-      },
-      "1": {
-        "name": "The Before/After Ad",
-        "type": "Facebook / Instagram",
-        "spend": "$12,400",
-        "revenue": "$111,600",
-        "roi": "9x",
-        "hook": "Before AI: 23% of calls answered. After AI: 100% of calls answered. 24/7.",
-        "description": "Side-by-side comparison showing transformation. Works especially well with real client data."
-      },
-      "2": {
-        "name": "The Demo Video Ad",
-        "type": "Facebook Video",
-        "spend": "$6,800",
-        "revenue": "$61,200",
-        "roi": "9x",
-        "hook": "Watch this AI answer a real call in 0.3 seconds...",
-        "description": "Short-form video showing the AI in action. Highest engagement rate of all our creatives."
-      },
-      "3": {
-        "name": "The ROI Calculator Ad",
-        "type": "Facebook Lead Form",
-        "spend": "$9,600",
-        "revenue": "$86,400",
-        "roi": "9x",
-        "hook": "How much revenue are you losing from missed calls? Enter your numbers.",
-        "description": "Interactive lead form ad that pre-qualifies prospects by having them calculate their own lost revenue."
-      },
-      "4": {
-        "name": "The Testimonial Carousel",
-        "type": "Facebook / Instagram",
-        "spend": "$5,200",
-        "revenue": "$46,800",
-        "roi": "9x",
-        "hook": "3 business owners. 3 industries. Same result: Never miss a call again.",
-        "description": "Multi-slide carousel with real client testimonials and results. High trust factor."
-      },
-      "5": {
-        "name": "The Scarcity Ad",
-        "type": "Facebook / Instagram",
-        "spend": "$7,800",
-        "revenue": "$70,200",
-        "roi": "9x",
-        "hook": "We only onboard 5 new AI voice clients per week. 2 spots left.",
-        "description": "Urgency-driven ad with limited availability messaging. Best for filling pipeline fast."
-      }
-    },
-    "funnels": {
-      "subtitle": "Complete funnels that close clients automatically. Every page, script, and email ready to import. Swap logos, launch.",
-      "badge": "Proven Funnels",
-      "pagesIncluded": "{{count}} pages included",
-      "importFunnel": "Import Funnel",
-      "importedBadge": "Imported",
-      "importedMessage": "Imported — Go to Sales Funnels to customize pages and launch.",
-      "importedToast": "Go to Sales Funnels to customize your {{pages}}-page funnel and launch it.",
-      "conversionBadge": "{{rate}} conversion",
-      "0": {
-        "name": "AI Voice Demo Funnel",
-        "pages": 5,
-        "conversionRate": "34%",
-        "description": "Complete VSL funnel with demo video, ROI calculator, social proof, and booking page. Import-ready.",
-        "steps": { "0": "Landing Page", "1": "VSL Video", "2": "ROI Calculator", "3": "Testimonials", "4": "Book Call" }
-      },
-      "1": {
-        "name": "Webinar Registration Funnel",
-        "pages": 4,
-        "conversionRate": "28%",
-        "description": "Automated webinar funnel that educates prospects and books demos. Includes replay and follow-up emails.",
-        "steps": { "0": "Registration", "1": "Thank You + Reminder", "2": "Webinar / Replay", "3": "Book Demo" }
-      },
-      "2": {
-        "name": "Free Audit Funnel",
-        "pages": 3,
-        "conversionRate": "41%",
-        "description": "Offer a free missed-call audit to prospects. Captures info, delivers report, books strategy call.",
-        "steps": { "0": "Audit Request", "1": "Instant Report", "2": "Strategy Call" }
-      },
-      "3": {
-        "name": "Case Study Funnel",
-        "pages": 4,
-        "conversionRate": "22%",
-        "description": "Showcase client success stories with data. Builds credibility and drives warm leads to booking.",
-        "steps": { "0": "Case Study Page", "1": "Results Breakdown", "2": "Social Proof", "3": "Book Call" }
-      }
-    },
-    "blueprint": {
-      "title": "Organic Client Blueprint",
-      "subtitle": "Land $5K clients with $0 ad spend. The same outreach methods that landed corporate clients cold. Follow this 10-day playbook to sign your first client without spending a dollar on ads.",
-      "playbookTitle": "10-Day Playbook",
-      "steps": {
-        "0": {
-          "title": "Identify Your Target Niche",
-          "description": "Pick 2-3 industries from the bot templates. These have proven demand. Focus where businesses answer phones daily.",
-          "timeframe": "Day 1"
-        },
-        "1": {
-          "title": "Build Your Hit List",
-          "description": "Use Google Maps, Yelp, and industry directories. Find businesses with bad reviews about phone service. These are warm leads.",
-          "timeframe": "Day 1-2"
-        },
-        "2": {
-          "title": "Create Personalized Demos",
-          "description": "Use the 1-Click Demo Builder for each prospect. Takes 3 minutes per demo. They see their business with AI already working.",
-          "timeframe": "Day 2-3"
-        },
-        "3": {
-          "title": "Send Cold Outreach",
-          "description": "Use the proven email/DM templates below. Include the personalized demo link. Follow up 3 times over 7 days.",
-          "timeframe": "Day 3-5"
-        },
-        "4": {
-          "title": "Run Discovery Calls",
-          "description": "Use the SPIN framework: Situation, Problem, Implication, Need-payoff. Let the prospect talk 80% of the time.",
-          "timeframe": "Day 5-7"
-        },
-        "5": {
-          "title": "Close & Install",
-          "description": "Use the 15-Minute Installation Checklist. Charge $5,000 setup + $997/month. Install same day. Start ROI immediately.",
-          "timeframe": "Day 7-10"
-        }
-      },
-      "outreachTitle": "Outreach Templates",
-      "outreach": {
-        "0": {
-          "name": "Cold Email #1 - The Missed Call Approach",
-          "subject": "Quick question about [Business Name]'s phone system",
-          "preview": "I called [Business Name] at [time] yesterday and got voicemail. I'm guessing I'm not the only one..."
-        },
-        "1": {
-          "name": "Cold Email #2 - The Data Drop",
-          "subject": "[Business Name] is losing ~$X/month from missed calls",
-          "preview": "The average [industry] business misses 32% of inbound calls. At your average ticket of $X..."
-        },
-        "2": {
-          "name": "LinkedIn DM - The Demo Share",
-          "subject": "",
-          "preview": "Hey [Name], I built something for [Business Name] - an AI that answers your phones 24/7. Here's a 60-second demo with your actual business name..."
-        },
-        "3": {
-          "name": "Follow-up #3 - The Case Study",
-          "subject": "How [Similar Business] added $14K/mo from missed calls",
-          "preview": "[Similar Business] was missing 28% of their calls. We set up AI voice for them in 15 minutes..."
-        }
-      },
-      "subjectLabel": "Subject: {{subject}}"
-    },
-    "sops": {
-      "title": "5-Minute Agency SOPs",
-      "subtitle": "Every procedure documented and recorded. Installation, sales, support, quality control, scaling, and team training. Hand any task to a VA instantly. Your agency runs like clockwork from day one.",
-      "viewSops": "View SOPs",
-      "proceduresCount": "{{count}} procedures",
-      "accessedMessage": "SOPs accessed — Follow each checklist step-by-step for best results.",
-      "categories": {
-        "0": {
-          "title": "Client Installation SOPs",
-          "items": { "0": "Voice AI Setup Checklist (15 min)", "1": "Phone Number Porting Guide", "2": "Greeting Script Configuration", "3": "Calendar Integration Setup", "4": "CRM Connection Walkthrough", "5": "Go-Live Testing Protocol" }
-        },
-        "1": {
-          "title": "Sales Process SOPs",
-          "items": { "0": "Discovery Call Framework", "1": "Demo Presentation Script", "2": "Proposal Template + Pricing", "3": "Objection Handling Guide", "4": "Contract & Onboarding Flow" }
-        },
-        "2": {
-          "title": "Client Support SOPs",
-          "items": { "0": "Monthly Check-in Template", "1": "Performance Report Guide", "2": "Escalation & Troubleshooting", "3": "Upsell Opportunity Identification" }
-        },
-        "3": {
-          "title": "Quality Control SOPs",
-          "items": { "0": "Call Quality Audit Checklist", "1": "Bot Response Accuracy Review", "2": "Customer Satisfaction Survey", "3": "Weekly Performance Dashboard" }
-        },
-        "4": {
-          "title": "Scaling & Team SOPs",
-          "items": { "0": "Hiring Your First VA", "1": "VA Task Delegation Template", "2": "Team Training Curriculum", "3": "Agency Growth Milestones", "4": "Referral Program Setup" }
-        },
-        "5": {
-          "title": "Marketing SOPs",
-          "items": { "0": "Content Calendar Template", "1": "Social Media Posting Guide", "2": "Testimonial Collection Process", "3": "Case Study Creation Framework" }
-        }
-      }
-    },
-    "toast": {
-      "copied": "Copied",
-      "copiedToClipboard": "{{label}} copied to clipboard.",
-      "installationFailed": "Installation failed",
-      "installationFailedDescription": "Something went wrong. Please try again.",
-      "templateIsLive": "{{name}} is live",
-      "templateCopied": "{{name}} copied",
-      "funnelImported": "{{name}} imported",
-      "sopsAccessed": "{{name}} accessed",
-      "sopsAccessedDescription": "{{count}} procedures ready. Follow each checklist step-by-step for best results."
-    }
+    "title": "Resource Library",
+    "subtitle": "Templates, blueprints, and tools to accelerate your growth.",
+    "all": "All Resources",
+    "templates": "Templates",
+    "blueprints": "Blueprints",
+    "tools": "Tools",
+    "guides": "Guides",
+    "download": "Download",
+    "noResources": "No resources available yet"
   },
   "settings": {
     "title": "Settings",
-    "subtitle": "This is your control center. Update your business info, connect external services, and turn features on or off. Each section below explains what it does and how it helps your business.",
-    "companyProfile": {
-      "sectionTitle": "Company Profile",
-      "sectionDescription": "Tell ArgiFlow about your business so the AI can create strategies and bot scripts tailored specifically to your industry and services.",
-      "title": "Business Information",
-      "description": "This info powers your AI marketing strategy, customizes your bot scripts, and helps the AI chat assistant understand your business. The more detail you add, the better results you'll get.",
-      "companyNameLabel": "Company Name",
-      "companyNamePlaceholder": "Acme Corp",
-      "industryLabel": "Industry",
-      "industryPlaceholder": "Select your industry",
-      "websiteLabel": "Website",
-      "websiteOptional": "(optional)",
-      "websitePlaceholder": "https://www.yourcompany.com",
-      "descriptionLabel": "What does your company do?",
-      "descriptionPlaceholder": "Describe your products, services, target customers, and goals. The more detail you provide, the better strategy our AI can generate...",
-      "descriptionHint": "Min 10 characters. Be specific for a better AI strategy.",
-      "saveButton": "Save Company Profile",
-      "saving": "Saving...",
-      "industries": {
-        "0": "Medical Billing / RCM",
-        "1": "Healthcare",
-        "2": "Marketing Agency",
-        "3": "Real Estate",
-        "4": "Legal Services",
-        "5": "Financial Services",
-        "6": "E-Commerce",
-        "7": "SaaS / Software",
-        "8": "Consulting",
-        "9": "Construction",
-        "10": "Home Services",
-        "11": "Fitness & Wellness",
-        "12": "Education",
-        "13": "Insurance",
-        "14": "Automotive",
-        "15": "Restaurant / Food",
-        "16": "Other"
-      }
-    },
-    "websiteTraining": {
-      "sectionTitle": "Website Training",
-      "sectionDescription": "Let AI read your website and learn about your services, pricing, and target audience. This knowledge is used to configure your AI agents so they can represent your business accurately and generate leads.",
-      "title": "AI Website Analysis",
-      "trainedStatus": "Trained",
-      "trainingStatus": "Analyzing...",
-      "failedStatus": "Failed",
-      "trainedDescription": "Last trained from {{url}} on {{date}}",
-      "trainingDescription": "AI is currently reading and analyzing your website. This usually takes 30-60 seconds...",
-      "failedDescription": "Training failed. Please check your website URL and try again.",
-      "defaultDescription": "Click the button below to have AI analyze your website and learn about your business.",
-      "trainButton": "Train AI from My Website",
-      "retrainButton": "Re-train from Website",
-      "viewKnowledge": "View Learned Knowledge",
-      "hideKnowledge": "Hide Knowledge",
-      "knowledgeLabels": {
-        "servicesOffered": "Services Offered",
-        "valuePropositions": "Value Propositions",
-        "targetAudience": "Target Audience",
-        "pricing": "Pricing",
-        "faqs": "FAQs",
-        "contactInfo": "Contact Information",
-        "aiSummary": "AI Summary"
-      }
-    },
-    "integrations": {
-      "sectionTitle": "Integrations",
-      "sectionDescription": "Connect your external services here so ArgiFlow can send emails, texts, and sync data on your behalf. Each card explains what the service does — only connect the ones you need.",
-      "saveButton": "Save",
-      "saving": "Saving...",
-      "email": {
-        "title": "Email (SendGrid)",
-        "description": "Connect your SendGrid account to send outreach emails. Enter your API key and the verified sender email from your SendGrid account. Emails will be sent from your own domain.",
-        "apiKeyLabel": "SendGrid API Key",
-        "apiKeyPlaceholder": "SG.xxxxxxxxxxxx",
-        "senderLabel": "Verified Sender Email",
-        "senderPlaceholder": "you@yourdomain.com"
-      },
-      "phone": {
-        "title": "Grasshopper (Phone)",
-        "description": "If you use Grasshopper as your business phone, enter the number here so your Voice AI agents can be linked to it for call routing and tracking.",
-        "numberLabel": "Business Number",
-        "numberPlaceholder": "+1 (555) 123-4567"
-      },
-      "calendar": {
-        "title": "Calendar Link",
-        "description": "Paste your online booking link here (from Calendly, Cal.com, or similar). When your AI bot wants to schedule a meeting with a lead, it will share this link automatically.",
-        "urlLabel": "Booking URL",
-        "urlPlaceholder": "https://calendly.com/your-name"
-      },
-      "webhook": {
-        "title": "Webhook URL",
-        "description": "A webhook sends your lead and appointment data to other tools you use — like Zapier, Make, or your own CRM system. If you don't use these tools, you can skip this one.",
-        "endpointLabel": "Webhook Endpoint",
-        "endpointPlaceholder": "https://hooks.zapier.com/..."
-      }
-    },
-    "notifications": {
-      "sectionTitle": "Notifications",
-      "sectionDescription": "Control how and when ArgiFlow notifies you about activity on your account.",
-      "emailNotifications": {
-        "label": "Email Notifications",
-        "description": "When ON: You'll get email alerts whenever a new lead comes in, an appointment is booked, or a campaign finishes."
-      },
-      "smsNotifications": {
-        "label": "SMS Notifications",
-        "description": "When ON: You'll receive text messages for time-sensitive updates like new leads and appointment confirmations. Requires Twilio integration below."
-      },
-      "appointmentReminders": {
-        "label": "Appointment Reminders",
-        "description": "When ON: Both you and your clients get automatic reminders before scheduled meetings so nobody forgets."
-      },
-      "weeklyReport": {
-        "label": "Weekly Report",
-        "description": "When ON: Every Monday you'll receive a summary showing how many leads, appointments, and conversions happened last week."
-      }
-    },
-    "aiAutomation": {
-      "sectionTitle": "AI & Automation",
-      "sectionDescription": "These controls turn on AI-powered features that work in the background to help you capture and manage leads automatically.",
-      "aiAutoRespond": {
-        "label": "AI Auto-Respond",
-        "description": "When ON: Your AI bots will automatically reply to new leads and inquiries the moment they come in — even outside business hours."
-      },
-      "leadScoring": {
-        "label": "Lead Scoring",
-        "description": "When ON: Each lead gets an automatic quality score (1-100) based on their engagement level, helping you focus on the hottest prospects first."
-      }
-    },
-    "preferences": {
-      "sectionTitle": "Preferences",
-      "sectionDescription": "General account preferences for your ArgiFlow experience.",
-      "darkMode": {
-        "label": "Dark Mode",
-        "description": "When ON: Switches the platform to a darker color scheme that's easier on your eyes."
-      },
-      "twoFactorAuth": {
-        "label": "Two-Factor Authentication",
-        "description": "When ON: Adds an extra security step when logging in to protect your account."
-      }
-    },
-    "toast": {
-      "settingsUpdated": "Settings updated",
-      "settingsUpdatedDescription": "Your preferences have been saved.",
-      "updateFailed": "Failed to update",
-      "updateFailedDescription": "Please try again.",
-      "companySaved": "Company profile saved",
-      "companySavedDescription": "Your business information has been updated.",
-      "companyFailed": "Failed to save",
-      "companyFailedDescription": "Please check all fields and try again.",
-      "missingInfo": "Missing information",
-      "missingInfoDescription": "Please fill in company name, industry, and description (at least 10 characters).",
-      "integrationSaved": "{{title}} saved",
-      "integrationSavedDescription": "Integration settings updated successfully.",
-      "websiteTrainingStarted": "Website analysis started",
-      "websiteTrainingStartedDescription": "Our AI is reading your website now. This usually takes 30-60 seconds.",
-      "websiteTrainingFailed": "Training failed",
-      "websiteTrainingFailedDescription": "Could not analyze your website. Please check the URL and try again.",
-      "noWebsiteUrl": "No website URL",
-      "noWebsiteUrlDescription": "Please enter your website URL in the Company Profile section above first."
-    }
+    "subtitle": "Manage your account, integrations, and preferences.",
+    "profile": "Profile",
+    "account": "Account",
+    "integrations": "Integrations",
+    "billing": "Billing",
+    "notifications": "Notifications",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email",
+    "phone": "Phone",
+    "company": "Company",
+    "website": "Website",
+    "timezone": "Timezone",
+    "language": "Language",
+    "saveChanges": "Save Changes",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "updatePassword": "Update Password",
+    "deleteAccount": "Delete Account",
+    "deleteWarning": "This action cannot be undone. All your data will be permanently deleted.",
+    "confirmDelete": "Confirm Delete",
+    "connected": "Connected",
+    "notConnected": "Not Connected",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "profileUpdated": "Profile updated successfully",
+    "passwordUpdated": "Password updated successfully"
   },
   "demoBuilder": {
     "title": "Demos & Install",
-    "subtitle": "Generate personalized demos for prospects and install AI for clients in minutes.",
-    "badge": "1-Click Tools",
-    "tabs": {
-      "voiceDemo": "Voice Demo Builder",
-      "aiDemo": "AI Demo Builder",
-      "checklist": "Installation Checklist"
-    },
-    "voiceDemo": {
-      "title": "1-Click AI Voice Demo Builder",
-      "description": "Generate personalized voice demos for prospects instantly. They hear exactly how their AI receptionist will sound with their business name. One click creates an instant wow factor that closes deals.",
-      "formTitle": "Create Voice Demo",
-      "businessNameLabel": "Business Name *",
-      "businessNamePlaceholder": "e.g. Smith Family Dental",
-      "industryLabel": "Industry *",
-      "industryPlaceholder": "Select industry",
-      "voiceTypeLabel": "Voice Type *",
-      "voiceTypePlaceholder": "Select voice",
-      "greetingLabel": "Custom Greeting (optional)",
-      "greetingPlaceholder": "e.g. Thank you for calling...",
-      "generateButton": "Generate Voice Demo",
-      "generating": "Generating...",
-      "newDemo": "New Demo",
-      "demoReady": "Demo Ready for {{businessName}}",
-      "voicePreview": "AI Voice Preview",
-      "voicePreviewText": "\"Thank you for calling {{businessName}}. How can I help you today?\"",
-      "copyLink": "Copy Link",
-      "shareWithProspect": "Share with Prospect",
-      "linkCopied": "Link copied",
-      "linkCopiedDescription": "Share this link with your prospect."
-    },
-    "aiDemo": {
-      "title": "1-Click AI Demo Builder",
-      "description": "Creates personalized demos with the prospect's business in 3 minutes. They watch their business with AI already working. See exact savings. Book themselves. No calls needed. The demo closes them.",
-      "formTitle": "Create Personalized Demo",
-      "businessNameLabel": "Business Name *",
-      "businessNamePlaceholder": "e.g. Pacific Coast Realty",
-      "industryLabel": "Industry *",
-      "industryPlaceholder": "Select industry",
-      "websiteLabel": "Website URL (optional)",
-      "websitePlaceholder": "e.g. https://pacificcoastrealty.com",
-      "painPointsLabel": "Key Pain Points (optional)",
-      "painPointsPlaceholder": "e.g. Missing calls, slow response time",
-      "generateButton": "Generate AI Demo",
-      "generating": "Building Demo...",
-      "newDemo": "New Demo",
-      "demoReady": "Demo Ready for {{businessName}}",
-      "callsMissed": "Calls Currently Missed",
-      "revenueRecovered": "Monthly Revenue Recovered",
-      "projectedRoi": "Projected ROI",
-      "features": {
-        "0": "AI receptionist answers 100% of calls within 0.3 seconds",
-        "1": "Automatically qualifies leads and books appointments",
-        "2": "Personalized greetings using business name and services",
-        "3": "After-hours handling with smart voicemail and callbacks",
-        "4": "Real-time analytics dashboard with call recordings"
-      },
-      "copyLink": "Copy Link",
-      "shareDemo": "Share Demo",
-      "preview": "Preview",
-      "linkCopied": "Link copied",
-      "linkCopiedDescription": "Share this personalized demo with your prospect."
-    },
-    "checklist": {
-      "title": "15-Minute Installation Process",
-      "subtitle": "The checklist that turns 5-hour custom jobs into 15-minute profits. Login, paste, connect, test, deliver, get paid. Refined over 500+ installations.",
-      "doneBadge": "{{completed}}/{{total}} Done",
-      "phases": {
-        "0": {
-          "name": "Setup",
-          "items": {
-            "0": { "title": "Log into ArgiFlow dashboard", "time": "30 sec", "description": "Access your client's workspace and navigate to Voice AI." },
-            "1": { "title": "Select bot template for client's industry", "time": "1 min", "description": "Choose from 10 proven templates. Each has pre-built conversation flows." },
-            "2": { "title": "Customize greeting with business name", "time": "1 min", "description": "Update the welcome message, business hours, and key services offered." },
-            "3": { "title": "Set business hours & after-hours behavior", "time": "1 min", "description": "Configure when AI answers live vs. takes messages for callback." }
-          }
-        },
-        "1": {
-          "name": "Connect",
-          "items": {
-            "0": { "title": "Connect phone number (port or new)", "time": "2 min", "description": "Forward existing number or provision a new local/toll-free number." },
-            "1": { "title": "Set up calendar integration", "time": "2 min", "description": "Connect Google Calendar, Calendly, or other scheduling tool." },
-            "2": { "title": "Configure CRM connection", "time": "2 min", "description": "Route leads to client's CRM automatically. Supports all major CRMs." },
-            "3": { "title": "Set up notification preferences", "time": "1 min", "description": "Configure email/SMS alerts for new leads, bookings, and urgent calls." }
-          }
-        },
-        "2": {
-          "name": "Test & Launch",
-          "items": {
-            "0": { "title": "Run 3 test calls (inbound scenarios)", "time": "3 min", "description": "Test booking, inquiry, and after-hours scenarios." },
-            "1": { "title": "Verify CRM entries are created", "time": "1 min", "description": "Confirm leads from test calls appear in the client's CRM." },
-            "2": { "title": "Send client welcome email + training video", "time": "30 sec", "description": "Use the pre-written template. Includes dashboard login and quick-start video." },
-            "3": { "title": "Mark installation complete", "time": "15 sec", "description": "Flag the account as live. Monitoring begins automatically." }
-          }
-        }
-      }
-    },
-    "lifetimeUpdates": {
-      "title": "Lifetime Updates",
-      "subtitle": "Every new bot, improvement, and strategy - free forever.",
-      "badge": "Included",
-      "items": {
-        "0": { "title": "New Bot Templates", "description": "Every new industry template added to the library, included free." },
-        "1": { "title": "AI Model Upgrades", "description": "When AI models improve, your bots automatically get smarter." },
-        "2": { "title": "Feature Releases", "description": "New platform features, integrations, and tools as they ship." },
-        "3": { "title": "Strategy Updates", "description": "Updated playbooks, ad templates, and SOPs based on market changes." },
-        "4": { "title": "Bug Fixes & Security", "description": "Continuous platform improvements and security patches." }
-      }
-    },
-    "industries": {
-      "0": "Real Estate",
-      "1": "Dental / Medical",
-      "2": "Law Firm",
-      "3": "Automotive",
-      "4": "Home Services",
-      "5": "Restaurant",
-      "6": "Insurance",
-      "7": "Fitness / Wellness",
-      "8": "Education",
-      "9": "Other"
-    },
-    "toast": {
-      "missingFields": "Missing fields",
-      "missingFieldsDescription": "Please fill in all required fields.",
-      "missingFieldsBusinessIndustry": "Please fill in business name and industry.",
-      "demoGenerated": "Demo Generated",
-      "voiceDemoGenerated": "Voice demo for {{businessName}} is ready to share.",
-      "aiDemoGenerated": "AI demo for {{businessName}} is ready to share."
-    }
+    "subtitle": "Create and manage demo experiences for your products.",
+    "createDemo": "Create Demo",
+    "noDemo": "No demos created yet",
+    "noDemoDesc": "Create your first demo to showcase your product."
   },
   "admin": {
     "login": {
-      "title": "Super Admin",
-      "subtitle": "Sign in to the admin panel",
-      "emailLabel": "Email",
-      "emailPlaceholder": "abel@argilette.com",
-      "passwordLabel": "Password",
-      "passwordPlaceholder": "Enter password",
-      "signInButton": "Sign In",
-      "signingIn": "Signing in...",
-      "invalidCredentials": "Invalid credentials",
-      "footer": "ArgiFlow Admin Panel"
+      "title": "Platform Admin",
+      "subtitle": "Enter admin credentials to access the management panel.",
+      "password": "Admin Password",
+      "passwordPlaceholder": "Enter admin password",
+      "signIn": "Sign In as Admin",
+      "backToSite": "Back to site",
+      "loginFailed": "Login failed",
+      "invalidPassword": "Invalid admin password."
     },
     "dashboard": {
-      "headerTitle": "ARGILETTE",
-      "headerBadge": "Platform Admin",
-      "myAccountButton": "My Account",
-      "switchingAccount": "Switching...",
-      "logoutButton": "Logout",
-      "cannotSwitch": "Cannot switch",
-      "noUserFound": "No user account found.",
-      "stats": {
-        "clients": "Clients",
-        "activeSubs": "Active Subs",
-        "mrr": "MRR",
-        "totalLeads": "Total Leads",
-        "appointments": "Appointments",
-        "aiAgents": "AI Agents"
-      },
-      "tabs": {
-        "clients": "Clients ({{count}})",
-        "subscriptions": "Subscriptions ({{count}})",
-        "leads": "Leads ({{count}})",
-        "appointments": "Appointments ({{count}})",
-        "agents": "Agents ({{count}})",
-        "platform": "Platform"
-      },
-      "clientsTable": {
-        "client": "Client",
-        "company": "Company",
-        "industry": "Industry",
-        "plan": "Plan",
-        "status": "Status",
-        "leads": "Leads",
-        "agents": "Agents",
-        "joined": "Joined",
-        "noPlan": "No plan",
-        "noClients": "No clients yet"
-      },
-      "subscriptions": {
-        "title": "Subscription Management",
-        "activeBadge": "{{count}} active",
-        "trialsBadge": "{{count}} trials",
-        "addSubscription": "Add Subscription",
-        "createTitle": "Create Subscription",
-        "editTitle": "Edit Subscription",
-        "clientLabel": "Client",
-        "clientPlaceholder": "Select a client",
-        "allHaveSubs": "All clients have subscriptions",
-        "planLabel": "Plan",
-        "statusLabel": "Status",
-        "venmoLabel": "Venmo Handle",
-        "venmoPlaceholder": "@handle",
-        "notesLabel": "Notes",
-        "notesPlaceholder": "Internal notes...",
-        "createButton": "Create Subscription",
-        "creating": "Creating...",
-        "saveButton": "Save Changes",
-        "saving": "Saving...",
-        "cancelButton": "Cancel",
-        "deleteConfirm": "Delete this subscription?",
-        "plans": {
-          "starter": "Starter ($297/mo)",
-          "pro": "Pro ($597/mo)",
-          "enterprise": "Enterprise ($1,497/mo)"
-        },
-        "statuses": {
-          "trial": "Trial (14-day)",
-          "trialShort": "Trial",
-          "active": "Active",
-          "pastDue": "Past Due",
-          "cancelled": "Cancelled",
-          "expired": "Expired"
-        },
-        "table": {
-          "client": "Client",
-          "plan": "Plan",
-          "status": "Status",
-          "amount": "Amount",
-          "payment": "Payment",
-          "periodEnd": "Period End",
-          "notes": "Notes",
-          "actions": "Actions"
-        },
-        "amountPerMonth": "${{amount}}/mo",
-        "noSubscriptions": "No subscriptions yet",
-        "noSubscriptionsHint": "Add a subscription to start tracking payments"
-      },
-      "leadsTable": {
-        "name": "Name",
-        "email": "Email",
-        "source": "Source",
-        "status": "Status",
-        "score": "Score",
-        "engagement": "Engagement",
-        "userId": "User ID",
-        "date": "Date",
-        "scoreFormat": "{{score}}/100",
-        "noLeads": "No leads found"
-      },
-      "appointmentsTable": {
-        "lead": "Lead",
-        "type": "Type",
-        "date": "Date",
-        "status": "Status",
-        "userId": "User ID",
-        "noAppointments": "No appointments found"
-      },
-      "agentsTable": {
-        "name": "Name",
-        "type": "Type",
-        "status": "Status",
-        "tasksDone": "Tasks Done",
-        "successRate": "Success Rate",
-        "userId": "User ID",
-        "successRateFormat": "{{rate}}%",
-        "noAgents": "No agents found"
-      },
-      "platform": {
-        "emailService": "Email Service (SendGrid)",
-        "smsService": "SMS Service (Twilio)",
-        "aiService": "AI Service (Anthropic)",
-        "security": "Security",
-        "apiKey": "API Key",
-        "accountSid": "Account SID",
-        "authToken": "Auth Token",
-        "phoneNumber": "Phone Number",
-        "platformSender": "Platform Sender",
-        "sessionSecret": "Session Secret",
-        "adminPassword": "Admin Password",
-        "na": "N/A",
-        "secretsNote": "Platform secrets are managed via environment variables. To update them, go to the Secrets tab in your project settings."
-      },
-      "toast": {
-        "subscriptionCreated": "Subscription created",
-        "subscriptionUpdated": "Subscription updated",
-        "subscriptionDeleted": "Subscription deleted",
-        "createFailed": "Failed to create subscription",
-        "updateFailed": "Failed to update subscription"
-      }
+      "title": "Platform Admin",
+      "subtitle": "Manage users, subscriptions, and platform settings.",
+      "totalUsers": "Total Users",
+      "activeSubs": "Active Subscriptions",
+      "revenue": "Revenue",
+      "totalLeads": "Total Leads",
+      "users": "Users",
+      "searchUsers": "Search users...",
+      "noUsers": "No users found",
+      "role": "Role",
+      "plan": "Plan",
+      "editUser": "Edit User",
+      "deleteUser": "Delete User",
+      "backToSite": "Back to Site",
+      "logout": "Logout"
     }
   },
-  "sidebar": {
-    "groups": {
-      "main": "Main",
-      "aiAutomation": "AI Automation",
-      "growth": "Growth"
-    },
-    "nav": {
-      "overview": "Overview",
-      "strategy": "Strategy",
-      "leadsCrm": "Leads & CRM",
-      "salesFunnels": "Sales Funnels",
-      "appointments": "Appointments",
-      "agentCatalog": "Agent Catalog",
-      "aiAgents": "AI Agents",
-      "voiceAi": "Voice AI",
-      "chatbots": "Chatbots",
-      "emailSms": "Email & SMS",
-      "automations": "Automations",
-      "resources": "Resources",
-      "demosInstall": "Demos & Install",
-      "training": "Training",
-      "settings": "Settings"
-    },
-    "badges": {
-      "ai": "AI",
-      "new": "NEW",
-      "live": "LIVE"
-    },
-    "platformAdmin": "Platform Admin",
-    "userDefault": "User",
-    "logout": "Logout"
-  },
   "chat": {
-    "title": "ArgiFlow AI",
-    "subtitle": "Powered by Anthropic Claude",
-    "strategistTitle": "ArgiFlow AI Strategist",
-    "strategistDescription": "Your AI-powered business advisor. Ask me anything about lead generation, marketing strategy, or automation.",
-    "inputPlaceholder": "Ask your AI strategist...",
+    "title": "AI Assistant",
+    "placeholder": "Ask your AI assistant anything...",
     "thinking": "Thinking...",
-    "quickActions": {
-      "generateLeads": "Generate leads",
-      "marketingStrategy": "Marketing strategy",
-      "bookAppointments": "Book appointments"
-    },
-    "clearChat": "Clear chat",
-    "noMessages": "No messages yet"
+    "error": "Something went wrong. Please try again."
   },
   "notifications": {
     "title": "Notifications",
-    "markAllRead": "Mark all read",
-    "noNotifications": "No notifications yet",
-    "types": {
-      "newLead": "New Lead",
-      "system": "System",
-      "warning": "Warning",
-      "actionRequired": "Action Required"
-    }
+    "markAllRead": "Mark all as read",
+    "noNotifications": "No notifications",
+    "allCaughtUp": "You're all caught up!"
   },
   "discovery": {
-    "title": "Set Up Your Business",
-    "subtitle": "Tell us about your business so we can personalize your experience",
-    "companyNameLabel": "Company Name",
-    "companyNamePlaceholder": "Acme Corp",
-    "industryLabel": "Industry",
-    "industryPlaceholder": "Select your industry",
-    "websiteLabel": "Website",
-    "websitePlaceholder": "https://www.yourcompany.com",
-    "descriptionLabel": "What does your company do?",
-    "descriptionPlaceholder": "Describe your products, services, target customers, and goals. The more detail you provide, the better strategy our AI can generate...",
-    "descriptionHint": "Min 10 characters. Be specific for a better AI strategy.",
-    "submitButton": "Save & Continue",
-    "submitting": "Setting up...",
-    "skipButton": "Skip for now"
+    "title": "Book a Discovery Call",
+    "subtitle": "Let's discuss how ArgiFlow can transform your business.",
+    "name": "Your Name",
+    "namePlaceholder": "Full name",
+    "email": "Email",
+    "emailPlaceholder": "you@company.com",
+    "phone": "Phone",
+    "phonePlaceholder": "+1 (555) 123-4567",
+    "company": "Company",
+    "companyPlaceholder": "Your company name",
+    "message": "Tell us about your needs",
+    "msgPlaceholder": "What challenges are you facing? What goals do you want to achieve?",
+    "submit": "Book Discovery Call",
+    "submitting": "Submitting...",
+    "success": "Discovery call request submitted!",
+    "successDesc": "We'll reach out within 24 hours to schedule your call."
   },
   "notFound": {
     "title": "404 Page Not Found",
-    "description": "The page you're looking for doesn't exist or has been moved.",
-    "backHome": "Go Back Home"
+    "description": "Did you forget to add the page to the router?"
+  },
+  "lang": {
+    "en": "English",
+    "fr": "Français"
   }
 }
