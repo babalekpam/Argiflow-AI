@@ -1,12 +1,22 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Mail,
@@ -24,6 +34,8 @@ import {
   Users,
   MessageSquare,
   Activity,
+  Phone,
+  CheckCircle,
 } from "lucide-react";
 import type { AiChatMessage } from "@shared/schema";
 import emailRobotImg from "@assets/robot-email-outreach.png";
@@ -45,8 +57,11 @@ interface EmailAnalytics {
 
 export default function EmailSmsPage() {
   usePageTitle("Email & SMS Campaigns");
+  const { toast } = useToast();
   const [message, setMessage] = useState("");
-  const [activeTab, setActiveTab] = useState<"campaigns" | "analytics">("campaigns");
+  const [activeTab, setActiveTab] = useState<"campaigns" | "analytics" | "sms">("campaigns");
+  const [smsRecipient, setSmsRecipient] = useState("");
+  const [smsBody, setSmsBody] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -84,6 +99,20 @@ export default function EmailSmsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/chat/messages"] });
+    },
+  });
+
+  const smsMutation = useMutation({
+    mutationFn: async ({ leadId, body }: { leadId: number; body: string }) => {
+      await apiRequest("POST", `/api/leads/${leadId}/send-sms`, { body });
+    },
+    onSuccess: () => {
+      toast({ title: "SMS sent successfully" });
+      setSmsBody("");
+      setSmsRecipient("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to send SMS", description: err.message, variant: "destructive" });
     },
   });
 
@@ -159,6 +188,14 @@ export default function EmailSmsPage() {
           Campaigns
         </Button>
         <Button
+          variant={activeTab === "sms" ? "default" : "outline"}
+          onClick={() => setActiveTab("sms")}
+          data-testid="tab-sms"
+        >
+          <Phone className="w-4 h-4 mr-2" />
+          SMS
+        </Button>
+        <Button
           variant={activeTab === "analytics" ? "default" : "outline"}
           onClick={() => setActiveTab("analytics")}
           data-testid="tab-analytics"
@@ -168,7 +205,109 @@ export default function EmailSmsPage() {
         </Button>
       </div>
 
-      {activeTab === "campaigns" ? (
+      {activeTab === "sms" ? (
+        <div className="grid lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2 p-6 space-y-5">
+            <div className="flex items-center gap-2">
+              <Phone className="w-5 h-5 text-chart-2" />
+              <h3 className="font-semibold">Send SMS</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Recipient</Label>
+                <Select value={smsRecipient} onValueChange={setSmsRecipient}>
+                  <SelectTrigger data-testid="select-sms-recipient">
+                    <SelectValue placeholder="Select a lead to message..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(leads || [])
+                      .filter((l: any) => l.phone)
+                      .map((lead: any) => (
+                        <SelectItem key={lead.id} value={String(lead.id)} data-testid={`sms-recipient-${lead.id}`}>
+                          {lead.name || lead.email} — {lead.phone}
+                        </SelectItem>
+                      ))}
+                    {(leads || []).filter((l: any) => l.phone).length === 0 && (
+                      <SelectItem value="none" disabled>No leads with phone numbers</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="sms-compose-body">Message</Label>
+                <Textarea
+                  id="sms-compose-body"
+                  data-testid="input-sms-compose-body"
+                  value={smsBody}
+                  onChange={(e) => setSmsBody(e.target.value)}
+                  rows={5}
+                  placeholder="Type your text message..."
+                  maxLength={1600}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {smsBody.length}/160 characters
+                  {smsBody.length > 160 ? ` (${Math.ceil(smsBody.length / 160)} segments)` : ""}
+                </p>
+              </div>
+
+              <Button
+                onClick={() => smsMutation.mutate({ leadId: Number(smsRecipient), body: smsBody })}
+                disabled={smsMutation.isPending || !smsRecipient || !smsBody.trim()}
+                data-testid="button-send-sms-compose"
+              >
+                {smsMutation.isPending ? (
+                  <>Sending...</>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send SMS
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card>
+
+          <div className="space-y-4">
+            <Card className="p-4">
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                SMS Tips
+              </h3>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>Keep messages under 160 characters for a single SMS segment.</p>
+                <p>Longer messages are split into multiple segments and may cost more.</p>
+                <p>Include a clear call-to-action for better response rates.</p>
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-chart-2" />
+                Quick Templates
+              </h3>
+              <div className="space-y-2">
+                {[
+                  "Hi {name}, just following up on our conversation. Would you be available for a quick call this week?",
+                  "Hi {name}, we have an exclusive offer for you. Reply YES to learn more!",
+                  "Hi {name}, your appointment is confirmed for tomorrow. Reply to reschedule.",
+                ].map((template, i) => (
+                  <Button
+                    key={i}
+                    variant="secondary"
+                    onClick={() => setSmsBody(template)}
+                    className="w-full justify-start text-left text-xs font-normal"
+                    data-testid={`button-sms-template-${i}`}
+                  >
+                    {template.substring(0, 60)}...
+                  </Button>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      ) : activeTab === "campaigns" ? (
         <div className="grid lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 flex flex-col" style={{ height: "500px" }}>
             <div className="flex items-center justify-between gap-4 p-4 border-b border-border/50 flex-wrap">

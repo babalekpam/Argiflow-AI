@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -21,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -57,6 +59,7 @@ import {
   CalendarClock,
   X,
   PhoneCall,
+  MessageSquare,
 } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { useState, useEffect } from "react";
@@ -164,6 +167,7 @@ function LeadCard({
   scheduleMutation,
   cancelScheduleMutation,
   callMutation,
+  onSmsClick,
 }: {
   lead: Lead;
   isExpanded: boolean;
@@ -176,6 +180,7 @@ function LeadCard({
   scheduleMutation: any;
   cancelScheduleMutation: any;
   callMutation: any;
+  onSmsClick: (lead: Lead) => void;
 }) {
   const isSent = !!lead.outreachSentAt;
   const isScheduled = !!lead.scheduledSendAt && !isSent;
@@ -292,16 +297,27 @@ function LeadCard({
             {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : ""}
           </span>
           {lead.phone && (
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={(e) => { e.stopPropagation(); callMutation.mutate({ toNumber: lead.phone!, leadId: lead.id }); }}
-              disabled={callMutation.isPending}
-              data-testid={`button-call-lead-${lead.id}`}
-              title="Call this lead"
-            >
-              <PhoneCall className="w-4 h-4 text-primary" />
-            </Button>
+            <>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={(e) => { e.stopPropagation(); onSmsClick(lead); }}
+                data-testid={`button-sms-lead-${lead.id}`}
+                title="Send SMS to this lead"
+              >
+                <MessageSquare className="w-4 h-4 text-chart-2" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={(e) => { e.stopPropagation(); callMutation.mutate({ toNumber: lead.phone!, leadId: lead.id }); }}
+                disabled={callMutation.isPending}
+                data-testid={`button-call-lead-${lead.id}`}
+                title="Call this lead"
+              >
+                <PhoneCall className="w-4 h-4 text-primary" />
+              </Button>
+            </>
           )}
           <Button
             size="icon"
@@ -568,6 +584,8 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"new" | "engaged">("new");
+  const [smsLead, setSmsLead] = useState<Lead | null>(null);
+  const [smsBody, setSmsBody] = useState("");
 
   const { data: leads, isLoading } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
@@ -699,6 +717,21 @@ export default function LeadsPage() {
     },
     onError: (err: any) => {
       toast({ title: "Call failed", description: err.message || "Could not initiate call.", variant: "destructive" });
+    },
+  });
+
+  const smsMutation = useMutation({
+    mutationFn: async ({ leadId, body }: { leadId: string; body: string }) => {
+      const res = await apiRequest("POST", `/api/leads/${leadId}/send-sms`, { body });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "SMS Sent", description: `Text message sent to ${data.leadName || "lead"}.` });
+      setSmsLead(null);
+      setSmsBody("");
+    },
+    onError: (err: any) => {
+      toast({ title: "SMS failed", description: err.message || "Could not send text message.", variant: "destructive" });
     },
   });
 
@@ -989,11 +1022,53 @@ export default function LeadsPage() {
                 scheduleMutation={scheduleMutation}
                 cancelScheduleMutation={cancelScheduleMutation}
                 callMutation={callMutation}
+                onSmsClick={(lead) => { setSmsLead(lead); setSmsBody(""); }}
               />
             ))}
           </div>
         )}
       </Card>
+
+      <Dialog open={!!smsLead} onOpenChange={(open) => !open && setSmsLead(null)}>
+        <DialogContent data-testid="dialog-send-sms">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-chart-2" />
+              Send SMS to {smsLead?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="text-sm text-muted-foreground">
+              Sending to: <span className="font-medium text-foreground">{smsLead?.phone}</span>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sms-body">Message</Label>
+              <Textarea
+                id="sms-body"
+                data-testid="input-sms-body"
+                value={smsBody}
+                onChange={(e) => setSmsBody(e.target.value)}
+                rows={4}
+                placeholder="Type your text message here..."
+                maxLength={1600}
+              />
+              <p className="text-xs text-muted-foreground text-right">{smsBody.length}/160 characters {smsBody.length > 160 ? `(${Math.ceil(smsBody.length / 160)} segments)` : ""}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSmsLead(null)} data-testid="button-cancel-sms">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => smsLead && smsMutation.mutate({ leadId: smsLead.id, body: smsBody })}
+              disabled={smsMutation.isPending || !smsBody.trim()}
+              data-testid="button-send-sms"
+            >
+              {smsMutation.isPending ? "Sending..." : "Send SMS"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
