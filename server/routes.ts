@@ -2329,11 +2329,10 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
 
       const userId = req.session.userId!;
 
-      let greeting = customScript || "Hello, this is an AI assistant from ArgiFlow. I'm calling to follow up on your inquiry. How can I help you today?";
       let agentName = "ArgiFlow AI Assistant";
       let agentDescription = "";
       let agentType = "";
-      let systemPrompt = "";
+      let agentScript = "";
 
       if (agentId) {
         const agents = await storage.getAiAgentsByUser(userId);
@@ -2342,9 +2341,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
           agentName = agent.name;
           agentDescription = agent.description || "";
           agentType = agent.type || "";
-          if (agent.script) {
-            greeting = agent.script;
-          }
+          agentScript = agent.script || "";
         }
       }
 
@@ -2356,7 +2353,6 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         if (lead) {
           leadName = lead.name;
           leadCompany = lead.company || "";
-          greeting = greeting.replace("{leadName}", lead.name).replace("{company}", lead.company || "your company");
           leadContext = `You are calling ${lead.name}${lead.company ? ` from ${lead.company}` : ""}. Their email is ${lead.email || "unknown"}.`;
           if (lead.outreach) {
             leadContext += ` Previous outreach context: ${lead.outreach}`;
@@ -2364,24 +2360,31 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         }
       }
 
-      systemPrompt = `You are "${agentName}", a professional AI phone agent working for the caller's business.
+      const fullScript = customScript || agentScript;
+
+      const systemPrompt = `You are "${agentName}", a professional AI phone agent making an outbound sales/business call.
 ${agentDescription ? `Your role: ${agentDescription}` : ""}
 ${agentType ? `Your specialty: ${agentType}` : ""}
-${leadContext ? `\nCaller context: ${leadContext}` : ""}
+${leadContext ? `\nWho you are calling: ${leadContext}` : ""}
 
-YOUR OPENING SCRIPT/GREETING: "${greeting}"
+${fullScript ? `CALL SCRIPT AND TALKING POINTS (follow this as your conversation guide):\n${fullScript}` : ""}
 
-IMPORTANT INSTRUCTIONS:
-- You MUST follow the script and talking points above as your guide for the conversation.
-- Stay on topic and focused on the purpose of this call.
-- Be professional, warm, and conversational -- speak naturally like a real person, not robotic.
-- Keep responses concise (1-3 sentences). Phone conversations should be brief and to the point.
-- Listen carefully to what the person says and respond appropriately.
-- If they ask questions, answer them based on your role and knowledge.
-- If they're not interested, be polite and thank them for their time.
-- If they want to schedule a meeting or follow up, confirm the details.
+CRITICAL INSTRUCTIONS FOR THE PHONE CALL:
+- You are on a LIVE phone call. Speak naturally like a real person having a conversation.
+- Your FIRST message should be a short, natural greeting introducing yourself and the purpose of the call (1-2 sentences max). Extract the opening line from the script above.
+- After the greeting, FOLLOW the script's flow: discovery questions, value proposition, objection handling, and closing -- adapting naturally to what the person says.
+- Keep each response concise (1-3 sentences). This is a phone call, not an email.
+- Listen carefully and respond to what they actually say. Don't just recite the script word-for-word.
+- If they raise objections, use the objection handling from the script.
+- If they're not interested, be polite, thank them, and offer to follow up later.
+- If they want to schedule a meeting, confirm details enthusiastically.
 - Never reveal you are an AI unless directly asked.
-- If the conversation reaches a natural end, say goodbye politely.`;
+- When the conversation reaches a natural end, say goodbye warmly.
+${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" ").pop()}" if appropriate.` : ""}`;
+
+      const greeting = leadName
+        ? `Hi ${leadName}, this is ${agentName.split(" ")[0]} with ${agentName.includes("Track") ? agentName : "our team"}. How are you doing today?`
+        : `Hi, this is ${agentName.split(" ")[0]}. How are you doing today?`;
 
       const callLog = await storage.createVoiceCall({
         userId,
@@ -2470,7 +2473,7 @@ IMPORTANT INSTRUCTIONS:
 
           const aiResponse = await anthropic.messages.create({
             model: "claude-sonnet-4-5-20250514",
-            max_tokens: 200,
+            max_tokens: 300,
             system: systemPrompt,
             messages: conversationHistory,
           });
@@ -2496,10 +2499,10 @@ IMPORTANT INSTRUCTIONS:
           return res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna">${escapeXml(aiText)}</Say>
-  <Gather input="speech" timeout="5" speechTimeout="auto" action="${baseUrl}/api/twilio/voice/${callLogId}/twiml" method="POST">
+  <Gather input="speech" timeout="8" speechTimeout="auto" action="${baseUrl}/api/twilio/voice/${callLogId}/twiml" method="POST">
     <Say voice="Polly.Joanna"></Say>
   </Gather>
-  <Say voice="Polly.Joanna">I didn't catch that. Thank you for your time. Goodbye!</Say>
+  <Say voice="Polly.Joanna">Are you still there? No worries if now isn't a good time. Feel free to reach out whenever works best. Take care!</Say>
   <Hangup/>
 </Response>`);
         } catch (aiErr) {
@@ -2522,10 +2525,10 @@ IMPORTANT INSTRUCTIONS:
       res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna">${escapeXml(greeting)}</Say>
-  <Gather input="speech" timeout="5" speechTimeout="auto" action="${baseUrl}/api/twilio/voice/${callLogId}/twiml" method="POST">
+  <Gather input="speech" timeout="8" speechTimeout="auto" action="${baseUrl}/api/twilio/voice/${callLogId}/twiml" method="POST">
     <Say voice="Polly.Joanna"></Say>
   </Gather>
-  <Say voice="Polly.Joanna">I didn't hear a response. Feel free to call back anytime. Goodbye!</Say>
+  <Say voice="Polly.Joanna">Hello? Are you still there? No problem, feel free to call us back whenever works for you. Have a great day!</Say>
   <Hangup/>
 </Response>`);
     } catch (error) {
