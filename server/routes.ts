@@ -3590,7 +3590,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   app.post("/api/agent-configs", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const { agentType, enabled, agentSettings, runFrequency } = req.body;
+      const { agentType, enabled, agentSettings, runFrequency, customScript } = req.body;
       const catalogEntry = getAgentByType(agentType);
       if (!catalogEntry) return res.status(400).json({ message: "Invalid agent type" });
       const config = await storage.upsertAgentConfig({
@@ -3599,6 +3599,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         enabled: enabled ?? true,
         agentSettings: agentSettings ? JSON.stringify(agentSettings) : JSON.stringify(catalogEntry.defaultSettings),
         runFrequency: runFrequency || "daily",
+        customScript: customScript || null,
       });
       await storage.createNotification({
         userId,
@@ -3619,11 +3620,12 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
     try {
       const userId = req.session.userId!;
       const id = req.params.id;
-      const { enabled, agentSettings, runFrequency } = req.body;
+      const { enabled, agentSettings, runFrequency, customScript } = req.body;
       const data: Record<string, unknown> = {};
       if (enabled !== undefined) data.enabled = enabled;
       if (agentSettings !== undefined) data.agentSettings = JSON.stringify(agentSettings);
       if (runFrequency !== undefined) data.runFrequency = runFrequency;
+      if (customScript !== undefined) data.customScript = customScript;
       const result = await storage.updateAgentConfig(id, userId, data as any);
       if (!result) return res.status(404).json({ message: "Config not found" });
       res.json(result);

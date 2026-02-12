@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -78,6 +79,7 @@ interface CatalogAgent {
     lastRun: string | null;
     totalLeadsFound: number;
     lifecycleState: string;
+    customScript: string | null;
   } | null;
 }
 
@@ -104,6 +106,7 @@ export default function AgentCatalogPage() {
   const [configDialog, setConfigDialog] = useState<CatalogAgent | null>(null);
   const [leadsDialog, setLeadsDialog] = useState<CatalogAgent | null>(null);
   const [selectedFrequency, setSelectedFrequency] = useState("daily");
+  const [customScript, setCustomScript] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [regionFilter, setRegionFilter] = useState("all");
 
@@ -143,7 +146,7 @@ export default function AgentCatalogPage() {
   });
 
   const configureMutation = useMutation({
-    mutationFn: async (data: { agentType: string; enabled: boolean; runFrequency: string }) => {
+    mutationFn: async (data: { agentType: string; enabled: boolean; runFrequency: string; customScript?: string | null }) => {
       return apiRequest("POST", "/api/agent-configs", data);
     },
     onSuccess: () => {
@@ -351,6 +354,7 @@ export default function AgentCatalogPage() {
                     className="flex-1"
                     onClick={() => {
                       setSelectedFrequency(agent.config?.runFrequency || "daily");
+                      setCustomScript(agent.config?.customScript || "");
                       setConfigDialog(agent);
                     }}
                     data-testid={`button-configure-${agent.type}`}
@@ -419,6 +423,17 @@ export default function AgentCatalogPage() {
                 ))}
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>{t("agentCatalog.agentScript")}</Label>
+              <p className="text-xs text-muted-foreground">{t("agentCatalog.agentScriptDesc")}</p>
+              <Textarea
+                value={customScript}
+                onChange={(e) => setCustomScript(e.target.value)}
+                placeholder={t("agentCatalog.agentScriptPlaceholder")}
+                className="min-h-[120px] font-mono text-sm"
+                data-testid="textarea-custom-script"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfigDialog(null)} data-testid="button-cancel-config">
@@ -431,6 +446,7 @@ export default function AgentCatalogPage() {
                   agentType: configDialog.type,
                   enabled: true,
                   runFrequency: selectedFrequency,
+                  customScript: customScript || null,
                 });
               }}
               disabled={configureMutation.isPending}

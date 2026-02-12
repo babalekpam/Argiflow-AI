@@ -267,6 +267,7 @@ export const agentConfigs = pgTable("agent_configs", {
   agentType: text("agent_type").notNull(),
   enabled: boolean("enabled").default(false),
   agentSettings: text("agent_settings"),
+  customScript: text("custom_script"),
   isRunning: boolean("is_running").default(false),
   lastRun: timestamp("last_run"),
   nextRun: timestamp("next_run"),

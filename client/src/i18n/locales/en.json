@@ -1040,7 +1040,10 @@
     "goToCrm": "Go to CRM",
     "close": "Close",
     "outreachSent": "Outreach email sent successfully",
-    "outreachFailed": "Failed to send outreach email"
+    "outreachFailed": "Failed to send outreach email",
+    "agentScript": "Agent Script",
+    "agentScriptDesc": "Write custom instructions for this agent. Tell it what to search for, how to qualify leads, and what actions to take.",
+    "agentScriptPlaceholder": "Example:\nSearch for companies in the construction industry in Texas.\nFocus on businesses with 10-50 employees.\nLook for contact emails on their websites.\nScore leads higher if they have government contracts."
   },
   "emailSms": {
     "title": "Email & SMS",
