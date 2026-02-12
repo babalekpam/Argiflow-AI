@@ -1728,6 +1728,10 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return res.status(400).json({ message: "Sender email required. Go to Settings > Integrations > Email Identity and set your sender email before sending outreach." });
       }
 
+      if (!settings?.sendgridApiKey) {
+        return res.status(400).json({ message: "SendGrid API key required. Go to Settings > Integrations and enter your SendGrid API key to send emails." });
+      }
+
       const existing = bulkSendStatus.get(userId);
       if (existing && existing.status === "processing") {
         return res.json({ status: "processing", sent: existing.sent, failed: existing.failed, total: existing.total });

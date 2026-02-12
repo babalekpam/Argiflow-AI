@@ -800,7 +800,14 @@ export default function LeadsPage() {
     onError: async (error: any) => {
       let message = t("leads.sendAllFailed");
       try {
-        if (error?.message) message = error.message;
+        const errStr = error?.message || "";
+        const jsonMatch = errStr.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          message = parsed.message || message;
+        } else if (errStr) {
+          message = errStr.replace(/^\d+:\s*/, "");
+        }
       } catch {}
       toast({ title: message, variant: "destructive" });
     },
