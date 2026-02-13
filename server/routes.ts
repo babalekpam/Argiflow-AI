@@ -3363,18 +3363,17 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
   }
 
   app.get("/t/o/:leadId", async (req, res) => {
+    res.set({
+      "Content-Type": "image/gif",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+    });
+    res.send(TRACKING_PIXEL);
+
     try {
       const lead = await storage.getLeadById(req.params.leadId);
       if (lead) {
-        await storage.createEmailEvent({
-          leadId: lead.id,
-          userId: lead.userId,
-          eventType: "open",
-          ipAddress: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
-          userAgent: req.headers["user-agent"] || null,
-          metadata: null,
-        });
-
         const newOpens = (lead.emailOpens || 0) + 1;
         const { score, level, nextStep } = calculateEngagement(newOpens, lead.emailClicks || 0);
         const statusUpdate: any = {
@@ -3387,17 +3386,23 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
         else if (level === "warm" && lead.status === "new") statusUpdate.status = "warm";
         await storage.updateLead(lead.id, statusUpdate);
+
+        try {
+          await storage.createEmailEvent({
+            leadId: lead.id,
+            userId: lead.userId,
+            eventType: "open",
+            ipAddress: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
+            userAgent: req.headers["user-agent"] || null,
+            metadata: null,
+          });
+        } catch (evtErr) {
+          console.error("Email event insert error:", evtErr);
+        }
       }
     } catch (err) {
       console.error("Tracking pixel error:", err);
     }
-    res.set({
-      "Content-Type": "image/gif",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      "Pragma": "no-cache",
-      "Expires": "0",
-    });
-    res.send(TRACKING_PIXEL);
   });
 
   app.get("/t/c/:leadId", async (req, res) => {
@@ -3415,15 +3420,6 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
 
       const lead = await storage.getLeadById(req.params.leadId);
       if (lead) {
-        await storage.createEmailEvent({
-          leadId: lead.id,
-          userId: lead.userId,
-          eventType: "click",
-          metadata: JSON.stringify({ url: safeUrl || "unknown" }),
-          ipAddress: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
-          userAgent: req.headers["user-agent"] || null,
-        });
-
         const newClicks = (lead.emailClicks || 0) + 1;
         const { score, level, nextStep } = calculateEngagement(lead.emailOpens || 0, newClicks);
         const statusUpdate: any = {
@@ -3436,6 +3432,19 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
         else if (level === "warm" && (lead.status === "new" || lead.status === "cold")) statusUpdate.status = "warm";
         await storage.updateLead(lead.id, statusUpdate);
+
+        try {
+          await storage.createEmailEvent({
+            leadId: lead.id,
+            userId: lead.userId,
+            eventType: "click",
+            metadata: JSON.stringify({ url: safeUrl || "unknown" }),
+            ipAddress: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
+            userAgent: req.headers["user-agent"] || null,
+          });
+        } catch (evtErr) {
+          console.error("Click event insert error:", evtErr);
+        }
       }
       if (safeUrl) {
         return res.redirect(302, safeUrl);
@@ -3515,6 +3524,40 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
     } catch (error) {
       console.error("Error fetching email analytics:", error);
       res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  app.post("/api/email-analytics/recalculate", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const allLeads = await storage.getLeadsByUser(userId);
+      const sentLeads = allLeads.filter(l => l.outreachSentAt);
+      let updated = 0;
+
+      for (const lead of sentLeads) {
+        const opens = lead.emailOpens || 0;
+        const clicks = lead.emailClicks || 0;
+        if (opens === 0 && clicks === 0) continue;
+
+        const { score, level, nextStep } = calculateEngagement(opens, clicks);
+        const statusUpdate: any = {
+          engagementScore: score,
+          engagementLevel: level,
+          nextStep,
+        };
+        if (!lead.lastEngagedAt) {
+          statusUpdate.lastEngagedAt = lead.outreachSentAt || new Date();
+        }
+        if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
+        else if (level === "warm" && lead.status === "new") statusUpdate.status = "warm";
+        await storage.updateLead(lead.id, statusUpdate);
+        updated++;
+      }
+
+      res.json({ success: true, updated, total: sentLeads.length });
+    } catch (error) {
+      console.error("Error recalculating engagement:", error);
+      res.status(500).json({ message: "Failed to recalculate" });
     }
   });
 

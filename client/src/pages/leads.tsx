@@ -136,13 +136,33 @@ function EmailAnalyticsSummary() {
     queryKey: ["/api/email-analytics"],
   });
 
+  const recalcMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/email-analytics/recalculate"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+    },
+  });
+
   if (!analytics || analytics.totalSent === 0) return null;
 
   return (
     <Card className="p-4 mb-6" data-testid="card-email-analytics">
-      <div className="flex items-center gap-2 mb-3">
-        <BarChart3 className="w-4 h-4 text-primary" />
-        <h3 className="text-sm font-semibold">{t("leads.engagement.overview")}</h3>
+      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold">{t("leads.engagement.overview")}</h3>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => recalcMutation.mutate()}
+          disabled={recalcMutation.isPending}
+          data-testid="button-recalculate-scores"
+        >
+          <RefreshCw className={`w-3 h-3 mr-1 ${recalcMutation.isPending ? "animate-spin" : ""}`} />
+          {recalcMutation.isPending ? t("common.processing", { defaultValue: "Processing..." }) : t("leads.engagement.recalculate", { defaultValue: "Recalculate Scores" })}
+        </Button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
         <div className="text-center">
