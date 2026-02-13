@@ -67,7 +67,7 @@ export interface IStorage {
   getChatMessages(userId: string): Promise<AiChatMessage[]>;
   createChatMessage(message: InsertAiChatMessage): Promise<AiChatMessage>;
   clearChatMessages(userId: string): Promise<void>;
-  updateUser(id: string, data: Partial<Pick<User, "companyName" | "industry" | "website" | "companyDescription" | "onboardingCompleted" | "jobTitle">>): Promise<User | undefined>;
+  updateUser(id: string, data: Partial<Pick<User, "companyName" | "industry" | "website" | "companyDescription" | "onboardingCompleted" | "jobTitle" | "firstName" | "lastName" | "passwordHash">>): Promise<User | undefined>;
   getMarketingStrategy(userId: string): Promise<MarketingStrategy | undefined>;
   upsertMarketingStrategy(strategy: InsertMarketingStrategy): Promise<MarketingStrategy>;
   getFunnelById(id: string): Promise<Funnel | undefined>;
@@ -328,7 +328,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(aiChatMessages).where(eq(aiChatMessages.userId, userId));
   }
 
-  async updateUser(id: string, data: Partial<Pick<User, "companyName" | "industry" | "website" | "companyDescription" | "onboardingCompleted" | "jobTitle">>): Promise<User | undefined> {
+  async updateUser(id: string, data: Partial<Pick<User, "companyName" | "industry" | "website" | "companyDescription" | "onboardingCompleted" | "jobTitle" | "firstName" | "lastName" | "passwordHash">>): Promise<User | undefined> {
     const [result] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
     return result;
   }

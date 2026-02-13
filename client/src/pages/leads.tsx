@@ -1101,8 +1101,8 @@ export default function LeadsPage() {
   const [outreachProgress, setOutreachProgress] = useState("");
 
   const generateOutreachMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/leads/generate-outreach");
+    mutationFn: async (opts?: { regenerateAll?: boolean }) => {
+      const res = await apiRequest("POST", "/api/leads/generate-outreach", opts || {});
       return res.json();
     },
     onSuccess: (data) => {
@@ -1404,7 +1404,7 @@ export default function LeadsPage() {
           {activeTab === "new" && (missingOutreachCount > 0 || outreachGenerating) && (
             <Button
               variant="outline"
-              onClick={() => generateOutreachMutation.mutate()}
+              onClick={() => generateOutreachMutation.mutate({})}
               disabled={generateOutreachMutation.isPending || outreachGenerating}
               data-testid="button-generate-outreach"
             >
@@ -1413,6 +1413,16 @@ export default function LeadsPage() {
               ) : (
                 <><Sparkles className="w-4 h-4 mr-2" />{t("leads.generateDrafts", { count: missingOutreachCount })}</>
               )}
+            </Button>
+          )}
+          {activeTab === "new" && !outreachGenerating && (
+            <Button
+              variant="outline"
+              onClick={() => generateOutreachMutation.mutate({ regenerateAll: true })}
+              disabled={generateOutreachMutation.isPending || outreachGenerating}
+              data-testid="button-regenerate-all-outreach"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />{t("leads.regenerateAll", { defaultValue: "Regenerate All Outreach" })}
             </Button>
           )}
           {activeTab === "new" && (unsentCount > 0 || bulkSending) && (

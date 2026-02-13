@@ -2193,7 +2193,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
   const outreachGenerationStatus = new Map<string, { status: string; generated: number; total: number; error?: string }>();
 
-  async function processOutreachGeneration(userId: string) {
+  async function processOutreachGeneration(userId: string, regenerateAll: boolean = false) {
     try {
       let outreachAi: { client: Anthropic; model: string };
       try { outreachAi = await getAnthropicForUser(userId); } catch {
@@ -2201,10 +2201,15 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return;
       }
       const allLeads = await storage.getLeadsByUser(userId);
-      const needsOutreach = allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
+      const needsOutreach = regenerateAll ? allLeads : allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
       const user = await storage.getUserById(userId);
       const userSettings = await storage.getSettingsByUser(userId);
       const bookingLink = userSettings?.calendarLink || "";
+      const senderFullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
+      const senderTitle = (user as any)?.jobTitle || "";
+      const senderCompany = user?.companyName || "Our company";
+      const senderPhone = userSettings?.grasshopperNumber || userSettings?.twilioPhoneNumber || "";
+      const senderWebsite = user?.website || "";
 
       const batchSize = 10;
       let generated = 0;
@@ -2224,7 +2229,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
             max_tokens: 4000,
             messages: [{
               role: "user",
-              content: `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Booking link: ${bookingLink}` : ""}\n\nFrom: ${user?.companyName || "Our company"} (${user?.industry || ""})\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft"}]. No markdown, no explanation.`
+              content: `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Booking link: ${bookingLink}` : ""}\n\nFrom: ${senderFullName}${senderTitle ? `, ${senderTitle}` : ""}, ${senderCompany} (${user?.industry || ""})\n${senderPhone ? `Phone: ${senderPhone}\n` : ""}${senderWebsite ? `Website: ${senderWebsite}\n` : ""}\n\nSign off each email as "${senderFullName}" — do NOT include a full signature block (that will be added automatically).\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft"}]. No markdown, no explanation.`
             }],
           });
 
@@ -2256,10 +2261,11 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
   app.post("/api/leads/generate-outreach", isAuthenticated, async (req, res) => {
     const userId = req.session.userId!;
+    const regenerateAll = req.body?.regenerateAll === true;
     const allLeads = await storage.getLeadsByUser(userId);
-    const needsOutreach = allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
+    const targetLeads = regenerateAll ? allLeads : allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
 
-    if (needsOutreach.length === 0) {
+    if (targetLeads.length === 0) {
       return res.json({ message: "All leads already have outreach drafts!", generated: 0, status: "complete" });
     }
 
@@ -2268,11 +2274,11 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       return res.json({ message: "Already generating drafts...", total: existing.total, status: "processing" });
     }
 
-    outreachGenerationStatus.set(userId, { status: "processing", generated: 0, total: needsOutreach.length });
-    res.json({ message: `Generating drafts for ${needsOutreach.length} leads...`, total: needsOutreach.length, status: "processing" });
+    outreachGenerationStatus.set(userId, { status: "processing", generated: 0, total: targetLeads.length });
+    res.json({ message: `${regenerateAll ? "Regenerating" : "Generating"} drafts for ${targetLeads.length} leads...`, total: targetLeads.length, status: "processing" });
 
     setImmediate(() => {
-      processOutreachGeneration(userId).catch(err => {
+      processOutreachGeneration(userId, regenerateAll).catch(err => {
         console.error("Background outreach generation failed:", err);
         outreachGenerationStatus.set(userId, { status: "error", generated: 0, total: 0, error: String(err) });
       });
@@ -4643,8 +4649,24 @@ async function ensureOwnerPassword() {
     const user = await storage.getUserByEmail(ownerEmail);
     if (!user) return;
     const newHash = await hashPassword(adminPassword);
-    await storage.updateUser(user.id, { passwordHash: newHash });
-    console.log("Owner password synced from ADMIN_PASSWORD secret");
+    await storage.updateUser(user.id, {
+      passwordHash: newHash,
+      firstName: "Clara",
+      lastName: "Motena",
+      companyName: "Track-Med Billing Solutions",
+      website: "https://www.track-med.com",
+      jobTitle: "Clients Acquisition Director",
+    });
+    const settings = await storage.getSettingsByUser(user.id);
+    if (settings) {
+      await storage.upsertSettings({
+        ...settings,
+        userId: user.id,
+        grasshopperNumber: settings.grasshopperNumber || "+16154826768",
+        calendarLink: settings.calendarLink || "https://www.tmbds.com/schedule",
+      });
+    }
+    console.log("Owner password & profile synced from ADMIN_PASSWORD secret");
   } catch (err) {
     console.error("Error syncing owner password:", err);
   }
