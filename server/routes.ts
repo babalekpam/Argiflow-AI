@@ -1373,6 +1373,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid email or password" });
       }
       req.session.userId = user.id;
+      delete req.session.adminId;
       res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
     } catch (error) {
       console.error("Login error:", error);
@@ -3968,6 +3969,11 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
     try {
       const admin = await storage.getAdminById(req.session.adminId!);
       if (!admin) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = req.session.userId ? await storage.getUserById(req.session.userId) : null;
+      if (!currentUser || currentUser.email !== "abel@argilette.com") {
+        delete req.session.adminId;
         return res.status(401).json({ message: "Unauthorized" });
       }
       res.json({ id: admin.id, email: admin.email, name: admin.name });
