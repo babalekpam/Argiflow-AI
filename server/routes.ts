@@ -505,6 +505,9 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const allLeads = await storage.getLeadsByUser(userId);
       const targetPhone = params.phone;
       const smsBody = params.message;
+      const leadName = params.lead_name;
+
+      console.log(`[Agent SMS] Params: phone=${targetPhone}, lead_id=${params.lead_id}, lead_name=${leadName}, message length=${smsBody?.length}`);
 
       if (!smsBody) {
         return "Please specify the message to send via SMS.";
@@ -515,16 +518,29 @@ async function executeAction(userId: string, action: string, params: any): Promi
 
         if (targetPhone) {
           const msg = await sendSMS(targetPhone, smsBody);
-          return `SMS sent successfully to ${targetPhone} (SID: ${msg.sid}).`;
+          return `SMS sent successfully to ${targetPhone} (SID: ${msg.sid}). Message: "${smsBody.slice(0, 80)}..."`;
         }
 
         const leadId = params.lead_id;
         if (leadId) {
           const lead = allLeads.find(l => l.id === leadId);
-          if (!lead) return "Lead not found.";
-          if (!lead.phone) return `Lead ${lead.name} has no phone number on file.`;
+          if (!lead) return "Lead not found with that ID.";
+          if (!lead.phone) return `Lead ${lead.name} has no phone number on file. Please add a phone number first.`;
           const msg = await sendSMS(lead.phone, smsBody);
-          return `SMS sent to ${lead.name} at ${lead.phone} (SID: ${msg.sid}).`;
+          return `SMS sent to ${lead.name} at ${lead.phone} (SID: ${msg.sid}). Message: "${smsBody.slice(0, 80)}..."`;
+        }
+
+        if (leadName) {
+          const matchedLead = allLeads.find(l => 
+            l.name.toLowerCase().includes(leadName.toLowerCase()) || 
+            (l.company && l.company.toLowerCase().includes(leadName.toLowerCase()))
+          );
+          if (matchedLead) {
+            if (!matchedLead.phone) return `Lead ${matchedLead.name} has no phone number on file. Please add a phone number first.`;
+            const msg = await sendSMS(matchedLead.phone, smsBody);
+            return `SMS sent to ${matchedLead.name} at ${matchedLead.phone} (SID: ${msg.sid}). Message: "${smsBody.slice(0, 80)}..."`;
+          }
+          return `No lead found matching "${leadName}". Available leads with phone numbers: ${allLeads.filter(l => l.phone).slice(0, 5).map(l => `${l.name} (${l.phone})`).join(", ")}.`;
         }
 
         const leadsWithPhone = allLeads.filter(l => l.phone);
@@ -534,19 +550,24 @@ async function executeAction(userId: string, action: string, params: any): Promi
 
         let sentCount = 0;
         const sentNames: string[] = [];
+        const errors: string[] = [];
         for (const lead of leadsWithPhone) {
           try {
             await sendSMS(lead.phone!, smsBody);
             sentCount++;
             sentNames.push(lead.name);
           } catch (err: any) {
-            console.error(`Failed to SMS ${lead.name}:`, err.message);
+            console.error(`[Agent SMS] Failed to SMS ${lead.name} at ${lead.phone}:`, err.message);
+            errors.push(`${lead.name}: ${err.message}`);
           }
         }
-        return `SMS sent to ${sentCount} lead${sentCount !== 1 ? "s" : ""}: ${sentNames.join(", ")}.`;
+        let result = `SMS sent to ${sentCount} lead${sentCount !== 1 ? "s" : ""}: ${sentNames.join(", ")}.`;
+        if (errors.length > 0) result += ` Failed for ${errors.length}: ${errors.join("; ")}`;
+        return result;
       } catch (err: any) {
+        console.error(`[Agent SMS] Error:`, err.message, err.code, err.moreInfo);
         if (err.message?.includes("Twilio not connected")) {
-          return "SMS service is not available at the moment. Please try again later.";
+          return "SMS service is not available at the moment. The Twilio integration may need to be reconnected. Please try again later.";
         }
         return `Failed to send SMS: ${err.message}`;
       }
@@ -1034,13 +1055,14 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
     },
     {
       name: "send_sms",
-      description: "Send SMS to a lead or phone number.",
+      description: "Send an SMS message to a lead or phone number. You can target by phone number directly, by lead_id, or by lead_name (partial match on name or company). If none specified, sends to ALL leads with phone numbers. Always generate a compelling, concise SMS message (under 160 chars ideally).",
       input_schema: {
         type: "object" as const,
         properties: {
-          phone: { type: "string" },
-          lead_id: { type: "string" },
-          message: { type: "string" },
+          phone: { type: "string", description: "Direct phone number to send to (e.g. +16154826768)" },
+          lead_id: { type: "string", description: "ID of a specific lead to send to" },
+          lead_name: { type: "string", description: "Name or company of the lead to find and send to (partial match)" },
+          message: { type: "string", description: "The SMS message body to send" },
         },
         required: ["message"],
       },

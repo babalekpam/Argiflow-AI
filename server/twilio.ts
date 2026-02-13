@@ -54,7 +54,18 @@ export async function getMessagingServiceSid() {
   return services.length > 0 ? services[0].sid : null;
 }
 
+function normalizePhoneNumber(phone: string): string {
+  const digits = phone.replace(/[^\d+]/g, '');
+  if (digits.startsWith('+')) return digits;
+  const cleaned = digits.replace(/^1/, '');
+  if (cleaned.length === 10) return `+1${cleaned}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return `+${digits}`;
+}
+
 export async function sendSMS(to: string, body: string) {
+  const normalizedTo = normalizePhoneNumber(to);
+  console.log(`[SMS] Sending to ${normalizedTo} (original: ${to}), body length: ${body.length}`);
   const client = await getTwilioClient();
   const messagingServiceSid = await getMessagingServiceSid();
 
@@ -62,8 +73,9 @@ export async function sendSMS(to: string, body: string) {
     const message = await client.messages.create({
       body,
       messagingServiceSid,
-      to,
+      to: normalizedTo,
     });
+    console.log(`[SMS] Sent via messaging service. SID: ${message.sid}, Status: ${message.status}`);
     return message;
   }
 
@@ -74,8 +86,9 @@ export async function sendSMS(to: string, body: string) {
   const message = await client.messages.create({
     body,
     from,
-    to,
+    to: normalizedTo,
   });
+  console.log(`[SMS] Sent via direct number. SID: ${message.sid}, Status: ${message.status}`);
   return message;
 }
 
