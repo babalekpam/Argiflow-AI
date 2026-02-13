@@ -2653,7 +2653,6 @@ RULES:
       for (const user of allUsers) {
         const settings = await storage.getSettingsByUser(user.id);
         if (!settings?.autoLeadGenEnabled) continue;
-        if (!settings?.anthropicApiKey || !settings.anthropicApiKey.startsWith("sk-ant-")) continue;
         const sub = await storage.getSubscriptionByUser(user.id);
         if (!sub || (sub.status !== "active" && sub.status !== "trial")) continue;
         try {
@@ -2663,7 +2662,7 @@ RULES:
       }
 
       if (eligibleUsers.length === 0) {
-        console.log("[Auto Lead Gen] No eligible users (need: API key + enabled + active subscription)");
+        console.log("[Auto Lead Gen] No eligible users (need: enabled + active subscription + AI available)");
         return;
       }
 
