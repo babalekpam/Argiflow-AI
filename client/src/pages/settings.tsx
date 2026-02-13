@@ -45,6 +45,8 @@ import {
   MapPin,
   ChevronDown,
   ChevronUp,
+  Key,
+  Cpu,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -614,6 +616,83 @@ export default function SettingsPage() {
           {t("settings.integrationsSectionDesc")}
         </p>
         <div className="space-y-4">
+          <Card className="p-5" data-testid="integration-ai-api-key">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-md bg-chart-2/10 flex items-center justify-center shrink-0">
+                <Key className="w-5 h-5 text-chart-2" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-sm">{t("settings.aiApiKey")}</h3>
+                  {getFieldValue("anthropicApiKey") && getFieldValue("anthropicApiKey").startsWith("sk-ant-") ? (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      {t("settings.connected")}
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      {t("settings.notConnected")}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{t("settings.aiApiKeyDesc")}</p>
+              </div>
+            </div>
+            {isLoading ? (
+              <div className="space-y-3"><Skeleton className="h-9 w-full" /></div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("settings.anthropicApiKeyLabel")}</Label>
+                  <MaskedInput
+                    value={getFieldValue("anthropicApiKey")}
+                    onChange={(v) => setFieldValue("anthropicApiKey", v)}
+                    placeholder="sk-ant-xxxxxxxxxxxxxxxx"
+                    sensitive={true}
+                    testId="input-anthropicApiKey"
+                  />
+                  <p className="text-[10px] text-muted-foreground">{t("settings.aiApiKeyHint")}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-muted-foreground" />
+                    <Label className="text-xs">{t("settings.autoLeadGenToggle")}</Label>
+                  </div>
+                  <Switch
+                    checked={!!(settings as any)?.autoLeadGenEnabled}
+                    onCheckedChange={() => handleToggle("autoLeadGenEnabled" as SettingKey, (settings as any)?.autoLeadGenEnabled ?? false)}
+                    disabled={updateMutation.isPending}
+                    data-testid="switch-autoLeadGenEnabled"
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">{t("settings.autoLeadGenDesc")}</p>
+                <Button
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    const update: Record<string, any> = {
+                      anthropicApiKey: getFieldValue("anthropicApiKey"),
+                    };
+                    updateMutation.mutate(update as any, {
+                      onSuccess: (data) => {
+                        queryClient.setQueryData(["/api/settings"], data);
+                        const newDirty = new Set(dirtyFields);
+                        newDirty.delete("anthropicApiKey");
+                        setDirtyFields(newDirty);
+                        toast({ title: t("settings.integrationSaved", { title: t("settings.aiApiKey") }), description: t("settings.integrationSavedDesc") });
+                      },
+                    });
+                  }}
+                  disabled={updateMutation.isPending || !dirtyFields.has("anthropicApiKey")}
+                  data-testid="button-save-ai-api-key"
+                >
+                  <Save className="w-3.5 h-3.5 mr-1.5" />
+                  {updateMutation.isPending ? t("settings.saving") : t("settings.save")}
+                </Button>
+              </div>
+            )}
+          </Card>
           <Card className="p-5" data-testid="integration-email-provider">
             <div className="flex items-start gap-3 mb-4">
               <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">

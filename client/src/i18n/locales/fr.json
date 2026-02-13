@@ -991,7 +991,13 @@
     "integrationsSection": "Intégrations",
     "integrationsSectionDesc": "Connectez vos services externes pour activer les fonctionnalités de la plateforme.",
     "saving": "Enregistrement...",
-    "save": "Enregistrer"
+    "save": "Enregistrer",
+    "aiApiKey": "Clé API IA",
+    "aiApiKeyDesc": "Ajoutez votre propre clé API Anthropic pour alimenter les fonctionnalités IA comme le chat, la génération de leads, la création de contenu et l'IA vocale.",
+    "anthropicApiKeyLabel": "Clé API Anthropic",
+    "aiApiKeyHint": "Obtenez votre clé sur console.anthropic.com. Les clés commencent par sk-ant-.",
+    "autoLeadGenToggle": "Génération Automatique de Leads",
+    "autoLeadGenDesc": "Lorsque activé, le système recherchera et générera automatiquement des leads pour votre entreprise toutes les 5 heures en utilisant votre clé IA."
   },
   "demoBuilder": {
     "title": "Démos & Installation",

@@ -81,6 +81,18 @@ const CLAUDE_MODEL = anthropicConfig.usingDirectKey
   ? "claude-sonnet-4-20250514"
   : "claude-sonnet-4-5";
 
+async function getAnthropicForUser(userId: string): Promise<{ client: Anthropic; model: string }> {
+  const settings = await storage.getSettingsByUser(userId);
+  const userKey = settings?.anthropicApiKey;
+  if (userKey && userKey.startsWith("sk-ant-")) {
+    return {
+      client: new Anthropic({ apiKey: userKey, baseURL: "https://api.anthropic.com" }),
+      model: "claude-sonnet-4-20250514",
+    };
+  }
+  throw new Error("AI_NOT_CONFIGURED");
+}
+
 const scryptAsync = promisify(scrypt);
 
 function escapeXml(text: string): string {
@@ -613,8 +625,9 @@ Brief overview of what you recommend and expected ROI timeline.
 
 Be specific, actionable, and tailored to their exact business. Use real-world examples relevant to their industry. Don't be generic — make this feel like a $5,000 consulting deliverable they're getting for free.`;
 
-    const response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
+    const userAi = await getAnthropicForUser(userId);
+    const response = await userAi.client.messages.create({
+      model: userAi.model,
       max_tokens: 4000,
       messages: [{ role: "user", content: prompt }],
     });
@@ -818,6 +831,16 @@ async function handleAiAction(userId: string, userMessage: string, chatHistory: 
     const waitSecs = Math.ceil((oldestMs + AI_RATE_WINDOW_MS - Date.now()) / 1000);
     return `I'm pacing requests to stay within API limits. Please try again in about ${waitSecs} seconds. Your actions like booking appointments and activating agents still work instantly!`;
   }
+
+  let userAnthropicClient: Anthropic;
+  let userModel: string;
+  try {
+    const ai = await getAnthropicForUser(userId);
+    userAnthropicClient = ai.client;
+    userModel = ai.model;
+  } catch {
+    return "Your AI API key is not configured. Please go to Settings > Integrations and add your Anthropic API key to use AI features.";
+  }
   const allLeads = await storage.getLeadsByUser(userId);
   const allAppts = await storage.getAppointmentsByUser(userId);
   const allAgents = await storage.getAiAgentsByUser(userId);
@@ -1019,9 +1042,9 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
   ];
 
   try {
-    // First Claude call — may use tools
-    let response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
+    // First Claude call — may use tools (uses user's own API key)
+    let response = await userAnthropicClient.messages.create({
+      model: userModel,
       max_tokens: 2048,
       system: systemPrompt,
       messages: claudeMessages,
@@ -1070,8 +1093,8 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
         currentMessages.push({ role: "user", content: toolResults as any });
       }
 
-      response = await anthropic.messages.create({
-        model: CLAUDE_MODEL,
+      response = await userAnthropicClient.messages.create({
+        model: userModel,
         max_tokens: 2048,
         system: systemPrompt,
         messages: currentMessages,
@@ -1083,7 +1106,6 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
       console.warn(`[AI] Tool loop hit max (${maxLoops}) — some tools may not have executed`);
     }
 
-    // Extract final text from Claude's response
     const textBlocks = response.content.filter(
       (block): block is Anthropic.TextBlock => block.type === "text"
     );
@@ -1105,8 +1127,8 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
       console.log(`Rate limited — retrying in ${waitMs}ms...`);
       await new Promise(resolve => setTimeout(resolve, waitMs));
       try {
-        const retryResponse = await anthropic.messages.create({
-          model: CLAUDE_MODEL,
+        const retryResponse = await userAnthropicClient.messages.create({
+          model: userModel,
           max_tokens: 2048,
           system: systemPrompt,
           messages: claudeMessages,
@@ -1166,10 +1188,12 @@ async function fallbackResponse(userId: string, msg: string): Promise<string> {
 // Standalone endpoint for web research (used by frontend)
 // ============================================================
 
-async function claudeWebSearch(query: string): Promise<string> {
+async function claudeWebSearch(query: string, userClient?: { client: Anthropic; model: string }): Promise<string> {
+  const ai = userClient?.client || anthropic;
+  const model = userClient?.model || CLAUDE_MODEL;
   try {
-    const response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
+    const response = await ai.messages.create({
+      model,
       max_tokens: 4000,
       system: "You are a helpful research assistant. Search the web and provide a clear, concise summary of the findings. Include relevant source URLs when available.",
       messages: [{ role: "user", content: query }],
@@ -1193,8 +1217,8 @@ async function claudeWebSearch(query: string): Promise<string> {
     if (error?.status === 429) {
       await new Promise(r => setTimeout(r, 5000));
       try {
-        const retry = await anthropic.messages.create({
-          model: CLAUDE_MODEL, max_tokens: 4000,
+        const retry = await ai.messages.create({
+          model, max_tokens: 4000,
           system: "You are a helpful research assistant. Provide a clear, concise summary.",
           messages: [{ role: "user", content: query }],
         });
@@ -1212,7 +1236,9 @@ async function claudeWebSearch(query: string): Promise<string> {
 // Write emails, ad copy, social posts, etc.
 // ============================================================
 
-async function claudeGenerate(prompt: string, type: string = "general"): Promise<string> {
+async function claudeGenerate(prompt: string, type: string = "general", userClient?: { client: Anthropic; model: string }): Promise<string> {
+  const ai = userClient?.client || anthropic;
+  const model = userClient?.model || CLAUDE_MODEL;
   const systemPrompts: Record<string, string> = {
     email: "You are an expert email copywriter for B2B businesses. Write compelling, conversion-focused emails that drive action. Keep them concise and professional.",
     ad: "You are an expert advertising copywriter. Write attention-grabbing ad copy optimized for the specified platform. Include headlines, body copy, and CTAs.",
@@ -1224,8 +1250,8 @@ async function claudeGenerate(prompt: string, type: string = "general"): Promise
   };
 
   try {
-    const response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
+    const response = await ai.messages.create({
+      model,
       max_tokens: 2048,
       system: systemPrompts[type] || systemPrompts.general,
       messages: [{ role: "user", content: prompt }],
@@ -1242,8 +1268,8 @@ async function claudeGenerate(prompt: string, type: string = "general"): Promise
     if (error?.status === 429) {
       await new Promise(r => setTimeout(r, 5000));
       try {
-        const retry = await anthropic.messages.create({
-          model: CLAUDE_MODEL, max_tokens: 2048,
+        const retry = await ai.messages.create({
+          model, max_tokens: 2048,
           system: systemPrompts[type] || systemPrompts.general,
           messages: [{ role: "user", content: prompt }],
         });
@@ -1754,8 +1780,9 @@ Phone numbers, email addresses, physical address, scheduling links, social media
 ===SUMMARY===
 A comprehensive 3-4 paragraph summary of this business that an AI agent could use to represent the company professionally. Include the company name, what they do, who they serve, and what makes them different.`;
 
-          const response = await anthropic.messages.create({
-            model: CLAUDE_MODEL,
+          const trainAi = await getAnthropicForUser(userId);
+          const response = await trainAi.client.messages.create({
+            model: trainAi.model,
             max_tokens: 8000,
             system: "You are a business analyst. Your job is to thoroughly analyze business websites and extract structured information that will be used to train AI agents. Be thorough, specific, and use actual information from the website — never make things up. Always search the web to find real data from the website.",
             messages: [{ role: "user", content: searchPrompt }],
@@ -2124,6 +2151,11 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
   async function processOutreachGeneration(userId: string) {
     try {
+      let outreachAi: { client: Anthropic; model: string };
+      try { outreachAi = await getAnthropicForUser(userId); } catch {
+        outreachGenerationStatus.set(userId, { status: "error", generated: 0, total: 0, error: "AI API key not configured" });
+        return;
+      }
       const allLeads = await storage.getLeadsByUser(userId);
       const needsOutreach = allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
       const user = await storage.getUserById(userId);
@@ -2143,8 +2175,8 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         ).join("\n");
 
         try {
-          const response = await anthropic.messages.create({
-            model: CLAUDE_MODEL,
+          const response = await outreachAi.client.messages.create({
+            model: outreachAi.model,
             max_tokens: 4000,
             messages: [{
               role: "user",
@@ -2357,7 +2389,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     { step: 3, daysAfter: 2, urgency: "final", label: "Final Nudge" },
   ];
 
-  async function generateFollowUpEmail(lead: any, step: number, urgency: string, user: any, bookingLink: string): Promise<string> {
+  async function generateFollowUpEmail(lead: any, step: number, urgency: string, user: any, bookingLink: string, userClient?: { client: Anthropic; model: string }): Promise<string> {
     const urgencyInstructions: Record<string, string> = {
       gentle: "Write a warm, friendly follow-up. Reference the initial email without being pushy. Ask if they had a chance to review your proposal. Keep it short (3-4 sentences).",
       value: "Write a value-driven follow-up. Include a specific benefit or case study result (e.g., 'Our clients typically see 15-25% improvement in collection rates'). Create gentle urgency. Include the booking link.",
@@ -2382,7 +2414,7 @@ RULES:
 - Do not use placeholder brackets like [Company] — use actual values`;
 
     try {
-      return await claudeGenerate(prompt, "email");
+      return await claudeGenerate(prompt, "email", userClient);
     } catch (err) {
       console.error(`[FOLLOW-UP] Failed to generate email for step ${step}:`, err);
       return "";
@@ -2504,8 +2536,14 @@ RULES:
             continue;
           }
 
+          let followUpAi: { client: Anthropic; model: string } | undefined;
+          try { followUpAi = await getAnthropicForUser(lead.userId); } catch {
+            console.warn(`[FOLLOW-UP] Skipping ${lead.name}: user has no AI API key configured`);
+            continue;
+          }
+
           const bookingLink = settings.calendarLink || "";
-          const emailBody = await generateFollowUpEmail(lead, currentStep, stepConfig.urgency, user, bookingLink);
+          const emailBody = await generateFollowUpEmail(lead, currentStep, stepConfig.urgency, user, bookingLink, followUpAi);
           if (!emailBody) {
             console.warn(`[FOLLOW-UP] Empty email generated for ${lead.name} step ${currentStep}, retrying next cycle`);
             continue;
@@ -2576,29 +2614,48 @@ RULES:
         return;
       }
 
-      const adminUser = allUsers.find(u => u.isAdmin) || allUsers[0];
-      if (!adminUser) return;
+      const eligibleUsers: Array<{ user: any; ai: { client: Anthropic; model: string } }> = [];
+      for (const user of allUsers) {
+        const settings = await storage.getSettingsByUser(user.id);
+        if (!settings?.autoLeadGenEnabled) continue;
+        if (!settings?.anthropicApiKey || !settings.anthropicApiKey.startsWith("sk-ant-")) continue;
+        const sub = await storage.getSubscriptionByUser(user.id);
+        if (!sub || (sub.status !== "active" && sub.status !== "trial")) continue;
+        try {
+          const ai = await getAnthropicForUser(user.id);
+          eligibleUsers.push({ user, ai });
+        } catch { continue; }
+      }
 
+      if (eligibleUsers.length === 0) {
+        console.log("[Auto Lead Gen] No eligible users (need: API key + enabled + active subscription)");
+        return;
+      }
+
+      for (const { user: targetUser, ai: userAi } of eligibleUsers) {
+        await runAutoLeadGenForUser(targetUser, userAi);
+      }
+    } catch (error: any) {
+      console.error("[Auto Lead Gen] Scheduler error:", error?.message);
+    }
+  }
+
+  async function runAutoLeadGenForUser(targetUser: any, userAi: { client: Anthropic; model: string }) {
+    try {
       const rotation = MEDICAL_BILLING_SEARCH_ROTATIONS[autoLeadGenRotationIndex % MEDICAL_BILLING_SEARCH_ROTATIONS.length];
       autoLeadGenRotationIndex++;
 
-      console.log(`[Auto Lead Gen] Starting run for ${rotation.region} — ${rotation.focus}`);
+      console.log(`[Auto Lead Gen] Starting run for user ${targetUser.email} — ${rotation.region} — ${rotation.focus}`);
 
       const [runRecord] = await db.insert(autoLeadGenRuns).values({
-        userId: adminUser.id,
+        userId: targetUser.id,
         status: "running",
         searchQueries: `${rotation.region}: ${rotation.focus}`,
         startedAt: new Date(),
       }).returning();
 
-      const anthropicKey = process.env.ANTHROPIC_API_KEY;
-      if (!anthropicKey) {
-        console.error("[Auto Lead Gen] No Anthropic API key found");
-        await db.update(autoLeadGenRuns).set({ status: "failed", errorMessage: "No API key", completedAt: new Date() }).where(eq(autoLeadGenRuns.id, runRecord.id));
-        return;
-      }
-
-      const anthropic = new Anthropic({ apiKey: anthropicKey });
+      const userAnthropicClient = userAi.client;
+      const userModelName = userAi.model;
 
       const autoGenPrompt = `You are Track-Med Billing Solutions' automated lead hunter. Your ONLY job is to find ${AUTO_LEAD_GEN_BATCH_SIZE} REAL medical billing leads and save them.
 
@@ -2663,7 +2720,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
       async function claudeCallWithRetry(params: any, retries = 3): Promise<any> {
         for (let i = 0; i < retries; i++) {
           try {
-            return await anthropic.messages.create(params);
+            return await userAnthropicClient.messages.create(params);
           } catch (err: any) {
             if (err?.status === 429 && i < retries - 1) {
               const wait = Math.min((i + 1) * 30000, 90000);
@@ -2677,7 +2734,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
       }
 
       let response = await claudeCallWithRetry({
-        model: CLAUDE_MODEL,
+        model: userModelName,
         max_tokens: 4096,
         messages: [{ role: "user", content: autoGenPrompt }],
         tools,
@@ -2702,7 +2759,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         for (const toolUse of crmToolUses) {
           try {
             console.log(`[Auto Lead Gen] Tool: ${toolUse.name}`);
-            const result = await executeAction(adminUser.id, toolUse.name, toolUse.input || {});
+            const result = await executeAction(targetUser.id, toolUse.name, toolUse.input || {});
             console.log(`[Auto Lead Gen] Result: ${result.slice(0, 150)}`);
 
             const match = result.match(/Saved (\d+) real leads/);
@@ -2729,14 +2786,13 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         }
 
         response = await claudeCallWithRetry({
-          model: CLAUDE_MODEL,
+          model: userModelName,
           max_tokens: 4096,
           messages: currentMessages,
           tools,
         });
       }
 
-      // If Claude finished talking but didn't call generate_leads, force it
       if (leadsGenerated === 0 && loopCount < maxAutoLoops) {
         console.log("[Auto Lead Gen] No leads generated yet, forcing generate_leads call...");
         const textSoFar = response.content
@@ -2751,7 +2807,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         });
 
         const retryResponse = await claudeCallWithRetry({
-          model: CLAUDE_MODEL,
+          model: userModelName,
           max_tokens: 4096,
           messages: currentMessages,
           tools,
@@ -2772,7 +2828,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
           const retryResults: any[] = [];
           for (const toolUse of retryToolUses) {
             try {
-              const result = await executeAction(adminUser.id, toolUse.name, toolUse.input || {});
+              const result = await executeAction(targetUser.id, toolUse.name, toolUse.input || {});
               console.log(`[Auto Lead Gen Retry] ${toolUse.name}: ${result.slice(0, 150)}`);
               const match = result.match(/Saved (\d+) real leads/);
               if (match) leadsGenerated += parseInt(match[1]);
@@ -2787,7 +2843,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
           }
 
           retryResp = await claudeCallWithRetry({
-            model: CLAUDE_MODEL,
+            model: userModelName,
             max_tokens: 4096,
             messages: retryCurrent,
             tools,
@@ -2801,10 +2857,10 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         completedAt: new Date(),
       }).where(eq(autoLeadGenRuns.id, runRecord.id));
 
-      console.log(`[Auto Lead Gen] Completed: ${leadsGenerated} leads generated for ${rotation.region}`);
+      console.log(`[Auto Lead Gen] Completed for ${targetUser.email}: ${leadsGenerated} leads generated for ${rotation.region}`);
 
     } catch (error: any) {
-      console.error("[Auto Lead Gen] Error:", error?.message);
+      console.error(`[Auto Lead Gen] Error for user ${targetUser.email}:`, error?.message);
     }
   }
 
@@ -2817,11 +2873,13 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
   // API: Get auto lead gen status & history
   app.get("/api/auto-lead-gen/status", isAuthenticated, async (req, res) => {
     try {
-      const runs = await db.select().from(autoLeadGenRuns).orderBy(desc(autoLeadGenRuns.startedAt)).limit(20);
-      const nextRunIn = AUTO_LEAD_GEN_INTERVAL;
+      const userId = req.session.userId!;
+      const settings = await storage.getSettingsByUser(userId);
+      const runs = await db.select().from(autoLeadGenRuns).where(eq(autoLeadGenRuns.userId, userId)).orderBy(desc(autoLeadGenRuns.startedAt)).limit(20);
       const totalLeads = runs.reduce((sum, r) => sum + (r.leadsGenerated || 0), 0);
       res.json({
-        enabled: true,
+        enabled: !!settings?.autoLeadGenEnabled,
+        hasApiKey: !!(settings?.anthropicApiKey && settings.anthropicApiKey.startsWith("sk-ant-")),
         intervalHours: 5,
         batchSize: AUTO_LEAD_GEN_BATCH_SIZE,
         totalLeadsGenerated: totalLeads,
@@ -2833,11 +2891,20 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
     }
   });
 
-  // API: Trigger manual run
   app.post("/api/auto-lead-gen/trigger", isAuthenticated, async (req, res) => {
     try {
-      res.json({ message: "Auto lead generation triggered. Check status in a few minutes." });
-      runAutoLeadGeneration();
+      const userId = req.session.userId!;
+      let userAi: { client: Anthropic; model: string };
+      try { userAi = await getAnthropicForUser(userId); } catch {
+        return res.status(400).json({ message: "AI API key not configured. Go to Settings > Integrations to add your Anthropic API key." });
+      }
+      const settings = await storage.getSettingsByUser(userId);
+      if (!settings?.autoLeadGenEnabled) {
+        return res.status(400).json({ message: "Auto lead generation is not enabled. Enable it in Settings > Integrations." });
+      }
+      const user = await storage.getUserById(userId);
+      res.json({ message: "Auto lead generation triggered for your account. Check status in a few minutes." });
+      runAutoLeadGenForUser(user, userAi);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -3186,8 +3253,9 @@ Example format:
 Return ONLY the script then the delimiter then the JSON array. No other text.`;
 
         try {
-          const response = await anthropic.messages.create({
-            model: CLAUDE_MODEL,
+          const scriptAi = await getAnthropicForUser(userId);
+          const response = await scriptAi.client.messages.create({
+            model: scriptAi.model,
             max_tokens: 2000,
             messages: [{ role: "user", content: scriptPrompt }],
           });
@@ -3259,7 +3327,12 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (!settings) {
         settings = await storage.upsertSettings({ userId, emailNotifications: true, smsNotifications: false, aiAutoRespond: true, leadScoring: true, appointmentReminders: true, weeklyReport: true, darkMode: true, twoFactorAuth: false });
       }
-      res.json(settings);
+      const result = { ...settings };
+      if (result.anthropicApiKey) {
+        const key = result.anthropicApiKey;
+        result.anthropicApiKey = key.length > 8 ? key.slice(0, 7) + "..." + key.slice(-4) : "****";
+      }
+      res.json(result);
     } catch (error) {
       console.error("Error fetching settings:", error);
       res.status(500).json({ message: "Failed to fetch settings" });
@@ -3269,8 +3342,17 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
   app.patch("/api/settings", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const settings = await storage.upsertSettings({ ...req.body, userId });
-      res.json(settings);
+      const body = { ...req.body };
+      if (body.anthropicApiKey && body.anthropicApiKey.includes("...")) {
+        delete body.anthropicApiKey;
+      }
+      const settings = await storage.upsertSettings({ ...body, userId });
+      const result = { ...settings };
+      if (result.anthropicApiKey) {
+        const key = result.anthropicApiKey;
+        result.anthropicApiKey = key.length > 8 ? key.slice(0, 7) + "..." + key.slice(-4) : "****";
+      }
+      res.json(result);
     } catch (error) {
       console.error("Error updating settings:", error);
       res.status(500).json({ message: "Failed to update settings" });
@@ -3335,11 +3417,16 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
 
   app.post("/api/ai/search", isAuthenticated, async (req, res) => {
     try {
+      const userId = req.session.userId!;
       const { query } = req.body;
       if (!query || typeof query !== "string") {
         return res.status(400).json({ message: "Search query is required" });
       }
-      const result = await claudeWebSearch(query);
+      let userClient: { client: Anthropic; model: string } | undefined;
+      try { userClient = await getAnthropicForUser(userId); } catch {
+        return res.status(400).json({ message: "AI API key not configured. Go to Settings > Integrations to add your Anthropic API key." });
+      }
+      const result = await claudeWebSearch(query, userClient);
       res.json({ result });
     } catch (error) {
       console.error("Error in AI search:", error);
@@ -3351,11 +3438,16 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
 
   app.post("/api/ai/generate", isAuthenticated, async (req, res) => {
     try {
+      const userId = req.session.userId!;
       const { prompt, type } = req.body;
       if (!prompt || typeof prompt !== "string") {
         return res.status(400).json({ message: "Prompt is required" });
       }
-      const result = await claudeGenerate(prompt, type || "general");
+      let userClient: { client: Anthropic; model: string } | undefined;
+      try { userClient = await getAnthropicForUser(userId); } catch {
+        return res.status(400).json({ message: "AI API key not configured. Go to Settings > Integrations to add your Anthropic API key." });
+      }
+      const result = await claudeGenerate(prompt, type || "general", userClient);
       res.json({ result });
     } catch (error) {
       console.error("Error in AI generate:", error);
@@ -3533,8 +3625,13 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
             ({ role: t.role === "agent" ? "assistant" as const : "user" as const, content: t.text })
           );
 
-          const aiResponse = await anthropic.messages.create({
-            model: CLAUDE_MODEL,
+          let voiceAi: { client: Anthropic; model: string };
+          try { voiceAi = await getAnthropicForUser(callLog.userId); } catch {
+            res.type("text/xml");
+            return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>AI service not configured. Please contact your administrator.</Say><Hangup/></Response>`);
+          }
+          const aiResponse = await voiceAi.client.messages.create({
+            model: voiceAi.model,
             max_tokens: 300,
             system: systemPrompt,
             messages: conversationHistory,

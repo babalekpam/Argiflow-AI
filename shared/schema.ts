@@ -116,6 +116,8 @@ export const userSettings = pgTable("user_settings", {
   grasshopperNumber: text("grasshopper_number"),
   calendarLink: text("calendar_link"),
   webhookUrl: text("webhook_url"),
+  anthropicApiKey: text("anthropic_api_key"),
+  autoLeadGenEnabled: boolean("auto_lead_gen_enabled").default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
