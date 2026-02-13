@@ -45,5 +45,4 @@ integrations = ["javascript_log_in_with_replit:2.0.0", "javascript_database:1.0.
 [userenv]
 
 [userenv.shared]
-ANTHROPIC_API_KEY = "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"
 YOU_API_KEY = "ydc-sk-528e87ffac9b11ff-UG1kRTTLo8d0ByGBgLCJpMsqP5SiGSrl-82e0f3c4"
