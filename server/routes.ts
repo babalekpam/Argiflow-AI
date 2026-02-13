@@ -90,6 +90,9 @@ async function getAnthropicForUser(userId: string): Promise<{ client: Anthropic;
       model: "claude-sonnet-4-20250514",
     };
   }
+  if (anthropicConfig.apiKey) {
+    return { client: anthropic, model: CLAUDE_MODEL };
+  }
   throw new Error("AI_NOT_CONFIGURED");
 }
 
