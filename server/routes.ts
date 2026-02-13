@@ -740,9 +740,27 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
     : `Quick question, ${lead.name.split(" ")[0]}`;
 
   const baseUrl = getBaseUrl();
-  let htmlBody = lead.outreach.replace(/\n/g, "<br>");
+  const sigParts: string[] = [];
+  const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+  if (fullName) sigParts.push(fullName);
+  if (user.companyName) sigParts.push(user.companyName);
+  if (senderEmail) sigParts.push(senderEmail);
+  const phoneNum = userSettings.grasshopperNumber || userSettings.twilioPhoneNumber || "";
+  if (phoneNum) sigParts.push(phoneNum);
+  if (user.website) sigParts.push(user.website);
+  const calLink = userSettings.calendarLink || "";
+  if (calLink) sigParts.push(`Book a call: ${calLink}`);
+
+  const textSignature = sigParts.length > 0 ? "\n\n--\n" + sigParts.join("\n") : "";
+  const htmlSignature = sigParts.length > 0
+    ? `<br><br><div style="border-top:1px solid #e5e7eb;padding-top:12px;margin-top:16px;font-size:13px;color:#6b7280;">${sigParts.map(p => p.startsWith("http") ? `<a href="${p}" style="color:#0ea5e9;">${p}</a>` : p.startsWith("Book a call:") ? `<a href="${p.replace("Book a call: ", "")}" style="color:#0ea5e9;">${p}</a>` : p).join("<br>")}</div>`
+    : "";
+
+  let htmlBody = lead.outreach.replace(/\n/g, "<br>") + htmlSignature;
   htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
   htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+
+  const plainText = lead.outreach + textSignature;
 
   try {
     if (emailProvider === "smtp") {
@@ -760,7 +778,7 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
         from: `"${senderName}" <${senderEmail}>`,
         to: lead.email,
         subject: subjectLine,
-        text: lead.outreach,
+        text: plainText,
         html: htmlBody,
       });
     } else {
@@ -769,7 +787,7 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
         to: lead.email,
         from: { email: senderEmail, name: senderName },
         subject: subjectLine,
-        text: lead.outreach,
+        text: plainText,
         html: htmlBody,
       });
     }
@@ -2481,9 +2499,26 @@ RULES:
         : `Last note, ${firstName}`;
 
     const baseUrl = getBaseUrl();
-    let htmlBody = emailBody.replace(/\n/g, "<br>");
+    const fSigParts: string[] = [];
+    const fFullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+    if (fFullName) fSigParts.push(fFullName);
+    if (user.companyName) fSigParts.push(user.companyName);
+    if (senderEmail) fSigParts.push(senderEmail);
+    const fPhone = userSettings.grasshopperNumber || userSettings.twilioPhoneNumber || "";
+    if (fPhone) fSigParts.push(fPhone);
+    if (user.website) fSigParts.push(user.website);
+    const fCalLink = userSettings.calendarLink || "";
+    if (fCalLink) fSigParts.push(`Book a call: ${fCalLink}`);
+
+    const fTextSig = fSigParts.length > 0 ? "\n\n--\n" + fSigParts.join("\n") : "";
+    const fHtmlSig = fSigParts.length > 0
+      ? `<br><br><div style="border-top:1px solid #e5e7eb;padding-top:12px;margin-top:16px;font-size:13px;color:#6b7280;">${fSigParts.map(p => p.startsWith("http") ? `<a href="${p}" style="color:#0ea5e9;">${p}</a>` : p.startsWith("Book a call:") ? `<a href="${p.replace("Book a call: ", "")}" style="color:#0ea5e9;">${p}</a>` : p).join("<br>")}</div>`
+      : "";
+
+    let htmlBody = emailBody.replace(/\n/g, "<br>") + fHtmlSig;
     htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
     htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+    const fPlainText = emailBody + fTextSig;
 
     try {
       if (emailProvider === "smtp") {
@@ -2494,14 +2529,14 @@ RULES:
         await transporter.sendMail({
           from: `"${senderName}" <${senderEmail}>`,
           to: lead.email, subject: subjectLine,
-          text: emailBody, html: htmlBody,
+          text: fPlainText, html: htmlBody,
         });
       } else {
         sgMail.setApiKey(userSettings.sendgridApiKey);
         await sgMail.send({
           to: lead.email,
           from: { email: senderEmail, name: senderName },
-          subject: subjectLine, text: emailBody, html: htmlBody,
+          subject: subjectLine, text: fPlainText, html: htmlBody,
         });
       }
       console.log(`[FOLLOW-UP] Step ${step} sent to ${lead.name} (${lead.email})`);
