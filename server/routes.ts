@@ -2898,11 +2898,12 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
     }
   }
 
-  // Start auto lead gen on a 5-hour interval (first run after 5 minutes to avoid rate limits at startup)
-  setTimeout(() => {
-    runAutoLeadGeneration();
-    setInterval(runAutoLeadGeneration, AUTO_LEAD_GEN_INTERVAL);
-  }, 5 * 60 * 1000);
+  // Auto lead gen is now manual-only (triggered via "Run Now" button)
+  // To re-enable automatic runs, uncomment the lines below:
+  // setTimeout(() => {
+  //   runAutoLeadGeneration();
+  //   setInterval(runAutoLeadGeneration, AUTO_LEAD_GEN_INTERVAL);
+  // }, 5 * 60 * 1000);
 
   // API: Get auto lead gen status & history
   app.get("/api/auto-lead-gen/status", isAuthenticated, async (req, res) => {
