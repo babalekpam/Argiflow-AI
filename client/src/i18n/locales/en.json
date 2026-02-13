@@ -1041,6 +1041,11 @@
     "close": "Close",
     "outreachSent": "Outreach email sent successfully",
     "outreachFailed": "Failed to send outreach email",
+    "runTitle": "Run {{name}}",
+    "runInstructions": "Instructions",
+    "runInstructionsDesc": "Tell the agent what to look for and any specific requirements for this run.",
+    "runInstructionsPlaceholder": "Example:\nFind medical billing companies in Tennessee.\nTarget CEOs and practice managers.\nFocus on clinics with 5-20 providers.\nLook for ones struggling with claim denials.",
+    "startRun": "Start Run",
     "agentScript": "Agent Script",
     "agentScriptDesc": "Write custom instructions for this agent. Tell it what to search for, how to qualify leads, and what actions to take.",
     "agentScriptPlaceholder": "Example:\nSearch for companies in the construction industry in Texas.\nFocus on businesses with 10-50 employees.\nLook for contact emails on their websites.\nScore leads higher if they have government contracts."

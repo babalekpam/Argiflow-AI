@@ -105,6 +105,8 @@ export default function AgentCatalogPage() {
   const { toast } = useToast();
   const [configDialog, setConfigDialog] = useState<CatalogAgent | null>(null);
   const [leadsDialog, setLeadsDialog] = useState<CatalogAgent | null>(null);
+  const [runDialog, setRunDialog] = useState<CatalogAgent | null>(null);
+  const [runInstructions, setRunInstructions] = useState("");
   const [selectedFrequency, setSelectedFrequency] = useState("daily");
   const [customScript, setCustomScript] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -164,6 +166,32 @@ export default function AgentCatalogPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agent-catalog"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      toast({ title: t("agentCatalog.agentRunning"), description: t("agentCatalog.agentRunningDesc") });
+    },
+  });
+
+  const runWithInstructionsMutation = useMutation({
+    mutationFn: async ({ agent, instructions }: { agent: CatalogAgent; instructions: string }) => {
+      let configId = agent.configId;
+      if (!configId) {
+        const res = await apiRequest("POST", "/api/agent-configs", {
+          agentType: agent.type,
+          enabled: true,
+          runFrequency: "manual",
+          customScript: instructions || null,
+        });
+        const config = await res.json();
+        configId = config.id;
+      } else if (instructions) {
+        await apiRequest("PATCH", `/api/agent-configs/${configId}`, { customScript: instructions });
+      }
+      return apiRequest("POST", `/api/agent-configs/${configId}/run`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agent-catalog"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      setRunDialog(null);
+      setRunInstructions("");
       toast({ title: t("agentCatalog.agentRunning"), description: t("agentCatalog.agentRunningDesc") });
     },
   });
@@ -362,21 +390,22 @@ export default function AgentCatalogPage() {
                     <Settings2 className="w-3.5 h-3.5 mr-1.5" />
                     {t("agentCatalog.configure")}
                   </Button>
-                  {agent.configId && agent.enabled && (
-                    <Button
-                      size="sm"
-                      onClick={() => runMutation.mutate(agent.configId!)}
-                      disabled={agent.config?.isRunning || runMutation.isPending}
-                      data-testid={`button-run-${agent.type}`}
-                    >
-                      {agent.config?.isRunning ? (
-                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                      ) : (
-                        <Play className="w-3.5 h-3.5 mr-1.5" />
-                      )}
-                      {t("agentCatalog.runNow")}
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setRunInstructions(agent.config?.customScript || "");
+                      setRunDialog(agent);
+                    }}
+                    disabled={agent.config?.isRunning || runWithInstructionsMutation.isPending}
+                    data-testid={`button-run-${agent.type}`}
+                  >
+                    {agent.config?.isRunning ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Play className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    {t("agentCatalog.runNow")}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -579,6 +608,56 @@ export default function AgentCatalogPage() {
             >
               <ExternalLink className="w-4 h-4 mr-2" />
               {t("agentCatalog.goToCrm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!runDialog} onOpenChange={() => setRunDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Play className="w-5 h-5 text-primary" />
+              {t("agentCatalog.runTitle", { name: runDialog?.name })}
+            </DialogTitle>
+            <DialogDescription>{runDialog?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{t("agentCatalog.runInstructions")}</Label>
+              <p className="text-xs text-muted-foreground">{t("agentCatalog.runInstructionsDesc")}</p>
+              <Textarea
+                value={runInstructions}
+                onChange={(e) => setRunInstructions(e.target.value)}
+                placeholder={t("agentCatalog.runInstructionsPlaceholder")}
+                className="min-h-[120px] font-mono text-sm"
+                data-testid="textarea-run-instructions"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(runDialog?.phases || []).map((phase) => (
+                <Badge key={phase} variant="secondary" className="text-[10px]">{phase}</Badge>
+              ))}
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setRunDialog(null)} data-testid="button-cancel-run">
+              {t("agentCatalog.cancel")}
+            </Button>
+            <Button
+              onClick={() => {
+                if (!runDialog) return;
+                runWithInstructionsMutation.mutate({ agent: runDialog, instructions: runInstructions });
+              }}
+              disabled={runWithInstructionsMutation.isPending}
+              data-testid="button-confirm-run"
+            >
+              {runWithInstructionsMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4 mr-2" />
+              )}
+              {t("agentCatalog.startRun")}
             </Button>
           </DialogFooter>
         </DialogContent>
