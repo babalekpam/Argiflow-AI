@@ -2201,7 +2201,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return;
       }
       const allLeads = await storage.getLeadsByUser(userId);
-      const needsOutreach = regenerateAll ? allLeads : allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
+      const needsOutreach = regenerateAll ? allLeads.filter(l => l.status === "new") : allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
       const user = await storage.getUserById(userId);
       const userSettings = await storage.getSettingsByUser(userId);
       const bookingLink = userSettings?.calendarLink || "";
@@ -2263,7 +2263,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     const userId = req.session.userId!;
     const regenerateAll = req.body?.regenerateAll === true;
     const allLeads = await storage.getLeadsByUser(userId);
-    const targetLeads = regenerateAll ? allLeads : allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
+    const targetLeads = regenerateAll ? allLeads.filter(l => l.status === "new") : allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
 
     if (targetLeads.length === 0) {
       return res.json({ message: "All leads already have outreach drafts!", generated: 0, status: "complete" });

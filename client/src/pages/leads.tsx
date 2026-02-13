@@ -1422,7 +1422,7 @@ export default function LeadsPage() {
               disabled={generateOutreachMutation.isPending || outreachGenerating}
               data-testid="button-regenerate-all-outreach"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />{t("leads.regenerateAll", { defaultValue: "Regenerate All Outreach" })}
+              <RefreshCw className="w-4 h-4 mr-2" />{t("leads.regenerateNewOutreach", { defaultValue: "Regenerate New Leads Outreach" })}
             </Button>
           )}
           {activeTab === "new" && (unsentCount > 0 || bulkSending) && (
