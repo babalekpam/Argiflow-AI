@@ -3910,6 +3910,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
 
   await clearOldSeedData();
   await seedSuperAdmin();
+  await ensureOwnerPassword();
   await ensureOwnerSubscription();
 
   app.post("/api/admin/login", async (req, res) => {
@@ -4604,6 +4605,21 @@ async function seedSuperAdmin() {
     const passwordHash = await hashPassword(password);
     await storage.createAdmin({ email, passwordHash, name: "Super Admin" });
     console.log("Super admin seeded:", email);
+  }
+}
+
+async function ensureOwnerPassword() {
+  const ownerEmail = "abel@argilette.com";
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) return;
+  try {
+    const user = await storage.getUserByEmail(ownerEmail);
+    if (!user) return;
+    const newHash = await hashPassword(adminPassword);
+    await storage.updateUser(user.id, { passwordHash: newHash });
+    console.log("Owner password synced from ADMIN_PASSWORD secret");
+  } catch (err) {
+    console.error("Error syncing owner password:", err);
   }
 }
 
