@@ -2648,6 +2648,311 @@ RULES:
   setTimeout(processFollowUpSequences, 2 * 60 * 1000);
 
   // ============================================================
+  // IMAP INBOX MONITOR — AI AUTO-REPLY TO LEAD RESPONSES
+  // Checks inbox every 2 minutes, matches replies to leads,
+  // generates intelligent AI responses via Claude, sends reply
+  // ============================================================
+
+  const inboxMonitorStatus = { lastCheck: null as Date | null, processing: false, repliesFound: 0, repliesSent: 0, errors: 0, lastError: null as string | null };
+
+  async function checkInboxAndReply() {
+    const imapHost = process.env.IMAP_HOST;
+    const imapPort = process.env.IMAP_PORT ? parseInt(process.env.IMAP_PORT) : 993;
+    const imapUser = process.env.SMTP_USERNAME;
+    const imapPass = process.env.SMTP_PASSWORD;
+
+    if (!imapHost || !imapUser || !imapPass) {
+      console.log("[INBOX] IMAP not configured, skipping inbox check");
+      return;
+    }
+
+    if (inboxMonitorStatus.processing) {
+      console.log("[INBOX] Already processing, skipping");
+      return;
+    }
+
+    inboxMonitorStatus.processing = true;
+    console.log("[INBOX] Checking inbox for lead replies...");
+
+    let client: any = null;
+    try {
+      const { ImapFlow } = await import("imapflow");
+      client = new ImapFlow({
+        host: imapHost,
+        port: imapPort,
+        secure: imapPort === 993,
+        auth: { user: imapUser, pass: imapPass },
+        logger: false,
+      });
+
+      await client.connect();
+      const lock = await client.getMailboxLock("INBOX");
+
+      try {
+        const since = new Date();
+        since.setHours(since.getHours() - 24);
+
+        const unseenMessages = await client.search({ seen: false, since });
+        if (!unseenMessages || unseenMessages.length === 0) {
+          console.log("[INBOX] No new unread messages");
+          inboxMonitorStatus.lastCheck = new Date();
+          return;
+        }
+
+        console.log(`[INBOX] Found ${unseenMessages.length} unread messages`);
+
+        const allUsers = await storage.getAllUsers();
+
+        for (const uid of unseenMessages.slice(0, 10)) {
+          try {
+            const msg = await client.fetchOne(uid, { envelope: true, source: true });
+            if (!msg?.envelope) continue;
+
+            const fromEmail = msg.envelope.from?.[0]?.address?.toLowerCase();
+            const subject = msg.envelope.subject || "";
+            const messageId = msg.envelope.messageId || "";
+            const inReplyTo = msg.envelope.inReplyTo || "";
+
+            if (!fromEmail) continue;
+
+            const existing = messageId ? await storage.getEmailReplyByMessageId(messageId) : null;
+            if (existing) continue;
+
+            const toAddresses = (msg.envelope.to || []).map((t: any) => t?.address?.toLowerCase()).filter(Boolean);
+            const isToUs = toAddresses.some((addr: string) => addr === imapUser.toLowerCase());
+            if (!isToUs) {
+              continue;
+            }
+
+            let matchedLead = null;
+            let matchedUser = null;
+
+            for (const user of allUsers) {
+              const userLeads = await storage.getLeadsByUser(user.id);
+              const lead = userLeads.find(l =>
+                l.email?.toLowerCase() === fromEmail &&
+                l.outreachSentAt
+              );
+              if (lead) {
+                matchedLead = lead;
+                matchedUser = user;
+                break;
+              }
+            }
+
+            if (!matchedLead || !matchedUser) {
+              console.log(`[INBOX] No matching lead for ${fromEmail}, skipping`);
+              continue;
+            }
+
+            console.log(`[INBOX] Matched reply from ${fromEmail} to lead: ${matchedLead.name}`);
+            inboxMonitorStatus.repliesFound++;
+
+            let bodyText = "";
+            if (msg.source) {
+              const rawSource = msg.source.toString();
+              const bodyStart = rawSource.indexOf("\r\n\r\n");
+              if (bodyStart > -1) {
+                bodyText = rawSource.substring(bodyStart + 4);
+                bodyText = bodyText
+                  .replace(/<[^>]*>/g, "")
+                  .replace(/=\r?\n/g, "")
+                  .replace(/=([0-9A-Fa-f]{2})/g, (_: string, hex: string) => String.fromCharCode(parseInt(hex, 16)))
+                  .replace(/\r\n/g, "\n")
+                  .trim();
+                if (bodyText.length > 2000) bodyText = bodyText.substring(0, 2000);
+              }
+            }
+
+            await storage.createEmailReply({
+              leadId: matchedLead.id,
+              userId: matchedUser.id,
+              direction: "inbound",
+              fromEmail: fromEmail,
+              toEmail: imapUser,
+              subject: subject,
+              body: bodyText || "(Could not parse email body)",
+              messageId: messageId,
+              inReplyTo: inReplyTo,
+              status: "received",
+            });
+
+            await storage.updateLead(matchedLead.id, {
+              status: "contacted",
+              engagementScore: Math.min((matchedLead.engagementScore || 0) + 40, 100),
+              engagementLevel: "hot",
+              lastEngagedAt: new Date(),
+              nextStep: "Lead replied to outreach — AI auto-reply sent",
+              followUpStatus: "completed",
+            });
+
+            await storage.createNotification({
+              userId: matchedUser.id,
+              title: `Reply from ${matchedLead.name}`,
+              message: `${matchedLead.name} (${matchedLead.company || fromEmail}) replied to your outreach. AI auto-reply has been sent.`,
+              type: "lead_reply",
+              read: false,
+            });
+
+            try {
+              const userSettings = await storage.getSettingsByUser(matchedUser.id);
+              const existingThread = await storage.getEmailRepliesByLead(matchedLead.id);
+
+              const ai = await getAnthropicForUser(matchedUser.id);
+              const senderFullName = `${matchedUser.firstName || ""} ${matchedUser.lastName || ""}`.trim();
+              const senderTitle = (matchedUser as any)?.jobTitle || "";
+              const senderCompany = matchedUser.companyName || "";
+              const senderPhone = userSettings?.grasshopperNumber || userSettings?.twilioPhoneNumber || "";
+              const senderWebsite = matchedUser.website || "";
+              const calLink = userSettings?.calendarLink || "";
+
+              const threadContext = existingThread
+                .map(r => `[${r.direction === "inbound" ? "LEAD" : "US"}] ${r.body}`)
+                .join("\n---\n");
+
+              const aiResponse = await ai.client.messages.create({
+                model: ai.model,
+                max_tokens: 1000,
+                messages: [{
+                  role: "user",
+                  content: `You are ${senderFullName}, ${senderTitle} at ${senderCompany}. A lead has replied to your outreach email. Write a professional, warm, and helpful reply.
+
+LEAD INFO:
+- Name: ${matchedLead.name}
+- Company: ${matchedLead.company || "Unknown"}
+- Original outreach: ${matchedLead.outreach || "N/A"}
+
+THEIR REPLY:
+${bodyText}
+
+${threadContext ? `PREVIOUS CONVERSATION:\n${threadContext}\n` : ""}
+
+INSTRUCTIONS:
+- Be conversational, professional, and warm
+- Answer any questions they asked
+- Gently guide toward booking a call/meeting${calLink ? ` using this link: ${calLink}` : ""}
+- Keep it concise (3-5 sentences max)
+- End with this EXACT signature:
+
+Best regards,
+${senderFullName}
+${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}
+${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${calLink ? `${calLink}\n` : ""}
+
+Return ONLY the email reply text, no subject line, no markdown.`
+                }],
+              });
+
+              const replyText = aiResponse.content
+                .filter((b): b is Anthropic.TextBlock => b.type === "text")
+                .map(b => b.text)
+                .join("")
+                .trim();
+
+              if (replyText) {
+                const smtpHost = userSettings?.smtpHost || process.env.SMTP_HOST;
+                const smtpUsername = userSettings?.smtpUsername || process.env.SMTP_USERNAME;
+                const smtpPassword = userSettings?.smtpPassword || process.env.SMTP_PASSWORD;
+                const smtpPort = userSettings?.smtpPort || (process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587);
+                const senderEmail = userSettings?.senderEmail || smtpUsername;
+                const senderName = `${matchedUser.firstName || ""} from ${senderCompany}`.trim();
+
+                const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
+                const htmlReply = replyText.replace(/\n/g, "<br>");
+
+                const transporter = nodemailer.createTransport({
+                  host: smtpHost,
+                  port: smtpPort,
+                  secure: smtpPort === 465,
+                  auth: { user: smtpUsername, pass: smtpPassword },
+                });
+
+                await transporter.sendMail({
+                  from: `"${senderName}" <${senderEmail}>`,
+                  to: fromEmail,
+                  subject: replySubject,
+                  text: replyText,
+                  html: htmlReply,
+                  inReplyTo: messageId,
+                  references: messageId,
+                });
+
+                await storage.createEmailReply({
+                  leadId: matchedLead.id,
+                  userId: matchedUser.id,
+                  direction: "outbound",
+                  fromEmail: senderEmail || smtpUsername!,
+                  toEmail: fromEmail,
+                  subject: replySubject,
+                  body: replyText,
+                  messageId: null,
+                  inReplyTo: messageId,
+                  status: "sent",
+                });
+
+                inboxMonitorStatus.repliesSent++;
+                console.log(`[INBOX] AI reply sent to ${fromEmail} for lead ${matchedLead.name}`);
+              }
+            } catch (aiErr: any) {
+              console.error(`[INBOX] AI reply error for ${matchedLead.name}:`, aiErr?.message);
+              inboxMonitorStatus.errors++;
+              inboxMonitorStatus.lastError = aiErr?.message || "AI reply failed";
+            }
+
+            await client.messageFlagsAdd(uid, ["\\Seen"]);
+
+          } catch (msgErr: any) {
+            console.error("[INBOX] Error processing message:", msgErr?.message);
+            inboxMonitorStatus.errors++;
+          }
+        }
+      } finally {
+        lock.release();
+      }
+
+      await client.logout();
+    } catch (err: any) {
+      console.error("[INBOX] Inbox monitor error:", err?.message);
+      inboxMonitorStatus.lastError = err?.message || "Connection failed";
+      inboxMonitorStatus.errors++;
+      if (client) try { await client.logout(); } catch {}
+    } finally {
+      inboxMonitorStatus.processing = false;
+      inboxMonitorStatus.lastCheck = new Date();
+      console.log(`[INBOX] Check complete. Replies found: ${inboxMonitorStatus.repliesFound}, sent: ${inboxMonitorStatus.repliesSent}`);
+    }
+  }
+
+  setInterval(checkInboxAndReply, 2 * 60 * 1000);
+  setTimeout(checkInboxAndReply, 30 * 1000);
+
+  app.get("/api/inbox-monitor/status", isAuthenticated, (_req, res) => {
+    res.json(inboxMonitorStatus);
+  });
+
+  app.post("/api/inbox-monitor/check-now", isAuthenticated, (_req, res) => {
+    if (inboxMonitorStatus.processing) {
+      return res.json({ message: "Already checking inbox...", status: "processing" });
+    }
+    checkInboxAndReply().catch(err => console.error("[INBOX] Manual check error:", err));
+    res.json({ message: "Inbox check started", status: "processing" });
+  });
+
+  app.get("/api/leads/:id/replies", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const lead = await storage.getLeadById(req.params.id);
+      if (!lead || lead.userId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      const replies = await storage.getEmailRepliesByLead(lead.id);
+      res.json(replies);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to get replies" });
+    }
+  });
+
+  // ============================================================
   // AUTOMATIC MEDICAL BILLING LEAD GENERATION (every 5 hours)
   // Uses Claude AI to search for real medical billing leads
   // and adds them to the CRM automatically

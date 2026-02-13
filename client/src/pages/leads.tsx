@@ -63,8 +63,10 @@ import {
   MessageSquare,
   RefreshCw,
   PauseCircle,
+  Inbox,
+  Reply,
 } from "lucide-react";
-import type { Lead, Business } from "@shared/schema";
+import type { Lead, Business, EmailReply } from "@shared/schema";
 import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Briefcase, Palette, Settings2 } from "lucide-react";
@@ -169,6 +171,81 @@ function EmailAnalyticsSummary() {
         </div>
       </div>
     </Card>
+  );
+}
+
+function ReplyThread({ leadId, isSent }: { leadId: string; isSent: boolean }) {
+  const { t } = useTranslation();
+  const [showThread, setShowThread] = useState(false);
+
+  const { data: replies = [], isLoading } = useQuery<EmailReply[]>({
+    queryKey: ["/api/leads", leadId, "replies"],
+    queryFn: async () => {
+      const res = await fetch(`/api/leads/${leadId}/replies`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isSent && showThread,
+    refetchInterval: showThread ? 30000 : false,
+  });
+
+  if (!isSent) return null;
+
+  return (
+    <div className="mt-3" data-testid={`reply-thread-${leadId}`}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={(e) => { e.stopPropagation(); setShowThread(!showThread); }}
+        data-testid={`button-toggle-replies-${leadId}`}
+      >
+        <Reply className="w-3.5 h-3.5 mr-1.5" />
+        {showThread ? t("leads.hideReplies", { defaultValue: "Hide Conversation" }) : t("leads.showReplies", { defaultValue: "View Conversation" })}
+      </Button>
+
+      {showThread && (
+        <div className="mt-3 space-y-2">
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              {t("common.loading", { defaultValue: "Loading..." })}
+            </div>
+          )}
+          {!isLoading && replies.length === 0 && (
+            <div className="text-sm text-muted-foreground p-3 rounded-md bg-muted/30 border" data-testid={`text-no-replies-${leadId}`}>
+              <Inbox className="w-4 h-4 inline-block mr-1.5 opacity-60" />
+              {t("leads.noRepliesYet", { defaultValue: "No replies yet. The inbox monitor checks every 2 minutes." })}
+            </div>
+          )}
+          {replies.map((reply) => (
+            <div
+              key={reply.id}
+              className={`p-3 rounded-md text-sm border ${
+                reply.direction === "inbound"
+                  ? "bg-sky-500/5 border-sky-500/20 ml-0 mr-8"
+                  : "bg-emerald-500/5 border-emerald-500/20 ml-8 mr-0"
+              }`}
+              data-testid={`reply-${reply.direction}-${reply.id}`}
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <Badge variant={reply.direction === "inbound" ? "secondary" : "outline"} className="text-xs">
+                  {reply.direction === "inbound" ? t("leads.replyFromLead", { defaultValue: "Lead" }) : t("leads.replyFromUs", { defaultValue: "AI Reply" })}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {reply.createdAt ? new Date(reply.createdAt).toLocaleString() : ""}
+                </span>
+              </div>
+              {reply.subject && (
+                <div className="text-xs text-muted-foreground mb-1">
+                  {reply.subject}
+                </div>
+              )}
+              <div className="whitespace-pre-wrap text-sm">{reply.body}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -634,6 +711,8 @@ function LeadCard({
               </div>
             </div>
           )}
+
+          <ReplyThread leadId={lead.id} isSent={isSent} />
         </div>
       )}
     </div>
