@@ -1,0 +1,426 @@
+// medical-billing-lead-hunter.js - AI Agent for Track-Med Billing Solutions
+
+const axios = require('axios');
+const Anthropic = require('@anthropic-ai/sdk');
+
+class MedicalBillingLeadHunter {
+  constructor(config) {
+    this.anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    });
+    this.config = {
+      zoomInfoKey: config.zoomInfoKey,
+      apolloKey: config.apolloKey,
+      serpApiKey: config.serpApiKey,
+      linkedInKey: config.linkedInKey
+    };
+  }
+
+  // MAIN LEAD GENERATION FUNCTION
+  async findActiveLeads(searchParams) {
+    const { location, practiceType, minRevenue } = searchParams;
+    
+    const leadSources = await Promise.allSettled([
+      this.monitorSearchIntent(),           // Track who's searching
+      this.scrapeJobPostings(),             // Hiring = growth = need RCM
+      this.findNewPractices(location),      // New practices need billing
+      this.identifyPainPoints(),            // Forums/reviews mentioning billing issues
+      this.trackWebsiteVisitors(),          // Retargeting site visitors
+      this.socialListening()                // Social media signals
+    ]);
+
+    const rawLeads = this.consolidateLeads(leadSources);
+    const qualifiedLeads = await this.filterDecisionMakers(rawLeads);
+    const enrichedLeads = await this.enrichLeadData(qualifiedLeads);
+    
+    return this.scoreAndPrioritize(enrichedLeads);
+  }
+
+  // 1. MONITOR SEARCH INTENT (Real-time signals)
+  async monitorSearchIntent() {
+    // Using SerpAPI to track searches
+    const searchQueries = [
+      'medical billing services near me',
+      'revenue cycle management companies',
+      'outsource medical billing',
+      'medical billing company for small practice',
+      'RCM services for solo practitioners',
+      'best medical billing service',
+      'medical billing problems',
+      'medical coding services'
+    ];
+
+    const intentSignals = [];
+    
+    for (const query of searchQueries) {
+      const results = await axios.get('https://serpapi.com/search', {
+        params: {
+          q: query,
+          engine: 'google',
+          location: 'United States',
+          api_key: this.config.serpApiKey,
+          num: 20
+        }
+      });
+
+      // Extract businesses searching/mentioning this
+      const relatedSearches = results.data.related_searches || [];
+      const peopleAlsoAsk = results.data.related_questions || [];
+      
+      intentSignals.push({
+        query,
+        timestamp: new Date(),
+        relatedSearches,
+        peopleAlsoAsk
+      });
+    }
+
+    return intentSignals;
+  }
+
+  // 2. SCRAPE JOB POSTINGS (Hiring = Growth Signal)
+  async scrapeJobPostings() {
+    const jobBoards = [
+      'https://www.indeed.com/jobs?q=medical+billing+manager',
+      'https://www.linkedin.com/jobs/search/?keywords=practice+manager+medical',
+      'https://www.glassdoor.com/Job/medical-office-manager-jobs-SRCH_KO0,22.htm'
+    ];
+
+    const leads = [];
+    
+    for (const url of jobBoards) {
+      try {
+        const response = await axios.get(url);
+        const $ = require('cheerio').load(response.data);
+        
+        $('.job-card').each((i, elem) => {
+          const practiceName = $(elem).find('.company-name').text().trim();
+          const location = $(elem).find('.location').text().trim();
+          const jobTitle = $(elem).find('.job-title').text().trim();
+          
+          // If hiring for billing/office manager = they need help
+          if (this.isRelevantPosition(jobTitle)) {
+            leads.push({
+              source: 'job_posting',
+              practiceName,
+              location,
+              signal: 'hiring_for_billing',
+              priority: 'high',
+              jobTitle
+            });
+          }
+        });
+      } catch (error) {
+        console.error('Job scraping error:', error.message);
+      }
+    }
+
+    return leads;
+  }
+
+  // 3. FIND NEW MEDICAL PRACTICES (NPI Database)
+  async findNewPractices(location) {
+    // NPI Registry API - newly registered providers
+    const npiUrl = 'https://npiregistry.cms.hhs.gov/api';
+    
+    const response = await axios.get(npiUrl, {
+      params: {
+        version: '2.1',
+        city: location.city,
+        state: location.state,
+        enumeration_type: 'NPI-1', // Individual providers
+        limit: 200
+      }
+    });
+
+    const newPractices = response.data.results
+      .filter(provider => {
+        const enumerationDate = new Date(provider.basic.enumeration_date);
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        return enumerationDate > sixMonthsAgo; // New within 6 months
+      })
+      .map(provider => ({
+        source: 'npi_registry',
+        providerName: `${provider.basic.first_name} ${provider.basic.last_name}`,
+        practiceName: provider.basic.organization_name,
+        npiNumber: provider.number,
+        taxonomy: provider.taxonomies[0]?.desc,
+        address: provider.addresses[0],
+        phone: provider.addresses[0]?.telephone_number,
+        signal: 'new_practice',
+        priority: 'high'
+      }));
+
+    return newPractices;
+  }
+
+  // 4. IDENTIFY PAIN POINTS (Social listening)
+  async identifyPainPoints() {
+    const sources = [
+      'https://www.reddit.com/r/medicalbilling/new/',
+      'https://www.sdn.com', // Student Doctor Network
+      'https://forums.mgma.com', // Medical Group Management Association
+      'https://www.doximity.com/forums'
+    ];
+
+    const complaints = [];
+    
+    // Search for complaints about current billing services
+    const painKeywords = [
+      'billing company terrible',
+      'RCM service not working',
+      'denied claims piling up',
+      'cash flow problems',
+      'need new billing service',
+      'switching billing companies',
+      'medical billing nightmare'
+    ];
+
+    for (const keyword of painKeywords) {
+      const results = await this.searchSocialMedia(keyword);
+      complaints.push(...results);
+    }
+
+    return this.extractDecisionMakers(complaints);
+  }
+
+  // 5. FILTER DECISION MAKERS (Avoid Gatekeepers)
+  async filterDecisionMakers(leads) {
+    const decisionMakerTitles = [
+      // ACCEPT THESE
+      'owner', 'physician', 'doctor', 'md', 'do',
+      'practice owner', 'clinic owner',
+      'practice administrator', 'clinic administrator',
+      'practice manager', 'office manager', 'clinic manager',
+      'ceo', 'chief executive', 'president',
+      'cfo', 'chief financial officer',
+      'managing partner', 'medical director',
+      'revenue cycle director', 'billing manager'
+    ];
+
+    const gatekeeperTitles = [
+      // REJECT THESE
+      'receptionist', 'front desk', 'secretary',
+      'assistant', 'administrative assistant',
+      'medical assistant', 'nurse',
+      'scheduler', 'coordinator',
+      'associate', 'junior', 'intern'
+    ];
+
+    const qualifiedLeads = [];
+
+    for (const lead of leads) {
+      const titleLower = (lead.jobTitle || '').toLowerCase();
+      
+      // Skip gatekeepers
+      if (gatekeeperTitles.some(gate => titleLower.includes(gate))) {
+        continue;
+      }
+
+      // Accept decision makers
+      if (decisionMakerTitles.some(dm => titleLower.includes(dm))) {
+        lead.decisionMaker = true;
+        qualifiedLeads.push(lead);
+        continue;
+      }
+
+      // Use AI to determine if decision maker
+      const isDecisionMaker = await this.aiDecisionMakerCheck(lead);
+      if (isDecisionMaker) {
+        lead.decisionMaker = true;
+        qualifiedLeads.push(lead);
+      }
+    }
+
+    return qualifiedLeads;
+  }
+
+  // 6. AI-POWERED DECISION MAKER VERIFICATION
+  async aiDecisionMakerCheck(lead) {
+    const message = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 100,
+      messages: [{
+        role: 'user',
+        content: `Is this person a decision maker for purchasing medical billing services?
+        
+Name: ${lead.name}
+Title: ${lead.jobTitle}
+Company: ${lead.practiceName}
+Practice Type: ${lead.practiceType}
+
+Respond with only: YES or NO`
+      }]
+    });
+
+    const response = message.content[0].text.trim().toLowerCase();
+    return response === 'yes';
+  }
+
+  // 7. ENRICH LEAD DATA (Add missing info)
+  async enrichLeadData(leads) {
+    const enrichedLeads = [];
+
+    for (const lead of leads) {
+      try {
+        // Use Apollo.io or ZoomInfo for enrichment
+        const enriched = await this.apolloEnrich(lead);
+        
+        enrichedLeads.push({
+          ...lead,
+          ...enriched,
+          enrichedAt: new Date()
+        });
+      } catch (error) {
+        enrichedLeads.push(lead); // Keep original if enrichment fails
+      }
+    }
+
+    return enrichedLeads;
+  }
+
+  // 8. APOLLO.IO ENRICHMENT
+  async apolloEnrich(lead) {
+    if (!this.config.apolloKey) return {};
+
+    try {
+      const response = await axios.post('https://api.apollo.io/v1/people/match', {
+        first_name: lead.firstName,
+        last_name: lead.lastName,
+        organization_name: lead.practiceName,
+        domain: lead.domain
+      }, {
+        headers: {
+          'X-Api-Key': this.config.apolloKey,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const person = response.data.person;
+      return {
+        email: person.email,
+        directPhone: person.phone_numbers?.[0],
+        linkedInUrl: person.linkedin_url,
+        title: person.title,
+        seniority: person.seniority,
+        departments: person.departments,
+        isDecisionMaker: ['owner', 'c_suite', 'vp', 'director'].includes(person.seniority)
+      };
+    } catch (error) {
+      return {};
+    }
+  }
+
+  // 9. SCORE AND PRIORITIZE LEADS
+  scoreAndPrioritize(leads) {
+    return leads.map(lead => {
+      let score = 0;
+
+      // High intent signals
+      if (lead.signal === 'hiring_for_billing') score += 30;
+      if (lead.signal === 'new_practice') score += 25;
+      if (lead.signal === 'complained_about_billing') score += 35;
+      if (lead.signal === 'visiting_competitor_sites') score += 20;
+
+      // Decision maker level
+      if (lead.jobTitle?.includes('owner')) score += 25;
+      if (lead.jobTitle?.includes('physician')) score += 20;
+      if (lead.jobTitle?.includes('manager')) score += 15;
+
+      // Practice size (solo = ideal for Track-Med)
+      if (lead.practiceSize === 'solo') score += 20;
+      if (lead.practiceSize === '2-5') score += 15;
+
+      // Contact info completeness
+      if (lead.email) score += 10;
+      if (lead.directPhone) score += 10;
+      if (lead.linkedInUrl) score += 5;
+
+      lead.score = score;
+      lead.priority = score >= 70 ? 'HOT' : score >= 50 ? 'WARM' : 'COLD';
+
+      return lead;
+    }).sort((a, b) => b.score - a.score);
+  }
+
+  // 10. HELPER: Check if job title is relevant
+  isRelevantPosition(title) {
+    const relevant = [
+      'billing manager', 'revenue cycle', 'rcm',
+      'practice manager', 'office manager',
+      'practice administrator', 'medical director',
+      'cfo', 'financial officer'
+    ];
+    
+    const titleLower = title.toLowerCase();
+    return relevant.some(keyword => titleLower.includes(keyword));
+  }
+
+  // 11. HELPER: Social media search
+  async searchSocialMedia(query) {
+    // Implement Twitter, Reddit, Facebook scraping
+    // Returns posts with practice names/contact info
+    return [];
+  }
+
+  // 12. HELPER: Extract decision makers from text
+  extractDecisionMakers(posts) {
+    // Use NLP to find names, titles, practices mentioned
+    return [];
+  }
+
+  // 13. TRACK WEBSITE VISITORS (Integration with tracking pixel)
+  async trackWebsiteVisitors() {
+    // If you have tracking pixel on Track-Med site
+    // Identify companies visiting pricing/services pages
+    return [];
+  }
+
+  // 14. SOCIAL LISTENING
+  async socialListening() {
+    // Monitor LinkedIn posts, groups for medical billing discussions
+    return [];
+  }
+}
+
+// ==================== USAGE EXAMPLE ====================
+
+async function runLeadGeneration() {
+  const hunter = new MedicalBillingLeadHunter({
+    apolloKey: process.env.APOLLO_API_KEY,
+    serpApiKey: process.env.SERP_API_KEY,
+    zoomInfoKey: process.env.ZOOMINFO_API_KEY
+  });
+
+  const hotLeads = await hunter.findActiveLeads({
+    location: {
+      city: 'Nashville',
+      state: 'TN',
+      radius: 50 // miles
+    },
+    practiceType: ['family medicine', 'internal medicine', 'pediatrics'],
+    minRevenue: 500000, // $500k+ revenue
+    practiceSize: 'solo' // 1-5 providers
+  });
+
+  console.log(`Found ${hotLeads.length} qualified decision makers`);
+  
+  // Export to your ARGILETTE CRM
+  hotLeads.forEach(lead => {
+    console.log(`
+      🔥 ${lead.priority} LEAD - Score: ${lead.score}
+      Name: ${lead.name}
+      Title: ${lead.jobTitle}
+      Practice: ${lead.practiceName}
+      Phone: ${lead.directPhone}
+      Email: ${lead.email}
+      Signal: ${lead.signal}
+      LinkedIn: ${lead.linkedInUrl}
+    `);
+  });
+
+  return hotLeads;
+}
+
+module.exports = MedicalBillingLeadHunter;
