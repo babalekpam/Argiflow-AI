@@ -2229,7 +2229,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
             max_tokens: 4000,
             messages: [{
               role: "user",
-              content: `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Booking link: ${bookingLink}` : ""}\n\nFrom: ${senderFullName}${senderTitle ? `, ${senderTitle}` : ""}, ${senderCompany} (${user?.industry || ""})\n${senderPhone ? `Phone: ${senderPhone}\n` : ""}${senderWebsite ? `Website: ${senderWebsite}\n` : ""}\n\nSign off each email as "${senderFullName}" — do NOT include a full signature block (that will be added automatically).\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft"}]. No markdown, no explanation.`
+              content: `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}\n\nEach email MUST end with this EXACT signature block:\n\nBest regards,\n${senderFullName}\n${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}\n${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${bookingLink ? `${bookingLink}\n` : ""}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft with signature"}]. No markdown, no explanation.`
             }],
           });
 
