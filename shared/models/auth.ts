@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   companyName: varchar("company_name"),
   industry: varchar("industry"),
   website: varchar("website"),
+  jobTitle: varchar("job_title"),
   companyDescription: text("company_description"),
   emailVerified: timestamp("email_verified"),
   region: varchar("region").default("western"),

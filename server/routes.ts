@@ -743,13 +743,13 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
   const sigParts: string[] = [];
   const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
   if (fullName) sigParts.push(fullName);
+  if ((user as any).jobTitle) sigParts.push((user as any).jobTitle);
   if (user.companyName) sigParts.push(user.companyName);
-  if (senderEmail) sigParts.push(senderEmail);
   const phoneNum = userSettings.grasshopperNumber || userSettings.twilioPhoneNumber || "";
   if (phoneNum) sigParts.push(phoneNum);
   if (user.website) sigParts.push(user.website);
   const calLink = userSettings.calendarLink || "";
-  if (calLink) sigParts.push(`Book a call: ${calLink}`);
+  if (calLink) sigParts.push(calLink);
 
   const textSignature = sigParts.length > 0 ? "\n\n--\n" + sigParts.join("\n") : "";
   const htmlSignature = sigParts.length > 0
@@ -1373,7 +1373,7 @@ export async function registerRoutes(
         console.error("Welcome email failed:", emailErr?.response?.body || emailErr?.message || emailErr);
       }
 
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, jobTitle: user.jobTitle, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
     } catch (error) {
       console.error("Registration error:", error);
       res.status(500).json({ message: "Registration failed" });
@@ -1397,7 +1397,7 @@ export async function registerRoutes(
       }
       req.session.userId = user.id;
       delete req.session.adminId;
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, jobTitle: user.jobTitle, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Login failed" });
@@ -1569,7 +1569,7 @@ export async function registerRoutes(
         else if (sub.status === "active") planLabel = `${planName} Plan`;
         else planLabel = "Free";
       }
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified, planLabel });
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, jobTitle: user.jobTitle, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified, planLabel });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -2502,13 +2502,13 @@ RULES:
     const fSigParts: string[] = [];
     const fFullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
     if (fFullName) fSigParts.push(fFullName);
+    if ((user as any).jobTitle) fSigParts.push((user as any).jobTitle);
     if (user.companyName) fSigParts.push(user.companyName);
-    if (senderEmail) fSigParts.push(senderEmail);
     const fPhone = userSettings.grasshopperNumber || userSettings.twilioPhoneNumber || "";
     if (fPhone) fSigParts.push(fPhone);
     if (user.website) fSigParts.push(user.website);
     const fCalLink = userSettings.calendarLink || "";
-    if (fCalLink) fSigParts.push(`Book a call: ${fCalLink}`);
+    if (fCalLink) fSigParts.push(fCalLink);
 
     const fTextSig = fSigParts.length > 0 ? "\n\n--\n" + fSigParts.join("\n") : "";
     const fHtmlSig = fSigParts.length > 0
