@@ -41,6 +41,10 @@ export const leads = pgTable("leads", {
   emailOpens: integer("email_opens").default(0),
   emailClicks: integer("email_clicks").default(0),
   nextStep: text("next_step"),
+  followUpStep: integer("follow_up_step").default(0),
+  followUpStatus: text("follow_up_status").default("none"),
+  followUpNextAt: timestamp("follow_up_next_at"),
+  followUpLastSentAt: timestamp("follow_up_last_sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

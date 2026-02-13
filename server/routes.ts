@@ -441,7 +441,8 @@ async function executeAction(userId: string, action: string, params: any): Promi
       for (const lead of targets) {
         const result = await sendOutreachEmail(lead, settings, user);
         if (result.success) {
-          await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm" });
+          const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+          await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm", followUpStep: 0, followUpStatus: "active", followUpNextAt });
           sent++;
           sentNames.push(lead.name);
         } else {
@@ -2011,7 +2012,8 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return res.status(400).json({ message: result.error });
       }
 
-      await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm" });
+      const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm", followUpStep: 0, followUpStatus: "active", followUpNextAt });
       res.json({ success: true, message: `Outreach sent to ${lead.name}` });
     } catch (error) {
       console.error("Error sending outreach:", error);
@@ -2030,7 +2032,8 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       try {
         const result = await sendOutreachEmail(lead, settings, user);
         if (result.success) {
-          await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm" });
+          const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+          await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm", followUpStep: 0, followUpStatus: "active", followUpNextAt });
           sent++;
         } else {
           failed++;
@@ -2265,6 +2268,45 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     }
   });
 
+  // ---- FOLLOW-UP SEQUENCE CONTROL ----
+
+  app.post("/api/leads/:id/follow-up/pause", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const lead = await storage.getLeadById(req.params.id as string);
+      if (!lead || lead.userId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      if (lead.followUpStatus !== "active") {
+        return res.status(400).json({ message: "Follow-up is not active" });
+      }
+      await storage.updateLead(lead.id, { followUpStatus: "paused", followUpNextAt: null });
+      res.json({ success: true, message: `Follow-up paused for ${lead.name}` });
+    } catch (error) {
+      console.error("Error pausing follow-up:", error);
+      res.status(500).json({ message: "Failed to pause follow-up" });
+    }
+  });
+
+  app.post("/api/leads/:id/follow-up/resume", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const lead = await storage.getLeadById(req.params.id as string);
+      if (!lead || lead.userId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      if (lead.followUpStatus !== "paused") {
+        return res.status(400).json({ message: "Follow-up is not paused" });
+      }
+      const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      await storage.updateLead(lead.id, { followUpStatus: "active", followUpNextAt });
+      res.json({ success: true, message: `Follow-up resumed for ${lead.name}` });
+    } catch (error) {
+      console.error("Error resuming follow-up:", error);
+      res.status(500).json({ message: "Failed to resume follow-up" });
+    }
+  });
+
   // ---- BACKGROUND SCHEDULER ----
 
   async function processScheduledOutreach() {
@@ -2287,7 +2329,8 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
           }
           const result = await sendOutreachEmail(lead, settings, user);
           if (result.success) {
-            await storage.updateLead(lead.id, { outreachSentAt: new Date(), scheduledSendAt: null, status: "warm" });
+            const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+            await storage.updateLead(lead.id, { outreachSentAt: new Date(), scheduledSendAt: null, status: "warm", followUpStep: 0, followUpStatus: "active", followUpNextAt });
             console.log(`Scheduled outreach sent to ${lead.name} (${lead.email})`);
           } else {
             console.error(`Scheduled send failed for ${lead.name}: ${result.error}. Clearing schedule.`);
@@ -2303,6 +2346,201 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
   }
 
   setInterval(processScheduledOutreach, 60 * 1000);
+
+  // ---- AUTOMATED FOLLOW-UP SEQUENCES ----
+  // Sends escalating follow-up emails to leads until they book an appointment
+  // Schedule: Day 1 (initial sent), Day 3 (follow-up 1), Day 5 (follow-up 2), Day 7 (final nudge)
+
+  const FOLLOW_UP_SCHEDULE = [
+    { step: 1, daysAfter: 2, urgency: "gentle", label: "Friendly Check-In" },
+    { step: 2, daysAfter: 2, urgency: "value", label: "Value Reminder" },
+    { step: 3, daysAfter: 2, urgency: "final", label: "Final Nudge" },
+  ];
+
+  async function generateFollowUpEmail(lead: any, step: number, urgency: string, user: any, bookingLink: string): Promise<string> {
+    const urgencyInstructions: Record<string, string> = {
+      gentle: "Write a warm, friendly follow-up. Reference the initial email without being pushy. Ask if they had a chance to review your proposal. Keep it short (3-4 sentences).",
+      value: "Write a value-driven follow-up. Include a specific benefit or case study result (e.g., 'Our clients typically see 15-25% improvement in collection rates'). Create gentle urgency. Include the booking link.",
+      final: "Write a final follow-up. Be direct but respectful — mention this is the last email. Emphasize the specific value you can provide. Make it easy to respond with a simple yes/no. Include the booking link.",
+    };
+
+    const prompt = `Write a follow-up email (follow-up #${step} of 3) for this lead:
+Name: ${lead.name}
+Company: ${lead.company || "their practice"}
+Initial outreach was about: medical billing optimization services from ${user.companyName || "our company"}
+
+${urgencyInstructions[urgency] || urgencyInstructions.gentle}
+
+${bookingLink ? `Include this booking link naturally: ${bookingLink}` : "Invite them to reply to schedule a quick call."}
+
+RULES:
+- Do NOT include a subject line — just the email body
+- Use their first name: ${lead.name.split(" ")[0]}
+- Sign off as ${user.firstName || "the team"} from ${user.companyName || "our company"}
+- Keep it under 150 words
+- Be conversational, not corporate
+- Do not use placeholder brackets like [Company] — use actual values`;
+
+    try {
+      return await claudeGenerate(prompt, "email");
+    } catch (err) {
+      console.error(`[FOLLOW-UP] Failed to generate email for step ${step}:`, err);
+      return "";
+    }
+  }
+
+  async function sendFollowUpEmail(lead: any, emailBody: string, step: number, userSettings: any, user: any): Promise<{ success: boolean; error?: string }> {
+    if (!lead.email || !emailBody) {
+      return { success: false, error: "No email or follow-up body" };
+    }
+    if (!user?.companyName || !userSettings?.senderEmail) {
+      return { success: false, error: "Missing company/sender config" };
+    }
+
+    const smtpHost = userSettings.smtpHost || process.env.SMTP_HOST;
+    const smtpUsername = userSettings.smtpUsername || process.env.SMTP_USERNAME;
+    const smtpPassword = userSettings.smtpPassword || process.env.SMTP_PASSWORD;
+    const smtpPort = userSettings.smtpPort || (process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587);
+    const smtpSecure = userSettings.smtpSecure ?? false;
+
+    const hasSmtp = !!(smtpHost && smtpUsername && smtpPassword);
+    const hasSendgrid = !!userSettings.sendgridApiKey;
+    const hasSmtpEnvVars = !!(process.env.SMTP_HOST && process.env.SMTP_USERNAME && process.env.SMTP_PASSWORD);
+
+    let emailProvider = userSettings.emailProvider || "sendgrid";
+    if (hasSmtpEnvVars || hasSmtp) emailProvider = "smtp";
+
+    if (emailProvider === "smtp" && !hasSmtp) return { success: false, error: "SMTP settings incomplete" };
+    if (emailProvider !== "smtp" && !hasSendgrid) return { success: false, error: "No email provider configured" };
+
+    const senderEmail = userSettings.senderEmail;
+    const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
+    const firstName = lead.name.split(" ")[0];
+    const subjectLine = step === 1
+      ? `Following up, ${firstName}`
+      : step === 2
+        ? `Quick thought for ${lead.company || firstName}`
+        : `Last note, ${firstName}`;
+
+    const baseUrl = getBaseUrl();
+    let htmlBody = emailBody.replace(/\n/g, "<br>");
+    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
+    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+
+    try {
+      if (emailProvider === "smtp") {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost, port: smtpPort, secure: smtpSecure,
+          auth: { user: smtpUsername, pass: smtpPassword },
+        });
+        await transporter.sendMail({
+          from: `"${senderName}" <${senderEmail}>`,
+          to: lead.email, subject: subjectLine,
+          text: emailBody, html: htmlBody,
+        });
+      } else {
+        sgMail.setApiKey(userSettings.sendgridApiKey);
+        await sgMail.send({
+          to: lead.email,
+          from: { email: senderEmail, name: senderName },
+          subject: subjectLine, text: emailBody, html: htmlBody,
+        });
+      }
+      console.log(`[FOLLOW-UP] Step ${step} sent to ${lead.name} (${lead.email})`);
+      return { success: true };
+    } catch (err: any) {
+      console.error(`[FOLLOW-UP] Send failed for ${lead.name}:`, err?.message);
+      return { success: false, error: err?.message || "Send failed" };
+    }
+  }
+
+  async function processFollowUpSequences() {
+    try {
+      const dueLeads = await storage.getLeadsDueForFollowUp();
+      if (dueLeads.length === 0) return;
+
+      console.log(`[FOLLOW-UP] Processing ${dueLeads.length} leads due for follow-up`);
+
+      for (const lead of dueLeads) {
+        try {
+          const appointments = await storage.getAppointmentsByUser(lead.userId);
+          const hasAppointment = appointments.some(
+            a => a.leadName.toLowerCase() === lead.name.toLowerCase()
+          );
+          if (hasAppointment) {
+            await storage.updateLead(lead.id, {
+              followUpStatus: "completed",
+              followUpNextAt: null,
+            });
+            console.log(`[FOLLOW-UP] ${lead.name} booked appointment — sequence stopped`);
+            continue;
+          }
+
+          if (lead.engagementScore && lead.engagementScore >= 60) {
+            await storage.updateLead(lead.id, {
+              followUpStatus: "completed",
+              followUpNextAt: null,
+            });
+            console.log(`[FOLLOW-UP] ${lead.name} highly engaged (score ${lead.engagementScore}) — sequence stopped`);
+            continue;
+          }
+
+          const currentStep = (lead.followUpStep || 0) + 1;
+          const stepConfig = FOLLOW_UP_SCHEDULE.find(s => s.step === currentStep);
+
+          if (!stepConfig) {
+            await storage.updateLead(lead.id, {
+              followUpStatus: "completed",
+              followUpNextAt: null,
+            });
+            console.log(`[FOLLOW-UP] ${lead.name} completed all ${FOLLOW_UP_SCHEDULE.length} steps`);
+            continue;
+          }
+
+          const settings = await storage.getSettingsByUser(lead.userId);
+          const user = await storage.getUserById(lead.userId);
+          if (!user || !settings?.senderEmail) {
+            console.warn(`[FOLLOW-UP] Skipping ${lead.name}: missing user/sender config`);
+            continue;
+          }
+
+          const bookingLink = settings.calendarLink || "";
+          const emailBody = await generateFollowUpEmail(lead, currentStep, stepConfig.urgency, user, bookingLink);
+          if (!emailBody) {
+            console.warn(`[FOLLOW-UP] Empty email generated for ${lead.name} step ${currentStep}, retrying next cycle`);
+            continue;
+          }
+
+          const result = await sendFollowUpEmail(lead, emailBody, currentStep, settings, user);
+          if (result.success) {
+            const nextStepConfig = FOLLOW_UP_SCHEDULE.find(s => s.step === currentStep + 1);
+            const nextAt = nextStepConfig
+              ? new Date(Date.now() + nextStepConfig.daysAfter * 24 * 60 * 60 * 1000)
+              : null;
+
+            await storage.updateLead(lead.id, {
+              followUpStep: currentStep,
+              followUpLastSentAt: new Date(),
+              followUpNextAt: nextAt,
+              followUpStatus: nextAt ? "active" : "completed",
+              status: lead.status === "new" ? "warm" : lead.status,
+            });
+          } else {
+            console.error(`[FOLLOW-UP] Failed for ${lead.name}: ${result.error}`);
+          }
+
+          await new Promise(r => setTimeout(r, 2000));
+        } catch (err) {
+          console.error(`[FOLLOW-UP] Error processing lead ${lead.id}:`, err);
+        }
+      }
+    } catch (error) {
+      console.error("[FOLLOW-UP] Background processor error:", error);
+    }
+  }
+
+  setInterval(processFollowUpSequences, 5 * 60 * 1000);
+  setTimeout(processFollowUpSequences, 2 * 60 * 1000);
 
   // ============================================================
   // AUTOMATIC MEDICAL BILLING LEAD GENERATION (every 5 hours)

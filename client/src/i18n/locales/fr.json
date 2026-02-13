@@ -604,6 +604,17 @@
     "scheduleOutreach": "Planifier",
     "cancelSchedule": "Annuler la Planification",
     "scheduledFor": "Planifié pour",
+    "followUp": {
+      "step": "Relance {{step}}/{{total}}",
+      "completed": "Relances Terminées",
+      "paused": "Relance en Pause",
+      "pause": "Suspendre les Relances",
+      "resume": "Reprendre les Relances",
+      "pauseSuccess": "Séquence de relance suspendue",
+      "pauseFailed": "Échec de la suspension",
+      "resumeSuccess": "Séquence de relance reprise",
+      "resumeFailed": "Échec de la reprise"
+    },
     "callLead": "Appeler",
     "smsLead": "SMS",
     "deleteLead": "Supprimer",

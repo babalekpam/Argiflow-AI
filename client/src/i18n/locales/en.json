@@ -556,6 +556,17 @@
     "scheduleOutreach": "Schedule",
     "cancelSchedule": "Cancel Schedule",
     "scheduledFor": "Scheduled for",
+    "followUp": {
+      "step": "Follow-up {{step}}/{{total}}",
+      "completed": "Follow-ups Done",
+      "paused": "Follow-up Paused",
+      "pause": "Pause Follow-ups",
+      "resume": "Resume Follow-ups",
+      "pauseSuccess": "Follow-up sequence paused",
+      "pauseFailed": "Failed to pause follow-up",
+      "resumeSuccess": "Follow-up sequence resumed",
+      "resumeFailed": "Failed to resume follow-up"
+    },
     "callLead": "Call",
     "smsLead": "SMS",
     "deleteLead": "Delete",

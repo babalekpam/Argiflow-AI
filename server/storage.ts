@@ -41,8 +41,9 @@ export interface IStorage {
   getLeadsByUser(userId: string, businessId?: string): Promise<Lead[]>;
   getLeadById(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
-  updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined>;
+  updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt">>): Promise<Lead | undefined>;
   getScheduledLeadsToSend(): Promise<Lead[]>;
+  getLeadsDueForFollowUp(): Promise<Lead[]>;
   deleteLead(id: string, userId: string): Promise<void>;
   deleteAllLeadsByUser(userId: string): Promise<void>;
   getAppointmentsByUser(userId: string): Promise<Appointment[]>;
@@ -185,7 +186,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep">>): Promise<Lead | undefined> {
+  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt">>): Promise<Lead | undefined> {
     const [result] = await db.update(leads).set(data).where(eq(leads.id, id)).returning();
     return result;
   }
@@ -195,6 +196,15 @@ export class DatabaseStorage implements IStorage {
       and(
         isNull(leads.outreachSentAt),
         lte(leads.scheduledSendAt, new Date())
+      )
+    );
+  }
+
+  async getLeadsDueForFollowUp(): Promise<Lead[]> {
+    return db.select().from(leads).where(
+      and(
+        eq(leads.followUpStatus, "active"),
+        lte(leads.followUpNextAt, new Date())
       )
     );
   }

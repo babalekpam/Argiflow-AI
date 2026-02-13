@@ -61,6 +61,8 @@ import {
   X,
   PhoneCall,
   MessageSquare,
+  RefreshCw,
+  PauseCircle,
 } from "lucide-react";
 import type { Lead, Business } from "@shared/schema";
 import { useState, useEffect, useMemo } from "react";
@@ -182,6 +184,8 @@ function LeadCard({
   scheduleMutation,
   cancelScheduleMutation,
   callMutation,
+  pauseFollowUpMutation,
+  resumeFollowUpMutation,
   onSmsClick,
 }: {
   lead: Lead;
@@ -195,6 +199,8 @@ function LeadCard({
   scheduleMutation: any;
   cancelScheduleMutation: any;
   callMutation: any;
+  pauseFollowUpMutation: any;
+  resumeFollowUpMutation: any;
   onSmsClick: (lead: Lead) => void;
 }) {
   const { t } = useTranslation();
@@ -429,6 +435,24 @@ function LeadCard({
                       {t("leads.sentOn", { date: new Date(lead.outreachSentAt).toLocaleDateString() })}
                     </span>
                   )}
+                  {lead.followUpStatus === "active" && (
+                    <Badge variant="secondary" className="text-[10px]" data-testid={`badge-followup-active-${lead.id}`}>
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      {t("leads.followUp.step", { step: Math.min((lead.followUpStep || 0) + 1, 3), total: 3 })}
+                    </Badge>
+                  )}
+                  {lead.followUpStatus === "completed" && (
+                    <Badge variant="secondary" className="text-[10px]" data-testid={`badge-followup-done-${lead.id}`}>
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      {t("leads.followUp.completed")}
+                    </Badge>
+                  )}
+                  {lead.followUpStatus === "paused" && (
+                    <Badge variant="secondary" className="text-[10px]" data-testid={`badge-followup-paused-${lead.id}`}>
+                      <PauseCircle className="w-3 h-3 mr-1" />
+                      {t("leads.followUp.paused")}
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {!isSent && (
@@ -486,6 +510,28 @@ function LeadCard({
                       data-testid={`button-cancel-schedule-${lead.id}`}
                     >
                       <X className="w-3 h-3 mr-1" /> {t("leads.cancelSchedule")}
+                    </Button>
+                  )}
+                  {lead.followUpStatus === "active" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); pauseFollowUpMutation.mutate(lead.id); }}
+                      disabled={pauseFollowUpMutation.isPending}
+                      data-testid={`button-pause-followup-${lead.id}`}
+                    >
+                      <PauseCircle className="w-3 h-3 mr-1" /> {t("leads.followUp.pause")}
+                    </Button>
+                  )}
+                  {lead.followUpStatus === "paused" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); resumeFollowUpMutation.mutate(lead.id); }}
+                      disabled={resumeFollowUpMutation.isPending}
+                      data-testid={`button-resume-followup-${lead.id}`}
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" /> {t("leads.followUp.resume")}
                     </Button>
                   )}
                 </div>
@@ -946,6 +992,34 @@ export default function LeadsPage() {
     },
   });
 
+  const pauseFollowUpMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      const res = await apiRequest("POST", `/api/leads/${leadId}/follow-up/pause`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      invalidateLeads();
+      toast({ title: data.message || t("leads.followUp.pauseSuccess") });
+    },
+    onError: () => {
+      toast({ title: t("leads.followUp.pauseFailed"), variant: "destructive" });
+    },
+  });
+
+  const resumeFollowUpMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      const res = await apiRequest("POST", `/api/leads/${leadId}/follow-up/resume`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      invalidateLeads();
+      toast({ title: data.message || t("leads.followUp.resumeSuccess") });
+    },
+    onError: () => {
+      toast({ title: t("leads.followUp.resumeFailed"), variant: "destructive" });
+    },
+  });
+
   const callMutation = useMutation({
     mutationFn: async (data: { toNumber: string; leadId: string }) => {
       const res = await apiRequest("POST", "/api/voice/calls", data);
@@ -1398,6 +1472,8 @@ export default function LeadsPage() {
                 scheduleMutation={scheduleMutation}
                 cancelScheduleMutation={cancelScheduleMutation}
                 callMutation={callMutation}
+                pauseFollowUpMutation={pauseFollowUpMutation}
+                resumeFollowUpMutation={resumeFollowUpMutation}
                 onSmsClick={(lead) => { setSmsLead(lead); setSmsBody(""); }}
               />
             ))}
