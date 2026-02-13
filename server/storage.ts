@@ -1,7 +1,7 @@
 import {
   leads, appointments, aiAgents, dashboardStats, admins, users, userSettings, aiChatMessages, marketingStrategies,
   funnels, funnelStages, funnelDeals, websiteProfiles, automations, emailEvents, subscriptions,
-  agentConfigs, agentTasks, notifications, passwordResetTokens, emailVerificationTokens, voiceCalls, businesses,
+  agentConfigs, agentTasks, notifications, passwordResetTokens, emailVerificationTokens, voiceCalls, businesses, emailReplies,
   type Lead, type InsertLead,
   type Business, type InsertBusiness,
   type Appointment, type InsertAppointment,
@@ -25,6 +25,7 @@ import {
   type PasswordResetToken, type InsertPasswordResetToken,
   type EmailVerificationToken, type InsertEmailVerificationToken,
   type VoiceCall, type InsertVoiceCall,
+  type EmailReply, type InsertEmailReply,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc, isNull, sql, lte } from "drizzle-orm";
@@ -125,6 +126,10 @@ export interface IStorage {
   getVoiceCallsByUser(userId: string): Promise<VoiceCall[]>;
   getVoiceCallById(id: string): Promise<VoiceCall | undefined>;
   getVoiceCallByTwilioSid(sid: string): Promise<VoiceCall | undefined>;
+  createEmailReply(reply: InsertEmailReply): Promise<EmailReply>;
+  getEmailRepliesByLead(leadId: string): Promise<EmailReply[]>;
+  getEmailRepliesByUser(userId: string): Promise<EmailReply[]>;
+  getEmailReplyByMessageId(messageId: string): Promise<EmailReply | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -612,6 +617,24 @@ export class DatabaseStorage implements IStorage {
 
   async getVoiceCallByTwilioSid(sid: string): Promise<VoiceCall | undefined> {
     const [result] = await db.select().from(voiceCalls).where(eq(voiceCalls.twilioCallSid, sid));
+    return result;
+  }
+
+  async createEmailReply(reply: InsertEmailReply): Promise<EmailReply> {
+    const [result] = await db.insert(emailReplies).values(reply).returning();
+    return result;
+  }
+
+  async getEmailRepliesByLead(leadId: string): Promise<EmailReply[]> {
+    return db.select().from(emailReplies).where(eq(emailReplies.leadId, leadId)).orderBy(asc(emailReplies.createdAt));
+  }
+
+  async getEmailRepliesByUser(userId: string): Promise<EmailReply[]> {
+    return db.select().from(emailReplies).where(eq(emailReplies.userId, userId)).orderBy(desc(emailReplies.createdAt));
+  }
+
+  async getEmailReplyByMessageId(messageId: string): Promise<EmailReply | undefined> {
+    const [result] = await db.select().from(emailReplies).where(eq(emailReplies.messageId, messageId));
     return result;
   }
 }

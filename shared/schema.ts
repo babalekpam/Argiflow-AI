@@ -396,6 +396,25 @@ export const insertVoiceCallSchema = createInsertSchema(voiceCalls).omit({ id: t
 export type VoiceCall = typeof voiceCalls.$inferSelect;
 export type InsertVoiceCall = z.infer<typeof insertVoiceCallSchema>;
 
+export const emailReplies = pgTable("email_replies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  direction: text("direction").notNull(),
+  fromEmail: text("from_email").notNull(),
+  toEmail: text("to_email").notNull(),
+  subject: text("subject"),
+  body: text("body").notNull(),
+  messageId: text("message_id"),
+  inReplyTo: text("in_reply_to"),
+  status: text("status").notNull().default("received"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertEmailReplySchema = createInsertSchema(emailReplies).omit({ id: true, createdAt: true });
+export type EmailReply = typeof emailReplies.$inferSelect;
+export type InsertEmailReply = z.infer<typeof insertEmailReplySchema>;
+
 export const autoLeadGenRuns = pgTable("auto_lead_gen_runs", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
