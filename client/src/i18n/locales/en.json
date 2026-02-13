@@ -1048,7 +1048,17 @@
     "startRun": "Start Run",
     "agentScript": "Agent Script",
     "agentScriptDesc": "Write custom instructions for this agent. Tell it what to search for, how to qualify leads, and what actions to take.",
-    "agentScriptPlaceholder": "Example:\nSearch for companies in the construction industry in Texas.\nFocus on businesses with 10-50 employees.\nLook for contact emails on their websites.\nScore leads higher if they have government contracts."
+    "agentScriptPlaceholder": "Example:\nSearch for companies in the construction industry in Texas.\nFocus on businesses with 10-50 employees.\nLook for contact emails on their websites.\nScore leads higher if they have government contracts.",
+    "autoLeadGen": "Auto Lead Generation",
+    "everyHours": "Every {{hours}}h",
+    "runNow": "Run Now",
+    "batchSize": "Batch Size",
+    "totalAutoLeads": "Total Auto Leads",
+    "nextTarget": "Next Target",
+    "recentRuns": "Recent Runs",
+    "lastRun": "Last Run",
+    "noRunsYet": "No runs yet. The first batch will run automatically.",
+    "autoGenTriggered": "Auto lead generation triggered! Check back in a few minutes."
   },
   "emailSms": {
     "title": "Email & SMS",

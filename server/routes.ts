@@ -2,7 +2,8 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { leads, appointments, aiAgents, dashboardStats, aiChatMessages } from "@shared/schema";
+import { eq, sql, desc } from "drizzle-orm";
+import { leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
@@ -298,7 +299,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
       }
       const created: string[] = [];
       const createdLeadDetails: { name: string; email?: string }[] = [];
-      for (const lead of leadsData.slice(0, 20)) {
+      for (const lead of leadsData.slice(0, 30)) {
         const leadRecord = {
           userId,
           name: lead.name || "Unknown",
@@ -1027,7 +1028,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
     });
 
     let loopCount = 0;
-    const maxLoops = 5;
+    const maxLoops = 12;
     let currentMessages = [...claudeMessages];
 
     while (response.stop_reason === "tool_use" && loopCount < maxLoops) {
@@ -1044,12 +1045,24 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
       for (const toolUse of crmToolUses) {
-        const result = await executeAction(userId, toolUse.name, toolUse.input || {});
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: result,
-        });
+        console.log(`[AI Tool] Executing: ${toolUse.name}`, JSON.stringify(toolUse.input || {}).slice(0, 200));
+        try {
+          const result = await executeAction(userId, toolUse.name, toolUse.input || {});
+          console.log(`[AI Tool] ${toolUse.name} result:`, result.slice(0, 200));
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: result,
+          });
+        } catch (toolError: any) {
+          console.error(`[AI Tool] ${toolUse.name} ERROR:`, toolError?.message);
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: `ERROR executing ${toolUse.name}: ${toolError?.message}`,
+            is_error: true,
+          });
+        }
       }
 
       if (toolResults.length > 0) {
@@ -1063,6 +1076,10 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
         messages: currentMessages,
         tools,
       });
+    }
+
+    if (loopCount >= maxLoops) {
+      console.warn(`[AI] Tool loop hit max (${maxLoops}) — some tools may not have executed`);
     }
 
     // Extract final text from Claude's response
@@ -2286,6 +2303,307 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
   }
 
   setInterval(processScheduledOutreach, 60 * 1000);
+
+  // ============================================================
+  // AUTOMATIC MEDICAL BILLING LEAD GENERATION (every 5 hours)
+  // Uses Claude AI to search for real medical billing leads
+  // and adds them to the CRM automatically
+  // ============================================================
+
+  const AUTO_LEAD_GEN_INTERVAL = 5 * 60 * 60 * 1000; // 5 hours
+  const AUTO_LEAD_GEN_BATCH_SIZE = 30;
+
+  const MEDICAL_BILLING_SEARCH_ROTATIONS = [
+    { region: "Tennessee", focus: "solo practices hiring billing managers" },
+    { region: "Missouri", focus: "new medical practices needing RCM services" },
+    { region: "Georgia", focus: "practices complaining about billing issues" },
+    { region: "Texas", focus: "family medicine practices outsourcing billing" },
+    { region: "Florida", focus: "urgent care clinics seeking billing help" },
+    { region: "Ohio", focus: "pediatric practices with denied claims" },
+    { region: "North Carolina", focus: "dermatology practices needing billing" },
+    { region: "Illinois", focus: "internal medicine billing outsourcing" },
+    { region: "California", focus: "orthopedic practices switching billing companies" },
+    { region: "Pennsylvania", focus: "small medical practices needing RCM" },
+    { region: "Virginia", focus: "multi-specialty clinics billing pain points" },
+    { region: "New York", focus: "solo practitioners medical billing services" },
+  ];
+
+  let autoLeadGenRotationIndex = 0;
+
+  async function runAutoLeadGeneration() {
+    try {
+      const allUsers = await storage.getAllUsers();
+      if (allUsers.length === 0) {
+        console.log("[Auto Lead Gen] No users found, skipping");
+        return;
+      }
+
+      const adminUser = allUsers.find(u => u.isAdmin) || allUsers[0];
+      if (!adminUser) return;
+
+      const rotation = MEDICAL_BILLING_SEARCH_ROTATIONS[autoLeadGenRotationIndex % MEDICAL_BILLING_SEARCH_ROTATIONS.length];
+      autoLeadGenRotationIndex++;
+
+      console.log(`[Auto Lead Gen] Starting run for ${rotation.region} — ${rotation.focus}`);
+
+      const [runRecord] = await db.insert(autoLeadGenRuns).values({
+        userId: adminUser.id,
+        status: "running",
+        searchQueries: `${rotation.region}: ${rotation.focus}`,
+        startedAt: new Date(),
+      }).returning();
+
+      const anthropicKey = process.env.ANTHROPIC_API_KEY;
+      if (!anthropicKey) {
+        console.error("[Auto Lead Gen] No Anthropic API key found");
+        await db.update(autoLeadGenRuns).set({ status: "failed", errorMessage: "No API key", completedAt: new Date() }).where(eq(autoLeadGenRuns.id, runRecord.id));
+        return;
+      }
+
+      const anthropic = new Anthropic({ apiKey: anthropicKey });
+
+      const autoGenPrompt = `You are Track-Med Billing Solutions' automated lead hunter. Your ONLY job is to find ${AUTO_LEAD_GEN_BATCH_SIZE} REAL medical billing leads and save them.
+
+TASK: Find ${AUTO_LEAD_GEN_BATCH_SIZE} medical billing leads in ${rotation.region}, focused on: ${rotation.focus}
+
+SEARCH STRATEGY:
+1. Use web_search to find real medical practices, physicians, and clinics in ${rotation.region}
+2. Look for practices that show intent signals: hiring billing staff, new practice openings, complaints about billing, switching RCM companies
+3. Find decision makers: practice owners, physicians (MD/DO), practice administrators, medical directors, CFOs
+4. Extract real names, emails, phone numbers, company names from search results
+5. If direct email not found, use patterns: firstname@practicename.com, info@practicename.com, or contact@ patterns
+
+SCORING:
+- Hiring for billing position: score 80+
+- New practice (< 6 months): score 75+
+- Complaining about billing: score 85+
+- Practice owner/physician: +25 to score
+- Solo/small practice: +20 to score
+
+For EACH lead provide: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score (40-95), intent_signal, notes (title + why they're a good prospect), outreach (personalized 3-5 sentence email ending with: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246)
+
+CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} leads in a single call. Use agent_type="lead-gen". Do NOT just talk about leads — you MUST use the generate_leads tool to save them.`;
+
+      const tools: any[] = [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 10,
+        },
+        {
+          name: "generate_leads",
+          description: "Save leads to CRM. Pass all leads at once.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              leads: {
+                type: "array" as const,
+                items: {
+                  type: "object" as const,
+                  properties: {
+                    name: { type: "string" as const },
+                    email: { type: "string" as const },
+                    phone: { type: "string" as const },
+                    company: { type: "string" as const },
+                    source: { type: "string" as const },
+                    status: { type: "string" as const },
+                    score: { type: "number" as const },
+                    intent_signal: { type: "string" as const },
+                    notes: { type: "string" as const },
+                    outreach: { type: "string" as const },
+                  },
+                  required: ["name"],
+                },
+              },
+              agent_type: { type: "string" as const },
+            },
+            required: ["leads"],
+          },
+        },
+      ];
+
+      async function claudeCallWithRetry(params: any, retries = 3): Promise<any> {
+        for (let i = 0; i < retries; i++) {
+          try {
+            return await anthropic.messages.create(params);
+          } catch (err: any) {
+            if (err?.status === 429 && i < retries - 1) {
+              const wait = Math.min((i + 1) * 30000, 90000);
+              console.log(`[Auto Lead Gen] Rate limited, waiting ${wait / 1000}s...`);
+              await new Promise(r => setTimeout(r, wait));
+            } else {
+              throw err;
+            }
+          }
+        }
+      }
+
+      let response = await claudeCallWithRetry({
+        model: CLAUDE_MODEL,
+        max_tokens: 4096,
+        messages: [{ role: "user", content: autoGenPrompt }],
+        tools,
+      });
+
+      let loopCount = 0;
+      const maxAutoLoops = 15;
+      let currentMessages: any[] = [{ role: "user", content: autoGenPrompt }];
+      let leadsGenerated = 0;
+
+      while (response.stop_reason === "tool_use" && loopCount < maxAutoLoops) {
+        loopCount++;
+        currentMessages.push({ role: "assistant", content: response.content });
+
+        const toolUseBlocks = response.content.filter(
+          (block: any) => block.type === "tool_use"
+        );
+
+        const crmToolUses = toolUseBlocks.filter((t: any) => t.name !== "web_search");
+        const toolResults: any[] = [];
+
+        for (const toolUse of crmToolUses) {
+          try {
+            console.log(`[Auto Lead Gen] Tool: ${toolUse.name}`);
+            const result = await executeAction(adminUser.id, toolUse.name, toolUse.input || {});
+            console.log(`[Auto Lead Gen] Result: ${result.slice(0, 150)}`);
+
+            const match = result.match(/Saved (\d+) real leads/);
+            if (match) leadsGenerated += parseInt(match[1]);
+
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: toolUse.id,
+              content: result,
+            });
+          } catch (err: any) {
+            console.error(`[Auto Lead Gen] Tool error: ${err?.message}`);
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: toolUse.id,
+              content: `ERROR: ${err?.message}`,
+              is_error: true,
+            });
+          }
+        }
+
+        if (toolResults.length > 0) {
+          currentMessages.push({ role: "user", content: toolResults });
+        }
+
+        response = await claudeCallWithRetry({
+          model: CLAUDE_MODEL,
+          max_tokens: 4096,
+          messages: currentMessages,
+          tools,
+        });
+      }
+
+      // If Claude finished talking but didn't call generate_leads, force it
+      if (leadsGenerated === 0 && loopCount < maxAutoLoops) {
+        console.log("[Auto Lead Gen] No leads generated yet, forcing generate_leads call...");
+        const textSoFar = response.content
+          .filter((b: any) => b.type === "text")
+          .map((b: any) => b.text)
+          .join("\n");
+
+        currentMessages.push({ role: "assistant", content: response.content as any });
+        currentMessages.push({
+          role: "user",
+          content: `You MUST now call the generate_leads tool with all the leads you found. Do NOT just describe them in text. Call the tool NOW with an array of lead objects. Each lead needs: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score, intent_signal, notes, outreach. Use agent_type="lead-gen". If you found practices in your search, create leads for them NOW using the tool.`,
+        });
+
+        const retryResponse = await claudeCallWithRetry({
+          model: CLAUDE_MODEL,
+          max_tokens: 4096,
+          messages: currentMessages,
+          tools,
+        });
+
+        let retryLoops = 0;
+        let retryResp = retryResponse;
+        let retryCurrent = [...currentMessages];
+
+        while (retryResp.stop_reason === "tool_use" && retryLoops < 5) {
+          retryLoops++;
+          retryCurrent.push({ role: "assistant", content: retryResp.content as any });
+
+          const retryToolUses = retryResp.content.filter(
+            (block: any) => block.type === "tool_use" && block.name !== "web_search"
+          );
+
+          const retryResults: any[] = [];
+          for (const toolUse of retryToolUses) {
+            try {
+              const result = await executeAction(adminUser.id, toolUse.name, toolUse.input || {});
+              console.log(`[Auto Lead Gen Retry] ${toolUse.name}: ${result.slice(0, 150)}`);
+              const match = result.match(/Saved (\d+) real leads/);
+              if (match) leadsGenerated += parseInt(match[1]);
+              retryResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: result });
+            } catch (err: any) {
+              retryResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `ERROR: ${err?.message}`, is_error: true });
+            }
+          }
+
+          if (retryResults.length > 0) {
+            retryCurrent.push({ role: "user", content: retryResults });
+          }
+
+          retryResp = await claudeCallWithRetry({
+            model: CLAUDE_MODEL,
+            max_tokens: 4096,
+            messages: retryCurrent,
+            tools,
+          });
+        }
+      }
+
+      await db.update(autoLeadGenRuns).set({
+        status: leadsGenerated > 0 ? "completed" : "no_leads",
+        leadsGenerated,
+        completedAt: new Date(),
+      }).where(eq(autoLeadGenRuns.id, runRecord.id));
+
+      console.log(`[Auto Lead Gen] Completed: ${leadsGenerated} leads generated for ${rotation.region}`);
+
+    } catch (error: any) {
+      console.error("[Auto Lead Gen] Error:", error?.message);
+    }
+  }
+
+  // Start auto lead gen on a 5-hour interval (first run after 5 minutes to avoid rate limits at startup)
+  setTimeout(() => {
+    runAutoLeadGeneration();
+    setInterval(runAutoLeadGeneration, AUTO_LEAD_GEN_INTERVAL);
+  }, 5 * 60 * 1000);
+
+  // API: Get auto lead gen status & history
+  app.get("/api/auto-lead-gen/status", isAuthenticated, async (req, res) => {
+    try {
+      const runs = await db.select().from(autoLeadGenRuns).orderBy(desc(autoLeadGenRuns.startedAt)).limit(20);
+      const nextRunIn = AUTO_LEAD_GEN_INTERVAL;
+      const totalLeads = runs.reduce((sum, r) => sum + (r.leadsGenerated || 0), 0);
+      res.json({
+        enabled: true,
+        intervalHours: 5,
+        batchSize: AUTO_LEAD_GEN_BATCH_SIZE,
+        totalLeadsGenerated: totalLeads,
+        runs,
+        nextRotation: MEDICAL_BILLING_SEARCH_ROTATIONS[autoLeadGenRotationIndex % MEDICAL_BILLING_SEARCH_ROTATIONS.length],
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // API: Trigger manual run
+  app.post("/api/auto-lead-gen/trigger", isAuthenticated, async (req, res) => {
+    try {
+      res.json({ message: "Auto lead generation triggered. Check status in a few minutes." });
+      runAutoLeadGeneration();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // ---- SMS (Twilio) ----
 

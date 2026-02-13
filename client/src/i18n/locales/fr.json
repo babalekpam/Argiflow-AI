@@ -813,7 +813,17 @@
     "startRun": "Lancer l'Exécution",
     "agentScript": "Script de l'Agent",
     "agentScriptDesc": "Rédigez des instructions personnalisées pour cet agent. Indiquez-lui quoi rechercher, comment qualifier les leads et quelles actions entreprendre.",
-    "agentScriptPlaceholder": "Exemple :\nRechercher des entreprises du secteur de la construction au Texas.\nCibler les entreprises de 10 à 50 employés.\nChercher les e-mails de contact sur leurs sites web.\nAccorder un score plus élevé aux leads ayant des contrats gouvernementaux."
+    "agentScriptPlaceholder": "Exemple :\nRechercher des entreprises du secteur de la construction au Texas.\nCibler les entreprises de 10 à 50 employés.\nChercher les e-mails de contact sur leurs sites web.\nAccorder un score plus élevé aux leads ayant des contrats gouvernementaux.",
+    "autoLeadGen": "Génération Auto de Leads",
+    "everyHours": "Toutes les {{hours}}h",
+    "runNow": "Lancer Maintenant",
+    "batchSize": "Taille du lot",
+    "totalAutoLeads": "Total Leads Auto",
+    "nextTarget": "Prochaine Cible",
+    "recentRuns": "Exécutions Récentes",
+    "lastRun": "Dernière Exécution",
+    "noRunsYet": "Aucune exécution. Le premier lot s'exécutera automatiquement.",
+    "autoGenTriggered": "Génération automatique de leads déclenchée ! Vérifiez dans quelques minutes."
   },
   "emailSms": {
     "title": "E-mail & SMS",

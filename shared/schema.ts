@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, serial, timestamp, boolean, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -384,3 +384,16 @@ export const voiceCalls = pgTable("voice_calls", {
 export const insertVoiceCallSchema = createInsertSchema(voiceCalls).omit({ id: true, createdAt: true });
 export type VoiceCall = typeof voiceCalls.$inferSelect;
 export type InsertVoiceCall = z.infer<typeof insertVoiceCallSchema>;
+
+export const autoLeadGenRuns = pgTable("auto_lead_gen_runs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  status: text("status").notNull().default("pending"),
+  leadsGenerated: integer("leads_generated").default(0),
+  errorMessage: text("error_message"),
+  searchQueries: text("search_queries"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export type AutoLeadGenRun = typeof autoLeadGenRuns.$inferSelect;
