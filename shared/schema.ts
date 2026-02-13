@@ -52,9 +52,14 @@ export const appointments = pgTable("appointments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   leadName: text("lead_name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  company: text("company"),
   type: text("type").notNull(),
   date: timestamp("date").notNull(),
   status: text("status").notNull().default("scheduled"),
+  notes: text("notes"),
+  source: text("source").notNull().default("manual"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

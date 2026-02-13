@@ -716,6 +716,30 @@
       "completed": "Completed",
       "cancelled": "Cancelled",
       "pending": "Pending"
+    },
+    "addNew": "Add Appointment",
+    "addSuccess": "Appointment created successfully",
+    "addError": "Failed to create appointment",
+    "deleted": "Appointment deleted",
+    "updated": "Appointment updated",
+    "saving": "Saving...",
+    "save": "Save Appointment",
+    "form": {
+      "name": "Contact Name",
+      "email": "Email",
+      "phone": "Phone",
+      "company": "Company",
+      "type": "Meeting Type",
+      "date": "Date",
+      "time": "Time",
+      "notes": "Notes",
+      "notesPlaceholder": "Add any details about this appointment..."
+    },
+    "sources": {
+      "manual": "Manual",
+      "booking_link": "Booking Link",
+      "ai_chat": "AI Chat",
+      "website": "Website"
     }
   },
   "salesFunnels": {

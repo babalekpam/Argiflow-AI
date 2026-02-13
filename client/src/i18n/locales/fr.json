@@ -668,7 +668,43 @@
     "notesPlaceholder": "Ajoutez des notes sur ce rendez-vous...",
     "noAppointments": "Aucun rendez-vous planifié",
     "noAppointmentsDesc": "Planifiez votre première réunion avec un lead ou un client.",
-    "createAppointment": "Créer un Rendez-vous"
+    "createAppointment": "Créer un Rendez-vous",
+    "total": "Total",
+    "upcoming": "À venir",
+    "completed": "Terminés",
+    "upcomingAppointments": "Rendez-vous à venir",
+    "noUpcoming": "Aucun rendez-vous à venir.",
+    "pastAppointments": "Rendez-vous passés",
+    "statuses": {
+      "scheduled": "Planifié",
+      "completed": "Terminé",
+      "cancelled": "Annulé",
+      "pending": "En attente"
+    },
+    "addNew": "Ajouter un rendez-vous",
+    "addSuccess": "Rendez-vous créé avec succès",
+    "addError": "Échec de la création du rendez-vous",
+    "deleted": "Rendez-vous supprimé",
+    "updated": "Rendez-vous mis à jour",
+    "saving": "Enregistrement...",
+    "save": "Enregistrer le rendez-vous",
+    "form": {
+      "name": "Nom du contact",
+      "email": "Email",
+      "phone": "Téléphone",
+      "company": "Entreprise",
+      "type": "Type de réunion",
+      "date": "Date",
+      "time": "Heure",
+      "notes": "Notes",
+      "notesPlaceholder": "Ajoutez des détails sur ce rendez-vous..."
+    },
+    "sources": {
+      "manual": "Manuel",
+      "booking_link": "Lien de réservation",
+      "ai_chat": "Chat IA",
+      "website": "Site web"
+    }
   },
   "salesFunnels": {
     "title": "Tunnels de Vente",

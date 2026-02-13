@@ -1,29 +1,46 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Calendar,
   Video,
   Clock,
-  MoreVertical,
   CheckCircle2,
   XCircle,
   AlertCircle,
   Mail,
   Phone,
   Building2,
+  Plus,
+  Trash2,
+  StickyNote,
+  Globe,
 } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Appointment } from "@shared/schema";
-
-type EnrichedAppointment = Appointment & {
-  leadEmail?: string | null;
-  leadPhone?: string | null;
-  leadCompany?: string | null;
-};
 
 function AppointmentStatusBadge({ status }: { status: string }) {
   const { t } = useTranslation();
@@ -49,9 +66,29 @@ function AppointmentStatusBadge({ status }: { status: string }) {
   );
 }
 
-function AppointmentCard({ apt, opaque }: { apt: EnrichedAppointment; opaque?: boolean }) {
+function SourceBadge({ source }: { source: string }) {
+  const { t } = useTranslation();
+  return (
+    <Badge variant="outline" className="text-xs">
+      <Globe className="w-3 h-3 mr-1" />
+      {t(`appointments.sources.${source}`, source)}
+    </Badge>
+  );
+}
+
+function AppointmentCard({
+  apt,
+  opaque,
+  onDelete,
+  onStatusChange,
+}: {
+  apt: Appointment;
+  opaque?: boolean;
+  onDelete: (id: string) => void;
+  onStatusChange: (id: string, status: string) => void;
+}) {
   const d = new Date(apt.date);
-  const hasContact = apt.leadEmail || apt.leadPhone || apt.leadCompany;
+  const hasContact = apt.email || apt.phone || apt.company;
 
   return (
     <div
@@ -72,44 +109,74 @@ function AppointmentCard({ apt, opaque }: { apt: EnrichedAppointment; opaque?: b
           <p className="text-xs text-muted-foreground">{apt.type}</p>
         </div>
         <AppointmentStatusBadge status={apt.status} />
-        {!opaque && (
-          <div className="flex items-center gap-1">
-            <Button size="icon" variant="ghost" data-testid={`button-video-${apt.id}`}>
-              <Video className="w-4 h-4" />
-            </Button>
-            <Button size="icon" variant="ghost" data-testid={`button-more-${apt.id}`}>
-              <MoreVertical className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
+        {apt.source && <SourceBadge source={apt.source} />}
+        <div className="flex items-center gap-1">
+          {apt.status === "scheduled" && (
+            <>
+              <Button
+                size="icon"
+                variant="ghost"
+                data-testid={`button-complete-${apt.id}`}
+                onClick={() => onStatusChange(apt.id, "completed")}
+                title="Mark completed"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                data-testid={`button-cancel-${apt.id}`}
+                onClick={() => onStatusChange(apt.id, "cancelled")}
+                title="Cancel"
+              >
+                <XCircle className="w-4 h-4 text-red-400" />
+              </Button>
+            </>
+          )}
+          <Button
+            size="icon"
+            variant="ghost"
+            data-testid={`button-delete-${apt.id}`}
+            onClick={() => onDelete(apt.id)}
+            title="Delete"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
-      {hasContact && (
+      {(hasContact || apt.notes) && (
         <div className="flex items-center gap-4 pl-20 flex-wrap">
-          {apt.leadCompany && (
+          {apt.company && (
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`apt-company-${apt.id}`}>
               <Building2 className="w-3 h-3 shrink-0" />
-              <span className="truncate max-w-[200px]">{apt.leadCompany}</span>
+              <span className="truncate max-w-[200px]">{apt.company}</span>
             </span>
           )}
-          {apt.leadEmail && (
+          {apt.email && (
             <a
-              href={`mailto:${apt.leadEmail}`}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+              href={`mailto:${apt.email}`}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover-elevate transition-colors"
               data-testid={`apt-email-${apt.id}`}
             >
               <Mail className="w-3 h-3 shrink-0" />
-              <span className="truncate max-w-[200px]">{apt.leadEmail}</span>
+              <span className="truncate max-w-[200px]">{apt.email}</span>
             </a>
           )}
-          {apt.leadPhone && (
+          {apt.phone && (
             <a
-              href={`tel:${apt.leadPhone}`}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+              href={`tel:${apt.phone}`}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover-elevate transition-colors"
               data-testid={`apt-phone-${apt.id}`}
             >
               <Phone className="w-3 h-3 shrink-0" />
-              <span>{apt.leadPhone}</span>
+              <span>{apt.phone}</span>
             </a>
+          )}
+          {apt.notes && (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`apt-notes-${apt.id}`}>
+              <StickyNote className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-[300px]">{apt.notes}</span>
+            </span>
           )}
         </div>
       )}
@@ -117,11 +184,183 @@ function AppointmentCard({ apt, opaque }: { apt: EnrichedAppointment; opaque?: b
   );
 }
 
+function AddAppointmentDialog({ onSuccess }: { onSuccess: () => void }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({
+    leadName: "",
+    email: "",
+    phone: "",
+    company: "",
+    type: "Discovery Call",
+    date: "",
+    time: "",
+    notes: "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const dateTime = new Date(`${form.date}T${form.time}`);
+      return apiRequest("POST", "/api/appointments", {
+        leadName: form.leadName,
+        email: form.email || null,
+        phone: form.phone || null,
+        company: form.company || null,
+        type: form.type,
+        date: dateTime.toISOString(),
+        notes: form.notes || null,
+        source: "manual",
+        status: "scheduled",
+      });
+    },
+    onSuccess: () => {
+      toast({ title: t("appointments.addSuccess") });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      setOpen(false);
+      setForm({ leadName: "", email: "", phone: "", company: "", type: "Discovery Call", date: "", time: "", notes: "" });
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: t("appointments.addError"), variant: "destructive" });
+    },
+  });
+
+  const set = (key: string, val: string) => setForm((f) => ({ ...f, [key]: val }));
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button data-testid="button-add-appointment">
+          <Plus className="w-4 h-4 mr-2" />
+          {t("appointments.addNew")}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("appointments.addNew")}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>{t("appointments.form.name")} *</Label>
+            <Input
+              value={form.leadName}
+              onChange={(e) => set("leadName", e.target.value)}
+              placeholder="John Smith"
+              data-testid="input-apt-name"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>{t("appointments.form.email")}</Label>
+              <Input
+                value={form.email}
+                onChange={(e) => set("email", e.target.value)}
+                placeholder="john@example.com"
+                data-testid="input-apt-email"
+              />
+            </div>
+            <div>
+              <Label>{t("appointments.form.phone")}</Label>
+              <Input
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+                placeholder="+1 555-0123"
+                data-testid="input-apt-phone"
+              />
+            </div>
+          </div>
+          <div>
+            <Label>{t("appointments.form.company")}</Label>
+            <Input
+              value={form.company}
+              onChange={(e) => set("company", e.target.value)}
+              placeholder="Acme Corp"
+              data-testid="input-apt-company"
+            />
+          </div>
+          <div>
+            <Label>{t("appointments.form.type")} *</Label>
+            <Select value={form.type} onValueChange={(v) => set("type", v)}>
+              <SelectTrigger data-testid="select-apt-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Discovery Call">Discovery Call</SelectItem>
+                <SelectItem value="Strategy Session">Strategy Session</SelectItem>
+                <SelectItem value="Sales Call">Sales Call</SelectItem>
+                <SelectItem value="Demo Call">Demo Call</SelectItem>
+                <SelectItem value="Consultation">Consultation</SelectItem>
+                <SelectItem value="Follow-Up Call">Follow-Up Call</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>{t("appointments.form.date")} *</Label>
+              <Input
+                type="date"
+                value={form.date}
+                onChange={(e) => set("date", e.target.value)}
+                data-testid="input-apt-date"
+              />
+            </div>
+            <div>
+              <Label>{t("appointments.form.time")} *</Label>
+              <Input
+                type="time"
+                value={form.time}
+                onChange={(e) => set("time", e.target.value)}
+                data-testid="input-apt-time"
+              />
+            </div>
+          </div>
+          <div>
+            <Label>{t("appointments.form.notes")}</Label>
+            <Textarea
+              value={form.notes}
+              onChange={(e) => set("notes", e.target.value)}
+              placeholder={t("appointments.form.notesPlaceholder")}
+              data-testid="input-apt-notes"
+            />
+          </div>
+          <Button
+            className="w-full"
+            onClick={() => mutation.mutate()}
+            disabled={!form.leadName || !form.date || !form.time || mutation.isPending}
+            data-testid="button-save-appointment"
+          >
+            {mutation.isPending ? t("appointments.saving") : t("appointments.save")}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AppointmentsPage() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   usePageTitle(t("appointments.title"));
-  const { data: appointments, isLoading } = useQuery<EnrichedAppointment[]>({
+  const { data: appointments, isLoading } = useQuery<Appointment[]>({
     queryKey: ["/api/appointments"],
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/appointments/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      toast({ title: t("appointments.deleted") });
+    },
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiRequest("PATCH", `/api/appointments/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      toast({ title: t("appointments.updated") });
+    },
   });
 
   const upcoming = (appointments || []).filter(
@@ -140,6 +379,7 @@ export default function AppointmentsPage() {
             {t("appointments.subtitle")}
           </p>
         </div>
+        <AddAppointmentDialog onSuccess={() => {}} />
       </div>
 
       <div className="grid sm:grid-cols-3 gap-4">
@@ -201,7 +441,12 @@ export default function AppointmentsPage() {
             </div>
           ) : (
             upcoming.map((apt) => (
-              <AppointmentCard key={apt.id} apt={apt} />
+              <AppointmentCard
+                key={apt.id}
+                apt={apt}
+                onDelete={(id) => deleteMutation.mutate(id)}
+                onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
+              />
             ))
           )}
         </div>
@@ -212,7 +457,13 @@ export default function AppointmentsPage() {
           <h3 className="font-semibold mb-4">{t("appointments.pastAppointments")}</h3>
           <div className="space-y-3">
             {past.map((apt) => (
-              <AppointmentCard key={apt.id} apt={apt} opaque />
+              <AppointmentCard
+                key={apt.id}
+                apt={apt}
+                opaque
+                onDelete={(id) => deleteMutation.mutate(id)}
+                onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
+              />
             ))}
           </div>
         </Card>

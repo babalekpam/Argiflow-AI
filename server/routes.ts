@@ -343,22 +343,8 @@ async function executeAction(userId: string, action: string, params: any): Promi
       return `Saved ${created.length} real leads to CRM: ${created.join(", ")}. Total leads now: ${allLeads.length}.${funnelMessage}`;
     }
     case "book_appointments": {
-      const userLeads = await storage.getLeadsByUser(userId);
-      if (userLeads.length === 0) return "ERROR: User has no leads yet. Generate leads first.";
-      const count = Math.min(params.count || 2, userLeads.length);
-      const types = ["Discovery Call", "Strategy Session", "Sales Call", "Follow-Up Call", "Demo Call", "Consultation"];
-      const booked: string[] = [];
-      const shuffled = [...userLeads].sort(() => Math.random() - 0.5);
-      for (let i = 0; i < count; i++) {
-        const lead = shuffled[i];
-        const hoursFromNow = randomInt(4, 72);
-        const appt = await storage.createAppointment({ userId, leadName: lead.name, type: randomPick(types), date: new Date(Date.now() + hoursFromNow * 60 * 60 * 1000), status: "scheduled" });
-        booked.push(`${lead.name} - ${appt.type}`);
-      }
-      const stats = await storage.getStatsByUser(userId);
       const allAppts = await storage.getAppointmentsByUser(userId);
-      await storage.upsertStats({ userId, totalLeads: stats?.totalLeads || 0, activeLeads: stats?.activeLeads || 0, appointmentsBooked: allAppts.length, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
-      return `Booked ${count} appointments: ${booked.join("; ")}.`;
+      return `You currently have ${allAppts.length} appointment(s). Appointments are created when contacts book through your booking link or when you manually add them from the Appointments page. I cannot create fake bookings — only real ones should appear in your system.`;
     }
     case "activate_agents": {
       const agentTypes = [
@@ -389,13 +375,15 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const warmLeads = userLeads.filter(l => l.status === "warm" || l.status === "new");
       if (warmLeads.length === 0) return "No warm or new leads to follow up with right now.";
       const count = Math.min(params.count || warmLeads.length, 5);
-      const appts: string[] = [];
+      const names: string[] = [];
       for (let i = 0; i < count; i++) {
         const lead = warmLeads[i];
-        await storage.createAppointment({ userId, leadName: lead.name, type: "Follow-Up Call", date: new Date(Date.now() + randomInt(24, 96) * 60 * 60 * 1000), status: "scheduled" });
-        appts.push(lead.name);
+        if (lead.status === "new") {
+          await storage.updateLead(lead.id, { status: "warm" });
+        }
+        names.push(lead.name);
       }
-      return `Created follow-up calls for ${count} leads: ${appts.join(", ")}.`;
+      return `Marked ${count} leads for follow-up: ${names.join(", ")}. Use the email outreach feature to send them personalized messages, or check the Leads page for follow-up controls.`;
     }
     case "get_stats": {
       const userLeads = await storage.getLeadsByUser(userId);
@@ -1160,10 +1148,8 @@ async function fallbackResponse(userId: string, msg: string): Promise<string> {
     return "I need the AI engine to search the web for real leads. The fallback system can't do web searches — please try again in a moment and I'll find real businesses for you.";
   }
   if (lower.includes("appointment") || lower.includes("book")) {
-    const countMatch = lower.match(/(\d+)/);
-    const count = countMatch ? parseInt(countMatch[1]) : 2;
-    const result = await executeAction(userId, "book_appointments", { count });
-    return `Running in fallback mode, but done! ${result}`;
+    const allAppts = await storage.getAppointmentsByUser(userId);
+    return `You currently have ${allAppts.length} appointment(s). Appointments are created when contacts book through your booking link or when you manually add them from the Appointments page.`;
   }
   if (lower.includes("agent") || lower.includes("activate")) {
     const result = await executeAction(userId, "activate_agents", {});
@@ -3181,20 +3167,61 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
     try {
       const userId = req.session.userId!;
       const result = await storage.getAppointmentsByUser(userId);
-      const userLeads = await storage.getLeadsByUser(userId);
-      const enriched = result.map(apt => {
-        const matchedLead = userLeads.find(l => l.name === apt.leadName);
-        return {
-          ...apt,
-          leadEmail: matchedLead?.email || null,
-          leadPhone: matchedLead?.phone || null,
-          leadCompany: matchedLead?.company || null,
-        };
-      });
-      res.json(enriched);
+      res.json(result);
     } catch (error) {
       console.error("Error fetching appointments:", error);
       res.status(500).json({ message: "Failed to fetch appointments" });
+    }
+  });
+
+  app.post("/api/appointments", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { leadName, email, phone, company, type, date, notes, source, status } = req.body;
+      if (!leadName || !type || !date) {
+        return res.status(400).json({ message: "Name, type, and date are required" });
+      }
+      const appt = await storage.createAppointment({
+        userId,
+        leadName,
+        email: email || null,
+        phone: phone || null,
+        company: company || null,
+        type,
+        date: new Date(date),
+        notes: notes || null,
+        source: source || "manual",
+        status: status || "scheduled",
+      });
+      res.json(appt);
+    } catch (error) {
+      console.error("Error creating appointment:", error);
+      res.status(500).json({ message: "Failed to create appointment" });
+    }
+  });
+
+  app.patch("/api/appointments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const updated = await storage.updateAppointment(req.params.id, userId, req.body);
+      if (!updated) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating appointment:", error);
+      res.status(500).json({ message: "Failed to update appointment" });
+    }
+  });
+
+  app.delete("/api/appointments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      await storage.deleteAppointment(req.params.id, userId);
+      res.json({ message: "Appointment deleted" });
+    } catch (error) {
+      console.error("Error deleting appointment:", error);
+      res.status(500).json({ message: "Failed to delete appointment" });
     }
   });
 

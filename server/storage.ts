@@ -48,6 +48,8 @@ export interface IStorage {
   deleteAllLeadsByUser(userId: string): Promise<void>;
   getAppointmentsByUser(userId: string): Promise<Appointment[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
+  updateAppointment(id: string, userId: string, data: Partial<Appointment>): Promise<Appointment>;
+  deleteAppointment(id: string, userId: string): Promise<void>;
   getAiAgentsByUser(userId: string): Promise<AiAgent[]>;
   createAiAgent(agent: InsertAiAgent): Promise<AiAgent>;
   updateAiAgent(id: string, userId: string, data: Partial<Pick<AiAgent, "name" | "status" | "description" | "type" | "script" | "workflowSteps">>): Promise<AiAgent | undefined>;
@@ -220,6 +222,15 @@ export class DatabaseStorage implements IStorage {
   async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
     const [result] = await db.insert(appointments).values(appointment).returning();
     return result;
+  }
+
+  async updateAppointment(id: string, userId: string, data: Partial<Appointment>): Promise<Appointment> {
+    const [result] = await db.update(appointments).set(data).where(and(eq(appointments.id, id), eq(appointments.userId, userId))).returning();
+    return result;
+  }
+
+  async deleteAppointment(id: string, userId: string): Promise<void> {
+    await db.delete(appointments).where(and(eq(appointments.id, id), eq(appointments.userId, userId)));
   }
 
   async getAiAgentsByUser(userId: string): Promise<AiAgent[]> {
