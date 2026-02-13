@@ -25,6 +25,7 @@ import ResourcesPage from "./resources";
 import DemoBuilderPage from "./demo-builder";
 import SalesFunnelsPage from "./sales-funnels";
 import AgentCatalogPage from "./agent-catalog";
+import PlansPage from "./plans";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -54,7 +55,7 @@ function TrialBanner({ subData }: { subData: SubscriptionData }) {
             {t("dashboardLayout.fullAccess")}
           </span>
         </div>
-        <a href="/#pricing" data-testid="link-trial-upgrade">
+        <a href="/dashboard/plans" data-testid="link-trial-upgrade">
           <Button size="sm" variant="default">{t("dashboardLayout.choosePlan")}</Button>
         </a>
       </div>
@@ -70,7 +71,7 @@ function TrialBanner({ subData }: { subData: SubscriptionData }) {
             <span className="font-medium text-foreground">{t("dashboardLayout.trialEnded")}</span> {t("dashboardLayout.continueUsing")}
           </span>
         </div>
-        <a href="/#pricing" data-testid="link-expired-upgrade">
+        <a href="/dashboard/plans" data-testid="link-expired-upgrade">
           <Button size="sm" variant="default">{t("dashboardLayout.upgradeNow")}</Button>
         </a>
       </div>
@@ -193,6 +194,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/email" component={EmailSmsPage} />
               <Route path="/dashboard/training" component={TrainingPage} />
               <Route path="/dashboard/agent-catalog" component={AgentCatalogPage} />
+              <Route path="/dashboard/plans" component={PlansPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />

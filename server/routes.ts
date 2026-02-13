@@ -1618,6 +1618,40 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/subscription/select-plan", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { plan } = req.body;
+      if (!plan || !["starter", "pro", "enterprise"].includes(plan)) {
+        return res.status(400).json({ message: "Invalid plan. Choose starter, pro, or enterprise." });
+      }
+      const amounts: Record<string, number> = { starter: 297, pro: 597, enterprise: 1497 };
+      const existing = await storage.getSubscriptionByUser(userId);
+      if (existing) {
+        await storage.updateSubscription(existing.id, {
+          plan,
+          status: "pending",
+          amount: amounts[plan],
+          notes: `Plan selected: ${plan}. Awaiting Venmo payment confirmation.`,
+        });
+      } else {
+        await storage.createSubscription({
+          userId,
+          plan,
+          status: "pending",
+          amount: amounts[plan],
+          paymentMethod: "venmo",
+          notes: `Plan selected: ${plan}. Awaiting Venmo payment confirmation.`,
+        });
+      }
+      const sub = await storage.getSubscriptionByUser(userId);
+      res.json({ success: true, subscription: sub });
+    } catch (error: any) {
+      console.error("Error selecting plan:", error);
+      res.status(500).json({ message: "Failed to select plan" });
+    }
+  });
+
   // ---- ONBOARDING & STRATEGY GENERATION ----
 
   app.post("/api/onboarding", isAuthenticated, async (req, res) => {
