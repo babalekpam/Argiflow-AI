@@ -15,7 +15,7 @@ Do not make changes to the file `Y`.
 **Backend**: Express.js with TypeScript.
 **Database**: PostgreSQL with Drizzle ORM.
 **Authentication**: Email/password with session-based authentication using scrypt hashing. Includes email verification and password reset functionalities.
-**AI Integration**: Utilizes Anthropic Claude (claude-sonnet-4-5) via Replit AI Integrations for intelligent conversations, strategy generation, and action execution.
+**AI Integration**: Multi-tenant Anthropic Claude integration. Each user provides their own API key (stored in `userSettings.anthropicApiKey`) for full isolation. The `getAnthropicForUser(userId)` factory creates per-user clients. Falls back to platform key if user key not set. API key is masked in GET /api/settings responses.
 **UI/UX Design**: Dark theme with sky blue gradient accents, Inter font.
 **Core Features**:
 - **User Management**: Registration, login, email verification, password reset.
