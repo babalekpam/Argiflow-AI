@@ -51,35 +51,24 @@ async function sendSystemEmail(to: string, from: { email: string; name: string }
 
 const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
 
-const anthropicConfig: { apiKey: string; baseURL?: string; usingDirectKey: boolean } = (() => {
-  if (process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
-    console.log("[AI] Using Replit AI Integration for Anthropic (preferred — supports web search)");
-    return {
-      apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-      baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-      usingDirectKey: false,
-    };
-  }
+const anthropicConfig: { apiKey: string; baseURL: string } = (() => {
   if (isValidAnthropicKey(process.env.ANTHROPIC_API_KEY)) {
-    console.log("[AI] Using direct Anthropic API key (fallback)");
+    console.log("[AI] Using direct Anthropic API key");
     return {
       apiKey: process.env.ANTHROPIC_API_KEY!,
       baseURL: "https://api.anthropic.com",
-      usingDirectKey: true,
     };
   }
   if (process.env.ANTHROPIC_API_KEY) {
     console.warn("[AI] WARNING: ANTHROPIC_API_KEY is set but does not look like a valid key (should start with 'sk-ant-').");
   }
   console.error("[AI] WARNING: No Anthropic API key found! AI features will not work.");
-  return { apiKey: "", usingDirectKey: false };
+  return { apiKey: "", baseURL: "https://api.anthropic.com" };
 })();
 
 const anthropic = new Anthropic({ apiKey: anthropicConfig.apiKey, baseURL: anthropicConfig.baseURL });
 
-const CLAUDE_MODEL = anthropicConfig.usingDirectKey
-  ? "claude-sonnet-4-20250514"
-  : "claude-sonnet-4-5";
+const CLAUDE_MODEL = "claude-sonnet-4-20250514";
 
 async function getAnthropicForUser(userId: string): Promise<{ client: Anthropic; model: string }> {
   const settings = await storage.getSettingsByUser(userId);
@@ -91,7 +80,7 @@ async function getAnthropicForUser(userId: string): Promise<{ client: Anthropic;
     };
   }
   if (anthropicConfig.apiKey) {
-    console.log(`[AI] User ${userId} has no personal key — using platform AI (${anthropicConfig.usingDirectKey ? 'direct' : 'Replit integration'})`);
+    console.log(`[AI] User ${userId} has no personal key — using platform AI`);
     return { client: anthropic, model: CLAUDE_MODEL };
   }
   throw new Error("AI_NOT_CONFIGURED");
