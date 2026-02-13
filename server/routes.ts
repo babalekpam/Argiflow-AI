@@ -52,8 +52,16 @@ async function sendSystemEmail(to: string, from: { email: string; name: string }
 const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
 
 const anthropicConfig: { apiKey: string; baseURL?: string; usingDirectKey: boolean } = (() => {
+  if (process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
+    console.log("[AI] Using Replit AI Integration for Anthropic (preferred — supports web search)");
+    return {
+      apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+      usingDirectKey: false,
+    };
+  }
   if (isValidAnthropicKey(process.env.ANTHROPIC_API_KEY)) {
-    console.log("[AI] Using direct Anthropic API key (user-provided)");
+    console.log("[AI] Using direct Anthropic API key (fallback)");
     return {
       apiKey: process.env.ANTHROPIC_API_KEY!,
       baseURL: "https://api.anthropic.com",
@@ -61,15 +69,7 @@ const anthropicConfig: { apiKey: string; baseURL?: string; usingDirectKey: boole
     };
   }
   if (process.env.ANTHROPIC_API_KEY) {
-    console.warn("[AI] WARNING: ANTHROPIC_API_KEY is set but does not look like a valid key (should start with 'sk-ant-'). Falling back to Replit AI Integration.");
-  }
-  if (process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
-    console.log("[AI] Using Replit AI Integration for Anthropic");
-    return {
-      apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-      baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-      usingDirectKey: false,
-    };
+    console.warn("[AI] WARNING: ANTHROPIC_API_KEY is set but does not look like a valid key (should start with 'sk-ant-').");
   }
   console.error("[AI] WARNING: No Anthropic API key found! AI features will not work.");
   return { apiKey: "", usingDirectKey: false };
@@ -91,6 +91,7 @@ async function getAnthropicForUser(userId: string): Promise<{ client: Anthropic;
     };
   }
   if (anthropicConfig.apiKey) {
+    console.log(`[AI] User ${userId} has no personal key — using platform AI (${anthropicConfig.usingDirectKey ? 'direct' : 'Replit integration'})`);
     return { client: anthropic, model: CLAUDE_MODEL };
   }
   throw new Error("AI_NOT_CONFIGURED");
@@ -1110,6 +1111,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
       status: error?.status,
       type: error?.type,
       code: error?.error?.type,
+      fullError: JSON.stringify(error, null, 2).slice(0, 1000),
     });
 
     if (error?.status === 429) {
@@ -1136,6 +1138,15 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
       return "The AI is currently handling a lot of requests. Please wait about 30 seconds and try again — your message will go through. In the meantime, actions like booking appointments and activating agents still work!";
     }
 
+    if (error?.status === 400 || error?.status === 401 || error?.status === 403) {
+      return `There was an issue with the AI configuration (${error?.status}). The system administrator has been notified. Please try again in a moment. Error: ${error?.message?.slice(0, 200) || "Unknown"}`;
+    }
+
+    if (error?.status === 529 || error?.status === 500 || error?.status === 503) {
+      return "The AI service is temporarily overloaded. Please try again in 30-60 seconds. Your CRM data and other features still work normally.";
+    }
+
+    console.error("[Chat] Unexpected error, running fallback for user", userId);
     return fallbackResponse(userId, userMessage);
   }
 }
@@ -3441,6 +3452,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
     try {
       const userId = req.session.userId!;
       const { content } = req.body;
+      console.log(`[Chat] Received message from user ${userId}: "${content?.slice(0, 80)}..."`);
       if (!content || typeof content !== "string") {
         return res.status(400).json({ message: "Message content is required" });
       }
@@ -3454,6 +3466,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         handleAiAction(userId, content, chatHistory),
         new Promise<string>((_, reject) => setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs)),
       ]);
+      console.log(`[Chat] AI reply for user ${userId}: "${aiReply?.slice(0, 100)}..."`);
       const aiMessage = await storage.createChatMessage({ userId, role: "assistant", content: aiReply });
 
       res.json({ userMessage, aiMessage });
