@@ -895,6 +895,8 @@ AGENT-TO-FUNNEL: When generating leads for a specific agent (Tax Lien, Govt Cont
 
 TOOL SEQUENCING: web_search → generate_leads (with agent_type if applicable) → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results and suggest next steps. Combine tools in one flow when beneficial.
 
+CRITICAL RULE: When asked to find leads, you MUST ALWAYS call the generate_leads tool to save them to the CRM. NEVER just describe leads in text without saving them. After web searches, immediately call generate_leads with all leads found. The user expects leads to appear in their CRM leads list automatically. If you don't call generate_leads, the leads are LOST and the user gets nothing.
+
 FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise but thorough.`;
 
   // Build message history for Claude
@@ -1026,7 +1028,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
     // First Claude call — may use tools (uses user's own API key)
     let response = await userAnthropicClient.messages.create({
       model: userModel,
-      max_tokens: 2048,
+      max_tokens: 8192,
       system: systemPrompt,
       messages: claudeMessages,
       tools,
@@ -1076,7 +1078,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
 
       response = await userAnthropicClient.messages.create({
         model: userModel,
-        max_tokens: 2048,
+        max_tokens: 8192,
         system: systemPrompt,
         messages: currentMessages,
         tools,
