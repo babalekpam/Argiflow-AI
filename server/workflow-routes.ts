@@ -12,6 +12,7 @@ import type { Express, RequestHandler } from "express";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, count } from "drizzle-orm";
 import { z } from "zod";
+import Anthropic from "@anthropic-ai/sdk";
 import {
   workflows,
   workflowNodes,
@@ -26,6 +27,8 @@ import {
   type InsertWorkflowEdge,
 } from "@shared/workflow-schema";
 import { eventBus, executeWorkflow, type WorkflowEvent } from "./workflow-engine";
+import { storage } from "./storage";
+import { marketingStrategies, websiteProfiles, userSettings, businesses } from "@shared/schema";
 
 // ============================================================
 // AUTH MIDDLEWARE (same as existing)
@@ -37,6 +40,38 @@ const isAuthenticated: RequestHandler = (req, res, next) => {
   }
   next();
 };
+
+// ============================================================
+// AI CLIENT HELPER (mirrors routes.ts pattern)
+// ============================================================
+
+const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
+
+const wfAnthropicConfig: { apiKey: string; baseURL: string } = (() => {
+  if (isValidAnthropicKey(process.env.ANTHROPIC_API_KEY)) {
+    return { apiKey: process.env.ANTHROPIC_API_KEY!, baseURL: "https://api.anthropic.com" };
+  }
+  return { apiKey: "", baseURL: "https://api.anthropic.com" };
+})();
+
+const wfAnthropic = wfAnthropicConfig.apiKey
+  ? new Anthropic({ apiKey: wfAnthropicConfig.apiKey, baseURL: wfAnthropicConfig.baseURL })
+  : null;
+
+async function getAIForUser(userId: string): Promise<{ client: Anthropic; model: string }> {
+  const settings = await storage.getSettingsByUser(userId);
+  const userKey = settings?.anthropicApiKey;
+  if (userKey && userKey.startsWith("sk-ant-")) {
+    return {
+      client: new Anthropic({ apiKey: userKey, baseURL: "https://api.anthropic.com" }),
+      model: "claude-sonnet-4-20250514",
+    };
+  }
+  if (wfAnthropic) {
+    return { client: wfAnthropic, model: "claude-sonnet-4-20250514" };
+  }
+  throw new Error("AI_NOT_CONFIGURED");
+}
 
 // ============================================================
 // REGISTER ALL WORKFLOW ROUTES
@@ -693,6 +728,183 @@ export function registerWorkflowRoutes(app: Express) {
     } catch (error: any) {
       console.error("Error creating from template:", error);
       res.status(500).json({ message: "Failed to create workflow from template" });
+    }
+  });
+
+  // AI-Powered Workflow Generation from Template + Company Context
+  app.post("/api/workflow-templates/:key/ai-generate", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const templateKey = req.params.key;
+      const template = WORKFLOW_TEMPLATES.find(t => t.key === templateKey);
+
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      const ai = await getAIForUser(userId);
+
+      const user = await storage.getUserById(userId);
+      const [strategy] = await db.select().from(marketingStrategies).where(eq(marketingStrategies.userId, userId)).limit(1);
+      const [website] = await db.select().from(websiteProfiles).where(eq(websiteProfiles.userId, userId)).limit(1);
+      const userBusinesses = await db.select().from(businesses).where(eq(businesses.userId, userId));
+
+      const companyContext = [
+        user?.companyName ? `Company: ${user.companyName}` : "",
+        user?.industry ? `Industry: ${user.industry}` : "",
+        user?.companyDescription ? `Description: ${user.companyDescription}` : "",
+        user?.website ? `Website: ${user.website}` : "",
+        strategy?.companyName ? `Strategy Company: ${strategy.companyName}` : "",
+        strategy?.industry ? `Strategy Industry: ${strategy.industry}` : "",
+        strategy?.strategy ? `Marketing Strategy:\n${strategy.strategy.substring(0, 2000)}` : "",
+        website?.services ? `Services: ${website.services}` : "",
+        website?.valuePropositions ? `Value Props: ${website.valuePropositions}` : "",
+        website?.targetAudience ? `Target Audience: ${website.targetAudience}` : "",
+        website?.pricing ? `Pricing: ${website.pricing}` : "",
+        website?.contactInfo ? `Contact: ${website.contactInfo}` : "",
+        userBusinesses.length > 0 ? `Business Lines: ${userBusinesses.map(b => `${b.name} (${b.industry || "general"})`).join(", ")}` : "",
+      ].filter(Boolean).join("\n");
+
+      const templateNodesJson = JSON.stringify(template.nodes.map((n, i) => ({
+        index: i,
+        nodeType: n.nodeType,
+        actionType: n.actionType,
+        label: n.label,
+        config: n.config,
+      })), null, 2);
+
+      const prompt = `You are an AI workflow automation expert. A user wants to create a "${template.name}" workflow for their business.
+
+COMPANY CONTEXT:
+${companyContext || "No company information available — use generic professional defaults."}
+
+TEMPLATE STRUCTURE (${template.nodes.length} nodes):
+${templateNodesJson}
+
+TEMPLATE DESCRIPTION: ${template.description}
+
+YOUR TASK:
+Customize each node's "label" and "config" to be specific to THIS company. Keep the same node structure, types, and action types — only personalize the labels and config values.
+
+For email nodes: Write actual subject lines and short email body snippets relevant to their industry/services.
+For SMS nodes: Write actual SMS message text.
+For AI nodes: Customize scoring criteria or content topics for their industry.
+For condition nodes: Adjust thresholds if appropriate.
+For delay nodes: Adjust timing if appropriate for their industry.
+For notification nodes: Write specific alert messages.
+For CRM/task nodes: Use industry-specific terminology.
+
+Also generate a personalized workflow name and description.
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "name": "Personalized workflow name",
+  "description": "Personalized description",
+  "nodes": [
+    { "index": 0, "label": "Customized Label", "config": "{...customized config JSON string...}" },
+    { "index": 1, "label": "Customized Label", "config": "{...}" }
+  ]
+}
+
+IMPORTANT: 
+- Return one entry per node, matching the index from the template.
+- The "config" value must be a valid JSON string (escaped properly).
+- Keep it professional and specific to the company's industry/services.`;
+
+      const response = await ai.client.messages.create({
+        model: ai.model,
+        max_tokens: 4000,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const aiText = response.content[0]?.type === "text" ? response.content[0].text : "";
+      const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("AI did not return valid JSON");
+      }
+
+      let aiResult: { name: string; description: string; nodes: Array<{ index: number; label: string; config: string }> };
+      try {
+        aiResult = JSON.parse(jsonMatch[0]);
+      } catch {
+        throw new Error("Failed to parse AI response as JSON");
+      }
+
+      const [workflow] = await db
+        .insert(workflows)
+        .values({
+          userId,
+          name: aiResult.name || template.name,
+          description: aiResult.description || template.description,
+          triggerType: template.triggerType,
+          triggerConfig: "{}",
+          status: "draft",
+          category: template.category,
+        })
+        .returning();
+
+      const createdNodes: { id: string }[] = [];
+      for (let i = 0; i < template.nodes.length; i++) {
+        const nodeTemplate = template.nodes[i];
+        const aiNode = aiResult.nodes?.find(n => n.index === i);
+
+        let safeConfig = nodeTemplate.config;
+        if (aiNode?.config) {
+          try {
+            JSON.parse(aiNode.config);
+            safeConfig = aiNode.config;
+          } catch {
+            console.warn(`[Workflow AI] Invalid config JSON for node ${i}, using template default`);
+          }
+        }
+
+        const [node] = await db
+          .insert(workflowNodes)
+          .values({
+            workflowId: workflow.id,
+            nodeType: nodeTemplate.nodeType,
+            actionType: nodeTemplate.actionType,
+            label: aiNode?.label || nodeTemplate.label,
+            config: safeConfig,
+            positionX: nodeTemplate.positionX,
+            positionY: nodeTemplate.positionY,
+            sortOrder: nodeTemplate.sortOrder,
+          })
+          .returning();
+        createdNodes.push(node);
+      }
+
+      for (const edgeTemplate of template.edges) {
+        const sourceNode = createdNodes[edgeTemplate.sourceIndex];
+        const targetNode = createdNodes[edgeTemplate.targetIndex];
+        if (sourceNode && targetNode) {
+          await db.insert(workflowEdges).values({
+            workflowId: workflow.id,
+            sourceNodeId: sourceNode.id,
+            targetNodeId: targetNode.id,
+            condition: edgeTemplate.condition || "default",
+          });
+        }
+      }
+
+      const nodes = await db
+        .select()
+        .from(workflowNodes)
+        .where(eq(workflowNodes.workflowId, workflow.id));
+
+      const edges = await db
+        .select()
+        .from(workflowEdges)
+        .where(eq(workflowEdges.workflowId, workflow.id));
+
+      console.log(`[Workflow AI] Generated personalized workflow "${aiResult.name}" for user ${userId}`);
+      res.json({ ...workflow, nodes, edges });
+    } catch (error: any) {
+      console.error("Error in AI workflow generation:", error);
+      if (error.message === "AI_NOT_CONFIGURED") {
+        return res.status(400).json({ message: "AI is not configured. Please add your Anthropic API key in Settings or contact support." });
+      }
+      res.status(500).json({ message: "Failed to generate AI workflow. Please try again." });
     }
   });
 

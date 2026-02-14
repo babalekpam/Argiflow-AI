@@ -739,7 +739,7 @@ function WorkflowCard({ workflow, onClick }: { workflow: WorkflowData; onClick: 
   );
 }
 
-function TemplateCard({ template, onCreate }: { template: WorkflowTemplate; onCreate: () => void }) {
+function TemplateCard({ template, onCreate, onAiGenerate, isAiGenerating }: { template: WorkflowTemplate; onCreate: () => void; onAiGenerate: () => void; isAiGenerating: boolean }) {
   const categoryColors: Record<string, string> = {
     "Lead Management": "#3b82f6",
     "Email Automation": "#22c55e",
@@ -766,19 +766,34 @@ function TemplateCard({ template, onCreate }: { template: WorkflowTemplate; onCr
           <p className="text-[10px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{template.description}</p>
         </div>
       </div>
-      <div className="flex items-center justify-between flex-wrap gap-1">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: `${color}10`, color }}>{template.category}</span>
           <span className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>{template.nodeCount} nodes</span>
         </div>
-        <button
-          data-testid={`button-use-template-${template.key}`}
-          onClick={onCreate}
-          className="flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold transition-colors"
-          style={{ background: `${color}15`, color }}
-        >
-          <Copy size={10} /> Use Template
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            data-testid={`button-ai-generate-${template.key}`}
+            onClick={onAiGenerate}
+            disabled={isAiGenerating}
+            className="flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold transition-colors disabled:opacity-50"
+            style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}
+          >
+            {isAiGenerating ? (
+              <><Loader2 size={10} className="animate-spin" /> Generating...</>
+            ) : (
+              <><Bot size={10} /> AI Generate</>
+            )}
+          </button>
+          <button
+            data-testid={`button-use-template-${template.key}`}
+            onClick={onCreate}
+            className="flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold transition-colors"
+            style={{ background: `${color}15`, color }}
+          >
+            <Copy size={10} /> Use Blank
+          </button>
+        </div>
       </div>
     </motion.div>
   );
@@ -868,6 +883,24 @@ export default function WorkflowBuilder() {
       queryClient.invalidateQueries({ queryKey: ["workflows"] });
       setSelectedWorkflowId(data.id);
       setViewMode("editor");
+    },
+  });
+
+  const [aiGeneratingKey, setAiGeneratingKey] = useState<string | null>(null);
+
+  const aiGenerateFromTemplate = useMutation({
+    mutationFn: (key: string) => {
+      setAiGeneratingKey(key);
+      return apiPost(`/api/workflow-templates/${key}/ai-generate`, {});
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      setSelectedWorkflowId(data.id);
+      setViewMode("editor");
+      setAiGeneratingKey(null);
+    },
+    onError: () => {
+      setAiGeneratingKey(null);
     },
   });
 
@@ -1117,7 +1150,7 @@ export default function WorkflowBuilder() {
           >
             <div className="mb-6">
               <h2 className="text-lg font-bold mb-1">Workflow Templates</h2>
-              <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Pre-built automations — activate with one click</p>
+              <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Pre-built automations — use AI Generate to customize for your business automatically</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {templates.map((template: WorkflowTemplate, i: number) => (
@@ -1130,6 +1163,8 @@ export default function WorkflowBuilder() {
                   <TemplateCard
                     template={template}
                     onCreate={() => createFromTemplate.mutate(template.key)}
+                    onAiGenerate={() => aiGenerateFromTemplate.mutate(template.key)}
+                    isAiGenerating={aiGeneratingKey === template.key}
                   />
                 </motion.div>
               ))}
