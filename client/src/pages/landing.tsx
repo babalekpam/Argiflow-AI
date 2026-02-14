@@ -947,7 +947,7 @@ export default function LandingPage() {
               <h4 className="font-semibold text-sm mb-4">{t("landing.footer.contactTitle")}</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><a href="/signup" className="hover:text-foreground transition-colors">{t("landing.footer.getStarted")}</a></li>
-                <li><a href="mailto:abel@argilette.com" className="hover:text-foreground transition-colors">abel@argilette.com</a></li>
+                <li><a href="mailto:info@argilette.com" className="hover:text-foreground transition-colors">info@argilette.com</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">{t("landing.footer.privacy")}</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">{t("landing.footer.terms")}</a></li>
               </ul>
