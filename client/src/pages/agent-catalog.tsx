@@ -155,7 +155,7 @@ export default function AgentCatalogPage() {
     },
   });
 
-  const agentSource = leadsDialog ? `${leadsDialog.name} Agent` : "";
+  const agentSource = leadsDialog ? (leadsDialog.name.endsWith("Agent") ? leadsDialog.name : `${leadsDialog.name} Agent`) : "";
   const { data: agentLeads, isLoading: leadsLoading } = useQuery<Lead[]>({
     queryKey: ["/api/leads", { source: agentSource }],
     queryFn: () => fetch(`/api/leads?source=${encodeURIComponent(agentSource)}`, { credentials: "include" }).then(r => r.json()),
@@ -613,7 +613,7 @@ export default function AgentCatalogPage() {
                         variant="ghost"
                         onClick={() => {
                           setLeadsDialog(null);
-                          window.location.href = `/dashboard/leads?source=${encodeURIComponent(leadsDialog?.name + " Agent")}`;
+                          window.location.href = `/dashboard/leads?source=${encodeURIComponent(agentSource)}`;
                         }}
                         data-testid={`button-open-crm-${lead.id}`}
                       >
@@ -633,7 +633,7 @@ export default function AgentCatalogPage() {
             <Button
               onClick={() => {
                 setLeadsDialog(null);
-                window.location.href = `/dashboard/leads?source=${encodeURIComponent(leadsDialog?.name + " Agent")}`;
+                window.location.href = `/dashboard/leads?source=${encodeURIComponent(agentSource)}`;
               }}
               data-testid="button-go-to-crm"
             >

@@ -318,6 +318,10 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return false;
       };
 
+      const agentType = params.agent_type;
+      const agentCatalogEntry = agentType ? getAgentByType(agentType) : null;
+      const standardSource = agentCatalogEntry ? `${agentCatalogEntry.name} Agent` : null;
+
       const created: string[] = [];
       const skipped: string[] = [];
       const createdLeadDetails: { name: string; email?: string }[] = [];
@@ -334,7 +338,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
           email: lead.email || "",
           phone: lead.phone || "",
           company: lead.company || "",
-          source: lead.source || "Web Research",
+          source: standardSource || lead.source || "Web Research",
           status: lead.status || "new",
           score: lead.score || randomInt(50, 85),
           notes: lead.notes || "",
@@ -355,7 +359,6 @@ async function executeAction(userId: string, action: string, params: any): Promi
       await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
 
       let funnelMessage = "";
-      const agentType = params.agent_type;
       if (agentType && AGENT_FUNNEL_STAGES[agentType]) {
         funnelMessage = await addLeadsToAgentFunnel(userId, agentType, createdLeadDetails);
       }
