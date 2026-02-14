@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, sql, desc } from "drizzle-orm";
-import { leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns } from "@shared/schema";
+import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
@@ -4501,6 +4501,8 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         companyName: u.companyName,
         industry: u.industry,
         website: u.website,
+        jobTitle: u.jobTitle,
+        companyDescription: u.companyDescription,
         createdAt: u.createdAt,
         subscription: subsMap.get(u.id) || null,
         leadsCount: leadCounts.get(u.id) || 0,
@@ -4509,6 +4511,42 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       res.json(clients);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch clients" });
+    }
+  });
+
+  app.patch("/api/admin/clients/:id", isAdmin, async (req, res) => {
+    try {
+      const admin = await storage.getAdminById(req.session.adminId!);
+      if (!admin || admin.email !== "babalekpam@gmail.com") {
+        return res.status(403).json({ message: "Only the super admin can edit clients" });
+      }
+
+      const { firstName, lastName, companyName, industry, website, companyDescription, jobTitle, email } = req.body;
+      const updateData: any = {};
+      if (firstName !== undefined) updateData.firstName = firstName;
+      if (lastName !== undefined) updateData.lastName = lastName;
+      if (companyName !== undefined) updateData.companyName = companyName;
+      if (industry !== undefined) updateData.industry = industry;
+      if (website !== undefined) updateData.website = website;
+      if (companyDescription !== undefined) updateData.companyDescription = companyDescription;
+      if (jobTitle !== undefined) updateData.jobTitle = jobTitle;
+
+      if (email !== undefined) {
+        const existingUser = await storage.getUserByEmail(email);
+        if (existingUser && existingUser.id !== req.params.id) {
+          return res.status(409).json({ message: "Another account already uses this email" });
+        }
+        const [updated] = await db.update(users).set({ ...updateData, email, updatedAt: new Date() }).where(eq(users.id, req.params.id)).returning();
+        if (!updated) return res.status(404).json({ message: "Client not found" });
+        return res.json(updated);
+      }
+
+      const updated = await storage.updateUser(req.params.id, updateData);
+      if (!updated) return res.status(404).json({ message: "Client not found" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating client:", error);
+      res.status(500).json({ message: "Failed to update client" });
     }
   });
 

@@ -46,6 +46,8 @@ interface ClientData {
   companyName: string | null;
   industry: string | null;
   website: string | null;
+  jobTitle: string | null;
+  companyDescription: string | null;
   createdAt: string | null;
   subscription: Subscription | null;
   leadsCount: number;
@@ -123,6 +125,106 @@ function PlanBadge({ plan }: { plan: string }) {
   };
   return (
     <Badge className={colors[plan] || ""} data-testid={`badge-plan-${plan}`}>{plan}</Badge>
+  );
+}
+
+function EditClientDialog({ client, onUpdated }: { client: ClientData; onUpdated: () => void }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [firstName, setFirstName] = useState(client.firstName || "");
+  const [lastName, setLastName] = useState(client.lastName || "");
+  const [email, setEmail] = useState(client.email || "");
+  const [companyName, setCompanyName] = useState(client.companyName || "");
+  const [industry, setIndustry] = useState(client.industry || "");
+  const [website, setWebsite] = useState(client.website || "");
+  const [jobTitle, setJobTitle] = useState(client.jobTitle || "");
+  const [companyDescription, setCompanyDescription] = useState(client.companyDescription || "");
+  const { toast } = useToast();
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("PATCH", `/api/admin/clients/${client.id}`, {
+        firstName, lastName, email, companyName, industry, website, jobTitle, companyDescription,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Client updated successfully" });
+      onUpdated();
+      setOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update client", description: error?.message || "Please try again", variant: "destructive" });
+    },
+  });
+
+  const resetFields = () => {
+    setFirstName(client.firstName || "");
+    setLastName(client.lastName || "");
+    setEmail(client.email || "");
+    setCompanyName(client.companyName || "");
+    setIndustry(client.industry || "");
+    setWebsite(client.website || "");
+    setJobTitle(client.jobTitle || "");
+    setCompanyDescription(client.companyDescription || "");
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) resetFields(); }}>
+      <DialogTrigger asChild>
+        <Button size="icon" variant="ghost" data-testid={`button-edit-client-${client.id}`}>
+          <Pencil className="w-4 h-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Client</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">First Name</label>
+              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} data-testid="input-edit-firstname" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Last Name</label>
+              <Input value={lastName} onChange={(e) => setLastName(e.target.value)} data-testid="input-edit-lastname" />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Email</label>
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" data-testid="input-edit-email" />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Company Name</label>
+            <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} data-testid="input-edit-company" />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Industry</label>
+            <Input value={industry} onChange={(e) => setIndustry(e.target.value)} data-testid="input-edit-industry" />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Website</label>
+            <Input value={website} onChange={(e) => setWebsite(e.target.value)} data-testid="input-edit-website" />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Job Title</label>
+            <Input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} data-testid="input-edit-jobtitle" />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Company Description</label>
+            <Textarea value={companyDescription} onChange={(e) => setCompanyDescription(e.target.value)} data-testid="input-edit-description" className="resize-none" rows={3} />
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} data-testid="button-save-client">
+            {updateMutation.isPending ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -555,6 +657,7 @@ export default function AdminDashboard() {
                       <TableHead>{t("admin.dashboard.leads")}</TableHead>
                       <TableHead>{t("admin.dashboard.agents")}</TableHead>
                       <TableHead>{t("admin.dashboard.joined")}</TableHead>
+                      <TableHead>{t("admin.dashboard.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -596,11 +699,14 @@ export default function AdminDashboard() {
                         <TableCell className="text-sm text-muted-foreground">
                           {client.createdAt ? new Date(client.createdAt).toLocaleDateString() : ""}
                         </TableCell>
+                        <TableCell>
+                          <EditClientDialog client={client} onUpdated={refreshAll} />
+                        </TableCell>
                       </TableRow>
                     ))}
                     {(!clients || clients.length === 0) && (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                           {t("admin.dashboard.noClientsYet")}
                         </TableCell>
                       </TableRow>
