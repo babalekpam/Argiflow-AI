@@ -428,4 +428,18 @@ export const autoLeadGenRuns = pgTable("auto_lead_gen_runs", {
 
 export type AutoLeadGenRun = typeof autoLeadGenRuns.$inferSelect;
 
+export const platformPromotionRuns = pgTable("platform_promotion_runs", {
+  id: serial("id").primaryKey(),
+  status: text("status").notNull().default("pending"),
+  postsFound: integer("posts_found").default(0),
+  draftsGenerated: integer("drafts_generated").default(0),
+  searchQuery: text("search_query"),
+  errorMessage: text("error_message"),
+  results: text("results"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export type PlatformPromotionRun = typeof platformPromotionRuns.$inferSelect;
+
 export * from "./workflow-schema";

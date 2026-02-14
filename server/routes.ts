@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, sql, desc } from "drizzle-orm";
-import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns } from "@shared/schema";
+import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
@@ -5217,6 +5217,222 @@ Return ONLY the JSON array.`;
         return res.status(429).json({ message: "AI is busy. Please wait 30 seconds and try again." });
       }
       res.status(500).json({ message: "Forum search failed. Please try again." });
+    }
+  });
+
+  // ---- PLATFORM PROMOTER AGENT ----
+  const PROMOTION_SEARCH_ROTATIONS = [
+    "business owners looking for automation tools 2025",
+    "best CRM automation platform for small business",
+    "AI lead generation software for entrepreneurs",
+    "automated client acquisition tools",
+    "need help automating my business outreach",
+    "best AI sales automation platform",
+    "medical billing lead generation automation",
+    "automated email outreach tools for business",
+    "AI voice calling software for sales",
+    "best marketing automation for service businesses",
+    "how to automate lead generation for my business",
+    "looking for AI agents to find clients",
+    "sales funnel automation software recommendations",
+    "forum discussion AI automation tools for businesses",
+    "automated prospecting tools for small business owners",
+  ];
+
+  let promotionRotationIndex = 0;
+
+  async function runPlatformPromotion(manualQuery?: string) {
+    const query = manualQuery || PROMOTION_SEARCH_ROTATIONS[promotionRotationIndex % PROMOTION_SEARCH_ROTATIONS.length];
+    if (!manualQuery) promotionRotationIndex++;
+
+    console.log(`[Platform Promoter] Starting run — query: "${query}"`);
+
+    const [run] = await db.insert(platformPromotionRuns).values({
+      status: "running",
+      searchQuery: query,
+      startedAt: new Date(),
+    }).returning();
+
+    try {
+      const platformAi = new Anthropic();
+      const searchResponse = await platformAi.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        tools: [{ type: "web_search_20250305" as any, name: "web_search", max_uses: 10 } as any],
+        messages: [{
+          role: "user",
+          content: `You are an expert at finding online discussions where business owners are looking for automation tools, CRM platforms, AI lead generation, sales automation, or business growth software.
+
+Search for: "${query}"
+
+Find 5-10 recent online discussions (Reddit posts, Quora questions, forum threads, blog comments, review sites) where people are:
+- Asking for recommendations for business automation tools
+- Comparing CRM/lead generation platforms
+- Looking for AI-powered sales tools
+- Seeking help with automated outreach, follow-ups, or client acquisition
+- Discussing problems that automation could solve (manual lead gen, inconsistent pipeline, etc.)
+
+Return a JSON array of posts found. Each post should have:
+- "title": The post/question title
+- "url": The full URL
+- "platform": Where it was found (Reddit, Quora, G2, Capterra, etc.)
+- "snippet": A brief summary of what they're asking/discussing
+- "postedDate": When it was posted (if available)
+- "relevanceScore": 1-100 how relevant to automation/CRM tools
+
+Return ONLY the JSON array, no other text. Example:
+[{"title":"Best AI automation for small biz?","url":"https://...","platform":"Reddit","snippet":"Looking for...","postedDate":"2025","relevanceScore":85}]`
+        }],
+      });
+
+      const searchText = searchResponse.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map(b => b.text)
+        .join("\n");
+
+      let posts: any[] = [];
+      try {
+        const jsonMatch = searchText.match(/\[[\s\S]*?\]/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsed)) {
+            posts = parsed.filter((p: any) => p && typeof p === "object" && p.title);
+          }
+        }
+      } catch {
+        posts = [];
+      }
+
+      if (posts.length === 0) {
+        await db.update(platformPromotionRuns).set({
+          status: "completed",
+          postsFound: 0,
+          draftsGenerated: 0,
+          results: JSON.stringify([]),
+          completedAt: new Date(),
+        }).where(eq(platformPromotionRuns.id, run.id));
+        console.log("[Platform Promoter] No posts found for query:", query);
+        return;
+      }
+
+      const replyResponse = await platformAi.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        messages: [{
+          role: "user",
+          content: `You are a helpful tech community member who has genuine experience with ArgiFlow (argilette.co), an AI-powered business automation platform by ARGILETTE Labs.
+
+ArgiFlow key features to naturally mention when relevant:
+- AI-powered lead generation with 10+ specialized agents (finds 30+ leads per batch automatically)
+- Voice AI calling that qualifies leads and books appointments
+- Automated email outreach with AI-personalized messages and follow-up sequences
+- Forum Prospector that finds warm leads on Reddit/Quora/forums
+- Visual workflow builder with 30+ action types (drag-and-drop, no coding)
+- Built-in CRM with lead scoring and engagement tracking
+- Sales funnels with Kanban-style pipeline management
+- SMS messaging and multi-channel outreach
+- AI marketing strategy generator
+- Serves both Western markets (ArgiFlow) and African markets (TradeFlow)
+- Website: argilette.co
+
+For each of these ${posts.length} forum posts, write a GENUINELY HELPFUL reply that:
+1. Actually answers their question or addresses their problem first
+2. Shares specific relevant tips from your experience
+3. Naturally mentions ArgiFlow ONLY where it genuinely fits their need — don't force it
+4. Sounds like a real person, not marketing copy
+5. Is 3-6 sentences long
+6. NEVER says "I work for" or "disclaimer" — you're a user sharing experience
+7. Includes the website (argilette.co) only once, naturally
+
+Posts to reply to:
+${posts.map((p: any, i: number) => `${i + 1}. "${p.title}" — ${p.snippet}`).join("\n")}
+
+Return a JSON array of reply strings in the same order. Example:
+["Reply to post 1...", "Reply to post 2..."]`
+        }],
+      });
+
+      const replyText = replyResponse.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map(b => b.text)
+        .join("\n");
+
+      let replies: string[] = [];
+      try {
+        const jsonMatch = replyText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          replies = JSON.parse(jsonMatch[0]);
+        }
+      } catch {
+        replies = [];
+      }
+
+      const results = posts.map((post: any, idx: number) => ({
+        ...post,
+        draftReply: replies[idx] || "Reply could not be generated.",
+      }));
+
+      await db.update(platformPromotionRuns).set({
+        status: "completed",
+        postsFound: posts.length,
+        draftsGenerated: replies.length,
+        results: JSON.stringify(results),
+        completedAt: new Date(),
+      }).where(eq(platformPromotionRuns.id, run.id));
+
+      console.log(`[Platform Promoter] Completed — ${posts.length} posts found, ${replies.length} drafts`);
+    } catch (error: any) {
+      console.error("[Platform Promoter] Error:", error?.message);
+      await db.update(platformPromotionRuns).set({
+        status: "failed",
+        errorMessage: error?.message || "Unknown error",
+        completedAt: new Date(),
+      }).where(eq(platformPromotionRuns.id, run.id));
+    }
+  }
+
+  // Background: run every 4 hours
+  setInterval(() => {
+    runPlatformPromotion().catch(err => console.error("[Platform Promoter] Scheduler error:", err));
+  }, 4 * 60 * 60 * 1000);
+
+  // Run first promotion after 2 minutes of startup
+  setTimeout(() => {
+    runPlatformPromotion().catch(err => console.error("[Platform Promoter] Initial run error:", err));
+  }, 2 * 60 * 1000);
+
+  app.get("/api/platform-promoter/status", isAuthenticated, async (req, res) => {
+    try {
+      const runs = await db.select().from(platformPromotionRuns)
+        .orderBy(desc(platformPromotionRuns.startedAt))
+        .limit(20);
+      res.json({ runs });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to get promotion status" });
+    }
+  });
+
+  app.get("/api/platform-promoter/run/:id", isAuthenticated, async (req, res) => {
+    try {
+      const runId = parseInt(req.params.id);
+      const [run] = await db.select().from(platformPromotionRuns)
+        .where(eq(platformPromotionRuns.id, runId));
+      if (!run) return res.status(404).json({ message: "Run not found" });
+      res.json(run);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to get run details" });
+    }
+  });
+
+  app.post("/api/platform-promoter/trigger", isAuthenticated, async (req, res) => {
+    try {
+      const { query } = req.body;
+      runPlatformPromotion(query || undefined).catch(err =>
+        console.error("[Platform Promoter] Manual trigger error:", err)
+      );
+      res.json({ message: "Platform promotion run started", query: query || "auto-rotation" });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to trigger promotion run" });
     }
   });
 
