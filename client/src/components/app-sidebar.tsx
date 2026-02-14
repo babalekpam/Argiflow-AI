@@ -60,6 +60,7 @@ export function AppSidebar() {
 
   const growthNav = [
     { title: t("sidebar.automations"), icon: Workflow, url: "/dashboard/automations" },
+    { title: t("sidebar.workflowBuilder", "Workflow Builder"), icon: Zap, url: "/dashboard/workflows", badge: t("common.new") },
     { title: t("sidebar.resources"), icon: Library, url: "/dashboard/resources", badge: t("common.new") },
     { title: t("sidebar.demosInstall"), icon: Wand2, url: "/dashboard/demos", badge: t("common.new") },
     { title: t("sidebar.training"), icon: GraduationCap, url: "/dashboard/training" },

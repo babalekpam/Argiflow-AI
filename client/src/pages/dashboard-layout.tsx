@@ -26,6 +26,7 @@ import DemoBuilderPage from "./demo-builder";
 import SalesFunnelsPage from "./sales-funnels";
 import AgentCatalogPage from "./agent-catalog";
 import PlansPage from "./plans";
+import WorkflowBuilderPage from "./workflow-builder";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -189,6 +190,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/ai-agents" component={AiAgentsPage} />
               <Route path="/dashboard/voice-ai" component={VoiceAiPage} />
               <Route path="/dashboard/automations" component={AutomationsPage} />
+              <Route path="/dashboard/workflows" component={WorkflowBuilderPage} />
               <Route path="/dashboard/resources" component={ResourcesPage} />
               <Route path="/dashboard/demos" component={DemoBuilderPage} />
               <Route path="/dashboard/email" component={EmailSmsPage} />
