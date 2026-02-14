@@ -901,15 +901,16 @@ CRM DATA: ${allLeads.length} leads (${allLeads.filter(l => l.status === "hot").l
 LEAD GENERATION (CRITICAL):
 1. ALWAYS use web_search FIRST to find REAL businesses. NEVER fabricate contacts.
 2. Intent-based prospecting: find companies actively seeking services (RFPs, job listings, forum posts, competitor complaints). Score: 80-100 active seekers, 60-79 intent signals, 40-59 profile match only.
-3. Extract REAL contact details from web results. If no direct email found, use company contact page or patterns (info@, contact@).
+3. Extract REAL contact details from web results. You MUST search for and provide: property address (for RE agents), owner name, real phone number, and real email address. If no direct email is found on the site, use professional search techniques or common patterns (e.g., info@practicename.com), but never make up a fake personal email.
 4. EVERY lead MUST include all fields: name, email, phone, company, source, status="new", score, intent_signal (what buying signal found), notes (research about prospect), outreach (personalized 3-5 sentence email referencing their situation/pain point).${bookingLink ? ` Include booking link in outreach: ${bookingLink}` : ' Include CTA: "Would you be open to a 15-minute call this week?"'}
 5. ALWAYS end outreach with signature: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246
 
 DECISION-MAKER TARGETING (MANDATORY):
 - ALWAYS target decision makers: CEO, Founder, Owner, President, Managing Director, VP, Director, Partner, CFO, COO, CTO, CMO, Head of Department, General Manager.
 - For medical practices specifically: Practice Owner, Physician/Doctor (MD/DO), Practice Administrator, Clinic Administrator, Practice Manager, Office Manager, Clinic Manager, Medical Director, Revenue Cycle Director, Billing Manager, Managing Partner, CFO.
+- For real estate/tax lien specifically: Property Owner, Landlord, Investment Principal.
 - NEVER target gatekeepers: receptionist, front desk, secretary, administrative assistant, medical assistant, nurse, scheduler, coordinator, associate, junior, intern.
-- When searching, add terms like "CEO", "founder", "owner", "director", "practice owner", "physician" to your queries.
+- When searching, add terms like "CEO", "founder", "owner", "director", "practice owner", "physician", "property owner" to your queries.
 - Use LinkedIn, company About/Team pages, press releases, NPI registry, and industry directories to find decision-maker contacts.
 - If only a general contact (info@, contact@) is found, note the decision maker's NAME in the lead and address the outreach to them personally.
 - In the lead's "notes" field, always include the person's title/role to confirm they are a decision maker.
