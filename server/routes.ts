@@ -5087,6 +5087,139 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
     res.json({ region, ...config });
   });
 
+  // ---- FORUM PROSPECTOR ----
+  app.post("/api/forum-prospector/search", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { query, industry } = req.body;
+      if (query && (typeof query !== "string" || query.length > 500)) {
+        return res.status(400).json({ message: "Search query must be a string under 500 characters" });
+      }
+      if (industry && (typeof industry !== "string" || industry.length > 100)) {
+        return res.status(400).json({ message: "Industry must be a string under 100 characters" });
+      }
+
+      const userAi = await getAnthropicForUser(userId);
+      const ai = userAi.client;
+      const model = userAi.model;
+
+      const user = await storage.getUserById(userId);
+      const companyName = user?.companyName || "our company";
+      const companyDesc = user?.companyDescription || "";
+      const website = user?.website || "";
+      const industryLabel = industry || (user as any)?.industry || "medical billing";
+
+      const searchPrompt = `Search forums, Reddit, Quora, community sites, and discussion boards for people actively asking about or looking for ${industryLabel} services. ${query ? `Specific search: ${query}` : ""} Find at least 5-8 recent discussions where someone needs help with ${industryLabel}.
+
+For EACH discussion found, provide this EXACT JSON format (return a JSON array):
+[
+  {
+    "title": "Post/thread title",
+    "url": "Direct URL to the post",
+    "platform": "Reddit/Quora/Forum name",
+    "snippet": "Brief excerpt of what they're asking about (2-3 sentences)",
+    "postedDate": "Approximate date if available",
+    "relevanceScore": 8
+  }
+]
+
+IMPORTANT: Return ONLY the JSON array, no other text. Find REAL posts with REAL URLs. Focus on recent, active discussions where people clearly need ${industryLabel} help.`;
+
+      const searchResponse = await ai.messages.create({
+        model,
+        max_tokens: 6000,
+        system: "You are a lead prospecting expert. Search the web for real forum posts and community discussions. Return structured JSON data only.",
+        messages: [{ role: "user", content: searchPrompt }],
+        tools: [
+          {
+            type: "web_search_20250305" as any,
+            name: "web_search",
+            max_uses: 10,
+          } as any,
+        ],
+      });
+
+      const searchText = searchResponse.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map(b => b.text)
+        .join("\n");
+
+      let posts: any[] = [];
+      try {
+        const jsonMatch = searchText.match(/\[[\s\S]*?\]/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsed)) {
+            posts = parsed.filter((p: any) => p && typeof p === "object" && p.title);
+          }
+        }
+      } catch (parseErr) {
+        console.error("Forum prospector JSON parse error:", parseErr);
+        posts = [];
+      }
+
+      if (posts.length === 0) {
+        return res.json({
+          posts: [],
+          rawResults: searchText,
+          message: "Could not find structured forum results. The AI may have returned a text summary instead. Try searching with different terms.",
+        });
+      }
+
+      const replyPrompt = `You are a helpful business development expert for ${companyName}. ${companyDesc ? `Company info: ${companyDesc}.` : ""} ${website ? `Website: ${website}` : ""}
+
+For each forum post below, write a HELPFUL, NON-SPAMMY reply that:
+- Genuinely addresses their question or pain point first
+- Shares useful advice or insights (not just selling)
+- Naturally mentions how ${companyName} can help (subtle, not pushy)
+- Sounds like a real person, not a bot
+- Is 3-5 sentences long
+- Does NOT include links unless they ask for recommendations
+
+Posts:
+${posts.map((p: any, i: number) => `${i + 1}. [${p.platform}] "${p.title}" — ${p.snippet}`).join("\n")}
+
+Return a JSON array of reply strings in the same order:
+["reply for post 1", "reply for post 2", ...]
+
+Return ONLY the JSON array.`;
+
+      const replyResponse = await ai.messages.create({
+        model,
+        max_tokens: 4000,
+        messages: [{ role: "user", content: replyPrompt }],
+      });
+
+      const replyText = replyResponse.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map(b => b.text)
+        .join("\n");
+
+      let replies: string[] = [];
+      try {
+        const jsonMatch = replyText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          replies = JSON.parse(jsonMatch[0]);
+        }
+      } catch {
+        replies = [];
+      }
+
+      const results = posts.map((post: any, idx: number) => ({
+        ...post,
+        draftReply: replies[idx] || "Reply could not be generated. Try refreshing.",
+      }));
+
+      res.json({ posts: results });
+    } catch (error: any) {
+      console.error("Forum prospector error:", error?.message || error);
+      if (error?.status === 429) {
+        return res.status(429).json({ message: "AI is busy. Please wait 30 seconds and try again." });
+      }
+      res.status(500).json({ message: "Forum search failed. Please try again." });
+    }
+  });
+
   registerWorkflowRoutes(app);
   startWorkflowEngine();
 
