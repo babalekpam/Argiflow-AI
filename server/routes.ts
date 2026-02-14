@@ -1608,6 +1608,43 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { firstName, lastName, email, companyName, industry, website, jobTitle, companyDescription } = req.body;
+      const updateData: Record<string, any> = {};
+      if (firstName !== undefined) updateData.firstName = firstName;
+      if (lastName !== undefined) updateData.lastName = lastName;
+      if (companyName !== undefined) updateData.companyName = companyName;
+      if (industry !== undefined) updateData.industry = industry;
+      if (website !== undefined) updateData.website = website || null;
+      if (jobTitle !== undefined) updateData.jobTitle = jobTitle || null;
+      if (companyDescription !== undefined) updateData.companyDescription = companyDescription || null;
+      if (email !== undefined) {
+        const emailStr = email.trim().toLowerCase();
+        if (!emailStr || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr)) {
+          return res.status(400).json({ message: "Invalid email address" });
+        }
+        const existing = await storage.getUserByEmail(emailStr);
+        if (existing && existing.id !== userId) {
+          return res.status(409).json({ message: "Email already in use by another account" });
+        }
+        updateData.email = emailStr;
+      }
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "No fields to update" });
+      }
+      const updated = await storage.updateUser(userId, updateData);
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json({ id: updated.id, email: updated.email, firstName: updated.firstName, lastName: updated.lastName, profileImageUrl: updated.profileImageUrl, companyName: updated.companyName, industry: updated.industry, website: updated.website, jobTitle: updated.jobTitle, companyDescription: updated.companyDescription, onboardingCompleted: updated.onboardingCompleted, emailVerified: updated.emailVerified });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
   app.get("/api/auth/is-owner", isAuthenticated, async (req, res) => {
     try {
       const user = await storage.getUserById(req.session.userId!);

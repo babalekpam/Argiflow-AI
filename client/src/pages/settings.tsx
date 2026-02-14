@@ -210,37 +210,50 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [integrationValues, setIntegrationValues] = useState<Record<string, string>>({});
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
+  const [accountProfile, setAccountProfile] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+  });
   const [companyProfile, setCompanyProfile] = useState({
     companyName: "",
     industry: "",
     website: "",
     companyDescription: "",
+    jobTitle: "",
   });
-  const [companyLoaded, setCompanyLoaded] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
-    if (user && !companyLoaded) {
+    if (user && !profileLoaded) {
+      setAccountProfile({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+      });
       setCompanyProfile({
         companyName: (user as any).companyName || "",
         industry: (user as any).industry || "",
         website: (user as any).website || "",
         companyDescription: (user as any).companyDescription || "",
+        jobTitle: (user as any).jobTitle || "",
       });
-      setCompanyLoaded(true);
+      setProfileLoaded(true);
     }
-  }, [user, companyLoaded]);
+  }, [user, profileLoaded]);
 
-  const companyMutation = useMutation({
-    mutationFn: async (data: typeof companyProfile) => {
-      await apiRequest("POST", "/api/onboarding", data);
+  const profileMutation = useMutation({
+    mutationFn: async (data: Record<string, string>) => {
+      const res = await apiRequest("PATCH", "/api/profile", data);
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/strategy"] });
-      toast({ title: t("settings.companyProfileSaved"), description: t("settings.companyProfileSavedDesc") });
+      toast({ title: t("settings.profileSaved") || "Profile saved", description: t("settings.profileSavedDesc") || "Your account details have been updated." });
     },
-    onError: () => {
-      toast({ title: t("settings.failedToSave"), description: t("settings.failedToSaveDesc"), variant: "destructive" });
+    onError: (error: any) => {
+      const msg = error?.message || "Failed to save";
+      toast({ title: t("settings.failedToSave") || "Error", description: msg, variant: "destructive" });
     },
   });
 
@@ -341,20 +354,85 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Card className="p-5">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-            <User className="w-7 h-7 text-primary" />
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
+          <User className="w-4 h-4" />
+          Account Profile
+        </h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Update your personal details and email address.
+        </p>
+        <Card className="p-5" data-testid="card-account-profile">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+              <User className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm">Personal Information</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Your name and email used across the platform.
+              </p>
+            </div>
+            <Badge className="bg-primary/10 text-primary border-primary/20">{(user as any)?.planLabel || t("settings.proPlan")}</Badge>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-lg" data-testid="text-settings-user-name">
-              {user?.firstName || t("settings.user")} {user?.lastName || ""}
-            </p>
-            <p className="text-sm text-muted-foreground" data-testid="text-settings-user-email">{user?.email}</p>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">First Name</Label>
+                <Input
+                  value={accountProfile.firstName}
+                  onChange={(e) => setAccountProfile({ ...accountProfile, firstName: e.target.value })}
+                  placeholder="First name"
+                  data-testid="input-profile-firstname"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Last Name</Label>
+                <Input
+                  value={accountProfile.lastName}
+                  onChange={(e) => setAccountProfile({ ...accountProfile, lastName: e.target.value })}
+                  placeholder="Last name"
+                  data-testid="input-profile-lastname"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Email Address</Label>
+              <Input
+                value={accountProfile.email}
+                onChange={(e) => setAccountProfile({ ...accountProfile, email: e.target.value })}
+                placeholder="your@email.com"
+                type="email"
+                data-testid="input-profile-email"
+              />
+            </div>
+            <Button
+              size="sm"
+              className="mt-2"
+              onClick={() => {
+                if (!accountProfile.firstName.trim() || !accountProfile.lastName.trim()) {
+                  toast({ title: "Missing information", description: "First name and last name are required.", variant: "destructive" });
+                  return;
+                }
+                if (!accountProfile.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountProfile.email.trim())) {
+                  toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" });
+                  return;
+                }
+                profileMutation.mutate(accountProfile);
+              }}
+              disabled={profileMutation.isPending}
+              data-testid="button-save-account-profile"
+            >
+              {profileMutation.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              {profileMutation.isPending ? "Saving..." : "Save Account Details"}
+            </Button>
           </div>
-          <Badge className="bg-primary/10 text-primary border-primary/20">{t("settings.proPlan")}</Badge>
-        </div>
-      </Card>
+        </Card>
+      </div>
 
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
@@ -384,6 +462,15 @@ export default function SettingsPage() {
                 onChange={(e) => setCompanyProfile({ ...companyProfile, companyName: e.target.value })}
                 placeholder={t("settings.companyNamePlaceholder")}
                 data-testid="input-company-name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Job Title <span className="text-muted-foreground/60">(Optional)</span></Label>
+              <Input
+                value={companyProfile.jobTitle}
+                onChange={(e) => setCompanyProfile({ ...companyProfile, jobTitle: e.target.value })}
+                placeholder="e.g. CEO, Marketing Manager"
+                data-testid="input-company-jobtitle"
               />
             </div>
             <div className="space-y-1.5">
@@ -430,17 +517,17 @@ export default function SettingsPage() {
                   toast({ title: t("settings.missingInfo"), description: t("settings.missingInfoDesc"), variant: "destructive" });
                   return;
                 }
-                companyMutation.mutate(companyProfile);
+                profileMutation.mutate({ ...companyProfile });
               }}
-              disabled={companyMutation.isPending}
+              disabled={profileMutation.isPending}
               data-testid="button-save-company-profile"
             >
-              {companyMutation.isPending ? (
+              {profileMutation.isPending ? (
                 <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
               ) : (
                 <Save className="w-3.5 h-3.5 mr-1.5" />
               )}
-              {companyMutation.isPending ? t("settings.saving") : t("settings.saveCompanyProfile")}
+              {profileMutation.isPending ? t("settings.saving") : t("settings.saveCompanyProfile")}
             </Button>
           </div>
         </Card>
