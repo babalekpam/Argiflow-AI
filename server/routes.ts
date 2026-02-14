@@ -305,9 +305,29 @@ async function executeAction(userId: string, action: string, params: any): Promi
       if (!Array.isArray(leadsData) || leadsData.length === 0) {
         return "ERROR: No lead data provided. Use web_search first to find real businesses, then pass their details to this tool.";
       }
+
+      const isFakeData = (val: string) => {
+        if (!val) return true;
+        const lower = val.toLowerCase();
+        if (/^(prospect|lead|contact|test)\s*\d/i.test(lower)) return true;
+        if (/contact\d+@prospect/i.test(lower)) return true;
+        if (/prospect-[a-z0-9]+\.com/i.test(lower)) return true;
+        if (/^(test|fake|dummy|placeholder|sample|example)@/i.test(lower)) return true;
+        if (/hunter (lead|prospect)/i.test(lower)) return true;
+        if (/^unknown$/i.test(lower)) return true;
+        return false;
+      };
+
       const created: string[] = [];
+      const skipped: string[] = [];
       const createdLeadDetails: { name: string; email?: string }[] = [];
       for (const lead of leadsData.slice(0, 30)) {
+        if (isFakeData(lead.name) || isFakeData(lead.email)) {
+          skipped.push(lead.name || "unnamed");
+          console.warn(`[Lead Filter] Rejected generic/fake lead: name="${lead.name}", email="${lead.email}"`);
+          continue;
+        }
+
         const leadRecord = {
           userId,
           name: lead.name || "Unknown",
@@ -325,6 +345,10 @@ async function executeAction(userId: string, action: string, params: any): Promi
         created.push(`${leadRecord.name}${lead.company ? ` (${lead.company})` : ""}`);
         createdLeadDetails.push({ name: leadRecord.name, email: leadRecord.email });
       }
+
+      if (created.length === 0 && skipped.length > 0) {
+        return `ERROR: All ${skipped.length} leads were rejected because they contained fake/placeholder data (generic names like "Prospect 1" or fake emails like "contact1@prospect.com"). You MUST use web_search to find REAL businesses with real names and real emails. Try again with actual web search results.`;
+      }
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);
       const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
@@ -336,7 +360,8 @@ async function executeAction(userId: string, action: string, params: any): Promi
         funnelMessage = await addLeadsToAgentFunnel(userId, agentType, createdLeadDetails);
       }
 
-      return `Saved ${created.length} real leads to CRM: ${created.join(", ")}. Total leads now: ${allLeads.length}.${funnelMessage}`;
+      let skippedMessage = skipped.length > 0 ? ` (${skipped.length} fake/placeholder leads were filtered out)` : "";
+      return `Saved ${created.length} real leads to CRM: ${created.join(", ")}. Total leads now: ${allLeads.length}.${funnelMessage}${skippedMessage}`;
     }
     case "book_appointments": {
       const allAppts = await storage.getAppointmentsByUser(userId);
@@ -4955,45 +4980,156 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         startedAt: new Date(),
       });
       await storage.updateAgentConfig(configId, userId, { isRunning: true, lastRun: new Date() } as any);
-      setTimeout(async () => {
+      (async () => {
         try {
-          const leadsFound = Math.floor(Math.random() * 15) + 3;
           const agentName = catalogEntry?.name || config.agentType;
+          const settings = config.settings as Record<string, any> || {};
 
-          const generatedLeads: { name: string; email: string; company: string }[] = [];
-          for (let i = 0; i < leadsFound; i++) {
-            const leadName = `${agentName} Lead #${Date.now().toString(36).slice(-4)}-${i + 1}`;
-            const company = `${agentName} Prospect ${i + 1}`;
-            const email = `contact${i + 1}@prospect-${Date.now().toString(36).slice(-4)}.com`;
-            const leadRecord = {
-              userId,
-              name: leadName,
-              email,
-              phone: "",
-              company,
-              source: `${agentName} Agent`,
-              status: "new" as const,
-              score: randomInt(50, 90),
-              notes: `Auto-discovered by ${agentName} agent run`,
-              outreach: "",
-              intentSignal: "Agent discovery",
-            };
-            await storage.createLead(leadRecord);
-            generatedLeads.push({ name: leadName, email, company });
+          let aiClient: Anthropic;
+          let aiModel: string;
+          try {
+            const ai = await getAnthropicForUser(userId);
+            aiClient = ai.client;
+            aiModel = ai.model;
+          } catch {
+            aiClient = anthropic;
+            aiModel = CLAUDE_MODEL;
           }
 
+          const agentSearchPrompts: Record<string, string> = {
+            "tax-lien": `Search for REAL tax lien properties currently listed for auction or recently filed in ${(settings.targetStates || ["FL", "AZ", "IN"]).join(", ")}. For EACH property you find, you MUST extract:
+- Full property address (street, city, state, zip)
+- Property owner's FULL NAME (search county assessor records, property appraiser sites)
+- Owner's phone number (search Whitepages, TruePeopleSearch, or public records)
+- Owner's email address (search for their name + email, or use professional patterns)
+- Lien amount if available
+- Property type (residential, commercial, vacant land)
+
+Search queries to use: "tax lien auction [state] 2025", "delinquent property tax list [county]", "tax lien certificate sale [state]", "[county] tax collector delinquent list"
+Then for each property found, search: "[owner name] contact info", "[owner name] [city] phone email"
+
+Return 5-10 leads with REAL data only. Every lead must have a real person's name, real address, and real contact info. Do NOT use placeholder names like "Prospect 1" or fake emails like "contact1@prospect.com".`,
+            "tax-deed": `Search for REAL tax deed properties available at upcoming auctions in ${(settings.targetStates || ["TX", "GA", "CA", "FL"]).join(", ")}. For each property extract: full address, owner name, phone, email, estimated property value. Search county auction sites, tax deed sale listings, and public records. Return 5-10 leads with verified real data only.`,
+            "wholesale-re": `Search for REAL distressed properties, pre-foreclosure listings, and motivated sellers in ${(settings.targetMarkets || ["Atlanta", "Houston", "Phoenix"]).join(", ")}. For each property extract: full address, owner name, phone, email, estimated ARV. Search foreclosure listings, probate records, and absentee owner lists. Return 5-10 leads with verified real data only.`,
+            "govt-contracts-us": `Search for REAL current government contract opportunities on SAM.gov and federal procurement portals. Find contracts valued between $${settings.minContractValue || 25000} and $${settings.maxContractValue || 500000}. Extract: contracting agency, contract title, NAICS code, deadline, point of contact name/email/phone. Return 5-10 real opportunities.`,
+            "lead-gen": `Search for REAL businesses in the ${settings.industry || "professional services"} industry that are actively looking for new clients or showing growth signals. Target ${settings.targetTitle || "business owners"}. Extract: owner/decision-maker name, business name, phone, email, website. Return 5-10 leads with verified real data only.`,
+            "govt-tender-africa": `Search for REAL government tenders currently open in ${(settings.targetCountries || ["NG", "KE", "GH"]).join(", ")} for sectors: ${(settings.sectors || ["IT", "construction"]).join(", ")}. Extract: tender title, issuing agency, deadline, contact person name/email/phone, estimated value. Return 5-10 real opportunities.`,
+            "cross-border-trade": `Search for REAL cross-border trade opportunities and suppliers for ${(settings.productCategories || ["electronics", "textiles"]).join(", ")} on trade routes ${(settings.tradeRoutes || ["china-nigeria"]).join(", ")}. Extract: supplier company, contact person name, phone, email, product details, pricing. Return 5-10 real trade leads.`,
+            "agri-market": `Search for REAL agricultural commodity buyers and sellers for ${(settings.commodities || ["cocoa", "coffee"]).join(", ")}. Find actual trading companies, cooperatives, and exporters. Extract: company name, contact person, phone, email, commodity details, pricing. Return 5-10 real leads.`,
+            "diaspora-services": `Search for REAL investment opportunities in ${(settings.homeCountries || ["NG", "GH", "KE"]).join(", ")} suitable for diaspora investors. Find: real estate developments, business partnerships, franchise opportunities. Extract: company/project name, contact person, phone, email, investment details. Return 5-10 real opportunities.`,
+            "arbitrage": `Search for REAL profitable arbitrage opportunities on ${(settings.platforms || ["amazon", "ebay"]).join(", ")} for categories: ${(settings.categories || ["electronics", "toys"]).join(", ")} with min profit $${settings.minProfit || 5} and min ROI ${settings.minROI || 20}%. Find actual products with price differentials. Return 5-10 real product opportunities with seller details.`,
+          };
+
+          const searchPrompt = agentSearchPrompts[config.agentType] || `Search for real business leads related to ${agentName}. Extract: real person name, real company, real phone, real email, detailed notes. Return 5-10 leads with verified data only. Never use placeholder or fake data.`;
+
+          const user = await storage.getUserById(userId);
+          const bookingLink = (await storage.getSettingsByUser(userId))?.calendarLink || "";
+
+          const aiSystemPrompt = `You are a specialized ${agentName} AI agent. Your job is to search the web and find REAL leads with REAL contact information.
+
+CRITICAL RULES:
+1. Use web_search to find REAL data. NEVER fabricate or generate placeholder data.
+2. Every lead MUST have: a real person's full name, a real email address, a real phone number if available, and a real company/property name.
+3. FORBIDDEN: Names like "Prospect 1", "Lead #2", "Tax Lien Hunter Lead". FORBIDDEN: Emails like "contact1@prospect.com", "test@test.com". If you can't find real info, skip that lead entirely.
+4. For real estate agents: MUST include the full property address in the notes field.
+5. Include intent signals explaining WHY this is a good lead.
+6. Write a personalized 3-5 sentence outreach email for each lead.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}
+7. End each outreach with: Best regards, ${user?.companyName ? `${user.fullName || "Clara Motena"}, ${user.companyName}` : "Clara Motena, Track-Med Billing Solutions"}, +1(615)482-6768
+
+After searching, call generate_leads with agent_type="${config.agentType}" to save the leads to CRM.`;
+
+          const aiTools: Anthropic.Tool[] = [
+            {
+              type: "web_search_20250305" as any,
+              name: "web_search",
+            } as any,
+            {
+              name: "generate_leads",
+              description: `Save real leads found via web search to CRM. Include agent_type="${config.agentType}" to auto-add to funnel. ONLY save leads with real names, real emails, and real contact info. Never save placeholder data.`,
+              input_schema: {
+                type: "object" as const,
+                properties: {
+                  agent_type: { type: "string" },
+                  leads: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string", description: "Real person's full name" },
+                        email: { type: "string", description: "Real email address found via web search" },
+                        phone: { type: "string", description: "Real phone number" },
+                        company: { type: "string", description: "Real company or property name" },
+                        source: { type: "string" },
+                        status: { type: "string" },
+                        score: { type: "number" },
+                        intent_signal: { type: "string" },
+                        notes: { type: "string", description: "Include property address, owner details, and research notes" },
+                        outreach: { type: "string" },
+                      },
+                      required: ["name", "email", "company", "source", "score", "outreach"],
+                    },
+                  },
+                },
+                required: ["leads", "agent_type"],
+              },
+            },
+          ];
+
+          console.log(`[Agent Run] Starting AI-powered search for ${agentName} (user: ${userId})`);
+
+          let response = await aiClient.messages.create({
+            model: aiModel,
+            max_tokens: 8192,
+            system: aiSystemPrompt,
+            messages: [{ role: "user", content: searchPrompt }],
+            tools: aiTools,
+          });
+
+          let loopCount = 0;
+          const maxLoops = 10;
+          let currentMessages: Anthropic.MessageParam[] = [{ role: "user", content: searchPrompt }];
+          let leadsFound = 0;
           let funnelInfo = "";
-          try {
-            const pipelineResult = await addLeadsToAgentFunnel(
-              userId,
-              config.agentType,
-              generatedLeads.map(l => ({ name: l.name, email: l.email }))
+
+          while (response.stop_reason === "tool_use" && loopCount < maxLoops) {
+            loopCount++;
+            currentMessages.push({ role: "assistant", content: response.content as any });
+
+            const toolUseBlocks = response.content.filter(
+              (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
             );
-            if (pipelineResult) {
-              funnelInfo = pipelineResult;
+
+            const crmToolUses = toolUseBlocks.filter(t => t.name !== "web_search");
+            const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+            for (const toolUse of crmToolUses) {
+              console.log(`[Agent Run] Tool: ${toolUse.name}`, JSON.stringify(toolUse.input || {}).slice(0, 300));
+              try {
+                const result = await executeAction(userId, toolUse.name, toolUse.input || {});
+                console.log(`[Agent Run] Result: ${result.slice(0, 200)}`);
+
+                const savedMatch = result.match(/Saved (\d+) real leads/);
+                if (savedMatch) leadsFound += parseInt(savedMatch[1]);
+                const funnelMatch = result.match(/Also added .+pipeline\./);
+                if (funnelMatch) funnelInfo = funnelMatch[0];
+
+                toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: result });
+              } catch (toolError: any) {
+                toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `ERROR: ${toolError?.message}`, is_error: true });
+              }
             }
-          } catch (funnelErr) {
-            console.error("Error adding leads to funnel:", funnelErr);
+
+            if (toolResults.length > 0) {
+              currentMessages.push({ role: "user", content: toolResults as any });
+            }
+
+            response = await aiClient.messages.create({
+              model: aiModel,
+              max_tokens: 8192,
+              system: aiSystemPrompt,
+              messages: currentMessages,
+              tools: aiTools,
+            });
           }
 
           const allLeads = await storage.getLeadsByUser(userId);
@@ -5001,20 +5137,34 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
           const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
           await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
 
-          await storage.updateAgentTask(task.id, { status: "completed", completedAt: new Date(), result: JSON.stringify({ leadsFound, analyzed: true, addedToFunnel: !!funnelInfo }) });
+          await storage.updateAgentTask(task.id, { status: "completed", completedAt: new Date(), result: JSON.stringify({ leadsFound, analyzed: true, addedToFunnel: !!funnelInfo, aiPowered: true }) });
           await storage.updateAgentConfig(configId, userId, { isRunning: false, totalLeadsFound: (config.totalLeadsFound || 0) + leadsFound } as any);
           await storage.createNotification({
             userId,
             agentType: config.agentType,
             type: "new_lead",
-            title: `${agentName} Found ${leadsFound} Leads`,
-            message: `Your agent completed a scan and discovered ${leadsFound} new opportunities.${funnelInfo} Check your leads and funnels pages for details.`,
-            priority: leadsFound > 10 ? "high" : "normal",
+            title: `${agentName} Found ${leadsFound} Real Leads`,
+            message: `Your agent completed an AI-powered web search and discovered ${leadsFound} real leads with verified contact info.${funnelInfo ? " " + funnelInfo : ""} Check your leads and funnels pages for details.`,
+            priority: leadsFound > 5 ? "high" : "normal",
           });
-        } catch (err) {
-          console.error("Error completing agent task:", err);
+
+          console.log(`[Agent Run] Completed: ${agentName} found ${leadsFound} real leads for user ${userId}`);
+        } catch (err: any) {
+          console.error("Error completing agent task:", err?.message || err);
+          try {
+            await storage.updateAgentTask(task.id, { status: "failed", completedAt: new Date(), result: JSON.stringify({ error: err?.message || "Unknown error" }) });
+            await storage.updateAgentConfig(configId, userId, { isRunning: false } as any);
+            await storage.createNotification({
+              userId,
+              agentType: config.agentType,
+              type: "error",
+              title: `${catalogEntry?.name || config.agentType} Run Failed`,
+              message: `The agent encountered an error during its search. Please try again. Error: ${(err?.message || "Unknown").slice(0, 100)}`,
+              priority: "high",
+            });
+          } catch {}
         }
-      }, 5000);
+      })();
       res.json({ task, message: `${catalogEntry?.name || config.agentType} is running...` });
     } catch (error) {
       console.error("Error running agent:", error);
