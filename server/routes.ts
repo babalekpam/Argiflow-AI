@@ -13,6 +13,9 @@ import sgMail from "@sendgrid/mail";
 import nodemailer from "nodemailer";
 import { AGENT_CATALOG, getAgentsByRegion, getAgentByType } from "./agent-catalog";
 import { REGIONS, detectRegion, getRegionConfig } from "./region-config";
+import { registerWorkflowRoutes } from "./workflow-routes";
+import { startWorkflowEngine } from "./workflow-engine";
+import { workflowHooks } from "./workflow-hooks";
 
 async function sendSystemEmail(to: string, from: { email: string; name: string }, subject: string, html: string) {
   const smtpHost = process.env.SMTP_HOST;
@@ -1352,6 +1355,7 @@ export async function registerRoutes(
       const passwordHash = await hashPassword(password);
       const user = await storage.createUser({ email, passwordHash, firstName, lastName });
       req.session.userId = user.id;
+      workflowHooks.onUserRegistered(user.id, user);
 
       await storage.markEmailVerified(user.id);
 
@@ -2030,6 +2034,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten() });
       }
       const lead = await storage.createLead(parsed.data);
+      workflowHooks.onLeadCreated(userId, lead);
       res.json(lead);
     } catch (error) {
       console.error("Error creating lead:", error);
@@ -2081,7 +2086,11 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       if (parsed.data.scheduledSendAt !== undefined) {
         updates.scheduledSendAt = parsed.data.scheduledSendAt ? new Date(parsed.data.scheduledSendAt) : null;
       }
+      const oldStatus = lead.status;
       const updated = await storage.updateLead(lead.id, updates);
+      if (updates.status && updates.status !== oldStatus && updated) {
+        workflowHooks.onLeadStatusChanged(userId, updated, oldStatus || "new", updates.status);
+      }
       res.json(updated);
     } catch (error) {
       console.error("Error updating lead:", error);
@@ -3408,6 +3417,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
         else if (level === "warm" && lead.status === "new") statusUpdate.status = "warm";
         await storage.updateLead(lead.id, statusUpdate);
+        workflowHooks.onLeadEmailOpened(lead.userId, { ...lead, emailOpens: newOpens, engagementScore: score });
 
         try {
           await storage.createEmailEvent({
@@ -3454,6 +3464,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
         else if (level === "warm" && (lead.status === "new" || lead.status === "cold")) statusUpdate.status = "warm";
         await storage.updateLead(lead.id, statusUpdate);
+        workflowHooks.onLeadEmailClicked(lead.userId, { ...lead, emailClicks: newClicks, engagementScore: score });
 
         try {
           await storage.createEmailEvent({
@@ -3615,6 +3626,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         source: source || "manual",
         status: status || "scheduled",
       });
+      workflowHooks.onAppointmentBooked(userId, appt);
       res.json(appt);
     } catch (error) {
       console.error("Error creating appointment:", error);
@@ -3628,6 +3640,12 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
       const updated = await storage.updateAppointment(req.params.id, userId, req.body);
       if (!updated) {
         return res.status(404).json({ message: "Appointment not found" });
+      }
+      if (req.body.status === "completed") {
+        workflowHooks.onAppointmentCompleted(userId, updated);
+      }
+      if (req.body.status === "cancelled") {
+        workflowHooks.onAppointmentCancelled(userId, updated);
       }
       res.json(updated);
     } catch (error) {
@@ -4220,6 +4238,9 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       }
 
       await storage.updateVoiceCall(callLog.id, updateData);
+      if (updateData.status === "completed") {
+        workflowHooks.onVoiceCallCompleted(callLog.userId, { id: callLog.id, ...updateData });
+      }
       res.sendStatus(200);
     } catch (error) {
       console.error("Voice status callback error:", error);
@@ -4246,6 +4267,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         score: 85, // high intent — they booked a call
       });
       console.log(`New discovery call submission: ${firstName} ${lastName} (${email}) from ${company}`);
+      workflowHooks.onDiscoverySubmitted(req.body);
       res.json({ success: true, message: "Discovery call request received" });
     } catch (error) {
       console.error("Error saving discovery call:", error);
@@ -4692,6 +4714,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         value: value || 0,
         status: "open",
       });
+      workflowHooks.onDealCreated(userId, deal);
       res.json(deal);
     } catch (error) {
       res.status(500).json({ message: "Failed to create deal" });
@@ -4702,6 +4725,8 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
     try {
       const userId = req.session.userId!;
       const { stageId, contactName, contactEmail, value, status } = req.body;
+      const existingDeal = await storage.getFunnelDeal(req.params.id as string);
+      const oldStageId = existingDeal?.stageId;
       const updated = await storage.updateFunnelDeal(req.params.id as string, {
         ...(stageId && { stageId }),
         ...(contactName && { contactName }),
@@ -4710,6 +4735,12 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         ...(status && { status }),
       });
       if (!updated || updated.userId !== userId) return res.status(404).json({ message: "Deal not found" });
+      if (stageId && oldStageId && stageId !== oldStageId) {
+        workflowHooks.onDealStageChanged(userId, updated, oldStageId, stageId);
+      }
+      if (status === "won") {
+        workflowHooks.onDealWon(userId, updated);
+      }
       res.json(updated);
     } catch (error) {
       res.status(500).json({ message: "Failed to update deal" });
@@ -4979,6 +5010,9 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
     const config = getRegionConfig(region);
     res.json({ region, ...config });
   });
+
+  registerWorkflowRoutes(app);
+  startWorkflowEngine();
 
   return httpServer;
 }

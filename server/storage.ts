@@ -42,7 +42,7 @@ export interface IStorage {
   getLeadsByUser(userId: string, businessId?: string): Promise<Lead[]>;
   getLeadById(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
-  updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt">>): Promise<Lead | undefined>;
+  updateLead(id: string, data: Partial<Pick<Lead, "status" | "score" | "notes" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt">>): Promise<Lead | undefined>;
   getScheduledLeadsToSend(): Promise<Lead[]>;
   getLeadsDueForFollowUp(): Promise<Lead[]>;
   deleteLead(id: string, userId: string): Promise<void>;
@@ -78,6 +78,7 @@ export interface IStorage {
   getFunnelStages(funnelId: string): Promise<FunnelStage[]>;
   createFunnelStage(stage: InsertFunnelStage): Promise<FunnelStage>;
   deleteFunnelStages(funnelId: string): Promise<void>;
+  getFunnelDeal(id: string): Promise<FunnelDeal | undefined>;
   getFunnelDeals(funnelId: string): Promise<FunnelDeal[]>;
   createFunnelDeal(deal: InsertFunnelDeal): Promise<FunnelDeal>;
   updateFunnelDeal(id: string, data: Partial<Pick<FunnelDeal, "stageId" | "contactName" | "contactEmail" | "value" | "status">>): Promise<FunnelDeal | undefined>;
@@ -193,7 +194,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt">>): Promise<Lead | undefined> {
+  async updateLead(id: string, data: Partial<Pick<Lead, "status" | "score" | "notes" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt">>): Promise<Lead | undefined> {
     const [result] = await db.update(leads).set(data).where(eq(leads.id, id)).returning();
     return result;
   }
@@ -386,6 +387,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteFunnelStages(funnelId: string): Promise<void> {
     await db.delete(funnelStages).where(eq(funnelStages.funnelId, funnelId));
+  }
+
+  async getFunnelDeal(id: string): Promise<FunnelDeal | undefined> {
+    const [result] = await db.select().from(funnelDeals).where(eq(funnelDeals.id, id));
+    return result;
   }
 
   async getFunnelDeals(funnelId: string): Promise<FunnelDeal[]> {

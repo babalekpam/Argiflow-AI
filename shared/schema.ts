@@ -427,3 +427,5 @@ export const autoLeadGenRuns = pgTable("auto_lead_gen_runs", {
 });
 
 export type AutoLeadGenRun = typeof autoLeadGenRuns.$inferSelect;
+
+export * from "./workflow-schema";
