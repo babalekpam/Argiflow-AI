@@ -1359,43 +1359,43 @@ export async function registerRoutes(
 
       await storage.markEmailVerified(user.id);
 
-      const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
       try {
         await storage.createSubscription({
           userId: user.id,
           plan: "pro",
-          status: "trial",
+          status: "active",
           amount: 0,
-          trialEndsAt: trialEnd,
+          paymentMethod: "lifetime",
           currentPeriodStart: new Date(),
-          currentPeriodEnd: trialEnd,
+          currentPeriodEnd: new Date("2099-12-31"),
+          notes: "Lifetime Pro — All accounts",
         });
-        console.log(`Pro trial created for ${email}, expires ${trialEnd.toISOString()}`);
+        console.log(`Lifetime Pro subscription created for ${email}`);
       } catch (subErr: any) {
-        console.error("Failed to create trial subscription:", subErr?.message || subErr);
+        console.error("Failed to create lifetime subscription:", subErr?.message || subErr);
       }
 
       try {
         await sendSystemEmail(
           email,
           { email: "info@argilette.co", name: "ArgiFlow" },
-          `Welcome to ArgiFlow — Your 14-Day Pro Trial is Active!`,
+          `Welcome to ArgiFlow — Your Pro Account is Active!`,
           `<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
             <div style="text-align: center; margin-bottom: 30px;">
               <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
               <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
             </div>
             <h2 style="color: #e6edf3; font-size: 22px;">Welcome, ${firstName}!</h2>
-            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Your account is ready and your <strong style="color: #38bdf8;">14-day Pro trial</strong> is now active. You have full access to all Pro features including AI agents, lead generation, email campaigns, and more.</p>
+            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Your account is ready and your <strong style="color: #38bdf8;">Pro plan</strong> is now active. You have full access to all Pro features including AI agents, lead generation, email campaigns, and more.</p>
             <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <p style="color: #e6edf3; margin: 0 0 8px; font-weight: 600;">Your Trial Details:</p>
-              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Plan: <strong style="color: #38bdf8;">Pro</strong></p>
-              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Trial ends: <strong style="color: #e6edf3;">${trialEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong></p>
+              <p style="color: #e6edf3; margin: 0 0 8px; font-weight: 600;">Your Account:</p>
+              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Plan: <strong style="color: #38bdf8;">Pro (Lifetime)</strong></p>
+              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Status: <strong style="color: #22c55e;">Active</strong></p>
             </div>
             <div style="text-align: center; margin: 30px 0;">
               <a href="https://argilette.co/dashboard" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Go to Dashboard</a>
             </div>
-            <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">After your trial ends, choose a plan to continue using ArgiFlow. No credit card required during the trial.</p>
+            <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">Enjoy unlimited access to all ArgiFlow features. Welcome to the family!</p>
             <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
           </div>`
         );
@@ -1596,7 +1596,8 @@ export async function registerRoutes(
       let planLabel = "Free";
       if (sub) {
         const planName = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
-        if (sub.status === "trial") planLabel = `${planName} Trial`;
+        if (sub.status === "active" && sub.paymentMethod === "lifetime") planLabel = `${planName} (Lifetime)`;
+        else if (sub.status === "trial") planLabel = `${planName} Trial`;
         else if (sub.status === "active") planLabel = `${planName} Plan`;
         else planLabel = "Free";
       }
@@ -4341,7 +4342,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   await clearOldSeedData();
   await seedSuperAdmin();
   await ensureOwnerPassword();
-  await ensureOwnerSubscription();
+  await ensureAllUsersProLifetime();
 
   app.post("/api/admin/login", async (req, res) => {
     try {
@@ -5081,34 +5082,39 @@ async function ensureOwnerPassword() {
   }
 }
 
-async function ensureOwnerSubscription() {
-  const ownerEmail = "abel@argilette.com";
+async function ensureAllUsersProLifetime() {
   try {
-    const user = await storage.getUserByEmail(ownerEmail);
-    if (!user) return;
-    const existing = await storage.getSubscriptionByUser(user.id);
-    if (!existing) {
-      await storage.createSubscription({
-        userId: user.id,
-        plan: "pro",
-        status: "active",
-        amount: 0,
-        paymentMethod: "lifetime",
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date("2099-12-31"),
-        notes: "Lifetime Pro - Platform Owner",
-      });
-      console.log("Lifetime Pro subscription created for owner:", ownerEmail);
-    } else if (existing.status !== "active" || existing.plan !== "pro") {
-      await storage.updateSubscription(existing.id, {
-        plan: "pro",
-        status: "active",
-        currentPeriodEnd: new Date("2099-12-31"),
-        notes: "Lifetime Pro - Platform Owner",
-      });
-      console.log("Owner subscription updated to lifetime Pro:", ownerEmail);
+    const allUsers = await storage.getAllUsers();
+    let upgraded = 0;
+    for (const user of allUsers) {
+      const existing = await storage.getSubscriptionByUser(user.id);
+      if (!existing) {
+        await storage.createSubscription({
+          userId: user.id,
+          plan: "pro",
+          status: "active",
+          amount: 0,
+          paymentMethod: "lifetime",
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date("2099-12-31"),
+          notes: "Lifetime Pro — All accounts",
+        });
+        upgraded++;
+      } else if (existing.status !== "active" || existing.plan !== "pro") {
+        await storage.updateSubscription(existing.id, {
+          plan: "pro",
+          status: "active",
+          amount: 0,
+          currentPeriodEnd: new Date("2099-12-31"),
+          notes: "Lifetime Pro — All accounts",
+        });
+        upgraded++;
+      }
+    }
+    if (upgraded > 0) {
+      console.log(`Upgraded ${upgraded} user(s) to Lifetime Pro`);
     }
   } catch (err) {
-    console.error("Error ensuring owner subscription:", err);
+    console.error("Error ensuring all users Pro lifetime:", err);
   }
 }
