@@ -353,7 +353,7 @@
     },
     "footer": {
       "brandName": "ArgiFlow AI",
-      "description": "AI Automation Platform helping businesses scale with autonomous AI agents across Western and African markets.",
+      "description": "AI Automation Platform by ARGILETTE Labs. Helping businesses scale with autonomous AI agents across Western and African markets.",
       "platformTitle": "Platform",
       "aiAgentCatalog": "AI Agent Catalog",
       "voiceAiAgents": "Voice AI Agents",
@@ -369,9 +369,10 @@
       "getStarted": "Get Started",
       "privacy": "Privacy Policy",
       "terms": "Terms of Service",
-      "copyright": "ArgiFlow AI (argilette.co). All rights reserved.",
+      "copyright": "ARGILETTE Labs. All rights reserved.",
       "soc2": "SOC 2 Compliant",
-      "poweredBy": "Powered by Claude AI"
+      "poweredBy": "Powered by Claude AI",
+      "productOf": "ArgiFlow is a product of ARGILETTE Labs"
     }
   },
   "auth": {

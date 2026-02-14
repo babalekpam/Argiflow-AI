@@ -99,11 +99,12 @@ export default function SignupPage() {
 
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <a href="/" className="inline-flex items-center gap-2 mb-6" data-testid="link-signup-home">
+          <a href="/" className="inline-flex items-center gap-2 mb-2" data-testid="link-signup-home">
             <Zap className="w-7 h-7 text-primary" />
             <span className="text-2xl font-bold gradient-text">{t("common.brandName")}</span>
             <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{t("common.brandTag")}</Badge>
           </a>
+          <p className="text-[11px] text-muted-foreground/70 mb-4" data-testid="text-signup-product-of">{t("landing.footer.productOf")}</p>
           {step === 1 ? (
             <>
               <h1 className="text-2xl font-bold mb-2" data-testid="text-signup-title">{t("auth.signup.title")}</h1>

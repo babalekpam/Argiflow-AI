@@ -391,7 +391,7 @@
       "trialNote": "Essai gratuit de 14 jours. Pas de carte de crédit requise. Annulez à tout moment."
     },
     "footer": {
-      "description": "Plateforme d'automatisation propulsée par l'IA pour l'acquisition de clients. Déployez des agents intelligents qui trouvent, engagent et convertissent des leads en pilote automatique.",
+      "description": "Plateforme d'automatisation par ARGILETTE Labs. Déployez des agents intelligents qui trouvent, engagent et convertissent des leads en pilote automatique.",
       "platformTitle": "Plateforme",
       "aiAgentCatalog": "Catalogue d'Agents IA",
       "voiceAiAgents": "Agents IA Vocaux",
@@ -406,7 +406,7 @@
       "privacy": "Politique de Confidentialité",
       "terms": "Conditions d'Utilisation",
       "cookiePolicy": "Politique de Cookies",
-      "copyright": "ArgiFlow. Tous droits réservés.",
+      "copyright": "ARGILETTE Labs. Tous droits réservés.",
       "builtWith": "Construit avec l'IA",
       "brandName": "ArgiFlow AI",
       "engagementTracking": "Suivi d'Engagement",
@@ -418,7 +418,8 @@
       "contactTitle": "Contact",
       "getStarted": "Commencer",
       "soc2": "SOC 2 Conforme",
-      "poweredBy": "Propulsé par Claude IA"
+      "poweredBy": "Propulsé par Claude IA",
+      "productOf": "ArgiFlow est un produit de ARGILETTE Labs"
     }
   },
   "auth": {

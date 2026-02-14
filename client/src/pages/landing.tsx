@@ -954,9 +954,14 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-border/50 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()} {t("landing.footer.copyright")}
-            </p>
+            <div className="flex flex-col items-center md:items-start gap-1">
+              <p className="text-xs text-muted-foreground">
+                &copy; {new Date().getFullYear()} {t("landing.footer.copyright")}
+              </p>
+              <p className="text-[11px] text-muted-foreground/70" data-testid="text-product-of">
+                {t("landing.footer.productOf")}
+              </p>
+            </div>
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Shield className="w-3 h-3" /> {t("landing.footer.soc2")}

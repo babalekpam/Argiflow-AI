@@ -98,6 +98,9 @@ export function AppSidebar() {
             {t("common.brandTag")}
           </Badge>
         </Link>
+        <p className="text-[10px] text-muted-foreground/60 pl-7 -mt-1" data-testid="text-sidebar-product-of">
+          by ARGILETTE Labs
+        </p>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
