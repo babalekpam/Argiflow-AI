@@ -34,6 +34,7 @@ import {
   Boxes,
   Shield,
   Globe,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -66,6 +67,7 @@ export function AppSidebar() {
     { title: t("sidebar.resources"), icon: Library, url: "/dashboard/resources", badge: t("common.new") },
     { title: t("sidebar.demosInstall"), icon: Wand2, url: "/dashboard/demos", badge: t("common.new") },
     { title: t("sidebar.training"), icon: GraduationCap, url: "/dashboard/training" },
+    { title: "Growth Guide", icon: BookOpen, url: "/dashboard/guide", badge: t("common.new") },
     { title: t("sidebar.settings"), icon: Settings, url: "/dashboard/settings" },
   ];
 

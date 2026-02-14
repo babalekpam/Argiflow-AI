@@ -28,6 +28,7 @@ import AgentCatalogPage from "./agent-catalog";
 import PlansPage from "./plans";
 import WorkflowBuilderPage from "./workflow-builder";
 import ForumProspectorPage from "./forum-prospector";
+import PlatformGuidePage from "./platform-guide";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -199,6 +200,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/agent-catalog" component={AgentCatalogPage} />
               <Route path="/dashboard/plans" component={PlansPage} />
               <Route path="/dashboard/forum-prospector" component={ForumProspectorPage} />
+              <Route path="/dashboard/guide" component={PlatformGuidePage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />
