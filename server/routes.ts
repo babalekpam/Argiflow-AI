@@ -16,6 +16,7 @@ import { REGIONS, detectRegion, getRegionConfig } from "./region-config";
 import { registerWorkflowRoutes } from "./workflow-routes";
 import { startWorkflowEngine } from "./workflow-engine";
 import { workflowHooks } from "./workflow-hooks";
+import { discoverTaxLiens, STATE_DATA, STATE_NAMES, type TaxLienSettings } from "./agents/tax-lien-agent";
 
 async function sendSystemEmail(to: string, from: { email: string; name: string }, subject: string, html: string) {
   const smtpHost = process.env.SMTP_HOST;
@@ -292,6 +293,25 @@ async function addLeadsToAgentFunnel(userId: string, agentType: string, leadsToA
 
   const funnelConfig = AGENT_FUNNEL_STAGES[agentType];
   return dealsCreated > 0 ? ` Also added ${dealsCreated} deals to "${funnelConfig?.name}" pipeline.` : "";
+}
+
+async function autoAddToFunnel(userId: string, agentType: string, leadsCount: number): Promise<string> {
+  if (leadsCount === 0) return "";
+  try {
+    const allLeads = await storage.getLeadsByUser(userId);
+    const agentLeads = allLeads
+      .filter(l => l.source === "Tax Lien Hunter Agent" || l.source === "tax-lien-agent")
+      .slice(0, leadsCount);
+    if (agentLeads.length === 0) return "";
+    return await addLeadsToAgentFunnel(userId, agentType, agentLeads.map(l => ({
+      name: l.name,
+      email: l.email || "",
+      value: 0,
+    })));
+  } catch (err) {
+    console.error("[tax-lien] Failed to add to funnel:", err);
+    return "";
+  }
 }
 
 // ============================================================
@@ -4999,6 +5019,96 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
             aiModel = CLAUDE_MODEL;
           }
 
+          if (config.agentType === "tax-lien") {
+            console.log(`[Agent Run] Using dedicated county-level Tax Lien discovery for user ${userId}`);
+            const tlSettings: TaxLienSettings = {
+              targetStates: settings.targetStates || ["FL"],
+              targetCounties: settings.targetCounties || [],
+              propertyTypes: settings.propertyTypes || ["residential"],
+              minLienAmount: settings.minLienAmount || 500,
+              maxLienAmount: settings.maxLienAmount || 25000,
+              minInterestRate: settings.minInterestRate || 8,
+              bidStrategy: settings.bidStrategy || "moderate",
+              autoBid: settings.autoBid || false,
+            };
+
+            const results = await discoverTaxLiens(aiClient, aiModel, tlSettings);
+
+            let leadsFound = 0;
+            const user = await storage.getUserById(userId);
+            const bookingLink = (await storage.getSettingsByUser(userId))?.calendarLink || "";
+            const senderName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Clara Motena";
+            const companyName = user?.companyName || "Track-Med Billing Solutions";
+
+            for (const property of results.properties.slice(0, 50)) {
+              try {
+                const outreach = `Hi ${property.ownerName},\n\nI noticed a tax lien on your property at ${property.propertyAddress} (${property.county} County, ${STATE_NAMES[property.state] || property.state}). The amount owed is $${property.amountOwed?.toLocaleString()} with a ${property.interestRate}% interest rate.\n\nI specialize in helping property owners resolve tax liens before auction deadlines. I'd love to discuss your options.\n\nBest regards,\n${senderName}, ${companyName}${bookingLink ? `\nBook a call: ${bookingLink}` : ""}`;
+
+                const lead = await storage.createLead({
+                  userId,
+                  name: property.ownerName,
+                  company: `${property.county} County, ${STATE_NAMES[property.state] || property.state}`,
+                  email: "",
+                  phone: "",
+                  status: "new",
+                  source: "Tax Lien Hunter Agent",
+                  score: Math.max(10, 100 - property.riskScore),
+                  notes: JSON.stringify({
+                    type: "tax_lien",
+                    parcelNumber: property.parcelNumber,
+                    propertyAddress: property.propertyAddress,
+                    amountOwed: property.amountOwed,
+                    assessedValue: property.assessedValue,
+                    marketValue: property.marketValue,
+                    interestRate: property.interestRate,
+                    redemptionPeriod: property.redemptionPeriod,
+                    projectedROI: property.projectedROI,
+                    riskScore: property.riskScore,
+                    riskFactors: property.riskFactors,
+                    auctionDate: property.auctionDate,
+                    auctionPlatform: property.auctionPlatform,
+                    purchaseSteps: property.purchaseSteps,
+                    dueDiligenceChecklist: property.dueDiligenceChecklist,
+                    sourceUrl: property.sourceUrl,
+                  }),
+                  outreachDraft: outreach,
+                });
+                leadsFound++;
+              } catch (err) {
+                console.error("[tax-lien] Failed to save lead:", err);
+              }
+            }
+
+            const funnelInfo = await autoAddToFunnel(userId, "tax-lien", leadsFound);
+
+            await storage.updateAgentTask(task.id, {
+              status: "completed",
+              completedAt: new Date(),
+              result: JSON.stringify({
+                leadsFound,
+                auctionEvents: results.auctionCalendar.length,
+                summary: results.summary,
+                aiPowered: true,
+                countySearch: true,
+              }),
+            });
+            await storage.updateAgentConfig(configId, userId, {
+              isRunning: false,
+              totalLeadsFound: (config.totalLeadsFound || 0) + leadsFound,
+            } as any);
+            await storage.createNotification({
+              userId,
+              agentType: config.agentType,
+              type: "new_lead",
+              title: `Tax Lien Hunter Found ${leadsFound} Properties`,
+              message: `County-level search across ${results.summary.statesSearched.join(", ")} found ${results.summary.totalFound} properties. ${results.summary.matchingCriteria} matched your criteria (${results.summary.topDeals} top deals with >12% ROI). ${results.summary.nextAuctions}.${funnelInfo ? " " + funnelInfo : ""}`,
+              priority: leadsFound > 5 ? "high" : "normal",
+            });
+
+            console.log(`[Agent Run] Tax Lien Hunter completed: ${leadsFound} properties saved for user ${userId}`);
+            return;
+          }
+
           const agentSearchPrompts: Record<string, string> = {
             "tax-lien": `Search for REAL tax lien properties currently listed for auction or recently filed in ${(settings.targetStates || ["FL", "AZ", "IN"]).join(", ")}. For EACH property you find, you MUST extract:
 - Full property address (street, city, state, zip)
@@ -5173,6 +5283,44 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
       console.error("Error running agent:", error);
       res.status(500).json({ message: "Failed to run agent" });
     }
+  });
+
+  // ---- TAX LIEN CONFIG ENDPOINTS ----
+
+  app.get("/api/agents/tax-lien/config", isAuthenticated, (_req, res) => {
+    res.json({
+      availableStates: Object.entries(STATE_DATA).map(([code, data]) => ({
+        code,
+        name: STATE_NAMES[code],
+        interestRate: data.interestRate,
+        redemptionPeriod: data.redemptionPeriod,
+        auctionType: data.auctionType,
+        keyCounties: data.keyCounties,
+        auctionPlatforms: data.auctionPlatforms,
+      })),
+      propertyTypes: [
+        { value: "residential", label: "Residential" },
+        { value: "commercial", label: "Commercial" },
+        { value: "vacant_land", label: "Vacant Land" },
+        { value: "multi_family", label: "Multi-Family" },
+      ],
+      bidStrategies: [
+        { value: "conservative", label: "Conservative — Low risk, steady 8-12% returns" },
+        { value: "moderate", label: "Moderate — Balanced, target 12-18% returns" },
+        { value: "aggressive", label: "Aggressive — Higher risk, 18-24% returns" },
+      ],
+    });
+  });
+
+  app.get("/api/agents/tax-lien/states/:stateCode", isAuthenticated, (req, res) => {
+    const stateCode = req.params.stateCode.toUpperCase();
+    const data = STATE_DATA[stateCode];
+    if (!data) return res.status(404).json({ error: "State not found" });
+    res.json({
+      code: stateCode,
+      name: STATE_NAMES[stateCode],
+      ...data,
+    });
   });
 
   // ---- AGENT TASKS ----
