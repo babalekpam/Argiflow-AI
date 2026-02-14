@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Globe,
   Target,
@@ -14,6 +14,14 @@ import {
   XCircle,
   Zap,
   Sparkles,
+  Clock,
+  Bell,
+  FileText,
+  GitBranch,
+  Webhook,
+  Star,
+  Send,
+  type LucideIcon,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +35,7 @@ interface FlowNode {
   label: string;
   sublabel?: string;
   type: "process" | "decision" | "start" | "end";
-  icon: any;
+  icon: LucideIcon;
   color: string;
   glow: string;
 }
@@ -40,7 +48,196 @@ interface FlowEdge {
   path?: string;
 }
 
-const NODES: FlowNode[] = [
+export interface WorkflowNodeData {
+  id: string;
+  nodeType: string;
+  actionType: string;
+  label: string;
+  config: string;
+  positionX: number;
+  positionY: number;
+  sortOrder: number;
+}
+
+export interface WorkflowEdgeData {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  edgeType: string;
+  label?: string | null;
+}
+
+export interface WorkflowData {
+  id: string;
+  name: string;
+  description?: string | null;
+  status: string;
+  nodes: WorkflowNodeData[];
+  edges: WorkflowEdgeData[];
+}
+
+const ACTION_VISUAL: Record<string, { icon: LucideIcon; color: string; glow: string }> = {
+  trigger_event: { icon: Zap, color: "#38bdf8", glow: "rgba(56,189,248,0.3)" },
+  trigger_schedule: { icon: Clock, color: "#38bdf8", glow: "rgba(56,189,248,0.3)" },
+  trigger_webhook: { icon: Webhook, color: "#38bdf8", glow: "rgba(56,189,248,0.3)" },
+  ai_score_lead: { icon: Star, color: "#a78bfa", glow: "rgba(167,139,250,0.2)" },
+  ai_classify_lead: { icon: Bot, color: "#a78bfa", glow: "rgba(167,139,250,0.2)" },
+  ai_generate_content: { icon: Sparkles, color: "#a78bfa", glow: "rgba(167,139,250,0.2)" },
+  ai_generate_email: { icon: Bot, color: "#a78bfa", glow: "rgba(167,139,250,0.2)" },
+  send_email: { icon: Mail, color: "#34d399", glow: "rgba(52,211,153,0.2)" },
+  send_sms: { icon: MessageSquare, color: "#34d399", glow: "rgba(52,211,153,0.2)" },
+  send_notification: { icon: Bell, color: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
+  condition_switch: { icon: GitBranch, color: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
+  condition_if: { icon: GitBranch, color: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
+  delay_wait: { icon: Clock, color: "#94a3b8", glow: "rgba(148,163,184,0.2)" },
+  update_lead: { icon: Users, color: "#38bdf8", glow: "rgba(56,189,248,0.2)" },
+  create_task: { icon: FileText, color: "#38bdf8", glow: "rgba(56,189,248,0.2)" },
+  log_to_crm: { icon: BarChart3, color: "#38bdf8", glow: "rgba(56,189,248,0.2)" },
+  voice_call: { icon: Phone, color: "#34d399", glow: "rgba(52,211,153,0.2)" },
+  make_voice_call: { icon: Phone, color: "#34d399", glow: "rgba(52,211,153,0.2)" },
+  create_lead: { icon: Users, color: "#38bdf8", glow: "rgba(56,189,248,0.2)" },
+  create_appointment: { icon: Calendar, color: "#34d399", glow: "rgba(52,211,153,0.2)" },
+  book_appointment: { icon: Calendar, color: "#34d399", glow: "rgba(52,211,153,0.2)" },
+  webhook_call: { icon: Webhook, color: "#a78bfa", glow: "rgba(167,139,250,0.2)" },
+  ab_split: { icon: GitBranch, color: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
+};
+
+const NODE_TYPE_VISUAL: Record<string, { icon: LucideIcon; color: string; glow: string }> = {
+  trigger: { icon: Zap, color: "#38bdf8", glow: "rgba(56,189,248,0.3)" },
+  action: { icon: Send, color: "#34d399", glow: "rgba(52,211,153,0.2)" },
+  condition: { icon: GitBranch, color: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
+  delay: { icon: Clock, color: "#94a3b8", glow: "rgba(148,163,184,0.2)" },
+};
+
+function getVisualForNode(nodeType: string, actionType: string) {
+  return ACTION_VISUAL[actionType] || NODE_TYPE_VISUAL[nodeType] || { icon: Zap, color: "#38bdf8", glow: "rgba(56,189,248,0.2)" };
+}
+
+function getFlowNodeType(nodeType: string, index: number, total: number): "start" | "end" | "decision" | "process" {
+  if (nodeType === "trigger") return "start";
+  if (nodeType === "condition") return "decision";
+  if (index === total - 1) return "end";
+  return "process";
+}
+
+function convertWorkflowToFlowData(data: WorkflowData): { nodes: FlowNode[]; edges: FlowEdge[] } {
+  const sorted = [...data.nodes].sort((a, b) => a.sortOrder - b.sortOrder);
+  const mainColumn: WorkflowNodeData[] = [];
+  const branchColumn: WorkflowNodeData[] = [];
+
+  const edgeTargets = new Map<string, string[]>();
+  for (const e of data.edges) {
+    const existing = edgeTargets.get(e.sourceNodeId) || [];
+    existing.push(e.targetNodeId);
+    edgeTargets.set(e.sourceNodeId, existing);
+  }
+
+  const conditionNodes = new Set(sorted.filter(n => n.nodeType === "condition").map(n => n.id));
+  const branchTargets = new Set<string>();
+
+  for (const condId of Array.from(conditionNodes)) {
+    const targets = edgeTargets.get(condId) || [];
+    const condNode = sorted.find(n => n.id === condId);
+    if (!condNode) continue;
+    const mainNext = sorted.find(n => n.sortOrder === condNode.sortOrder + 1);
+    for (const t of targets) {
+      if (mainNext && t !== mainNext.id) {
+        branchTargets.add(t);
+      }
+    }
+  }
+
+  for (const node of sorted) {
+    if (branchTargets.has(node.id)) {
+      branchColumn.push(node);
+    } else {
+      mainColumn.push(node);
+    }
+  }
+
+  const nodeWidth = 170;
+  const nodeHeight = 60;
+  const decisionHeight = 70;
+  const decisionWidth = 150;
+  const startY = 40;
+  const ySpacing = 120;
+  const mainX = 80;
+  const branchX = 340;
+
+  const flowNodes: FlowNode[] = [];
+
+  for (let i = 0; i < mainColumn.length; i++) {
+    const n = mainColumn[i];
+    const visual = getVisualForNode(n.nodeType, n.actionType);
+    const flowType = getFlowNodeType(n.nodeType, i, mainColumn.length);
+    const isDecision = flowType === "decision";
+    const w = isDecision ? decisionWidth : nodeWidth;
+    const h = isDecision ? decisionHeight : nodeHeight;
+
+    let configHint = "";
+    try {
+      const cfg = JSON.parse(n.config || "{}");
+      if (cfg.template) configHint = cfg.template;
+      else if (cfg.hours) configHint = `${cfg.hours}h delay`;
+      else if (cfg.priority) configHint = cfg.priority + " priority";
+    } catch {}
+
+    flowNodes.push({
+      id: n.id,
+      x: mainX,
+      y: startY + i * ySpacing,
+      width: w,
+      height: h,
+      label: n.label,
+      sublabel: configHint || undefined,
+      type: flowType,
+      icon: visual.icon,
+      color: visual.color,
+      glow: visual.glow,
+    });
+  }
+
+  for (let i = 0; i < branchColumn.length; i++) {
+    const n = branchColumn[i];
+    const visual = getVisualForNode(n.nodeType, n.actionType);
+    const parentEdge = data.edges.find(e => e.targetNodeId === n.id);
+    const parentNode = parentEdge ? flowNodes.find(fn => fn.id === parentEdge.sourceNodeId) : null;
+    const yPos = parentNode ? parentNode.y : startY + (mainColumn.length + i) * ySpacing;
+
+    flowNodes.push({
+      id: n.id,
+      x: branchX,
+      y: yPos,
+      width: nodeWidth,
+      height: nodeHeight,
+      label: n.label,
+      sublabel: undefined,
+      type: "process",
+      icon: visual.icon,
+      color: visual.color,
+      glow: visual.glow,
+    });
+  }
+
+  const flowEdges: FlowEdge[] = data.edges.map(e => {
+    let edgeType: "yes" | "no" | "default" = "default";
+    if (e.edgeType === "condition_true" || e.label === "Yes") edgeType = "yes";
+    else if (e.edgeType === "condition_false" || e.label === "No") edgeType = "no";
+    else if (branchTargets.has(e.targetNodeId)) edgeType = "no";
+    else if (conditionNodes.has(e.sourceNodeId) && !branchTargets.has(e.targetNodeId)) edgeType = "yes";
+
+    return {
+      from: e.sourceNodeId,
+      to: e.targetNodeId,
+      label: e.label || undefined,
+      type: edgeType,
+    };
+  });
+
+  return { nodes: flowNodes, edges: flowEdges };
+}
+
+const DEFAULT_NODES: FlowNode[] = [
   { id: "traffic", x: 80, y: 40, width: 160, height: 60, label: "Traffic Sources", sublabel: "Ads, SEO, Social, Cold Outreach", type: "start", icon: Globe, color: "#38bdf8", glow: "rgba(56,189,248,0.3)" },
   { id: "landing", x: 80, y: 150, width: 160, height: 60, label: "Landing Page", sublabel: "Lead capture form & chatbot", type: "process", icon: Target, color: "#38bdf8", glow: "rgba(56,189,248,0.2)" },
   { id: "qualified", x: 80, y: 260, width: 140, height: 70, label: "Lead\nQualified?", sublabel: "", type: "decision", icon: Users, color: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
@@ -55,7 +252,7 @@ const NODES: FlowNode[] = [
   { id: "lost", x: 340, y: 830, width: 160, height: 60, label: "Back to Nurture", sublabel: "Re-enter pipeline", type: "process", icon: TrendingUp, color: "#f87171", glow: "rgba(248,113,113,0.2)" },
 ];
 
-const EDGES: FlowEdge[] = [
+const DEFAULT_EDGES: FlowEdge[] = [
   { from: "traffic", to: "landing", type: "default" },
   { from: "landing", to: "qualified", type: "default" },
   { from: "qualified", to: "ai_engage", type: "yes" },
@@ -76,11 +273,14 @@ function getNodeCenter(node: FlowNode) {
   return { x: node.x + node.width / 2, y: node.y + node.height / 2 };
 }
 
-function buildEdgePath(from: FlowNode, to: FlowNode, edgeType?: string): string {
+function buildEdgePath(from: FlowNode, to: FlowNode, _edgeType?: string): string {
   const fc = getNodeCenter(from);
   const tc = getNodeCenter(to);
 
-  if (from.id === "qualified" && to.id === "nurture") {
+  const isHorizontalBranch = Math.abs(from.x - to.x) > 100;
+  const isBackward = to.y < from.y;
+
+  if (isHorizontalBranch && !isBackward) {
     const startX = from.x + from.width;
     const startY = fc.y;
     const endX = to.x;
@@ -88,44 +288,20 @@ function buildEdgePath(from: FlowNode, to: FlowNode, edgeType?: string): string 
     return `M ${startX} ${startY} C ${startX + 60} ${startY}, ${endX - 60} ${endY}, ${endX} ${endY}`;
   }
 
-  if (from.id === "nurture" && to.id === "qualified") {
-    const startX = tc.x + from.width / 2 + 20;
-    const startY = to.y + to.height / 2;
-    const endX = from.x + from.width / 2;
-    const endY = from.y + from.height;
-    return `M ${endX} ${endY} L ${endX} ${endY + 20} C ${endX} ${startY - 40}, ${startX + 40} ${startY - 40}, ${startX} ${startY}`;
+  if (isBackward && isHorizontalBranch) {
+    const startX = from.x + from.width / 2;
+    const startY = from.y;
+    const endX = to.x + to.width / 2;
+    const endY = to.y + to.height;
+    return `M ${startX} ${startY} C ${startX} ${startY - 40}, ${endX + 40} ${endY + 40}, ${endX} ${endY}`;
   }
 
-  if (from.id === "interested" && to.id === "followup") {
-    const startX = from.x + from.width;
-    const startY = fc.y;
-    const endX = to.x;
-    const endY = tc.y;
-    return `M ${startX} ${startY} C ${startX + 60} ${startY}, ${endX - 60} ${endY}, ${endX} ${endY}`;
-  }
-
-  if (from.id === "followup" && to.id === "interested") {
-    const startX = to.x + to.width / 2 + 20;
-    const startY = to.y + to.height / 2;
-    const endX = from.x + from.width / 2;
-    const endY = from.y + from.height;
-    return `M ${endX} ${endY} L ${endX} ${endY + 20} C ${endX} ${startY - 40}, ${startX + 40} ${startY - 40}, ${startX} ${startY}`;
-  }
-
-  if (from.id === "close" && to.id === "lost") {
-    const startX = from.x + from.width;
-    const startY = fc.y;
-    const endX = to.x;
-    const endY = tc.y;
-    return `M ${startX} ${startY} C ${startX + 60} ${startY}, ${endX - 60} ${endY}, ${endX} ${endY}`;
-  }
-
-  if (from.id === "lost" && to.id === "nurture") {
-    const startX = tc.x;
-    const startY = to.y;
-    const endX = from.x + from.width / 2;
-    const endY = from.y;
-    return `M ${endX} ${endY} L ${endX} ${startY}`;
+  if (isBackward) {
+    const startX = fc.x + 20;
+    const startY = from.y;
+    const endX = tc.x + 20;
+    const endY = to.y + to.height;
+    return `M ${startX} ${startY} C ${startX + 40} ${startY - 30}, ${endX + 40} ${endY + 30}, ${endX} ${endY}`;
   }
 
   return `M ${fc.x} ${from.y + from.height} L ${tc.x} ${to.y}`;
@@ -178,7 +354,6 @@ function DiamondShape({ node, isActive, onClick }: { node: FlowNode; isActive: b
 }
 
 function RectNode({ node, isActive, onClick }: { node: FlowNode; isActive: boolean; onClick: () => void }) {
-  const Icon = node.icon;
   const isEnd = node.type === "end";
   const isStart = node.type === "start";
 
@@ -221,7 +396,7 @@ function RectNode({ node, isActive, onClick }: { node: FlowNode; isActive: boole
         fontWeight="600"
         className="pointer-events-none select-none"
       >
-        {node.label}
+        {node.label.length > 20 ? node.label.slice(0, 18) + "..." : node.label}
       </text>
       {node.sublabel && (
         <text
@@ -231,7 +406,7 @@ function RectNode({ node, isActive, onClick }: { node: FlowNode; isActive: boole
           fontSize="9.5"
           className="pointer-events-none select-none"
         >
-          {node.sublabel}
+          {node.sublabel.length > 28 ? node.sublabel.slice(0, 26) + "..." : node.sublabel}
         </text>
       )}
       <circle
@@ -298,12 +473,39 @@ function EdgeLabel({ x, y, text, type }: { x: number; y: number; text: string; t
   );
 }
 
-export function AnimatedFlowchart({ compact = false }: { compact?: boolean }) {
+interface AnimatedFlowchartProps {
+  compact?: boolean;
+  workflowData?: WorkflowData | null;
+}
+
+export function AnimatedFlowchart({ compact = false, workflowData }: AnimatedFlowchartProps) {
   const [activeNode, setActiveNode] = useState<string | null>(null);
   const [visibleNodes, setVisibleNodes] = useState<Set<string>>(new Set());
 
+  const { nodes: displayNodes, edges: displayEdges, title, subtitle, statusLabel } = useMemo(() => {
+    if (workflowData && workflowData.nodes.length > 0) {
+      const converted = convertWorkflowToFlowData(workflowData);
+      return {
+        nodes: converted.nodes,
+        edges: converted.edges,
+        title: workflowData.name,
+        subtitle: workflowData.description || "Your custom automation workflow",
+        statusLabel: workflowData.status === "active" ? "Live" : workflowData.status === "draft" ? "Draft" : workflowData.status,
+      };
+    }
+    return {
+      nodes: DEFAULT_NODES,
+      edges: DEFAULT_EDGES,
+      title: "AI Client Acquisition Pipeline",
+      subtitle: "Click any step to learn more",
+      statusLabel: "Live",
+    };
+  }, [workflowData]);
+
   useEffect(() => {
-    const nodeIds = NODES.map(n => n.id);
+    setVisibleNodes(new Set());
+    setActiveNode(null);
+    const nodeIds = displayNodes.map(n => n.id);
     let i = 0;
     const timer = setInterval(() => {
       if (i < nodeIds.length) {
@@ -314,14 +516,17 @@ export function AnimatedFlowchart({ compact = false }: { compact?: boolean }) {
       }
     }, 120);
     return () => clearInterval(timer);
-  }, []);
+  }, [displayNodes]);
 
-  const nodeMap = Object.fromEntries(NODES.map(n => [n.id, n]));
-  const svgWidth = 560;
-  const svgHeight = compact ? 700 : 1050;
+  const nodeMap = Object.fromEntries(displayNodes.map(n => [n.id, n]));
+
+  const maxY = displayNodes.reduce((max, n) => Math.max(max, n.y + n.height), 0);
+  const maxX = displayNodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
+  const svgWidth = Math.max(560, maxX + 40);
+  const svgHeight = compact ? Math.min(maxY + 60, 700) : maxY + 60;
 
   const getEdgeLabelPos = (edge: FlowEdge): { x: number; y: number } | null => {
-    if (!edge.label && !edge.type) return null;
+    if (!edge.type || edge.type === "default") return null;
     const from = nodeMap[edge.from];
     const to = nodeMap[edge.to];
     if (!from || !to) return null;
@@ -342,6 +547,8 @@ export function AnimatedFlowchart({ compact = false }: { compact?: boolean }) {
 
   const activeNodeData = activeNode ? nodeMap[activeNode] : null;
 
+  const statusColor = statusLabel === "Live" || statusLabel === "active" ? "text-emerald-400" : "text-amber-400";
+
   return (
     <Card className="p-0 overflow-visible relative" data-testid="card-animated-flowchart">
       <div className="p-4 pb-2 flex items-center gap-3">
@@ -349,18 +556,18 @@ export function AnimatedFlowchart({ compact = false }: { compact?: boolean }) {
           <Zap className="w-4 h-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold" data-testid="text-flowchart-title">AI Client Acquisition Pipeline</h3>
-          <p className="text-xs text-muted-foreground">Click any step to learn more</p>
+          <h3 className="text-sm font-semibold truncate" data-testid="text-flowchart-title">{title}</h3>
+          <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
         </div>
         <Badge variant="outline" className="text-[10px] shrink-0 no-default-hover-elevate no-default-active-elevate">
-          <Sparkles className="w-3 h-3 mr-1" />
-          Live
+          <Sparkles className={`w-3 h-3 mr-1 ${statusColor}`} />
+          {statusLabel}
         </Badge>
       </div>
 
       <div
         className="w-full overflow-x-auto overflow-y-visible pb-4"
-        style={{ minHeight: compact ? 480 : 700 }}
+        style={{ minHeight: compact ? 480 : Math.min(svgHeight, 700) }}
       >
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
@@ -404,7 +611,7 @@ export function AnimatedFlowchart({ compact = false }: { compact?: boolean }) {
             </linearGradient>
           </defs>
 
-          {EDGES.map((edge, i) => {
+          {displayEdges.map((edge, i) => {
             const from = nodeMap[edge.from];
             const to = nodeMap[edge.to];
             if (!from || !to) return null;
@@ -442,7 +649,7 @@ export function AnimatedFlowchart({ compact = false }: { compact?: boolean }) {
             );
           })}
 
-          {NODES.map((node, i) => {
+          {displayNodes.map((node, i) => {
             const isVisible = visibleNodes.has(node.id);
             const isActive = activeNode === node.id;
 
@@ -491,9 +698,11 @@ export function AnimatedFlowchart({ compact = false }: { compact?: boolean }) {
               {activeNodeData.sublabel && (
                 <p className="text-xs text-muted-foreground mt-0.5">{activeNodeData.sublabel}</p>
               )}
-              <p className="text-xs text-muted-foreground mt-1">
-                {getNodeDescription(activeNodeData.id)}
-              </p>
+              {!workflowData && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {getNodeDescription(activeNodeData.id)}
+                </p>
+              )}
             </div>
             <button
               onClick={() => setActiveNode(null)}
@@ -508,16 +717,18 @@ export function AnimatedFlowchart({ compact = false }: { compact?: boolean }) {
 
       <div className="px-4 pb-4 pt-2 grid grid-cols-3 gap-3 text-center border-t border-border/30">
         <div>
-          <p className="text-base font-bold text-primary">24/7</p>
-          <p className="text-[10px] text-muted-foreground">Always Active</p>
+          <p className="text-base font-bold text-primary">{displayNodes.length}</p>
+          <p className="text-[10px] text-muted-foreground">Steps</p>
         </div>
         <div>
-          <p className="text-base font-bold" style={{ color: "#34d399" }}>5x</p>
-          <p className="text-[10px] text-muted-foreground">More Appointments</p>
+          <p className="text-base font-bold" style={{ color: "#34d399" }}>{displayEdges.length}</p>
+          <p className="text-[10px] text-muted-foreground">Connections</p>
         </div>
         <div>
-          <p className="text-base font-bold" style={{ color: "#a78bfa" }}>80%</p>
-          <p className="text-[10px] text-muted-foreground">Less Manual Work</p>
+          <p className="text-base font-bold" style={{ color: "#a78bfa" }}>
+            {workflowData ? (workflowData.status === "active" ? "ON" : "OFF") : "24/7"}
+          </p>
+          <p className="text-[10px] text-muted-foreground">{workflowData ? "Status" : "Always Active"}</p>
         </div>
       </div>
     </Card>

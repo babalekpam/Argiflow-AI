@@ -44,7 +44,7 @@ import {
   Save,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AnimatedFlowchart } from "@/components/animated-flowchart";
+import { AnimatedFlowchart, type WorkflowData } from "@/components/animated-flowchart";
 import type { MarketingStrategy } from "@shared/schema";
 
 const industryOptions = [
@@ -199,7 +199,7 @@ function WorkflowVisual() {
   );
 }
 
-function CompanyInfoForm({ onSuccess }: { onSuccess: () => void }) {
+function CompanyInfoForm({ onSuccess, workflowData }: { onSuccess: () => void; workflowData?: WorkflowData }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -321,7 +321,7 @@ function CompanyInfoForm({ onSuccess }: { onSuccess: () => void }) {
           </div>
         </Card>
 
-        <AnimatedFlowchart />
+        <AnimatedFlowchart workflowData={workflowData} />
       </div>
     </div>
   );
@@ -447,6 +447,19 @@ export default function StrategyPage() {
     },
   });
 
+  const { data: workflowsList } = useQuery<Array<{ id: string; name: string; status: string; createdAt: string }>>({
+    queryKey: ["/api/workflows"],
+  });
+
+  const latestWorkflowId = workflowsList?.sort((a, b) =>
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )?.[0]?.id;
+
+  const { data: activeWorkflow } = useQuery<WorkflowData>({
+    queryKey: ["/api/workflows", latestWorkflowId],
+    enabled: !!latestWorkflowId,
+  });
+
   const regenerateMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/strategy/regenerate");
@@ -483,7 +496,7 @@ export default function StrategyPage() {
 
   if (!strategy && !hasCompanyInfo) {
     return (
-      <CompanyInfoForm onSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/strategy"] })} />
+      <CompanyInfoForm onSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/strategy"] })} workflowData={activeWorkflow} />
     );
   }
 
@@ -519,7 +532,7 @@ export default function StrategyPage() {
               {regenerateMutation.isPending ? t("strategy.generating") : t("strategy.generateStrategy")}
             </Button>
           </Card>
-          <AnimatedFlowchart />
+          <AnimatedFlowchart workflowData={activeWorkflow} />
         </div>
       </div>
     );
@@ -567,11 +580,11 @@ export default function StrategyPage() {
       {isGenerating ? (
         <div className="grid lg:grid-cols-2 gap-6">
           <WorkflowVisual />
-          <AnimatedFlowchart />
+          <AnimatedFlowchart workflowData={activeWorkflow} />
         </div>
       ) : (
         <div className="space-y-6">
-          <AnimatedFlowchart />
+          <AnimatedFlowchart workflowData={activeWorkflow} />
           <Card className="p-6" data-testid="card-strategy-content">
             <div className="prose-sm">
               {renderMarkdown(strategy.strategy)}
