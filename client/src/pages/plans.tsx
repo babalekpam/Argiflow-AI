@@ -32,7 +32,7 @@ type SubscriptionData = {
 const PLAN_CONFIG = [
   {
     id: "starter",
-    amount: 297,
+    amount: 197,
     venmoNote: "ArgiFlow%20Starter%20Plan%20-%20Monthly%20Subscription",
     icon: Zap,
     iconColor: "text-chart-3",
@@ -43,7 +43,7 @@ const PLAN_CONFIG = [
   },
   {
     id: "pro",
-    amount: 597,
+    amount: 397,
     venmoNote: "ArgiFlow%20Pro%20Plan%20-%20Monthly%20Subscription",
     icon: Crown,
     iconColor: "text-primary",
@@ -55,7 +55,7 @@ const PLAN_CONFIG = [
   },
   {
     id: "enterprise",
-    amount: 1497,
+    amount: 997,
     venmoNote: "ArgiFlow%20Enterprise%20Plan%20-%20Monthly%20Subscription",
     icon: Sparkles,
     iconColor: "text-chart-4",
