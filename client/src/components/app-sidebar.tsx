@@ -35,6 +35,7 @@ import {
   Shield,
   Globe,
   BookOpen,
+  Megaphone,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -59,6 +60,7 @@ export function AppSidebar() {
     { title: t("sidebar.chatbots"), icon: MessageSquare, url: "/dashboard/ai-agents" },
     { title: t("sidebar.emailSms"), icon: Mail, url: "/dashboard/email" },
     { title: "Forum Prospector", icon: Globe, url: "/dashboard/forum-prospector", badge: t("common.new") },
+    { title: "Platform Promoter", icon: Megaphone, url: "/dashboard/platform-promoter", badge: t("common.new") },
   ];
 
   const growthNav = [
