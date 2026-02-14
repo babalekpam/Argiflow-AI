@@ -295,21 +295,12 @@ async function addLeadsToAgentFunnel(userId: string, agentType: string, leadsToA
   return dealsCreated > 0 ? ` Also added ${dealsCreated} deals to "${funnelConfig?.name}" pipeline.` : "";
 }
 
-async function autoAddToFunnel(userId: string, agentType: string, leadsCount: number): Promise<string> {
-  if (leadsCount === 0) return "";
+async function autoAddToFunnelDirect(userId: string, agentType: string, savedLeads: { name: string; email?: string; value?: number }[]): Promise<string> {
+  if (savedLeads.length === 0) return "";
   try {
-    const allLeads = await storage.getLeadsByUser(userId);
-    const agentLeads = allLeads
-      .filter(l => l.source === "Tax Lien Hunter Agent" || l.source === "tax-lien-agent")
-      .slice(0, leadsCount);
-    if (agentLeads.length === 0) return "";
-    return await addLeadsToAgentFunnel(userId, agentType, agentLeads.map(l => ({
-      name: l.name,
-      email: l.email || "",
-      value: 0,
-    })));
+    return await addLeadsToAgentFunnel(userId, agentType, savedLeads);
   } catch (err) {
-    console.error("[tax-lien] Failed to add to funnel:", err);
+    console.error(`[${agentType}] Failed to add to funnel:`, err);
     return "";
   }
 }
@@ -5035,6 +5026,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
             const results = await discoverTaxLiens(aiClient, aiModel, tlSettings);
 
             let leadsFound = 0;
+            const savedLeadsList: { name: string; email?: string; value?: number }[] = [];
             const user = await storage.getUserById(userId);
             const bookingLink = (await storage.getSettingsByUser(userId))?.calendarLink || "";
             const senderName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Clara Motena";
@@ -5042,9 +5034,18 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
 
             for (const property of results.properties.slice(0, 50)) {
               try {
+                if (!property.ownerName || property.ownerName === "Unknown" || /^(prospect|lead|contact|test)\s*\d/i.test(property.ownerName)) {
+                  console.log(`[tax-lien] Skipping property with invalid owner: "${property.ownerName}"`);
+                  continue;
+                }
+                if (!property.propertyAddress || property.propertyAddress.length < 5) {
+                  console.log(`[tax-lien] Skipping property with invalid address: "${property.propertyAddress}"`);
+                  continue;
+                }
+
                 const outreach = `Hi ${property.ownerName},\n\nI noticed a tax lien on your property at ${property.propertyAddress} (${property.county} County, ${STATE_NAMES[property.state] || property.state}). The amount owed is $${property.amountOwed?.toLocaleString()} with a ${property.interestRate}% interest rate.\n\nI specialize in helping property owners resolve tax liens before auction deadlines. I'd love to discuss your options.\n\nBest regards,\n${senderName}, ${companyName}${bookingLink ? `\nBook a call: ${bookingLink}` : ""}`;
 
-                const lead = await storage.createLead({
+                await storage.createLead({
                   userId,
                   name: property.ownerName,
                   company: `${property.county} County, ${STATE_NAMES[property.state] || property.state}`,
@@ -5055,6 +5056,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
                   score: Math.max(10, 100 - property.riskScore),
                   notes: JSON.stringify({
                     type: "tax_lien",
+                    contactStatus: "property_owner_identified",
                     parcelNumber: property.parcelNumber,
                     propertyAddress: property.propertyAddress,
                     amountOwed: property.amountOwed,
@@ -5073,13 +5075,14 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
                   }),
                   outreachDraft: outreach,
                 });
+                savedLeadsList.push({ name: property.ownerName, value: property.amountOwed || 0 });
                 leadsFound++;
               } catch (err) {
                 console.error("[tax-lien] Failed to save lead:", err);
               }
             }
 
-            const funnelInfo = await autoAddToFunnel(userId, "tax-lien", leadsFound);
+            const funnelInfo = await autoAddToFunnelDirect(userId, "tax-lien", savedLeadsList);
 
             await storage.updateAgentTask(task.id, {
               status: "completed",
