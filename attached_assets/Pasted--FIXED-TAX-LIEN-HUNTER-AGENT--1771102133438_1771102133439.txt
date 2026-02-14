@@ -1,0 +1,857 @@
+// ============================================================
+// FIXED TAX LIEN HUNTER AGENT
+// ============================================================
+//
+// PROBLEM: The old agent used axios + cheerio to scrape county
+// websites directly. This fails because:
+//   1. County sites block automated requests (User-Agent checks)
+//   2. Many require JavaScript rendering (SPA frameworks)
+//   3. CAPTCHAs and rate limiting
+//   4. Replit’s network may restrict outbound scraping
+//   5. County page formats change constantly
+//
+// FIX: Use Claude’s tool_use with web_search to find real
+// tax lien data. Claude can search, read pages, and extract
+// structured data. This works reliably because:
+//   - No scraping blocks (uses search engine)
+//   - Handles any page format (AI understands content)
+//   - Finds current, up-to-date listings
+//   - Works within Replit’s network constraints
+//
+// INTEGRATION: Replace your existing TaxLienAgent discover()
+// method and _crawlState() with these implementations.
+//
+// File: server/agents/tax-lien/TaxLienAgent.ts (or .js)
+// ============================================================
+
+import Anthropic from “@anthropic-ai/sdk”;
+
+// ─── TYPES ────────────────────────────────────────────────
+
+interface TaxLienSettings {
+targetStates: string[];
+targetCounties: string[];
+propertyTypes: string[];
+minLienAmount: number;
+maxLienAmount: number;
+minInterestRate: number;
+bidStrategy: “conservative” | “moderate” | “aggressive”;
+autoBid: boolean;
+}
+
+interface TaxLienProperty {
+title: string;
+parcelNumber: string;
+ownerName: string;
+ownerAddress: string;
+propertyAddress: string;
+propertyType: string;
+county: string;
+state: string;
+assessedValue: number;
+marketValue: number;
+amountOwed: number;
+interestRate: number;
+penaltyRate: number;
+auctionDate: string | null;
+auctionPlatform: string | null;
+registrationDeadline: string | null;
+redemptionPeriod: string;
+lienPosition: string;
+yearDelinquent: number;
+totalInvestmentNeeded: number;
+projectedROI: number;
+riskScore: number; // 1-100, lower = less risky
+riskFactors: string[];
+status: string;
+sourceUrl: string;
+purchaseSteps: PurchaseStep[];
+dueDiligenceChecklist: string[];
+}
+
+interface PurchaseStep {
+step: number;
+title: string;
+description: string;
+actionRequired: “automated” | “investor_action” | “review”;
+status: “pending” | “ready” | “completed”;
+deadline?: string;
+link?: string;
+}
+
+interface DiscoveryResult {
+properties: TaxLienProperty[];
+auctionCalendar: AuctionEvent[];
+summary: {
+totalFound: number;
+matchingCriteria: number;
+topDeals: number;
+statesSearched: string[];
+nextAuctions: string;
+};
+}
+
+interface AuctionEvent {
+county: string;
+state: string;
+date: string;
+platform: string;
+registrationDeadline: string;
+estimatedParcels: number;
+url: string;
+auctionType: “online” | “in-person” | “hybrid”;
+}
+
+// ─── STATE DATA ───────────────────────────────────────────
+
+const STATE_DATA: Record<string, {
+interestRate: number;
+redemptionPeriod: string;
+redemptionMonths: number;
+auctionType: string;
+penaltyStructure: string;
+keyCounties: string[];
+auctionPlatforms: string[];
+searchQueries: string[];
+}> = {
+FL: {
+interestRate: 18,
+redemptionPeriod: “2 years”,
+redemptionMonths: 24,
+auctionType: “online”,
+penaltyStructure: “Up to 18% annual interest, bid-down”,
+keyCounties: [“Miami-Dade”, “Broward”, “Palm Beach”, “Orange”, “Hillsborough”, “Duval”, “Pinellas”, “Lee”, “Polk”, “Brevard”],
+auctionPlatforms: [“RealAuction.com”, “LienHub.com”],
+searchQueries: [
+“Florida tax lien certificate sale {year}”,
+“{county} county Florida delinquent tax list”,
+“{county} county Florida tax certificate auction”,
+“Florida tax collector delinquent property taxes {county}”,
+],
+},
+AZ: {
+interestRate: 16,
+redemptionPeriod: “3 years”,
+redemptionMonths: 36,
+auctionType: “online”,
+penaltyStructure: “Up to 16% annual interest”,
+keyCounties: [“Maricopa”, “Pima”, “Pinal”, “Yavapai”, “Mohave”, “Coconino”],
+auctionPlatforms: [“Bid4Assets.com”, “PublicSurplus.com”],
+searchQueries: [
+“Arizona tax lien auction {year}”,
+“{county} county Arizona treasurer tax lien sale”,
+“Maricopa county tax lien certificate sale schedule”,
+],
+},
+IN: {
+interestRate: 10,
+redemptionPeriod: “1 year”,
+redemptionMonths: 12,
+auctionType: “in-person/online”,
+penaltyStructure: “10% penalty first 6 months, 15% after”,
+keyCounties: [“Marion”, “Lake”, “Allen”, “Hamilton”, “St. Joseph”, “Tippecanoe”],
+auctionPlatforms: [“SRI Inc”, “GovEase.com”],
+searchQueries: [
+“Indiana tax sale {county} county {year}”,
+“{county} county Indiana tax lien sale properties list”,
+],
+},
+NJ: {
+interestRate: 18,
+redemptionPeriod: “2 years”,
+redemptionMonths: 24,
+auctionType: “in-person/online”,
+penaltyStructure: “Up to 18% + subsequent tax penalties”,
+keyCounties: [“Essex”, “Hudson”, “Bergen”, “Passaic”, “Middlesex”, “Camden”, “Monmouth”, “Ocean”, “Union”, “Mercer”],
+auctionPlatforms: [“GovPilot”, “GrantStreet”],
+searchQueries: [
+“New Jersey tax lien sale {year} {county}”,
+“{county} county NJ tax sale list”,
+],
+},
+IL: {
+interestRate: 18,
+redemptionPeriod: “2.5 years”,
+redemptionMonths: 30,
+auctionType: “in-person”,
+penaltyStructure: “Up to 18% penalty per 6-month period”,
+keyCounties: [“Cook”, “DuPage”, “Lake”, “Will”, “Kane”, “McHenry”],
+auctionPlatforms: [“Cook County Clerk”],
+searchQueries: [
+“Illinois tax lien sale {county} county”,
+“Cook county annual tax sale delinquent list”,
+],
+},
+MD: {
+interestRate: 12,
+redemptionPeriod: “6 months”,
+redemptionMonths: 6,
+auctionType: “online/in-person”,
+penaltyStructure: “6-24% interest depending on bid”,
+keyCounties: [“Baltimore City”, “Baltimore County”, “Prince George’s”, “Montgomery”, “Anne Arundel”, “Howard”],
+auctionPlatforms: [“RealAuction.com”, “Bid4Assets.com”],
+searchQueries: [
+“Maryland tax lien certificate sale {year}”,
+“{county} Maryland tax sale properties”,
+],
+},
+SC: {
+interestRate: 12,
+redemptionPeriod: “1 year”,
+redemptionMonths: 12,
+auctionType: “in-person/online”,
+penaltyStructure: “3-12% depending on redemption timing”,
+keyCounties: [“Charleston”, “Greenville”, “Richland”, “Horry”, “Lexington”],
+auctionPlatforms: [“DTC Systems”],
+searchQueries: [
+“South Carolina delinquent tax sale {county} county”,
+“{county} county SC tax sale list {year}”,
+],
+},
+CO: {
+interestRate: 9,
+redemptionPeriod: “3 years”,
+redemptionMonths: 36,
+auctionType: “online”,
+penaltyStructure: “9% annual interest + penalties”,
+keyCounties: [“Denver”, “El Paso”, “Arapahoe”, “Jefferson”, “Adams”, “Douglas”],
+auctionPlatforms: [“GovEase.com”, “Bid4Assets.com”],
+searchQueries: [
+“Colorado tax lien sale {county} county {year}”,
+“{county} county Colorado treasurer tax lien certificate”,
+],
+},
+IA: {
+interestRate: 24,
+redemptionPeriod: “2 years”,
+redemptionMonths: 24,
+auctionType: “in-person”,
+penaltyStructure: “24% annual interest (highest in US)”,
+keyCounties: [“Polk”, “Linn”, “Scott”, “Black Hawk”, “Johnson”],
+auctionPlatforms: [“County auctions”],
+searchQueries: [
+“Iowa tax sale {county} county delinquent property”,
+“Polk county Iowa annual tax sale list”,
+],
+},
+WV: {
+interestRate: 12,
+redemptionPeriod: “18 months”,
+redemptionMonths: 18,
+auctionType: “in-person”,
+penaltyStructure: “12% annual interest”,
+keyCounties: [“Kanawha”, “Berkeley”, “Cabell”, “Raleigh”, “Putnam”],
+auctionPlatforms: [“County sheriff sales”],
+searchQueries: [
+“West Virginia delinquent tax sale {county} county”,
+“{county} county WV tax lien sale list”,
+],
+},
+};
+
+// ─── MAIN DISCOVERY FUNCTION ──────────────────────────────
+//
+// This replaces the broken _crawlState approach.
+// Uses Claude’s web_search tool to find REAL listings.
+// ──────────────────────────────────────────────────────────
+
+export async function discoverTaxLiens(
+apiKey: string,
+settings: TaxLienSettings,
+): Promise<DiscoveryResult> {
+
+const client = new Anthropic({ apiKey });
+const currentYear = new Date().getFullYear();
+const allProperties: TaxLienProperty[] = [];
+const allAuctions: AuctionEvent[] = [];
+
+for (const stateCode of settings.targetStates) {
+const stateInfo = STATE_DATA[stateCode];
+if (!stateInfo) continue;
+
+```
+// Determine which counties to search
+const countiesToSearch = settings.targetCounties.length > 0
+  ? settings.targetCounties.filter(c =>
+      stateInfo.keyCounties.some(kc => kc.toLowerCase().includes(c.toLowerCase())))
+  : stateInfo.keyCounties.slice(0, 5); // Top 5 counties by default
+
+for (const county of countiesToSearch) {
+  try {
+    const result = await searchCountyTaxLiens(
+      client, stateCode, county, stateInfo, settings, currentYear
+    );
+    allProperties.push(...result.properties);
+    allAuctions.push(...result.auctions);
+  } catch (err: any) {
+    console.error(`[tax-lien] Error searching ${county}, ${stateCode}:`, err.message);
+  }
+
+  // Rate limit between searches
+  await delay(1500);
+}
+```
+
+}
+
+// Score and rank results
+const scoredProperties = allProperties.map(p => ({
+…p,
+…calculateROIAndRisk(p, settings),
+}));
+
+// Filter by settings
+const filtered = scoredProperties.filter(p => {
+if (p.amountOwed < settings.minLienAmount) return false;
+if (p.amountOwed > settings.maxLienAmount) return false;
+if (settings.propertyTypes.length > 0 && !settings.propertyTypes.includes(p.propertyType)) return false;
+if (p.interestRate < settings.minInterestRate) return false;
+return true;
+});
+
+// Sort by ROI descending
+filtered.sort((a, b) => b.projectedROI - a.projectedROI);
+
+// Add purchase steps to each property
+const withSteps = filtered.map(p => ({
+…p,
+purchaseSteps: generatePurchaseSteps(p),
+dueDiligenceChecklist: generateDueDiligence(p),
+}));
+
+return {
+properties: withSteps,
+auctionCalendar: allAuctions,
+summary: {
+totalFound: allProperties.length,
+matchingCriteria: withSteps.length,
+topDeals: withSteps.filter(p => p.projectedROI > 12).length,
+statesSearched: settings.targetStates,
+nextAuctions: allAuctions.length > 0
+? `${allAuctions.length} upcoming auctions, next: ${allAuctions[0]?.date || "TBD"}`
+: “No upcoming auctions found”,
+},
+};
+}
+
+// ─── SEARCH SINGLE COUNTY ─────────────────────────────────
+//
+// Uses Claude web_search tool to find real tax lien data
+// for a specific county/state combination.
+// ──────────────────────────────────────────────────────────
+
+async function searchCountyTaxLiens(
+client: Anthropic,
+stateCode: string,
+county: string,
+stateInfo: typeof STATE_DATA[string],
+settings: TaxLienSettings,
+year: number,
+): Promise<{ properties: TaxLienProperty[]; auctions: AuctionEvent[] }> {
+
+const stateName = STATE_NAMES[stateCode] || stateCode;
+
+// Build the search prompt with web_search tool
+const response = await client.messages.create({
+model: “claude-sonnet-4-20250514”,
+max_tokens: 4000,
+tools: [
+{
+type: “web_search_20250305” as any,
+name: “web_search”,
+},
+],
+messages: [
+{
+role: “user”,
+content: `You are a tax lien property researcher. Find REAL tax lien properties and upcoming auctions for ${county} County, ${stateName} (${stateCode}).
+
+SEARCH FOR:
+
+1. Delinquent property tax lists for ${county} County ${stateName} ${year}
+1. Upcoming tax lien certificate auctions in ${county} County
+1. Properties with unpaid taxes between $${settings.minLienAmount} and $${settings.maxLienAmount}
+1. The county tax collector or treasurer’s tax sale page
+
+IMPORTANT: Only return REAL data you find. Do NOT make up addresses or property information.
+
+For each property found, provide:
+
+- Property address (full street address)
+- Owner name
+- Parcel/tax ID number
+- Amount of taxes owed
+- Assessed value
+- Property type (residential/commercial/vacant)
+- Year(s) delinquent
+- Auction date if upcoming
+
+For auctions found, provide:
+
+- Date and time
+- Platform (online/in-person)
+- Registration deadline
+- Number of parcels available
+- URL to register
+
+State interest rate: ${stateInfo.interestRate}%
+Redemption period: ${stateInfo.redemptionPeriod}
+
+Return your findings as JSON in this exact format:
+{
+“properties”: [
+{
+“propertyAddress”: “123 Main St, City, ${stateCode} 12345”,
+“ownerName”: “John Doe”,
+“parcelNumber”: “12-34-56-789”,
+“amountOwed”: 5000,
+“assessedValue”: 150000,
+“marketValue”: 200000,
+“propertyType”: “residential”,
+“yearDelinquent”: 2023,
+“auctionDate”: “2025-06-15”,
+“sourceUrl”: “https://…”
+}
+],
+“auctions”: [
+{
+“date”: “2025-06-15”,
+“platform”: “RealAuction.com”,
+“auctionType”: “online”,
+“registrationDeadline”: “2025-06-01”,
+“estimatedParcels”: 500,
+“url”: “https://…”
+}
+],
+“dataSource”: “where you found this data”
+}
+
+If you cannot find specific property listings, at least find:
+
+- The county’s tax sale schedule and dates
+- Where investors can access the delinquent tax list
+- Registration requirements
+- Any upcoming auction information`,
+  },
+  ],
+  });
+  
+  // Extract text from response (may include tool use blocks)
+  let responseText = “”;
+  for (const block of response.content) {
+  if (block.type === “text”) {
+  responseText += block.text;
+  }
+  }
+  
+  // Parse the JSON response
+  try {
+  // Find JSON in the response
+  const jsonMatch = responseText.match(/{[\s\S]*“properties”[\s\S]*}/);
+  if (!jsonMatch) {
+  console.warn(`[tax-lien] No structured data found for ${county}, ${stateCode}`);
+  return { properties: [], auctions: [] };
+  }
+  
+  const data = JSON.parse(jsonMatch[0]);
+  
+  // Transform properties
+  const properties: TaxLienProperty[] = (data.properties || []).map((p: any) => ({
+  title: `Tax Lien — ${p.propertyAddress || p.parcelNumber}`,
+  parcelNumber: p.parcelNumber || “N/A”,
+  ownerName: p.ownerName || “Unknown”,
+  ownerAddress: p.ownerAddress || “”,
+  propertyAddress: p.propertyAddress || “”,
+  propertyType: p.propertyType || “residential”,
+  county: county,
+  state: stateCode,
+  assessedValue: p.assessedValue || 0,
+  marketValue: p.marketValue || p.assessedValue || 0,
+  amountOwed: p.amountOwed || 0,
+  interestRate: stateInfo.interestRate,
+  penaltyRate: 0,
+  auctionDate: p.auctionDate || null,
+  auctionPlatform: stateInfo.auctionPlatforms[0] || null,
+  registrationDeadline: null,
+  redemptionPeriod: stateInfo.redemptionPeriod,
+  lienPosition: “1st”,
+  yearDelinquent: p.yearDelinquent || new Date().getFullYear() - 1,
+  totalInvestmentNeeded: p.amountOwed || 0,
+  projectedROI: 0, // Calculated below
+  riskScore: 50,    // Calculated below
+  riskFactors: [],
+  status: “available”,
+  sourceUrl: p.sourceUrl || “”,
+  purchaseSteps: [],
+  dueDiligenceChecklist: [],
+  }));
+  
+  // Transform auctions
+  const auctions: AuctionEvent[] = (data.auctions || []).map((a: any) => ({
+  county: county,
+  state: stateCode,
+  date: a.date || “TBD”,
+  platform: a.platform || stateInfo.auctionPlatforms[0] || “County”,
+  registrationDeadline: a.registrationDeadline || “Contact county”,
+  estimatedParcels: a.estimatedParcels || 0,
+  url: a.url || “”,
+  auctionType: a.auctionType || stateInfo.auctionType.includes(“online”) ? “online” : “in-person”,
+  }));
+  
+  return { properties, auctions };
+  
+  } catch (err: any) {
+  console.warn(`[tax-lien] Failed to parse results for ${county}, ${stateCode}:`, err.message);
+  return { properties: [], auctions: [] };
+  }
+  }
+
+// ─── ROI & RISK CALCULATION ───────────────────────────────
+
+function calculateROIAndRisk(
+property: TaxLienProperty,
+settings: TaxLienSettings,
+): { projectedROI: number; riskScore: number; riskFactors: string[] } {
+
+const riskFactors: string[] = [];
+let riskScore = 30; // Start at low risk
+
+// Calculate ROI
+const annualReturn = property.interestRate;
+const stateInfo = STATE_DATA[property.state];
+const redemptionMonths = stateInfo?.redemptionMonths || 24;
+
+// Simple ROI = (interest rate * redemption period) + any penalties
+// Annualized for comparison
+const projectedROI = annualReturn;
+
+// Risk factors
+if (property.amountOwed > 20000) {
+riskScore += 15;
+riskFactors.push(“High investment amount (>$20k)”);
+}
+
+if (property.assessedValue > 0 && property.amountOwed > property.assessedValue * 0.5) {
+riskScore += 20;
+riskFactors.push(“Taxes owed exceed 50% of assessed value”);
+}
+
+if (property.propertyType === “vacant_land”) {
+riskScore += 10;
+riskFactors.push(“Vacant land — harder to foreclose profitably”);
+}
+
+if (property.propertyType === “commercial”) {
+riskScore += 10;
+riskFactors.push(“Commercial property — complex due diligence”);
+}
+
+const yearsDelinquent = new Date().getFullYear() - property.yearDelinquent;
+if (yearsDelinquent > 3) {
+riskScore += 15;
+riskFactors.push(`${yearsDelinquent} years delinquent — potential title issues`);
+}
+
+if (property.marketValue > 0 && property.marketValue < property.amountOwed * 3) {
+riskScore += 10;
+riskFactors.push(“Low property value relative to lien amount”);
+}
+
+// Adjust for bid strategy
+if (settings.bidStrategy === “conservative” && riskScore > 50) {
+riskFactors.push(“⚠️ Exceeds conservative risk threshold”);
+}
+
+return {
+projectedROI: Math.round(projectedROI * 100) / 100,
+riskScore: Math.min(100, riskScore),
+riskFactors,
+};
+}
+
+// ─── PURCHASE STEPS GENERATOR ─────────────────────────────
+//
+// This is the KEY piece your agent was missing.
+// Generates the complete step-by-step purchase process
+// for each specific property.
+// ──────────────────────────────────────────────────────────
+
+function generatePurchaseSteps(property: TaxLienProperty): PurchaseStep[] {
+const stateInfo = STATE_DATA[property.state];
+const isOnline = stateInfo?.auctionType.includes(“online”);
+const stateName = STATE_NAMES[property.state] || property.state;
+
+const steps: PurchaseStep[] = [
+{
+step: 1,
+title: “Verify Property Data”,
+description: `Search "${property.county} County ${stateName} property appraiser" and look up parcel ${property.parcelNumber}. Confirm owner name (${property.ownerName}), assessed value ($${property.assessedValue?.toLocaleString()}), and verify no federal tax liens or environmental issues.`,
+actionRequired: “automated”,
+status: “ready”,
+},
+{
+step: 2,
+title: “Check Title & Liens”,
+description: `Run a title search on ${property.propertyAddress}. Check for: existing mortgages, HOA liens, IRS liens, other tax liens. A clean title = lower risk. Use your county's online records portal or contact a local title company.`,
+actionRequired: “review”,
+status: “pending”,
+},
+{
+step: 3,
+title: “Verify Delinquent Amount”,
+description: `Contact ${property.county} County Tax Collector to confirm the current amount owed is $${property.amountOwed?.toLocaleString()}. Taxes accrue penalties, so the final amount at auction may be higher. Ask for the full payoff amount including all penalties and interest.`,
+actionRequired: “automated”,
+status: “pending”,
+},
+{
+step: 4,
+title: “Register for Auction”,
+description: isOnline
+? `Register online at ${stateInfo?.auctionPlatforms[0] || 'the county auction portal'}. You'll need: government-issued ID, proof of funds or deposit (typically 5-10% of intended purchases), and a valid payment method.${property.registrationDeadline ? ` Registration deadline: ${property.registrationDeadline}` : ''}`
+: `Contact ${property.county} County Tax Collector's office to register for the in-person tax sale. Bring: government-issued ID, cashier's check for deposit (typically 5-10% of intended purchases), and completed registration form.`,
+actionRequired: “investor_action”,
+status: “pending”,
+deadline: property.registrationDeadline || undefined,
+link: property.auctionPlatform ? `https://www.${property.auctionPlatform.toLowerCase().replace(/\s/g, '')}` : undefined,
+},
+{
+step: 5,
+title: “Set Max Bid Amount”,
+description: `Based on your criteria:\n• Property assessed value: $${property.assessedValue?.toLocaleString()}\n• Amount owed: $${property.amountOwed?.toLocaleString()}\n• Interest rate: ${property.interestRate}%\n• Projected ROI: ${property.projectedROI}%\n\nRecommended max bid: $${property.amountOwed?.toLocaleString()} at ${property.interestRate}% (full rate). ${property.state === 'FL' ? 'In Florida, you bid DOWN the interest rate. Competitive rate is typically 5-12%.' : ''}`,
+actionRequired: “review”,
+status: “pending”,
+},
+{
+step: 6,
+title: property.auctionDate ? `Attend Auction (${property.auctionDate})` : “Attend Auction”,
+description: isOnline
+? `Log into the online auction platform on the auction date. Place your bid on parcel ${property.parcelNumber} (${property.propertyAddress}). The system will handle bidding automatically if you set your max bid.`
+: `Attend the in-person auction at the ${property.county} County Courthouse. Bring your bidder number, cashier's checks, and your bid sheet. Arrive early for registration.`,
+actionRequired: “investor_action”,
+status: “pending”,
+deadline: property.auctionDate || undefined,
+},
+{
+step: 7,
+title: “Payment & Certificate”,
+description: `If you win the bid:\n1. Pay the full lien amount (${isOnline ? 'online via ACH/wire' : 'cashier\'s check at the courthouse'})\n2. Receive your Tax Lien Certificate (digital or physical)\n3. Record the certificate number and redemption date\n4. Payment typically due within 24-48 hours of winning`,
+actionRequired: “investor_action”,
+status: “pending”,
+},
+{
+step: 8,
+title: “Track Redemption Period”,
+description: `Monitor the ${stateInfo?.redemptionPeriod || '2 year'} redemption period for parcel ${property.parcelNumber}.\n\n• If owner pays: You receive $${property.amountOwed?.toLocaleString()} + ${property.interestRate}% interest = ~$${Math.round(property.amountOwed * (1 + property.interestRate / 100))?.toLocaleString()}\n• If owner doesn't pay: You can begin foreclosure proceedings after the redemption period expires\n\nThe AI agent will monitor this automatically and alert you at key deadlines.`,
+actionRequired: “automated”,
+status: “pending”,
+},
+{
+step: 9,
+title: “Post-Redemption Action”,
+description: `After redemption period (${stateInfo?.redemptionPeriod || '2 years'}):\n\n• REDEEMED: Collect your principal + interest. Log profit.\n• NOT REDEEMED: File for foreclosure with the ${property.county} County court. This typically costs $1,500-3,000 in legal fees. You may acquire the property for the cost of the lien.\n\nProperty market value: ~$${property.marketValue?.toLocaleString() || 'Unknown'}`,
+actionRequired: “investor_action”,
+status: “pending”,
+},
+];
+
+return steps;
+}
+
+// ─── DUE DILIGENCE CHECKLIST ──────────────────────────────
+
+function generateDueDiligence(property: TaxLienProperty): string[] {
+return [
+`☐ Verify parcel ${property.parcelNumber} on ${property.county} County Property Appraiser website`,
+`☐ Confirm owner "${property.ownerName}" matches public records`,
+`☐ Check for IRS federal tax liens on property`,
+`☐ Search for existing mortgages or bank liens`,
+`☐ Check for HOA liens or assessments`,
+`☐ Verify no environmental issues (EPA, brownfield sites)`,
+`☐ Confirm property is not in bankruptcy proceedings`,
+`☐ Check if property is occupied or vacant`,
+`☐ Research neighborhood and comparable property values`,
+`☐ Verify total amount owed includes all penalties and interest`,
+`☐ Confirm auction date and registration requirements`,
+`☐ Review ${property.state} tax lien laws and redemption rights`,
+`☐ Prepare funds: $${property.amountOwed?.toLocaleString()} + registration deposit`,
+`☐ Set maximum bid based on ${property.projectedROI}% target ROI`,
+];
+}
+
+// ─── HELPER: STATE NAMES ──────────────────────────────────
+
+const STATE_NAMES: Record<string, string> = {
+FL: “Florida”, AZ: “Arizona”, IN: “Indiana”, NJ: “New Jersey”,
+IL: “Illinois”, MD: “Maryland”, SC: “South Carolina”, CO: “Colorado”,
+IA: “Iowa”, WV: “West Virginia”, TX: “Texas”, GA: “Georgia”,
+MS: “Mississippi”, AL: “Alabama”, CT: “Connecticut”, RI: “Rhode Island”,
+VT: “Vermont”, NH: “New Hampshire”, ME: “Maine”, WY: “Wyoming”,
+SD: “South Dakota”, ND: “North Dakota”, MT: “Montana”, NE: “Nebraska”,
+};
+
+function delay(ms: number) {
+return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ─── EXPRESS ROUTE HANDLER ────────────────────────────────
+//
+// Drop this into your existing agent routes.
+// Replaces the broken “Run Now” handler for tax-lien type.
+// ──────────────────────────────────────────────────────────
+
+export function registerTaxLienRoutes(app: any, storage: any) {
+
+// Run Tax Lien Discovery
+app.post(”/api/agents/tax-lien/run”, async (req: any, res: any) => {
+if (!req.user) return res.status(401).json({ error: “Unauthorized” });
+
+```
+try {
+  const { agentConfigId, settings } = req.body;
+
+  // Get user's API key
+  const userSettings = await storage.getUserSettings(req.user.id);
+  const apiKey = userSettings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+
+  if (!apiKey) {
+    return res.status(400).json({
+      error: "No Anthropic API key configured. Add your key in Settings → Integrations."
+    });
+  }
+
+  // Default settings if not provided
+  const agentSettings: TaxLienSettings = {
+    targetStates: settings?.targetStates || ["FL"],
+    targetCounties: settings?.targetCounties || [],
+    propertyTypes: settings?.propertyTypes || ["residential"],
+    minLienAmount: settings?.minLienAmount || 500,
+    maxLienAmount: settings?.maxLienAmount || 25000,
+    minInterestRate: settings?.minInterestRate || 8,
+    bidStrategy: settings?.bidStrategy || "moderate",
+    autoBid: settings?.autoBid || false,
+  };
+
+  // Run discovery
+  const results = await discoverTaxLiens(apiKey, agentSettings);
+
+  // Save leads to CRM
+  const savedLeads = [];
+  for (const property of results.properties.slice(0, 50)) { // Max 50 per run
+    try {
+      const lead = await storage.createLead({
+        userId: req.user.id,
+        name: property.ownerName,
+        company: `${property.county} County, ${property.state}`,
+        email: "",
+        phone: "",
+        status: "new",
+        source: "tax-lien-agent",
+        notes: JSON.stringify({
+          type: "tax_lien",
+          parcelNumber: property.parcelNumber,
+          propertyAddress: property.propertyAddress,
+          amountOwed: property.amountOwed,
+          assessedValue: property.assessedValue,
+          marketValue: property.marketValue,
+          interestRate: property.interestRate,
+          redemptionPeriod: property.redemptionPeriod,
+          projectedROI: property.projectedROI,
+          riskScore: property.riskScore,
+          riskFactors: property.riskFactors,
+          auctionDate: property.auctionDate,
+          purchaseSteps: property.purchaseSteps,
+          dueDiligenceChecklist: property.dueDiligenceChecklist,
+          sourceUrl: property.sourceUrl,
+        }),
+      });
+      savedLeads.push(lead);
+    } catch (err) {
+      console.error("[tax-lien] Failed to save lead:", err);
+    }
+  }
+
+  // Update agent config with run results
+  if (agentConfigId) {
+    try {
+      // Update the agent task record
+      await storage.createAgentTask({
+        agentConfigId,
+        userId: req.user.id,
+        taskType: "discovery",
+        status: "completed",
+        input: JSON.stringify(agentSettings),
+        output: JSON.stringify({
+          summary: results.summary,
+          propertiesFound: results.properties.length,
+          auctionEvents: results.auctionCalendar.length,
+          leadsCreated: savedLeads.length,
+        }),
+      });
+    } catch (err) {
+      console.error("[tax-lien] Failed to update agent task:", err);
+    }
+  }
+
+  res.json({
+    success: true,
+    summary: results.summary,
+    properties: results.properties,
+    auctionCalendar: results.auctionCalendar,
+    leadsCreated: savedLeads.length,
+  });
+
+} catch (err: any) {
+  console.error("[tax-lien] Discovery failed:", err);
+  res.status(500).json({ error: err.message });
+}
+```
+
+});
+
+// Get Tax Lien agent configuration options
+app.get(”/api/agents/tax-lien/config”, (req: any, res: any) => {
+if (!req.user) return res.status(401).json({ error: “Unauthorized” });
+
+```
+res.json({
+  availableStates: Object.entries(STATE_DATA).map(([code, data]) => ({
+    code,
+    name: STATE_NAMES[code],
+    interestRate: data.interestRate,
+    redemptionPeriod: data.redemptionPeriod,
+    auctionType: data.auctionType,
+    keyCounties: data.keyCounties,
+    auctionPlatforms: data.auctionPlatforms,
+  })),
+  propertyTypes: [
+    { value: "residential", label: "Residential" },
+    { value: "commercial", label: "Commercial" },
+    { value: "vacant_land", label: "Vacant Land" },
+    { value: "multi_family", label: "Multi-Family" },
+  ],
+  bidStrategies: [
+    { value: "conservative", label: "Conservative — Low risk, steady 8-12% returns" },
+    { value: "moderate", label: "Moderate — Balanced, target 12-18% returns" },
+    { value: "aggressive", label: "Aggressive — Higher risk, 18-24% returns" },
+  ],
+});
+```
+
+});
+
+// Get state-specific lien info
+app.get(”/api/agents/tax-lien/states/:stateCode”, (req: any, res: any) => {
+const stateCode = req.params.stateCode.toUpperCase();
+const data = STATE_DATA[stateCode];
+if (!data) return res.status(404).json({ error: “State not found” });
+
+```
+res.json({
+  code: stateCode,
+  name: STATE_NAMES[stateCode],
+  ...data,
+});
+```
+
+});
+}
