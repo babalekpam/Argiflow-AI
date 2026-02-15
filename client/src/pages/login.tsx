@@ -138,32 +138,32 @@ export default function LoginPage() {
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-3"
-                  disabled
+                  onClick={() => setLocation("/signup?provider=google")}
                   data-testid="button-login-google"
                 >
                   <FaGoogle className="w-4 h-4 text-red-500" />
                   <span className="flex-1 text-left">{t("auth.login.connectGoogle")}</span>
-                  <Badge variant="outline" className="text-[10px]">{t("auth.login.comingSoon")}</Badge>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-3"
-                  disabled
+                  onClick={() => setLocation("/signup?provider=microsoft")}
                   data-testid="button-login-microsoft"
                 >
                   <FaMicrosoft className="w-4 h-4 text-blue-500" />
                   <span className="flex-1 text-left">{t("auth.login.connectMicrosoft")}</span>
-                  <Badge variant="outline" className="text-[10px]">{t("auth.login.comingSoon")}</Badge>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-3"
-                  disabled
+                  onClick={() => setLocation("/signup?provider=email")}
                   data-testid="button-login-email"
                 >
                   <Mail className="w-4 h-4 text-muted-foreground" />
                   <span className="flex-1 text-left">{t("auth.login.connectEmail")}</span>
-                  <Badge variant="outline" className="text-[10px]">{t("auth.login.comingSoon")}</Badge>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
                 </Button>
               </div>
 
