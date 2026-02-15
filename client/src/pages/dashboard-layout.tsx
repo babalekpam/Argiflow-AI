@@ -30,6 +30,7 @@ import WorkflowBuilderPage from "./workflow-builder";
 import ForumProspectorPage from "./forum-prospector";
 import PlatformGuidePage from "./platform-guide";
 import PlatformPromoterPage from "./platform-promoter";
+import EmailInfrastructurePage from "./email-infrastructure";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -203,6 +204,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/forum-prospector" component={ForumProspectorPage} />
               <Route path="/dashboard/guide" component={PlatformGuidePage} />
               <Route path="/dashboard/platform-promoter" component={PlatformPromoterPage} />
+              <Route path="/dashboard/email-infra" component={EmailInfrastructurePage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />

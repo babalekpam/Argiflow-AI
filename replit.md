@@ -61,3 +61,4 @@ Do not make changes to the file `Y`.
   - **AI Copilot**: Business context memory (ICP, value props, objection handling), content generation (sequences, subject lines, follow-ups, campaign ideas). Ready for Claude API integration.
   - **Email Templates Library**: User + public templates, categorized (cold_email/follow_up/break_up/meeting/nurture), usage tracking.
   - **Campaign Analytics Dashboard**: Full analytics overview with open/reply/bounce rates, per-campaign daily metrics, status breakdown.
+  - **Frontend UI**: Complete Email Infrastructure dashboard at `/dashboard/email-infra` (`client/src/pages/email-infrastructure.tsx`) with 11 tabbed sub-sections: Email Accounts, Warmup, Campaigns, Unibox, Analytics, Visitors, Verification, Inbox Test, Templates, AI Copilot, DFY Setup. Sidebar navigation under "AI & Automation" section.

@@ -21,6 +21,7 @@ import {
   Calendar,
   Bot,
   Mail,
+  MailPlus,
   GraduationCap,
   Settings,
   LogOut,
@@ -59,6 +60,7 @@ export function AppSidebar() {
     { title: t("sidebar.voiceAi"), icon: Phone, url: "/dashboard/voice-ai", badge: t("common.new") },
     { title: t("sidebar.chatbots"), icon: MessageSquare, url: "/dashboard/ai-agents" },
     { title: t("sidebar.emailSms"), icon: Mail, url: "/dashboard/email" },
+    { title: "Email Infrastructure", icon: MailPlus, url: "/dashboard/email-infra", badge: t("common.new") },
     { title: "Forum Prospector", icon: Globe, url: "/dashboard/forum-prospector", badge: t("common.new") },
     { title: "Platform Promoter", icon: Megaphone, url: "/dashboard/platform-promoter", badge: t("common.new") },
   ];
