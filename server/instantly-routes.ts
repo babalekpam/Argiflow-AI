@@ -23,9 +23,9 @@ import { instantlyEngine } from "./instantly-engine";
 
 const router = Router();
 
-// Middleware: require authenticated user
+// Middleware: require authenticated user (matches app session-based auth)
 function requireUser(req: Request, res: Response, next: Function) {
-  if (!req.isAuthenticated?.() || !req.user) {
+  if (!req.session?.userId) {
     return res.status(401).json({ error: "Unauthorized" });
   }
   next();
@@ -35,7 +35,7 @@ router.use(requireUser);
 
 // Helper to get userId from session
 function getUserId(req: Request): string {
-  return (req.user as any).id;
+  return req.session.userId!;
 }
 
 // ============================================================
@@ -445,9 +445,9 @@ router.get("/campaigns/:id/analytics", async (req, res) => {
       statusBreakdown,
       daily,
       rates: {
-        open: campaign.emailsSent > 0 ? ((campaign.emailsOpened / campaign.emailsSent) * 100).toFixed(1) : 0,
-        reply: campaign.emailsSent > 0 ? ((campaign.emailsReplied / campaign.emailsSent) * 100).toFixed(1) : 0,
-        bounce: campaign.emailsSent > 0 ? ((campaign.emailsBounced / campaign.emailsSent) * 100).toFixed(1) : 0,
+        open: (campaign.emailsSent || 0) > 0 ? (((campaign.emailsOpened || 0) / (campaign.emailsSent || 1)) * 100).toFixed(1) : 0,
+        reply: (campaign.emailsSent || 0) > 0 ? (((campaign.emailsReplied || 0) / (campaign.emailsSent || 1)) * 100).toFixed(1) : 0,
+        bounce: (campaign.emailsSent || 0) > 0 ? (((campaign.emailsBounced || 0) / (campaign.emailsSent || 1)) * 100).toFixed(1) : 0,
       },
     });
   } catch (e: any) {
@@ -637,7 +637,7 @@ router.get("/visitors/dashboard", async (req, res) => {
       .limit(100);
 
     const resolved = allVisitors.filter(v => v.resolutionStatus === "resolved");
-    const companies = [...new Set(allVisitors.filter(v => v.companyName).map(v => v.companyName))];
+    const companies = Array.from(new Set(allVisitors.filter(v => v.companyName).map(v => v.companyName!)));
 
     res.json({
       totalVisitors: allVisitors.length,

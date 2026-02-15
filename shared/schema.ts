@@ -443,3 +443,4 @@ export const platformPromotionRuns = pgTable("platform_promotion_runs", {
 export type PlatformPromotionRun = typeof platformPromotionRuns.$inferSelect;
 
 export * from "./workflow-schema";
+export * from "./instantly-schema";

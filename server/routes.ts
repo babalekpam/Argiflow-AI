@@ -17,6 +17,7 @@ import { registerWorkflowRoutes } from "./workflow-routes";
 import { startWorkflowEngine } from "./workflow-engine";
 import { workflowHooks } from "./workflow-hooks";
 import { discoverTaxLiens, STATE_DATA, STATE_NAMES, type TaxLienSettings } from "./agents/tax-lien-agent";
+import instantlyRoutes, { handlePixelTrack } from "./instantly-routes";
 
 function normalizePhoneNumber(phone: string | undefined | null): string {
   if (!phone) return "";
@@ -1453,6 +1454,10 @@ export async function registerRoutes(
     res.set("Expires", "0");
     next();
   });
+
+  // ---- INSTANTLY FEATURES ----
+  app.use("/api/instantly", instantlyRoutes);
+  app.post("/api/pixel/t", handlePixelTrack);
 
   // ---- AUTH ----
 
