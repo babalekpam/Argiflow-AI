@@ -133,9 +133,9 @@
       "stat3Label": "Global Regions",
       "ctaGetStarted": "Get Started Free",
       "ctaExplore": "Explore AI Agents",
-      "trust1": "14-Day Free Trial",
+      "trust1": "Free Plan Available",
       "trust2": "Western + African Markets",
-      "trust3": "Results in 24 Hours"
+      "trust3": "Deploy in Minutes"
     },
     "heroVisual": {
       "agentCatalog": "AI Agent Catalog",
@@ -158,14 +158,14 @@
       "s0desc": "Custom voice AI agents that handle inbound and outbound calls, qualify leads, answer questions, and schedule appointments 24/7 — so you never miss an opportunity.",
       "s1title": "Specialized AI Agent Catalog",
       "s1desc": "10+ industry-specific AI agents — from Tax Lien Hunters and Govt Contract Finders to Cross-Border Trade Agents. Each agent runs autonomously with its own lifecycle: discover, analyze, enrich, act, and monitor.",
-      "s2title": "Process Automation",
-      "s2desc": "We audit your workflows and automate repetitive tasks across marketing, sales, and operations using custom AI solutions that save time and eliminate errors.",
+      "s2title": "Workflow Automation Engine",
+      "s2desc": "Visual drag-and-drop workflow builder with 30+ action types, AI-powered generation, and 6 pre-built templates. Automate lead nurture, email sequences, deal pipelines, and more.",
       "s3title": "Lead Gen Chatbots",
       "s3desc": "AI chatbots powered by Claude that engage visitors, answer questions, qualify leads, and book appointments — with full context of your business, website, and services.",
       "s4title": "Sales Funnels & Pipeline",
       "s4desc": "Visual Kanban-style sales pipelines to manage deals through stages. Create custom funnels, drag-and-drop deals, and track conversion rates with stage-level analytics.",
-      "s5title": "Email & Engagement Intelligence",
-      "s5desc": "Automated outreach with open/click tracking. AI scores leads as Hot, Warm, or Interested based on engagement and recommends next steps — call, follow-up, or try a different channel."
+      "s5title": "Email, SMS & Engagement Intelligence",
+      "s5desc": "Multi-channel outreach via email and SMS with open/click tracking. AI scores leads based on engagement. Automated 3-step follow-ups, inbox monitoring, and smart scheduling."
     },
     "platformFeatures": {
       "f0title": "AI-Generated Marketing Strategy",
@@ -266,14 +266,14 @@
       "starterName": "Starter",
       "starterPrice": "$197",
       "starterDesc": "Launch your first AI agent",
-      "starterFeatures": ["1 AI agent from the catalog", "100 leads/month", "Email & SMS outreach", "CRM & lead management", "AI marketing strategy", "Community support", "14-day free trial"],
-      "starterCta": "Start Free Trial",
+      "starterFeatures": ["1 AI agent from the catalog", "100 leads/month", "Email & SMS outreach", "CRM & lead management", "AI marketing strategy", "Community support", "Full platform access"],
+      "starterCta": "Get Started",
       "proName": "Pro",
       "proPrice": "$397",
       "proPopular": "Most Popular",
       "proDesc": "Scale with multiple agents",
       "proFeatures": ["3 AI agents from the catalog", "500 leads/month", "Voice AI & telephony agents", "Sales funnels with Kanban", "Engagement tracking & scoring", "Priority support + strategy calls", "Advanced analytics"],
-      "proCta": "Start Free Trial",
+      "proCta": "Get Started",
       "entName": "Enterprise",
       "entPrice": "$997",
       "entDesc": "Unlimited AI power",
@@ -307,21 +307,21 @@
       "getStarted": "Get Started"
     },
     "testimonials": {
-      "badge": "Client Results",
-      "title": "Real Businesses.",
-      "titleHighlight": "Real Results.",
-      "t0name": "Marcus Chen",
-      "t0company": "Apex Real Estate Group",
-      "t0quote": "ArgiFlow's Tax Lien Hunter found 47 properties in our first week. The voice AI handles 80% of our calls. We booked 3x more appointments without hiring anyone.",
-      "t0result": "47 deals found",
-      "t1name": "Sarah Williams",
-      "t1company": "Pinnacle Legal",
-      "t1quote": "The process automation saved us 40+ hours per week. Email tracking shows us exactly who's interested. Our team went from drowning in admin to focused on closing.",
-      "t1result": "40hrs/week saved",
-      "t2name": "David Park",
-      "t2company": "ScaleUp Digital",
-      "t2quote": "The AI chatbot qualified more leads in one week than our SDR team did in a month. The engagement scoring tells us exactly who to call first. Game changer.",
-      "t2result": "10x lead qualification"
+      "badge": "What You Can Achieve",
+      "title": "Built For.",
+      "titleHighlight": "Real Impact.",
+      "t0name": "Real Estate Investors",
+      "t0company": "Tax Lien & Property Acquisition",
+      "t0quote": "The Tax Lien Hunter searches county records across 10 states, scores ROI on every property, and guides you through a 9-step purchase workflow with a 14-point due diligence checklist.",
+      "t0result": "10 States Covered",
+      "t1name": "Medical Billing Companies",
+      "t1company": "Track-Med Billing Solutions",
+      "t1quote": "Auto-generates 30 real medical billing leads every 5 hours, rotating through 12 US regions with 4 targeting strategies. Leads arrive scored, with outreach drafts ready to send.",
+      "t1result": "30 Leads per Batch",
+      "t2name": "Agencies & Consultants",
+      "t2company": "Multi-Business Outreach",
+      "t2quote": "Manage up to 4 business profiles with separate lead lists, outreach identities, and pipelines. AI follow-ups, inbox monitoring, and engagement scoring run on autopilot.",
+      "t2result": "4 Business Profiles"
     },
     "faq": {
       "badge": "Common Questions",
@@ -330,7 +330,7 @@
       "q0": "What are AI Agents and how do they work?",
       "a0": "AI Agents are specialized autonomous systems that run specific tasks for your industry — like finding tax liens, scanning government contracts, or generating leads. Each agent follows a lifecycle: discover opportunities, analyze them, enrich with data, take action (send outreach, bid), and monitor results. You configure them once and they work 24/7.",
       "q1": "How long does implementation take?",
-      "a1": "Sign up, configure your agents, and they start working immediately. Most users see their first leads within 24 hours. For more complex multi-system integrations, 2-4 weeks to fully optimize.",
+      "a1": "Sign up, configure your agents, and they start working immediately. The auto medical billing lead generator runs every 5 hours, so you can see leads quickly. For multi-system integrations, allow 2-4 weeks to fully optimize.",
       "q2": "Do I need technical knowledge?",
       "a2": "Not at all. The platform is designed for non-technical users. Browse the agent catalog, flip a switch to enable, and configure with simple settings. Our AI handles the complex parts.",
       "q3": "What regions do you support?",
@@ -338,7 +338,7 @@
       "q4": "Can you integrate with my existing tools?",
       "a4": "Yes. We integrate with CRMs (Salesforce, HubSpot), email platforms (SendGrid), SMS (Twilio), calendars, and virtually any tool with an API. All integrations are configured from your Settings dashboard.",
       "q5": "What if it doesn't work for my business?",
-      "a5": "Every plan starts with a 14-day free trial — no credit card required. If it's not the right fit, cancel anytime with zero risk."
+      "a5": "We offer a free Starter tier so you can explore the platform with no commitment. If you upgrade and it's not the right fit, cancel anytime with zero risk."
     },
     "emailEngine": {
       "badge": "Email Infrastructure Engine",
@@ -374,8 +374,8 @@
       "providerMicrosoftSub": "Office 365 / Outlook",
       "providerAny": "Any Provider",
       "providerAnySub": "IMAP / SMTP",
-      "stat1Value": "98%",
-      "stat1Label": "Inbox Placement Rate",
+      "stat1Value": "19",
+      "stat1Label": "Database Tables Powering It",
       "stat2Value": "11",
       "stat2Label": "Tools in One Dashboard",
       "stat3Value": "0",
@@ -506,9 +506,9 @@
       "button": "Get Started Free",
       "emailUs": "Email Us",
       "secondary": "Book a Demo",
-      "trialNote": "14-day free trial. No credit card required. Cancel anytime.",
-      "trust1": "14-Day Free Trial",
-      "trust2": "No Credit Card Required",
+      "trialNote": "Free plan available. No commitment. Upgrade anytime.",
+      "trust1": "Free Plan Available",
+      "trust2": "No Commitment Required",
       "trust3": "Cancel Anytime"
     },
     "footer": {
@@ -530,7 +530,7 @@
       "privacy": "Privacy Policy",
       "terms": "Terms of Service",
       "copyright": "ARGILETTE Labs. All rights reserved.",
-      "soc2": "SOC 2 Compliant",
+      "soc2": "Enterprise-Grade Security",
       "poweredBy": "Powered by Claude AI",
       "productOf": "ArgiFlow is a product of ARGILETTE Labs"
     }

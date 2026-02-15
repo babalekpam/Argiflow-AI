@@ -132,9 +132,9 @@
       "stat3Label": "Régions Mondiales",
       "ctaGetStarted": "Commencer Gratuitement",
       "ctaExplore": "Explorer les Agents IA",
-      "trust1": "Essai Gratuit de 14 Jours",
+      "trust1": "Plan Gratuit Disponible",
       "trust2": "Marchés Occidentaux + Africains",
-      "trust3": "Résultats en 24 Heures"
+      "trust3": "Déploiement en Minutes"
     },
     "heroVisual": {
       "agentCatalog": "Catalogue d'Agents IA",
@@ -157,14 +157,14 @@
       "s0desc": "Des agents IA vocaux personnalisés qui gèrent les appels entrants et sortants, qualifient les leads, répondent aux questions et planifient des rendez-vous 24h/24 — pour ne jamais manquer une opportunité.",
       "s1title": "Catalogue d'Agents IA Spécialisés",
       "s1desc": "Plus de 10 agents IA spécifiques à l'industrie — des Chasseurs de Privilèges Fiscaux aux Agents de Commerce Transfrontalier. Chaque agent fonctionne de manière autonome avec son propre cycle de vie : découvrir, analyser, enrichir, agir et surveiller.",
-      "s2title": "Automatisation des Processus",
-      "s2desc": "Nous auditons vos flux de travail et automatisons les tâches répétitives en marketing, ventes et opérations grâce à des solutions IA personnalisées qui font gagner du temps et éliminent les erreurs.",
+      "s2title": "Moteur d'Automatisation",
+      "s2desc": "Constructeur visuel de workflows avec 30+ types d'actions, génération par IA et 6 modèles prédéfinis. Automatisez la nurture de leads, les séquences d'e-mails, les pipelines et plus encore.",
       "s3title": "Chatbots de Génération de Leads",
       "s3desc": "Des chatbots IA propulsés par Claude qui engagent les visiteurs, répondent aux questions, qualifient les leads et réservent des rendez-vous — avec le contexte complet de votre entreprise, site web et services.",
       "s4title": "Tunnels de Vente & Pipeline",
       "s4desc": "Des pipelines de vente visuels de style Kanban pour gérer les affaires par étapes. Créez des tunnels personnalisés, glissez-déposez les affaires et suivez les taux de conversion avec des analyses par étape.",
-      "s5title": "E-mail & Intelligence d'Engagement",
-      "s5desc": "Prospection automatisée avec suivi des ouvertures/clics. L'IA classe les leads comme Chauds, Tièdes ou Intéressés selon l'engagement et recommande les prochaines étapes — appeler, relancer ou essayer un autre canal."
+      "s5title": "E-mail, SMS & Intelligence d'Engagement",
+      "s5desc": "Prospection multicanale par e-mail et SMS avec suivi des ouvertures/clics. L'IA note les leads selon l'engagement. Relances automatiques en 3 étapes, surveillance de boîte et planification intelligente."
     },
     "platformFeatures": {
       "f0title": "Stratégie Marketing Générée par l'IA",
@@ -272,7 +272,7 @@
         "Analyses basiques",
         "Support communautaire"
       ],
-      "starterCta": "Commencer l'Essai Gratuit",
+      "starterCta": "Commencer",
       "proName": "Professionnel",
       "proPrice": "397 $",
       "proPopular": "Le Plus Populaire",
@@ -286,7 +286,7 @@
         "Analyses avancées",
         "Support prioritaire"
       ],
-      "proCta": "Commencer l'Essai Gratuit",
+      "proCta": "Commencer",
       "entName": "Entreprise",
       "entPrice": "997 $",
       "entDesc": "Pour les agences et entreprises qui ont besoin de solutions personnalisées à grande échelle.",
@@ -345,21 +345,21 @@
       "getStarted": "Commencer"
     },
     "testimonials": {
-      "badge": "Résultats Clients",
-      "title": "De Vraies Entreprises.",
-      "titleHighlight": "De Vrais Résultats.",
-      "t0name": "Marcus Chen",
-      "t0company": "Apex Real Estate Group",
-      "t0quote": "Le Chasseur de Privilèges Fiscaux d'ArgiFlow a trouvé 47 propriétés dès notre première semaine. L'IA vocale gère 80% de nos appels. Nous avons réservé 3x plus de rendez-vous sans embaucher personne.",
-      "t0result": "47 affaires trouvées",
-      "t1name": "Sarah Williams",
-      "t1company": "Pinnacle Legal",
-      "t1quote": "L'automatisation des processus nous a fait gagner plus de 40 heures par semaine. Le suivi des e-mails nous montre exactement qui est intéressé. Notre équipe est passée de la noyade administrative à la conclusion d'affaires.",
-      "t1result": "40h/semaine économisées",
-      "t2name": "David Park",
-      "t2company": "ScaleUp Digital",
-      "t2quote": "Le chatbot IA a qualifié plus de leads en une semaine que notre équipe SDR en un mois. Le scoring d'engagement nous dit exactement qui appeler en premier. Un vrai changement de jeu.",
-      "t2result": "Qualification de leads x10"
+      "badge": "Ce Que Vous Pouvez Accomplir",
+      "title": "Conçu Pour.",
+      "titleHighlight": "Un Impact Réel.",
+      "t0name": "Investisseurs Immobiliers",
+      "t0company": "Privilèges Fiscaux & Acquisition",
+      "t0quote": "Le Chasseur de Privilèges Fiscaux recherche les dossiers de comté dans 10 états, évalue le ROI de chaque propriété et vous guide à travers un processus d'achat en 9 étapes avec une liste de contrôle de 14 points.",
+      "t0result": "10 États Couverts",
+      "t1name": "Facturation Médicale",
+      "t1company": "Track-Med Billing Solutions",
+      "t1quote": "Génère automatiquement 30 leads réels de facturation médicale toutes les 5 heures, en rotation dans 12 régions US avec 4 stratégies de ciblage. Les leads arrivent notés, avec des brouillons de prospection prêts à envoyer.",
+      "t1result": "30 Leads par Lot",
+      "t2name": "Agences & Consultants",
+      "t2company": "Prospection Multi-Entreprises",
+      "t2quote": "Gérez jusqu'à 4 profils d'entreprise avec des listes de leads séparées, des identités de prospection et des pipelines. Les relances IA, la surveillance de boîte de réception et le scoring d'engagement fonctionnent en pilote automatique.",
+      "t2result": "4 Profils d'Entreprise"
     },
     "faq": {
       "badge": "Questions Fréquentes",
@@ -368,7 +368,7 @@
       "q0": "Que sont les Agents IA et comment fonctionnent-ils ?",
       "a0": "Les Agents IA sont des systèmes autonomes spécialisés qui exécutent des tâches spécifiques pour votre industrie — comme trouver des privilèges fiscaux, scanner des contrats gouvernementaux ou générer des leads. Chaque agent suit un cycle de vie : découvrir des opportunités, les analyser, enrichir avec des données, agir (envoyer des messages, enchérir) et surveiller les résultats. Vous les configurez une fois et ils travaillent 24h/24.",
       "q1": "Combien de temps prend la mise en place ?",
-      "a1": "Inscrivez-vous, configurez vos agents et ils commencent à travailler immédiatement. La plupart des utilisateurs voient leurs premiers leads dans les 24 heures. Pour des intégrations multi-systèmes plus complexes, 2 à 4 semaines pour une optimisation complète.",
+      "a1": "Inscrivez-vous, configurez vos agents et ils commencent à travailler immédiatement. Le générateur automatique de leads de facturation médicale s'exécute toutes les 5 heures, vous verrez rapidement des résultats. Pour des intégrations multi-systèmes, comptez 2 à 4 semaines pour une optimisation complète.",
       "q2": "Ai-je besoin de connaissances techniques ?",
       "a2": "Pas du tout. La plateforme est conçue pour les utilisateurs non techniques. Parcourez le catalogue d'agents, activez-en un et configurez avec des paramètres simples. Notre IA gère les parties complexes.",
       "q3": "Quelles régions supportez-vous ?",
@@ -376,19 +376,19 @@
       "q4": "Pouvez-vous vous intégrer à mes outils existants ?",
       "a4": "Oui. Nous nous intégrons aux CRM (Salesforce, HubSpot), plateformes e-mail (SendGrid), SMS (Twilio), calendriers et pratiquement tout outil avec une API. Toutes les intégrations sont configurées depuis votre tableau de bord Paramètres.",
       "q5": "Et si ça ne marche pas pour mon entreprise ?",
-      "a5": "Chaque plan commence avec un essai gratuit de 14 jours — aucune carte de crédit requise. Si ce n'est pas le bon choix, annulez à tout moment sans aucun risque."
+      "a5": "Nous offrons un plan Starter gratuit pour explorer la plateforme sans engagement. Si vous passez à un plan supérieur et que ce n'est pas le bon choix, annulez à tout moment sans aucun risque."
     },
     "cta": {
       "title": "Prêt à Laisser l'IA",
       "titleHighlight": "Développer Votre Entreprise ?",
-      "description": "Rejoignez les entreprises qui utilisent ArgiFlow pour automatiser l'acquisition de clients. Commencez votre essai gratuit de 14 jours aujourd'hui.",
+      "description": "Inscrivez-vous gratuitement, parcourez le catalogue d'agents et déployez votre premier agent IA en moins de 5 minutes. Laissez l'IA autonome trouver des opportunités et développer votre chiffre d'affaires.",
       "button": "Commencer Gratuitement",
       "secondary": "Réserver une Démo",
-      "trust1": "Essai Gratuit de 14 Jours",
-      "trust2": "Aucune Carte de Crédit Requise",
+      "trust1": "Plan Gratuit Disponible",
+      "trust2": "Sans Engagement",
       "trust3": "Annulation à Tout Moment",
       "emailUs": "Écrivez-nous",
-      "trialNote": "Essai gratuit de 14 jours. Pas de carte de crédit requise. Annulez à tout moment."
+      "trialNote": "Plan gratuit disponible. Sans engagement. Passez au plan supérieur quand vous voulez."
     },
     "footer": {
       "description": "Plateforme d'automatisation par ARGILETTE Labs. Déployez des agents intelligents qui trouvent, engagent et convertissent des leads en pilote automatique.",
@@ -417,7 +417,7 @@
       "faq": "FAQ",
       "contactTitle": "Contact",
       "getStarted": "Commencer",
-      "soc2": "SOC 2 Conforme",
+      "soc2": "Sécurité de Niveau Entreprise",
       "poweredBy": "Propulsé par Claude IA",
       "productOf": "ArgiFlow est un produit de ARGILETTE Labs"
     }

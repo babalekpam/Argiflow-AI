@@ -194,25 +194,22 @@ export default function LandingPage() {
     {
       name: t("landing.testimonials.t0name"),
       company: t("landing.testimonials.t0company"),
-      initials: "MC",
+      icon: Landmark,
       quote: t("landing.testimonials.t0quote"),
-      rating: 5,
       result: t("landing.testimonials.t0result"),
     },
     {
       name: t("landing.testimonials.t1name"),
       company: t("landing.testimonials.t1company"),
-      initials: "SW",
+      icon: Stethoscope,
       quote: t("landing.testimonials.t1quote"),
-      rating: 5,
       result: t("landing.testimonials.t1result"),
     },
     {
       name: t("landing.testimonials.t2name"),
       company: t("landing.testimonials.t2company"),
-      initials: "DP",
+      icon: Briefcase,
       quote: t("landing.testimonials.t2quote"),
-      rating: 5,
       result: t("landing.testimonials.t2result"),
     },
   ];
@@ -1284,29 +1281,24 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {testimonials.map((item) => (
-              <Card key={item.name} className="p-6">
+              <Card key={item.name} className="p-6" data-testid={`card-usecase-${item.name.toLowerCase().replace(/\s+/g, '-')}`}>
                 <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: item.rating }).map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                      <item.icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">{item.company}</p>
+                    </div>
                   </div>
                   <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20 text-xs">
                     {item.result}
                   </Badge>
                 </div>
-                <p className="text-sm mb-6 leading-relaxed italic text-foreground/90">
-                  "{item.quote}"
+                <p className="text-sm leading-relaxed text-foreground/90">
+                  {item.quote}
                 </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                    {item.initials}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.company}</p>
-                  </div>
-                </div>
               </Card>
             ))}
           </div>
