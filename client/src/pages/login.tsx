@@ -5,11 +5,12 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Zap, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Zap, ArrowRight, Eye, EyeOff, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+import { FaGoogle, FaMicrosoft } from "react-icons/fa";
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -123,7 +124,50 @@ export default function LoginPage() {
                   {t("auth.login.forgotPassword")}
                 </a>
               </div>
-              <div className="mt-3 text-center text-sm text-muted-foreground">
+
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">{t("auth.login.orContinueWith")}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3"
+                  disabled
+                  data-testid="button-login-google"
+                >
+                  <FaGoogle className="w-4 h-4 text-red-500" />
+                  <span className="flex-1 text-left">{t("auth.login.connectGoogle")}</span>
+                  <Badge variant="outline" className="text-[10px]">{t("auth.login.comingSoon")}</Badge>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3"
+                  disabled
+                  data-testid="button-login-microsoft"
+                >
+                  <FaMicrosoft className="w-4 h-4 text-blue-500" />
+                  <span className="flex-1 text-left">{t("auth.login.connectMicrosoft")}</span>
+                  <Badge variant="outline" className="text-[10px]">{t("auth.login.comingSoon")}</Badge>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3"
+                  disabled
+                  data-testid="button-login-email"
+                >
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  <span className="flex-1 text-left">{t("auth.login.connectEmail")}</span>
+                  <Badge variant="outline" className="text-[10px]">{t("auth.login.comingSoon")}</Badge>
+                </Button>
+              </div>
+
+              <div className="mt-4 text-center text-sm text-muted-foreground">
                 {t("auth.login.notClient")}{" "}
                 <a href="/discovery" className="text-primary hover:underline" data-testid="link-discovery">
                   {t("auth.login.bookDiscovery")}

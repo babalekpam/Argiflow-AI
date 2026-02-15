@@ -549,7 +549,12 @@
       "notClient": "Not a client yet?",
       "bookDiscovery": "Book a discovery call",
       "loginFailed": "Login failed",
-      "invalidCredentials": "Invalid email or password."
+      "invalidCredentials": "Invalid email or password.",
+      "orContinueWith": "Or continue with",
+      "connectGoogle": "Continue with Google",
+      "connectMicrosoft": "Continue with Microsoft",
+      "connectEmail": "Continue with Email",
+      "comingSoon": "Coming Soon"
     },
     "signup": {
       "title": "Create Your Client Account",
