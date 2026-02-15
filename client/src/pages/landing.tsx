@@ -49,6 +49,19 @@ import {
   BarChart,
   Send,
   Layers,
+  Flame,
+  Inbox,
+  ShieldCheck,
+  Wand2,
+  GitBranch,
+  MapPin,
+  Stethoscope,
+  ClipboardCheck,
+  RotateCw,
+  Server,
+  Mic,
+  PauseCircle,
+  Briefcase,
 } from "lucide-react";
 import { SiX, SiLinkedin, SiInstagram, SiVenmo } from "react-icons/si";
 import { CompactFlowchart } from "@/components/animated-flowchart";
@@ -232,6 +245,9 @@ export default function LandingPage() {
             </a>
             <a href="#platform" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
               {t("nav.platform")}
+            </a>
+            <a href="#email-engine" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md" data-testid="link-nav-email">
+              {t("nav.emailInfra")}
             </a>
             <a href="#pricing" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
               {t("nav.pricing")}
@@ -564,6 +580,455 @@ export default function LandingPage() {
                   {feature.description}
                 </p>
               </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Email Infrastructure Engine */}
+      <section id="email-engine" className="py-24 relative" data-testid="section-email-engine">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 left-0 w-80 h-80 bg-chart-3/5 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
+              <Mail className="w-3.5 h-3.5 mr-2" />
+              {t("landing.emailEngine.badge")}
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4">
+              {t("landing.emailEngine.title")}{" "}
+              <span className="gradient-text">{t("landing.emailEngine.titleHighlight")}</span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+              {t("landing.emailEngine.description")}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+            {[
+              { icon: Flame, title: t("landing.emailEngine.f0title"), desc: t("landing.emailEngine.f0desc"), color: "bg-orange-500/10 text-orange-400" },
+              { icon: Send, title: t("landing.emailEngine.f1title"), desc: t("landing.emailEngine.f1desc"), color: "bg-primary/10 text-primary" },
+              { icon: Inbox, title: t("landing.emailEngine.f2title"), desc: t("landing.emailEngine.f2desc"), color: "bg-chart-2/10 text-chart-2" },
+              { icon: ShieldCheck, title: t("landing.emailEngine.f3title"), desc: t("landing.emailEngine.f3desc"), color: "bg-chart-3/10 text-chart-3" },
+              { icon: CheckCircle, title: t("landing.emailEngine.f4title"), desc: t("landing.emailEngine.f4desc"), color: "bg-chart-4/10 text-chart-4" },
+              { icon: Sparkles, title: t("landing.emailEngine.f5title"), desc: t("landing.emailEngine.f5desc"), color: "bg-purple-500/10 text-purple-400" },
+            ].map((feature) => (
+              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-email-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
+                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
+                  <feature.icon className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 mb-10">
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-bold">{t("landing.emailEngine.connectTitle")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("landing.emailEngine.connectDesc")}</p>
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                {[
+                  { name: t("landing.emailEngine.providerGoogle"), sub: t("landing.emailEngine.providerGoogleSub"), color: "text-red-400" },
+                  { name: t("landing.emailEngine.providerMicrosoft"), sub: t("landing.emailEngine.providerMicrosoftSub"), color: "text-blue-400" },
+                  { name: t("landing.emailEngine.providerAny"), sub: t("landing.emailEngine.providerAnySub"), color: "text-primary" },
+                ].map((provider) => (
+                  <div key={provider.name} className="flex items-center gap-3 p-3 rounded-md border border-border/50 bg-secondary/20">
+                    <div className={`w-8 h-8 rounded-md bg-secondary/50 flex items-center justify-center ${provider.color}`}>
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{provider.name}</p>
+                      <p className="text-xs text-muted-foreground">{provider.sub}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-md bg-chart-3/10 flex items-center justify-center">
+                  <Server className="w-5 h-5 text-chart-3" />
+                </div>
+                <div>
+                  <h3 className="font-bold">{t("landing.emailEngine.dfyTitle")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("landing.emailEngine.dfyDesc")}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {[
+                  t("landing.emailEngine.dfyItem1"),
+                  t("landing.emailEngine.dfyItem2"),
+                  t("landing.emailEngine.dfyItem3"),
+                  t("landing.emailEngine.dfyItem4"),
+                  t("landing.emailEngine.dfyItem5"),
+                  t("landing.emailEngine.dfyItem6"),
+                ].map((item) => (
+                  <div key={item} className="flex items-center gap-2.5">
+                    <CheckCircle className="w-4 h-4 text-chart-3 shrink-0" />
+                    <span className="text-sm">{item}</span>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle className="w-4 h-4 text-chart-3 shrink-0" />
+                  <span className="text-sm">{t("landing.emailEngine.dfyItem7")}</span>
+                  <Badge className="text-[10px] bg-amber-500/20 text-amber-400 border-amber-500/30">Pro</Badge>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-3 gap-6 mb-10">
+            {[
+              { value: t("landing.emailEngine.stat1Value"), label: t("landing.emailEngine.stat1Label"), color: "text-chart-3" },
+              { value: t("landing.emailEngine.stat2Value"), label: t("landing.emailEngine.stat2Label"), color: "text-primary" },
+              { value: t("landing.emailEngine.stat3Value"), label: t("landing.emailEngine.stat3Label"), color: "text-chart-4" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <a href="/signup" data-testid="button-email-engine-cta">
+              <Button size="lg" className="text-base px-8">
+                <Mail className="w-4 h-4 mr-2" />
+                {t("landing.emailEngine.cta")}
+              </Button>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Workflow Automation Engine */}
+      <section id="workflow-engine" className="py-24 relative" data-testid="section-workflow-engine">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-chart-2/5 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
+              <Workflow className="w-3.5 h-3.5 mr-2" />
+              {t("landing.workflowEngine.badge")}
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4">
+              {t("landing.workflowEngine.title")}{" "}
+              <span className="gradient-text">{t("landing.workflowEngine.titleHighlight")}</span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+              {t("landing.workflowEngine.description")}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+            {[
+              { icon: GitBranch, title: t("landing.workflowEngine.f0title"), desc: t("landing.workflowEngine.f0desc"), color: "bg-primary/10 text-primary" },
+              { icon: Boxes, title: t("landing.workflowEngine.f1title"), desc: t("landing.workflowEngine.f1desc"), color: "bg-chart-4/10 text-chart-4" },
+              { icon: FileText, title: t("landing.workflowEngine.f2title"), desc: t("landing.workflowEngine.f2desc"), color: "bg-chart-3/10 text-chart-3" },
+              { icon: Sparkles, title: t("landing.workflowEngine.f3title"), desc: t("landing.workflowEngine.f3desc"), color: "bg-purple-500/10 text-purple-400" },
+              { icon: Zap, title: t("landing.workflowEngine.f4title"), desc: t("landing.workflowEngine.f4desc"), color: "bg-amber-500/10 text-amber-400" },
+              { icon: BarChart3, title: t("landing.workflowEngine.f5title"), desc: t("landing.workflowEngine.f5desc"), color: "bg-chart-2/10 text-chart-2" },
+            ].map((feature) => (
+              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-workflow-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
+                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
+                  <feature.icon className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="p-6 mb-10">
+            <h3 className="font-semibold mb-4 text-center">{t("landing.workflowEngine.howItWorks")}</h3>
+            <div className="grid md:grid-cols-4 gap-4">
+              {[
+                { step: "01", label: t("landing.workflowEngine.step1Label"), desc: t("landing.workflowEngine.step1Desc"), icon: FileText },
+                { step: "02", label: t("landing.workflowEngine.step2Label"), desc: t("landing.workflowEngine.step2Desc"), icon: Sparkles },
+                { step: "03", label: t("landing.workflowEngine.step3Label"), desc: t("landing.workflowEngine.step3Desc"), icon: Settings },
+                { step: "04", label: t("landing.workflowEngine.step4Label"), desc: t("landing.workflowEngine.step4Desc"), icon: Activity },
+              ].map((s, i) => (
+                <div key={s.step} className="text-center relative">
+                  {i < 3 && <div className="hidden md:block absolute top-6 left-full w-full h-px bg-gradient-to-r from-primary/30 to-transparent -translate-x-1/2 z-0" />}
+                  <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-3 relative z-10">
+                    <s.icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <Badge variant="outline" className="mb-2 border-primary/30 text-primary text-[10px]">{s.step}</Badge>
+                  <p className="text-sm font-medium">{s.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-3 gap-6 mb-10">
+            {[
+              { value: t("landing.workflowEngine.stat1Value"), label: t("landing.workflowEngine.stat1Label"), color: "text-primary" },
+              { value: t("landing.workflowEngine.stat2Value"), label: t("landing.workflowEngine.stat2Label"), color: "text-chart-3" },
+              { value: t("landing.workflowEngine.stat3Value"), label: t("landing.workflowEngine.stat3Label"), color: "text-chart-4" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <a href="/signup" data-testid="button-workflow-engine-cta">
+              <Button size="lg" className="text-base px-8">
+                <Workflow className="w-4 h-4 mr-2" />
+                {t("landing.workflowEngine.cta")}
+              </Button>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Revenue Automation Suite */}
+      <section id="revenue-suite" className="py-24 relative" data-testid="section-revenue-suite">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 left-0 w-96 h-96 bg-chart-4/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 right-0 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
+              <TrendingUp className="w-3.5 h-3.5 mr-2" />
+              {t("landing.revenueSuite.badge")}
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4">
+              {t("landing.revenueSuite.title")}{" "}
+              <span className="gradient-text">{t("landing.revenueSuite.titleHighlight")}</span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+              {t("landing.revenueSuite.description")}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+            {[
+              { icon: Mic, title: t("landing.revenueSuite.f0title"), desc: t("landing.revenueSuite.f0desc"), color: "bg-chart-4/10 text-chart-4" },
+              { icon: RefreshCw, title: t("landing.revenueSuite.f1title"), desc: t("landing.revenueSuite.f1desc"), color: "bg-primary/10 text-primary" },
+              { icon: Inbox, title: t("landing.revenueSuite.f2title"), desc: t("landing.revenueSuite.f2desc"), color: "bg-chart-2/10 text-chart-2" },
+              { icon: Clock, title: t("landing.revenueSuite.f3title"), desc: t("landing.revenueSuite.f3desc"), color: "bg-chart-3/10 text-chart-3" },
+              { icon: PauseCircle, title: t("landing.revenueSuite.f4title"), desc: t("landing.revenueSuite.f4desc"), color: "bg-amber-500/10 text-amber-400" },
+              { icon: Briefcase, title: t("landing.revenueSuite.f5title"), desc: t("landing.revenueSuite.f5desc"), color: "bg-purple-500/10 text-purple-400" },
+            ].map((feature) => (
+              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-revenue-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
+                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
+                  <feature.icon className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="p-6 mb-10">
+            <h3 className="font-semibold mb-4 text-center">{t("landing.revenueSuite.flowTitle")}</h3>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              {[
+                { label: t("landing.revenueSuite.flowStep1"), icon: Search, color: "bg-primary/10 text-primary" },
+                { label: t("landing.revenueSuite.flowStep2"), icon: Send, color: "bg-chart-3/10 text-chart-3" },
+                { label: t("landing.revenueSuite.flowStep3"), icon: RefreshCw, color: "bg-chart-4/10 text-chart-4" },
+                { label: t("landing.revenueSuite.flowStep4"), icon: MessageSquare, color: "bg-chart-2/10 text-chart-2" },
+                { label: t("landing.revenueSuite.flowStep5"), icon: Calendar, color: "bg-amber-500/10 text-amber-400" },
+              ].map((step, i) => (
+                <div key={step.label} className="flex items-center gap-3">
+                  <div className="text-center">
+                    <div className={`w-12 h-12 rounded-full ${step.color} flex items-center justify-center mx-auto mb-2`}>
+                      <step.icon className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-medium">{step.label}</p>
+                  </div>
+                  {i < 4 && <ArrowRight className="w-4 h-4 text-muted-foreground/40 hidden md:block" />}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-3 gap-6 mb-10">
+            {[
+              { value: t("landing.revenueSuite.stat1Value"), label: t("landing.revenueSuite.stat1Label"), color: "text-chart-4" },
+              { value: t("landing.revenueSuite.stat2Value"), label: t("landing.revenueSuite.stat2Label"), color: "text-primary" },
+              { value: t("landing.revenueSuite.stat3Value"), label: t("landing.revenueSuite.stat3Label"), color: "text-chart-3" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <a href="/signup" data-testid="button-revenue-suite-cta">
+              <Button size="lg" className="text-base px-8">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                {t("landing.revenueSuite.cta")}
+              </Button>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Deep Lead Discovery */}
+      <section id="lead-discovery" className="py-24 relative" data-testid="section-lead-discovery">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 right-0 w-96 h-96 bg-chart-3/5 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
+              <Search className="w-3.5 h-3.5 mr-2" />
+              {t("landing.leadDiscovery.badge")}
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4">
+              {t("landing.leadDiscovery.title")}{" "}
+              <span className="gradient-text">{t("landing.leadDiscovery.titleHighlight")}</span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+              {t("landing.leadDiscovery.description")}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+            {[
+              { icon: MapPin, title: t("landing.leadDiscovery.f0title"), desc: t("landing.leadDiscovery.f0desc"), color: "bg-chart-4/10 text-chart-4" },
+              { icon: TrendingUp, title: t("landing.leadDiscovery.f1title"), desc: t("landing.leadDiscovery.f1desc"), color: "bg-chart-3/10 text-chart-3" },
+              { icon: ClipboardCheck, title: t("landing.leadDiscovery.f2title"), desc: t("landing.leadDiscovery.f2desc"), color: "bg-primary/10 text-primary" },
+              { icon: Stethoscope, title: t("landing.leadDiscovery.f3title"), desc: t("landing.leadDiscovery.f3desc"), color: "bg-chart-2/10 text-chart-2" },
+              { icon: Shield, title: t("landing.leadDiscovery.f4title"), desc: t("landing.leadDiscovery.f4desc"), color: "bg-amber-500/10 text-amber-400" },
+              { icon: RotateCw, title: t("landing.leadDiscovery.f5title"), desc: t("landing.leadDiscovery.f5desc"), color: "bg-purple-500/10 text-purple-400" },
+            ].map((feature) => (
+              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-discovery-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
+                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
+                  <feature.icon className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 mb-10">
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-md bg-chart-4/10 flex items-center justify-center">
+                  <Landmark className="w-5 h-5 text-chart-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold">{t("landing.leadDiscovery.taxLienTitle")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("landing.leadDiscovery.taxLienDesc")}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { state: "Florida", rate: "18%" },
+                  { state: "Arizona", rate: "16%" },
+                  { state: "Iowa", rate: "24%" },
+                  { state: "New Jersey", rate: "18%" },
+                  { state: "Illinois", rate: "18%" },
+                  { state: "Maryland", rate: "12%" },
+                  { state: "South Carolina", rate: "12%" },
+                  { state: "Colorado", rate: "9%" },
+                  { state: "Indiana", rate: "10%" },
+                  { state: "West Virginia", rate: "12%" },
+                ].map((s) => (
+                  <div key={s.state} className="flex items-center justify-between p-2 rounded-md bg-secondary/30 text-sm">
+                    <span>{s.state}</span>
+                    <Badge variant="outline" className="text-[10px] text-chart-3">{s.rate}</Badge>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-md bg-chart-2/10 flex items-center justify-center">
+                  <Stethoscope className="w-5 h-5 text-chart-2" />
+                </div>
+                <div>
+                  <h3 className="font-bold">{t("landing.leadDiscovery.medBillingTitle")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("landing.leadDiscovery.medBillingDesc")}</p>
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                {[
+                  { label: t("landing.leadDiscovery.strategyHiring"), desc: t("landing.leadDiscovery.strategyHiringDesc") },
+                  { label: t("landing.leadDiscovery.strategyNew"), desc: t("landing.leadDiscovery.strategyNewDesc") },
+                  { label: t("landing.leadDiscovery.strategyPain"), desc: t("landing.leadDiscovery.strategyPainDesc") },
+                  { label: t("landing.leadDiscovery.strategySpecialty"), desc: t("landing.leadDiscovery.strategySpecialtyDesc") },
+                ].map((strategy) => (
+                  <div key={strategy.label} className="flex items-center gap-3 p-2.5 rounded-md bg-secondary/30">
+                    <CheckCircle className="w-4 h-4 text-chart-3 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium">{strategy.label}</p>
+                      <p className="text-xs text-muted-foreground">{strategy.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-3 gap-6 mb-10">
+            {[
+              { value: t("landing.leadDiscovery.stat1Value"), label: t("landing.leadDiscovery.stat1Label"), color: "text-chart-4" },
+              { value: t("landing.leadDiscovery.stat2Value"), label: t("landing.leadDiscovery.stat2Label"), color: "text-chart-3" },
+              { value: t("landing.leadDiscovery.stat3Value"), label: t("landing.leadDiscovery.stat3Label"), color: "text-amber-400" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <a href="/signup" data-testid="button-lead-discovery-cta">
+              <Button size="lg" className="text-base px-8">
+                <Search className="w-4 h-4 mr-2" />
+                {t("landing.leadDiscovery.cta")}
+              </Button>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Platform Stats Strip */}
+      <section className="py-16 relative" data-testid="section-platform-stats">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <Badge variant="outline" className="py-1.5 px-4 border-primary/30 bg-primary/5">
+              {t("landing.platformStats.badge")}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+            {[
+              { value: t("landing.platformStats.s0value"), label: t("landing.platformStats.s0label"), color: "text-primary" },
+              { value: t("landing.platformStats.s1value"), label: t("landing.platformStats.s1label"), color: "text-chart-3" },
+              { value: t("landing.platformStats.s2value"), label: t("landing.platformStats.s2label"), color: "text-chart-4" },
+              { value: t("landing.platformStats.s3value"), label: t("landing.platformStats.s3label"), color: "text-chart-2" },
+              { value: t("landing.platformStats.s4value"), label: t("landing.platformStats.s4label"), color: "text-amber-400" },
+              { value: t("landing.platformStats.s5value"), label: t("landing.platformStats.s5label"), color: "text-purple-400" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
+              </div>
             ))}
           </div>
         </div>
