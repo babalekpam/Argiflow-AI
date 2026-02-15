@@ -18,6 +18,30 @@ import { startWorkflowEngine } from "./workflow-engine";
 import { workflowHooks } from "./workflow-hooks";
 import { discoverTaxLiens, STATE_DATA, STATE_NAMES, type TaxLienSettings } from "./agents/tax-lien-agent";
 
+function normalizePhoneNumber(phone: string | undefined | null): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 0) return "";
+  if (digits.length === 11 && digits.startsWith('1')) {
+    const area = digits.slice(1, 4);
+    const prefix = digits.slice(4, 7);
+    const line = digits.slice(7, 11);
+    return `+1 (${area}) ${prefix}-${line}`;
+  }
+  if (digits.length === 10) {
+    const area = digits.slice(0, 3);
+    const prefix = digits.slice(3, 6);
+    const line = digits.slice(6, 10);
+    return `+1 (${area}) ${prefix}-${line}`;
+  }
+  if (digits.length > 11) {
+    const cc = digits.slice(0, digits.length - 10);
+    const rest = digits.slice(digits.length - 10);
+    return `+${cc} (${rest.slice(0, 3)}) ${rest.slice(3, 6)}-${rest.slice(6)}`;
+  }
+  return phone;
+}
+
 async function sendSystemEmail(to: string, from: { email: string; name: string }, subject: string, html: string) {
   const smtpHost = process.env.SMTP_HOST;
   const smtpUser = process.env.SMTP_USERNAME;
@@ -342,10 +366,11 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const isFakePhone = (phone: string) => {
         if (!phone) return false;
         const digits = phone.replace(/\D/g, '');
+        if (digits.length === 0) return false;
         if (/^1?555\d{7}$/.test(digits)) return true;
         if (/^(\d)\1{6,}$/.test(digits)) return true;
         if (/^(1234|0000|9999)/.test(digits)) return true;
-        if (digits.length > 0 && digits.length < 7) return true;
+        if (digits.length < 10) return true;
         return false;
       };
 
@@ -368,7 +393,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
           continue;
         }
         const hasRealEmail = lead.email && lead.email.trim().length > 3 && lead.email.includes("@") && lead.email.includes(".");
-        const hasRealPhone = lead.phone && lead.phone.replace(/\D/g, '').length >= 7;
+        const hasRealPhone = lead.phone && lead.phone.replace(/\D/g, '').length >= 10;
         if (!hasRealEmail && !hasRealPhone) {
           skipped.push(lead.name || "unnamed");
           console.warn(`[Lead Filter] Rejected lead with no verified contact: name="${lead.name}", email="${lead.email}", phone="${lead.phone}"`);
@@ -379,7 +404,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
           userId,
           name: lead.name || "Unknown",
           email: lead.email || "",
-          phone: lead.phone || "",
+          phone: normalizePhoneNumber(lead.phone),
           company: lead.company || "",
           source: standardSource || lead.source || "Web Research",
           status: lead.status || "new",
@@ -1026,6 +1051,9 @@ CONTACT VERIFICATION RULES (MANDATORY):
 - NEVER fabricate, guess, or invent contact details. If you didn't see it in search results, don't use it.
 - NEVER use @example.com, @test.com, or any placeholder/test domain.
 - NEVER use 555-xxx-xxxx phone numbers — those are fictional US numbers.
+- Phone numbers MUST be FULL US numbers with area code (10 digits). Example: (615) 482-6768 or 615-482-6768. NEVER submit partial or truncated phone numbers.
+- If a search result shows a phone number, copy the COMPLETE number including area code.
+- Do additional web searches specifically for "[business name] phone number" or "[business name] contact" if the first search didn't return a full phone number.
 - If you cannot find verified contact info for a potential lead, DO NOT include that lead. Quality over quantity.
 - Each lead MUST have at least one real, verified contact method (phone or email) found from an actual webpage.
 
@@ -2158,6 +2186,9 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten() });
       }
+      if (parsed.data.phone) {
+        parsed.data.phone = normalizePhoneNumber(parsed.data.phone);
+      }
       const lead = await storage.createLead(parsed.data);
       workflowHooks.onLeadCreated(userId, lead);
       res.json(lead);
@@ -3205,6 +3236,8 @@ CONTACT INFO RULES (MANDATORY):
 - NEVER use patterns like firstname@company.com unless you found that exact email on a real webpage.
 - NEVER use @example.com, @test.com, or any placeholder domain.
 - NEVER use 555-xxx-xxxx phone numbers — those are fictional.
+- Phone numbers MUST be FULL US numbers with area code — all 10 digits. Example: (615) 482-6768. NEVER submit partial, truncated, or incomplete phone numbers.
+- If a search result shows a phone number, copy the COMPLETE number including area code. If truncated, do a follow-up search for "[practice name] phone number" to get the full number.
 - Phone numbers MUST come from real listings (Google Maps, Yelp, practice websites, directories).
 - If you cannot find a real email for a practice, use the practice's publicly listed email (info@, contact@, office@) that you found on their actual website.
 - If you genuinely cannot find ANY real contact info for a lead, DO NOT include that lead. Quality over quantity.
@@ -4396,7 +4429,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         userId: "discovery", // special marker for discovery calls
         name: `${firstName} ${lastName}`,
         email,
-        phone: phone || "",
+        phone: normalizePhoneNumber(phone),
         source: "Discovery Call",
         status: "new",
         score: 85, // high intent — they booked a call
