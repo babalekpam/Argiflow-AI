@@ -55,6 +55,8 @@ import {
   Server,
   Zap,
 } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
+import { FaMicrosoft } from "react-icons/fa";
 
 type Tab = "accounts" | "warmup" | "campaigns" | "unibox" | "visitors" | "dfy" | "verification" | "placement" | "copilot" | "templates" | "analytics";
 
@@ -89,7 +91,7 @@ function LoadingCards({ count = 3 }: { count?: number }) {
 function EmailAccountsTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [showConnect, setShowConnect] = useState(false);
+  const [connectMode, setConnectMode] = useState<null | "select" | "smtp">(null);
   const [smtpForm, setSmtpForm] = useState({
     email: "", smtpHost: "", smtpPort: "587", imapHost: "", imapPort: "993", password: "", displayName: "", dailySendLimit: "50",
   });
@@ -104,7 +106,7 @@ function EmailAccountsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/instantly/email-accounts"] });
       toast({ title: "Email account connected" });
-      setShowConnect(false);
+      setConnectMode(null);
       setSmtpForm({ email: "", smtpHost: "", smtpPort: "587", imapHost: "", imapPort: "993", password: "", displayName: "", dailySendLimit: "50" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -137,14 +139,81 @@ function EmailAccountsTab() {
           <h3 className="text-lg font-semibold" data-testid="text-email-accounts-title">Email Accounts</h3>
           <p className="text-sm text-muted-foreground">Connect and manage your sending accounts</p>
         </div>
-        <Button onClick={() => setShowConnect(!showConnect)} data-testid="button-connect-email">
+        <Button onClick={() => setConnectMode("select")} data-testid="button-connect-email">
           <Plus className="w-4 h-4 mr-2" />Connect Account
         </Button>
       </div>
 
-      {showConnect && (
+      {connectMode === "select" && (
+        <Card className="p-6 space-y-4">
+          <div>
+            <h4 className="font-semibold text-base mb-3">Connect existing accounts</h4>
+            <div className="space-y-2 mb-4">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-chart-3 mt-0.5 shrink-0" />
+                <span className="text-sm">Connect any IMAP or SMTP email provider</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-chart-3 mt-0.5 shrink-0" />
+                <span className="text-sm">Sync up replies in the Unibox</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Card 
+              className="p-4 cursor-pointer hover-elevate border border-border/50 transition-all"
+              onClick={() => toast({ title: "Google OAuth coming soon - use SMTP/IMAP" })}
+              data-testid="card-provider-google"
+            >
+              <div className="flex items-center gap-3">
+                <SiGoogle className="w-6 h-6" />
+                <div>
+                  <p className="font-medium text-sm">Google</p>
+                  <p className="text-xs text-muted-foreground">Gmail / G-Suite</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card 
+              className="p-4 cursor-pointer hover-elevate border border-border/50 transition-all"
+              onClick={() => toast({ title: "Microsoft OAuth coming soon - use SMTP/IMAP" })}
+              data-testid="card-provider-microsoft"
+            >
+              <div className="flex items-center gap-3">
+                <FaMicrosoft className="w-6 h-6" />
+                <div>
+                  <p className="font-medium text-sm">Microsoft</p>
+                  <p className="text-xs text-muted-foreground">Office 365 / Outlook</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card 
+              className="p-4 cursor-pointer hover-elevate border-2 border-primary transition-all"
+              onClick={() => setConnectMode("smtp")}
+              data-testid="card-provider-smtp"
+            >
+              <div className="flex items-center gap-3">
+                <Mail className="w-6 h-6" />
+                <div>
+                  <p className="font-medium text-sm">Any Provider</p>
+                  <p className="text-xs text-muted-foreground">IMAP / SMTP</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          <Button variant="outline" onClick={() => setConnectMode(null)} className="w-full">Cancel</Button>
+        </Card>
+      )}
+
+      {connectMode === "smtp" && (
         <Card className="p-4 space-y-4">
-          <h4 className="font-medium">Connect SMTP/IMAP Account</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium">Connect SMTP/IMAP Account</h4>
+            <Button size="sm" variant="ghost" onClick={() => setConnectMode("select")}>Back</Button>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div><Label>Email Address</Label><Input value={smtpForm.email} onChange={(e) => setSmtpForm({ ...smtpForm, email: e.target.value })} placeholder="you@domain.com" data-testid="input-smtp-email" /></div>
             <div><Label>Display Name</Label><Input value={smtpForm.displayName} onChange={(e) => setSmtpForm({ ...smtpForm, displayName: e.target.value })} placeholder="John Doe" data-testid="input-smtp-display-name" /></div>
@@ -159,7 +228,7 @@ function EmailAccountsTab() {
             <Button onClick={() => connectMutation.mutate({ ...smtpForm, smtpPort: parseInt(smtpForm.smtpPort), imapPort: parseInt(smtpForm.imapPort), dailySendLimit: parseInt(smtpForm.dailySendLimit) })} disabled={connectMutation.isPending || !smtpForm.email || !smtpForm.smtpHost} data-testid="button-submit-connect">
               {connectMutation.isPending ? "Connecting..." : "Connect"}
             </Button>
-            <Button variant="outline" onClick={() => setShowConnect(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setConnectMode(null)}>Cancel</Button>
           </div>
         </Card>
       )}
@@ -947,12 +1016,71 @@ function DfySetupTab() {
 
   if (isLoading) return <LoadingCards />;
 
+  const checklistItems = [
+    "We Set Up Your Accounts",
+    "You Choose The Domain & Account Names",
+    "Automatic reconnects",
+    "Save time and money",
+    "High-quality US IP accounts",
+    "Deliverability Optimized",
+  ];
+
   return (
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-semibold" data-testid="text-dfy-title">Done-For-You Email Setup</h3>
         <p className="text-sm text-muted-foreground">Domain provisioning with SPF, DKIM, DMARC, and MX records</p>
       </div>
+
+      <Card className="p-6 space-y-4">
+        <h4 className="font-semibold text-base mb-3">Done-for-you Email Setup</h4>
+        <div className="space-y-2 mb-4">
+          {checklistItems.map((item) => (
+            <div key={item} className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-chart-3 mt-0.5 shrink-0" />
+              <span className="text-sm">{item}</span>
+            </div>
+          ))}
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-chart-3 mt-0.5 shrink-0" />
+            <span className="text-sm">Added to the premium warmup pool</span>
+            <Badge className="ml-auto text-[10px]">Pro</Badge>
+          </div>
+        </div>
+
+        <div className="border-t pt-4 mt-4">
+          <p className="text-xs text-muted-foreground mb-3">Accounts that will be set up:</p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Card className="p-3 border border-border/50">
+              <div className="flex items-center gap-2">
+                <SiGoogle className="w-5 h-5" />
+                <div>
+                  <p className="text-xs font-medium">Google</p>
+                  <p className="text-[10px] text-muted-foreground">Gmail / G-Suite</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-3 border border-border/50">
+              <div className="flex items-center gap-2">
+                <FaMicrosoft className="w-5 h-5" />
+                <div>
+                  <p className="text-xs font-medium">Microsoft</p>
+                  <p className="text-[10px] text-muted-foreground">Office 365 / Outlook</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-3 border border-border/50">
+              <div className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                <div>
+                  <p className="text-xs font-medium">Any Provider</p>
+                  <p className="text-[10px] text-muted-foreground">IMAP / SMTP</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </Card>
 
       <Card className="p-4 space-y-3">
         <h4 className="font-medium">New Domain Order</h4>
