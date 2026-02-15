@@ -317,15 +317,35 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return "ERROR: No lead data provided. Use web_search first to find real businesses, then pass their details to this tool.";
       }
 
-      const isFakeData = (val: string) => {
-        if (!val) return true;
-        const lower = val.toLowerCase();
-        if (/^(prospect|lead|contact|test)\s*\d/i.test(lower)) return true;
-        if (/contact\d+@prospect/i.test(lower)) return true;
-        if (/prospect-[a-z0-9]+\.com/i.test(lower)) return true;
-        if (/^(test|fake|dummy|placeholder|sample|example)@/i.test(lower)) return true;
+      const isFakeName = (name: string) => {
+        if (!name) return true;
+        const lower = name.toLowerCase().trim();
+        if (/^(prospect|lead|contact|test|debug|fresh lead|alpha lead|real person)\s*/i.test(lower)) return true;
         if (/hunter (lead|prospect)/i.test(lower)) return true;
         if (/^unknown$/i.test(lower)) return true;
+        if (/^(sample|example|dummy|placeholder|fake|lorem|john doe|jane doe)\b/i.test(lower)) return true;
+        if (/lead\s*#/i.test(lower)) return true;
+        if (/^[a-z]\s*\d+$/i.test(lower)) return true;
+        return false;
+      };
+      const isFakeEmail = (email: string) => {
+        if (!email) return false;
+        const lower = email.toLowerCase().trim();
+        if (/contact\d+@prospect/i.test(lower)) return true;
+        if (/prospect-[a-z0-9]+\.com/i.test(lower)) return true;
+        if (/@(example|test|fake|placeholder|dummy|sample|mailinator|tempmail|guerrillamail)\./i.test(lower)) return true;
+        if (/^(test|fake|dummy|placeholder|sample|noreply|no-reply)@/i.test(lower)) return true;
+        if (/^(prospect|lead|contact|debug|fresh|alpha)[\d_@]/i.test(lower)) return true;
+        if (/\+1555|555-\d{3}-\d{4}|5550{4}/i.test(lower)) return true;
+        return false;
+      };
+      const isFakePhone = (phone: string) => {
+        if (!phone) return false;
+        const digits = phone.replace(/\D/g, '');
+        if (/^1?555\d{7}$/.test(digits)) return true;
+        if (/^(\d)\1{6,}$/.test(digits)) return true;
+        if (/^(1234|0000|9999)/.test(digits)) return true;
+        if (digits.length > 0 && digits.length < 7) return true;
         return false;
       };
 
@@ -337,9 +357,21 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const skipped: string[] = [];
       const createdLeadDetails: { name: string; email?: string }[] = [];
       for (const lead of leadsData.slice(0, 30)) {
-        if (isFakeData(lead.name) || isFakeData(lead.email)) {
+        if (isFakeName(lead.name)) {
           skipped.push(lead.name || "unnamed");
-          console.warn(`[Lead Filter] Rejected generic/fake lead: name="${lead.name}", email="${lead.email}"`);
+          console.warn(`[Lead Filter] Rejected fake name: "${lead.name}"`);
+          continue;
+        }
+        if (isFakeEmail(lead.email) || isFakePhone(lead.phone)) {
+          skipped.push(lead.name || "unnamed");
+          console.warn(`[Lead Filter] Rejected fake contact: email="${lead.email}", phone="${lead.phone}"`);
+          continue;
+        }
+        const hasRealEmail = lead.email && lead.email.trim().length > 3 && lead.email.includes("@") && lead.email.includes(".");
+        const hasRealPhone = lead.phone && lead.phone.replace(/\D/g, '').length >= 7;
+        if (!hasRealEmail && !hasRealPhone) {
+          skipped.push(lead.name || "unnamed");
+          console.warn(`[Lead Filter] Rejected lead with no verified contact: name="${lead.name}", email="${lead.email}", phone="${lead.phone}"`);
           continue;
         }
 
@@ -362,7 +394,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
       }
 
       if (created.length === 0 && skipped.length > 0) {
-        return `ERROR: All ${skipped.length} leads were rejected because they contained fake/placeholder data (generic names like "Prospect 1" or fake emails like "contact1@prospect.com"). You MUST use web_search to find REAL businesses with real names and real emails. Try again with actual web search results.`;
+        return `ERROR: All ${skipped.length} leads were rejected because they contained fake/placeholder data (generic names, fake emails like @example.com/@test.com, or 555 phone numbers). You MUST use web_search to find REAL businesses with VERIFIED contact info from actual websites. Each lead needs a real email or phone number you found on a real webpage. Try again with verified web search results.`;
       }
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);
@@ -988,6 +1020,14 @@ OUTREACH PERSONALIZATION: Reference their specific pain point or situation. If h
 AGENT-TO-FUNNEL: When generating leads for a specific agent (Tax Lien, Govt Contracts, Lead Gen, etc.), ALWAYS include agent_type in generate_leads (e.g. agent_type="tax-lien"). This auto-creates or finds the matching funnel pipeline and adds leads as deals. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage.
 
 TOOL SEQUENCING: web_search → generate_leads (with agent_type if applicable) → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results and suggest next steps. Combine tools in one flow when beneficial.
+
+CONTACT VERIFICATION RULES (MANDATORY):
+- ONLY use email addresses and phone numbers you actually found on a real website, directory, or contact page during your web searches.
+- NEVER fabricate, guess, or invent contact details. If you didn't see it in search results, don't use it.
+- NEVER use @example.com, @test.com, or any placeholder/test domain.
+- NEVER use 555-xxx-xxxx phone numbers — those are fictional US numbers.
+- If you cannot find verified contact info for a potential lead, DO NOT include that lead. Quality over quantity.
+- Each lead MUST have at least one real, verified contact method (phone or email) found from an actual webpage.
 
 CRITICAL RULE: When asked to find leads, you MUST ALWAYS call the generate_leads tool to save them to the CRM. NEVER just describe leads in text without saving them. After web searches, immediately call generate_leads with all leads found. The user expects leads to appear in their CRM leads list automatically. If you don't call generate_leads, the leads are LOST and the user gets nothing.
 
@@ -3158,7 +3198,17 @@ SEARCH STRATEGY:
 2. Look for practices that show intent signals: hiring billing staff, new practice openings, complaints about billing, switching RCM companies
 3. Find decision makers: practice owners, physicians (MD/DO), practice administrators, medical directors, CFOs
 4. Extract real names, emails, phone numbers, company names from search results
-5. If direct email not found, use patterns: firstname@practicename.com, info@practicename.com, or contact@ patterns
+5. Do MULTIPLE web searches to find verified contact information for each lead
+
+CONTACT INFO RULES (MANDATORY):
+- ONLY include email addresses you found on an actual website, directory listing, or contact page. NEVER fabricate or guess emails.
+- NEVER use patterns like firstname@company.com unless you found that exact email on a real webpage.
+- NEVER use @example.com, @test.com, or any placeholder domain.
+- NEVER use 555-xxx-xxxx phone numbers — those are fictional.
+- Phone numbers MUST come from real listings (Google Maps, Yelp, practice websites, directories).
+- If you cannot find a real email for a practice, use the practice's publicly listed email (info@, contact@, office@) that you found on their actual website.
+- If you genuinely cannot find ANY real contact info for a lead, DO NOT include that lead. Quality over quantity.
+- Each lead MUST have at least a real phone number OR a real email that you found on an actual webpage.
 
 SCORING:
 - Hiring for billing position: score 80+
@@ -3167,9 +3217,9 @@ SCORING:
 - Practice owner/physician: +25 to score
 - Solo/small practice: +20 to score
 
-For EACH lead provide: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score (40-95), intent_signal, notes (title + why they're a good prospect), outreach (personalized 3-5 sentence email ending with: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246)
+For EACH lead provide: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score (40-95), intent_signal, notes (title + why they're a good prospect + WHERE you found their contact info), outreach (personalized 3-5 sentence email ending with: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246)
 
-CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} leads in a single call. Use agent_type="lead-gen". Do NOT just talk about leads — you MUST use the generate_leads tool to save them.`;
+CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} leads in a single call. Use agent_type="lead-gen". Do NOT just talk about leads — you MUST use the generate_leads tool to save them. Every lead MUST have real, verifiable contact details.`;
 
       const tools: any[] = [
         {
@@ -3295,7 +3345,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         currentMessages.push({ role: "assistant", content: response.content as any });
         currentMessages.push({
           role: "user",
-          content: `You MUST now call the generate_leads tool with all the leads you found. Do NOT just describe them in text. Call the tool NOW with an array of lead objects. Each lead needs: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score, intent_signal, notes, outreach. Use agent_type="lead-gen". If you found practices in your search, create leads for them NOW using the tool.`,
+          content: `You MUST now call the generate_leads tool with all the leads you found. Do NOT just describe them in text. Call the tool NOW with an array of lead objects. Each lead needs: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score, intent_signal, notes, outreach. Use agent_type="lead-gen". CRITICAL: Every email and phone number MUST be real and verified from your web search results. NEVER fabricate contacts. NEVER use @example.com, @test.com, or 555 phone numbers. If you don't have real contact info for a lead, skip that lead entirely.`,
         });
 
         const retryResponse = await claudeCallWithRetry({
