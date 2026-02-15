@@ -5786,15 +5786,12 @@ Return a JSON array of reply strings in the same order. Example:
     }
   }
 
-  // Background: run every 4 hours
+  // Background: run twice a week (every 84 hours = 3.5 days)
+  const PLATFORM_PROMOTER_INTERVAL = 84 * 60 * 60 * 1000;
   setInterval(() => {
     runPlatformPromotion().catch(err => console.error("[Platform Promoter] Scheduler error:", err));
-  }, 4 * 60 * 60 * 1000);
-
-  // Run first promotion after 2 minutes of startup
-  setTimeout(() => {
-    runPlatformPromotion().catch(err => console.error("[Platform Promoter] Initial run error:", err));
-  }, 2 * 60 * 1000);
+  }, PLATFORM_PROMOTER_INTERVAL);
+  console.log("[Platform Promoter] Scheduled to run every 3.5 days (twice per week). Manual trigger available at /api/platform-promoter/trigger");
 
   app.get("/api/platform-promoter/status", isAuthenticated, async (req, res) => {
     try {
