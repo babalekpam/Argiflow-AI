@@ -74,25 +74,25 @@ export default function LandingPage() {
 
   const services = [
     {
-      icon: Phone,
+      icon: Search,
       number: "01",
       title: t("landing.services.s0title"),
       description: t("landing.services.s0desc"),
     },
     {
-      icon: Boxes,
+      icon: Send,
       number: "02",
       title: t("landing.services.s1title"),
       description: t("landing.services.s1desc"),
     },
     {
-      icon: Workflow,
+      icon: MessageSquare,
       number: "03",
       title: t("landing.services.s2title"),
       description: t("landing.services.s2desc"),
     },
     {
-      icon: MessageSquare,
+      icon: Calendar,
       number: "04",
       title: t("landing.services.s3title"),
       description: t("landing.services.s3desc"),
@@ -104,7 +104,7 @@ export default function LandingPage() {
       description: t("landing.services.s4desc"),
     },
     {
-      icon: Target,
+      icon: Phone,
       number: "06",
       title: t("landing.services.s5title"),
       description: t("landing.services.s5desc"),
@@ -373,6 +373,78 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* What ArgiFlow Does — Quick Summary */}
+      <section className="py-16 relative" data-testid="section-what-we-do">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold mb-3">
+              {t("landing.whatWeDo.title", "In Simple Terms:")}{" "}
+              <span className="gradient-text">{t("landing.whatWeDo.titleHighlight", "What Does ArgiFlow Actually Do?")}</span>
+            </h2>
+            <p className="text-muted-foreground max-w-3xl mx-auto text-lg leading-relaxed">
+              {t("landing.whatWeDo.description", "ArgiFlow is an AI-powered platform that automatically finds potential clients for your business, reaches out to them with personalized messages, handles their replies, and books meetings on your calendar — all without you lifting a finger.")}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-8">
+            {[
+              {
+                icon: Search,
+                step: "1",
+                title: t("landing.whatWeDo.step1Title", "AI Finds Your Clients"),
+                desc: t("landing.whatWeDo.step1Desc", "Tell us who your ideal customer is. AI searches the internet and finds matching businesses with contact details — emails, phone numbers, company info."),
+                color: "bg-primary/10 text-primary",
+              },
+              {
+                icon: Send,
+                step: "2",
+                title: t("landing.whatWeDo.step2Title", "AI Sends Messages For You"),
+                desc: t("landing.whatWeDo.step2Desc", "AI writes and sends personalized emails and text messages to each prospect. Every message is tailored to their business and pain points."),
+                color: "bg-chart-3/10 text-chart-3",
+              },
+              {
+                icon: MessageSquare,
+                step: "3",
+                title: t("landing.whatWeDo.step3Title", "AI Handles Replies"),
+                desc: t("landing.whatWeDo.step3Desc", "When someone responds, AI reads the reply, understands if they're interested, and responds appropriately — no manual work needed."),
+                color: "bg-chart-4/10 text-chart-4",
+              },
+              {
+                icon: Calendar,
+                step: "4",
+                title: t("landing.whatWeDo.step4Title", "AI Books Your Meetings"),
+                desc: t("landing.whatWeDo.step4Desc", "Interested prospects get scheduled on your calendar automatically. You just show up, present your service, and close the deal."),
+                color: "bg-chart-2/10 text-chart-2",
+              },
+            ].map((item) => (
+              <Card key={item.step} className="p-5 flex gap-4" data-testid={`card-what-we-do-step-${item.step}`}>
+                <div className={`w-11 h-11 rounded-md flex items-center justify-center shrink-0 ${item.color}`}>
+                  <item.icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+                      {t("landing.process.step", "Step")} {item.step}
+                    </Badge>
+                    <h3 className="text-sm font-semibold">{item.title}</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <Card className="inline-block p-4 bg-primary/5 border-primary/20">
+              <p className="text-sm font-medium">
+                <span className="text-primary">{t("landing.whatWeDo.resultIcon", "Result:")}</span>{" "}
+                {t("landing.whatWeDo.resultText", "You wake up to new meetings on your calendar from prospects who want to buy your service. Every single day.")}
+              </p>
+            </Card>
           </div>
         </div>
       </section>
