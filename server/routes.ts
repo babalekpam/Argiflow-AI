@@ -101,7 +101,7 @@ const anthropic = new Anthropic({ apiKey: anthropicConfig.apiKey, baseURL: anthr
 
 const CLAUDE_MODEL = "claude-sonnet-4-20250514";
 
-async function getAnthropicForUser(userId: string): Promise<{ client: Anthropic; model: string }> {
+export async function getAnthropicForUser(userId: string): Promise<{ client: Anthropic; model: string }> {
   const settings = await storage.getSettingsByUser(userId);
   const userKey = settings?.anthropicApiKey;
   if (userKey && userKey.startsWith("sk-ant-")) {
@@ -4287,6 +4287,21 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>Sorry, an error occurred.</Say><Hangup/></Response>`);
       }
 
+      const baseUrl = `https://${req.get("host")}`;
+      const wsUrl = baseUrl.replace("https://", "wss://");
+
+      if (process.env.DEEPGRAM_API_KEY) {
+        res.type("text/xml");
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Connect>
+    <Stream url="${wsUrl}/api/voice/stream/${callLogId}">
+      <Parameter name="callLogId" value="${callLogId}" />
+    </Stream>
+  </Connect>
+</Response>`);
+      }
+
       let greeting = "Hello, this is an AI assistant. How can I help you?";
       let systemPrompt = "You are a professional AI phone agent. Be helpful and concise.";
 
@@ -4328,8 +4343,6 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
 
           const isGoodbye = aiText.toLowerCase().includes("goodbye") || aiText.toLowerCase().includes("have a great day") || existingTranscript.length > 20;
 
-          const baseUrl = `https://${req.get("host")}`;
-
           res.type("text/xml");
           if (isGoodbye) {
             return res.send(`<?xml version="1.0" encoding="UTF-8"?>
@@ -4361,8 +4374,6 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
 
       const initialTranscript = [{ role: "agent", text: greeting }];
       await storage.updateVoiceCall(callLogId, { status: "in-progress", transcript: JSON.stringify(initialTranscript) });
-
-      const baseUrl = `https://${req.get("host")}`;
 
       res.type("text/xml");
       res.send(`<?xml version="1.0" encoding="UTF-8"?>
