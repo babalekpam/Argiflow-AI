@@ -444,3 +444,4 @@ export type PlatformPromotionRun = typeof platformPromotionRuns.$inferSelect;
 
 export * from "./workflow-schema";
 export * from "./instantly-schema";
+export * from "./intelligence-schema";
