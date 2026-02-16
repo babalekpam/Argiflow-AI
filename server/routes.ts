@@ -65,13 +65,16 @@ async function sendSystemEmail(to: string, from: { email: string; name: string }
       subject,
       html,
     });
+    console.log(`[SystemEmail] Sent via SMTP to ${to}`);
   } else if (sgKey) {
     sgMail.setApiKey(sgKey);
     await sgMail.send({ to, from, subject, html });
+    console.log(`[SystemEmail] Sent via SendGrid to ${to}`);
   } else {
     console.warn("No email provider configured (neither SMTP env vars nor SENDGRID_API_KEY). Cannot send system email.");
   }
 }
+
 
 // ============================================================
 // ANTHROPIC CLAUDE — SINGLE AI PROVIDER FOR EVERYTHING
@@ -1485,7 +1488,36 @@ export async function registerRoutes(
       req.session.userId = user.id;
       workflowHooks.onUserRegistered(user.id, user);
 
-      await storage.markEmailVerified(user.id);
+      const verifyToken = randomBytes(32).toString("hex");
+      const verifyTokenHash = createHash("sha256").update(verifyToken).digest("hex");
+      const verifyExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await storage.createEmailVerificationToken({ userId: user.id, token: verifyTokenHash, expiresAt: verifyExpiresAt });
+
+      const verifyUrl = `${getBaseUrl()}/verify-email?token=${verifyToken}`;
+      try {
+        await sendSystemEmail(
+          email,
+          { email: "info@argilette.com", name: "ArgiFlow" },
+          `Verify your email — ArgiFlow`,
+          `<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
+              <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
+            </div>
+            <h2 style="color: #e6edf3; font-size: 22px;">Welcome, ${firstName}!</h2>
+            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Thanks for signing up! Please verify your email address to activate your account.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${verifyUrl}" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Confirm Email Address</a>
+            </div>
+            <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">This link expires in 24 hours. If you didn't create this account, you can safely ignore this email.</p>
+            <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
+          </div>`
+        );
+        console.log(`Verification email sent to ${email}`);
+      } catch (verifyEmailErr: any) {
+        console.error("Verification email failed:", verifyEmailErr?.response?.body || verifyEmailErr?.message || verifyEmailErr);
+        await storage.markEmailVerified(user.id);
+      }
 
       try {
         await storage.createSubscription({
@@ -1506,7 +1538,7 @@ export async function registerRoutes(
       try {
         await sendSystemEmail(
           email,
-          { email: "info@argilette.co", name: "ArgiFlow" },
+          { email: "info@argilette.com", name: "ArgiFlow" },
           `Welcome to ArgiFlow — Your Pro Account is Active!`,
           `<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
             <div style="text-align: center; margin-bottom: 30px;">
@@ -1616,10 +1648,10 @@ export async function registerRoutes(
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       await storage.createEmailVerificationToken({ userId: user.id, token: tokenHash, expiresAt });
 
-      const verifyUrl = `${req.protocol}://${req.get("host")}/verify-email?token=${token}`;
+      const verifyUrl = `${getBaseUrl()}/verify-email?token=${token}`;
       await sendSystemEmail(
         email,
-        { email: "info@argilette.co", name: "ArgiFlow" },
+        { email: "info@argilette.com", name: "ArgiFlow" },
         `Verify your email — ArgiFlow`,
         `<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
           <div style="text-align: center; margin-bottom: 30px;">
@@ -1659,10 +1691,10 @@ export async function registerRoutes(
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       await storage.createPasswordResetToken({ userId: user.id, token: tokenHash, expiresAt });
 
-      const resetUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${token}`;
+      const resetUrl = `${getBaseUrl()}/reset-password?token=${token}`;
       await sendSystemEmail(
         email,
-        { email: "info@argilette.co", name: "ArgiFlow" },
+        { email: "info@argilette.com", name: "ArgiFlow" },
         "Reset Your ArgiFlow Password",
         `<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
           <div style="text-align: center; margin-bottom: 30px;">
@@ -4843,7 +4875,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         anthropicApiKey: !!process.env.ANTHROPIC_API_KEY,
         sessionSecret: !!process.env.SESSION_SECRET,
         adminPassword: !!process.env.ADMIN_PASSWORD,
-        platformSenderEmail: "info@argilette.co",
+        platformSenderEmail: "info@argilette.com",
         outreachEmailMode: "user_sendgrid_key",
       });
     } catch (error) {
