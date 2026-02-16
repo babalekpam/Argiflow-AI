@@ -37,6 +37,8 @@ import {
   Globe,
   BookOpen,
   Megaphone,
+  Search,
+  Target,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -63,6 +65,8 @@ export function AppSidebar() {
     { title: "Email Infrastructure", icon: MailPlus, url: "/dashboard/email-infra", badge: t("common.new") },
     { title: "Forum Prospector", icon: Globe, url: "/dashboard/forum-prospector", badge: t("common.new") },
     { title: "Platform Promoter", icon: Megaphone, url: "/dashboard/platform-promoter", badge: t("common.new") },
+    { title: t("sidebar.salesIntelligence", "Sales Intelligence"), icon: Search, url: "/dashboard/sales-intelligence", badge: t("common.new") },
+    { title: t("sidebar.outreachAgent", "Outreach Agent"), icon: Target, url: "/dashboard/outreach-agent", badge: t("common.new") },
   ];
 
   const growthNav = [

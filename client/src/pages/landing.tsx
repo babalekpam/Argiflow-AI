@@ -62,6 +62,7 @@ import {
   Mic,
   PauseCircle,
   Briefcase,
+  Cpu,
 } from "lucide-react";
 import { SiX, SiLinkedin, SiInstagram, SiVenmo } from "react-icons/si";
 import { CompactFlowchart } from "@/components/animated-flowchart";
@@ -245,6 +246,9 @@ export default function LandingPage() {
             </a>
             <a href="#email-engine" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md" data-testid="link-nav-email">
               {t("nav.emailInfra")}
+            </a>
+            <a href="#sales-intelligence" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md" data-testid="link-nav-intelligence">
+              {t("nav.salesIntelligence", "Intelligence")}
             </a>
             <a href="#pricing" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
               {t("nav.pricing")}
@@ -875,6 +879,158 @@ export default function LandingPage() {
               <Button size="lg" className="text-base px-8">
                 <TrendingUp className="w-4 h-4 mr-2" />
                 {t("landing.revenueSuite.cta")}
+              </Button>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* B2B Sales Intelligence */}
+      <section id="sales-intelligence" className="py-24 relative" data-testid="section-sales-intelligence">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 left-0 w-80 h-80 bg-chart-3/5 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
+              <Search className="w-3.5 h-3.5 mr-2" />
+              {t("landing.salesIntelligence.badge", "Sales Intelligence")}
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4">
+              {t("landing.salesIntelligence.title", "B2B Sales Intelligence")}{" "}
+              <span className="gradient-text">{t("landing.salesIntelligence.titleHighlight", "Engine")}</span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+              {t("landing.salesIntelligence.description", "Apollo.io-style prospecting built into your platform. Search contacts, enrich data, detect buying intent, and build org charts — all without leaving ArgiFlow.")}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+            {[
+              { icon: Users, title: t("landing.salesIntelligence.f0title", "People Search"), desc: t("landing.salesIntelligence.f0desc", "Find decision makers by title, seniority, department, company, and location. Filter by industry, employee count, and revenue range."), color: "bg-primary/10 text-primary" },
+              { icon: Building2, title: t("landing.salesIntelligence.f1title", "Company Discovery"), desc: t("landing.salesIntelligence.f1desc", "Search companies by industry, size, location, and technology stack. Full firmographic profiles with funding and social data."), color: "bg-chart-3/10 text-chart-3" },
+              { icon: Sparkles, title: t("landing.salesIntelligence.f2title", "Data Enrichment"), desc: t("landing.salesIntelligence.f2desc", "Enrich contacts and companies with emails, phone numbers, social profiles, skills, and tech stacks. Bulk-enrich your entire CRM."), color: "bg-chart-4/10 text-chart-4" },
+              { icon: Mail, title: t("landing.salesIntelligence.f3title", "Email & Phone Finder"), desc: t("landing.salesIntelligence.f3desc", "Pattern-based email discovery with confidence scoring. Direct, mobile, and company phone number lookup."), color: "bg-chart-2/10 text-chart-2" },
+              { icon: TrendingUp, title: t("landing.salesIntelligence.f4title", "Intent Data"), desc: t("landing.salesIntelligence.f4desc", "Detect buying signals — hiring surges, tech installs, content consumption. Track which companies are actively in-market."), color: "bg-amber-500/10 text-amber-400" },
+              { icon: Cpu, title: t("landing.salesIntelligence.f5title", "Technographics"), desc: t("landing.salesIntelligence.f5desc", "See what technology companies use — CRM, EHR, marketing tools, analytics. Find competitors of your existing customers."), color: "bg-purple-500/10 text-purple-400" },
+              { icon: GitBranch, title: t("landing.salesIntelligence.f6title", "Org Chart Builder"), desc: t("landing.salesIntelligence.f6desc", "Map company hierarchies. Identify decision makers, budget holders, and influencers to build multi-threaded outreach."), color: "bg-primary/10 text-primary" },
+              { icon: Brain, title: t("landing.salesIntelligence.f7title", "AI Deep Research"), desc: t("landing.salesIntelligence.f7desc", "Claude AI researches companies and contacts. Get pain points, competitors, approach angles, buyer personas, and personalized icebreakers."), color: "bg-chart-3/10 text-chart-3" },
+            ].map((feature) => (
+              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-intelligence-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
+                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
+                  <feature.icon className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+            {[
+              { value: t("landing.salesIntelligence.stat1Value", "12+"), label: t("landing.salesIntelligence.stat1Label", "Data Points per Contact"), color: "text-primary" },
+              { value: t("landing.salesIntelligence.stat2Value", "8"), label: t("landing.salesIntelligence.stat2Label", "Search Dimensions"), color: "text-chart-3" },
+              { value: t("landing.salesIntelligence.stat3Value", "50+"), label: t("landing.salesIntelligence.stat3Label", "API Endpoints"), color: "text-chart-4" },
+              { value: t("landing.salesIntelligence.stat4Value", "11"), label: t("landing.salesIntelligence.stat4Label", "Data Tables"), color: "text-chart-2" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <a href="/signup" data-testid="button-intelligence-cta">
+              <Button size="lg" className="text-base px-8">
+                <Search className="w-4 h-4 mr-2" />
+                {t("landing.salesIntelligence.cta", "Start Prospecting Free")}
+              </Button>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* AI Outreach Agent */}
+      <section id="outreach-agent" className="py-24 relative" data-testid="section-outreach-agent">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-chart-4/5 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
+              <Bot className="w-3.5 h-3.5 mr-2" />
+              {t("landing.outreachAgent.badge", "Autonomous Agent")}
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4">
+              {t("landing.outreachAgent.title", "AI Outreach Agent")}{" "}
+              <span className="gradient-text">{t("landing.outreachAgent.titleHighlight", "on Autopilot")}</span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+              {t("landing.outreachAgent.description", "A fully autonomous agent that discovers prospects, sends personalized outreach, monitors replies, classifies responses, and books meetings — running 24/7 with no manual effort.")}
+            </p>
+          </div>
+
+          <Card className="p-6 mb-10">
+            <h3 className="font-semibold mb-6 text-center">{t("landing.outreachAgent.pipelineTitle", "8-Step Autonomous Pipeline")}</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { step: "01", label: t("landing.outreachAgent.step1", "Discover"), desc: t("landing.outreachAgent.step1Desc", "AI finds prospects matching your ICP"), icon: Search, color: "bg-primary/10 text-primary" },
+                { step: "02", label: t("landing.outreachAgent.step2", "Enroll"), desc: t("landing.outreachAgent.step2Desc", "Auto-add to email campaigns"), icon: Users, color: "bg-chart-3/10 text-chart-3" },
+                { step: "03", label: t("landing.outreachAgent.step3", "Send"), desc: t("landing.outreachAgent.step3Desc", "Inbox rotation with personalization"), icon: Send, color: "bg-chart-4/10 text-chart-4" },
+                { step: "04", label: t("landing.outreachAgent.step4", "Monitor"), desc: t("landing.outreachAgent.step4Desc", "IMAP polling for new replies"), icon: Eye, color: "bg-chart-2/10 text-chart-2" },
+                { step: "05", label: t("landing.outreachAgent.step5", "Classify"), desc: t("landing.outreachAgent.step5Desc", "AI labels every reply by intent"), icon: Brain, color: "bg-amber-500/10 text-amber-400" },
+                { step: "06", label: t("landing.outreachAgent.step6", "Respond"), desc: t("landing.outreachAgent.step6Desc", "Contextual auto-replies by label"), icon: MessageSquare, color: "bg-purple-500/10 text-purple-400" },
+                { step: "07", label: t("landing.outreachAgent.step7", "Book"), desc: t("landing.outreachAgent.step7Desc", "Auto-create appointments on interest"), icon: Calendar, color: "bg-primary/10 text-primary" },
+                { step: "08", label: t("landing.outreachAgent.step8", "Repeat"), desc: t("landing.outreachAgent.step8Desc", "Continuous discovery & follow-up"), icon: RotateCw, color: "bg-chart-3/10 text-chart-3" },
+              ].map((s) => (
+                <div key={s.step} className="text-center">
+                  <div className={`w-12 h-12 rounded-full ${s.color} flex items-center justify-center mx-auto mb-2`}>
+                    <s.icon className="w-5 h-5" />
+                  </div>
+                  <Badge variant="outline" className="mb-1.5 border-primary/30 text-primary text-[10px]">{s.step}</Badge>
+                  <p className="text-sm font-medium">{s.label}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <div className="grid md:grid-cols-3 gap-5 mb-10">
+            {[
+              { icon: Target, title: t("landing.outreachAgent.f0title", "Smart Discovery"), desc: t("landing.outreachAgent.f0desc", "AI matches your ideal customer profile and finds new prospects automatically. Deduplicates against existing leads and blacklist domains."), color: "bg-primary/10 text-primary" },
+              { icon: Mail, title: t("landing.outreachAgent.f1title", "Inbox Rotation"), desc: t("landing.outreachAgent.f1desc", "Round-robin across multiple email accounts with spintax and variable replacement. Respects daily limits and business hours (M-F 9-5)."), color: "bg-chart-3/10 text-chart-3" },
+              { icon: Brain, title: t("landing.outreachAgent.f2title", "AI Reply Classification"), desc: t("landing.outreachAgent.f2desc", "Classifies replies into 8 categories: interested, not interested, OOO, meeting booked, referral, question, wrong person, bounced. Takes action accordingly."), color: "bg-chart-4/10 text-chart-4" },
+            ].map((feature) => (
+              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-outreach-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
+                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
+                  <feature.icon className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-3 gap-6 mb-10">
+            {[
+              { value: t("landing.outreachAgent.stat1Value", "8"), label: t("landing.outreachAgent.stat1Label", "Pipeline Steps"), color: "text-primary" },
+              { value: t("landing.outreachAgent.stat2Value", "24/7"), label: t("landing.outreachAgent.stat2Label", "Autonomous Operation"), color: "text-chart-3" },
+              { value: t("landing.outreachAgent.stat3Value", "8"), label: t("landing.outreachAgent.stat3Label", "Reply Classifications"), color: "text-chart-4" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <a href="/signup" data-testid="button-outreach-agent-cta">
+              <Button size="lg" className="text-base px-8">
+                <Bot className="w-4 h-4 mr-2" />
+                {t("landing.outreachAgent.cta", "Launch Outreach Agent")}
               </Button>
             </a>
           </div>

@@ -31,6 +31,8 @@ import ForumProspectorPage from "./forum-prospector";
 import PlatformGuidePage from "./platform-guide";
 import PlatformPromoterPage from "./platform-promoter";
 import EmailInfrastructurePage from "./email-infrastructure";
+import SalesIntelligencePage from "./sales-intelligence";
+import OutreachAgentPage from "./outreach-agent";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -205,6 +207,8 @@ export default function DashboardLayout() {
               <Route path="/dashboard/guide" component={PlatformGuidePage} />
               <Route path="/dashboard/platform-promoter" component={PlatformPromoterPage} />
               <Route path="/dashboard/email-infra" component={EmailInfrastructurePage} />
+              <Route path="/dashboard/sales-intelligence" component={SalesIntelligencePage} />
+              <Route path="/dashboard/outreach-agent" component={OutreachAgentPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />
