@@ -1,7 +1,7 @@
 # ArgiFlow - Automated Client Acquisition Platform
 
 ## Overview
-ArgiFlow is a SaaS platform designed for automated client acquisition, leveraging AI agents to streamline and scale business growth. It automates lead generation, nurturing, appointment booking, and ad optimization, catering to both Western markets (ArgiFlow brand) and African markets (TradeFlow brand) with region-specific features and pricing models. The platform aims to provide businesses with a comprehensive solution for efficient client acquisition and management.
+ArgiFlow is a SaaS platform for automated client acquisition, using AI agents to drive business growth. It automates lead generation, nurturing, appointment booking, and ad optimization. The platform supports both Western (ArgiFlow) and African (TradeFlow) markets with region-specific features and pricing, aiming to provide a comprehensive solution for efficient client acquisition and management.
 
 ## User Preferences
 I prefer detailed explanations.
@@ -14,51 +14,39 @@ Do not make changes to the file `Y`.
 **Frontend**: React, TypeScript, Vite, TailwindCSS, shadcn/ui.
 **Backend**: Express.js with TypeScript.
 **Database**: PostgreSQL with Drizzle ORM.
-**Authentication**: Email/password with session-based authentication using scrypt hashing. Includes email verification and password reset functionalities.
-**AI Integration**: Multi-tenant Anthropic Claude integration. Each user provides their own API key (stored in `userSettings.anthropicApiKey`) for full isolation. The `getAnthropicForUser(userId)` factory creates per-user clients. Falls back to platform key if user key not set. API key is masked in GET /api/settings responses.
-**UI/UX Design**: Dark theme with sky blue gradient accents, Inter font.
+**Authentication**: Email/password with session-based authentication using scrypt hashing, including email verification and password reset.
+**AI Integration**: Multi-tenant Anthropic Claude integration, allowing users to provide their own API keys for isolation.
+**UI/UX Design**: Dark theme with sky blue gradient accents and Inter font.
 **Core Features**:
-- **User Management**: Registration, login, email verification, password reset.
+- **User Management**: Standard authentication and account management.
 - **Dashboard**: Centralized overview of business metrics.
-- **CRM & Leads**: Lead tracking, scoring, engagement analysis (email opens/clicks), and automated outreach. Supports up to 4 separate business profiles per user, each with its own filtered leads list. Businesses are managed via the `businesses` table and leads reference them via nullable `businessId` column.
-- **Sales Funnels**: Kanban-style pipeline with deal management and stage analytics.
-- **Appointment Scheduling**: Management of client appointments.
-- **AI Agent Management**: Catalog of specialized AI agents (e.g., Tax Lien, Govt Contracts) with configuration, task queuing, and lifecycle management.
-- **Email & SMS Campaigns**: AI-assisted campaign creation, bulk sending, and individual outreach, with integrated tracking.
-- **Marketing Strategy**: AI-generated and personalized marketing strategies based on company information.
-- **Website Training**: AI analysis of user websites to extract business knowledge for personalized agent responses.
-- **Automations**: Workflow automation with templates and status management.
+- **CRM & Leads**: Tracking, scoring, engagement analysis, and automated outreach, supporting multiple business profiles per user.
+- **Sales Funnels**: Kanban-style pipeline with deal management and analytics.
+- **Appointment Scheduling**: Client appointment management.
+- **AI Agent Management**: Catalog of specialized AI agents with configuration and task management.
+- **Email & SMS Campaigns**: AI-assisted creation, bulk sending, and tracking.
+- **Marketing Strategy**: AI-generated personalized marketing strategies.
+- **Website Training**: AI analysis of user websites for personalized agent responses.
+- **Automations**: Workflow automation with templates.
 - **Notifications**: Real-time alerts for agent activities and system events.
-- **Admin Panel**: Super admin access for managing users, subscriptions, and system-wide data.
-**Multi-Region Support**: Distinct branding, agent catalogs, pricing, and currencies for Western (ArgiFlow) and African (TradeFlow) regions.
+- **Admin Panel**: Super admin access for system management.
+- **Multi-Region Support**: Distinct branding, agent catalogs, pricing, and currencies for Western and African markets.
+- **Lead Management**: Scheduling and canceling outreach for leads.
+- **Agent-to-Funnel Auto-Pipeline**: Automatic assignment of leads discovered by agents to predefined sales funnels.
+- **Voice AI Calling**: AI-powered phone calls via Twilio with conversational AI and call logging.
+- **Automated Lead Generation**: Background jobs for generating specialized leads (e.g., medical billing, tax lien) using AI.
+- **Automated Follow-Up Sequences**: AI-generated, multi-step email sequences for leads, stopping on engagement.
+- **Workflow Automation Engine**: An n8n-style engine with event bus, execution, and API endpoints, supporting various action types and AI-powered workflow generation from templates.
+- **County-Level Tax Lien Discovery**: Dedicated search system for tax lien data, including ROI/risk scoring and due diligence checklists.
+- **AI Inbox Monitor & Auto-Reply**: Monitors IMAP inbox for lead replies, generates AI responses, and updates lead status.
+- **Email Infrastructure Engine**: Comprehensive email management including account management, warmup, campaign builder, unified inbox (Unibox) with AI classification, website visitor identification, email verification, and inbox placement testing. Includes an AI Copilot for content generation.
+- **B2B Sales Intelligence Engine**: Provides Apollo.io/ZoomInfo-style capabilities for people and company search, contact/company enrichment, email/phone finding, intent data detection, technographic scanning, org chart building, news & events, AI-powered deep research, and prospect list management.
+- **AI Outreach Agent**: An autonomous agent that integrates email infrastructure, sales intelligence, and CRM for an 8-step outreach loop: discover, enroll, send, monitor, classify, respond, book, and repeat.
 
 ## External Dependencies
 - **Anthropic Claude**: AI model for conversational AI, strategy generation, and intelligent automation.
-- **SendGrid**: Email service for system emails (verification, password reset) and user outreach campaigns.
-- **Twilio**: SMS and Voice service for sending text messages and making AI-powered phone calls to leads.
+- **SendGrid**: Email service for system emails and user outreach campaigns.
+- **Twilio**: SMS and Voice service for text messages and AI-powered phone calls.
 - **Venmo**: Payment gateway for subscription billing.
 - **Replit AI Integrations**: Platform for integrating Anthropic Claude.
 - **Replit Connectors**: Used for Twilio integration.
-
-## Key Features
-- **Outreach Scheduling**: Leads with outreach drafts can be scheduled for future sending via `POST /api/leads/:id/schedule-outreach` with `{ scheduledSendAt }` (ISO datetime). Schedules can be cancelled via `POST /api/leads/:id/cancel-schedule`. A background job runs every 60 seconds to process due scheduled emails. The `leads` table has a `scheduledSendAt` column. Frontend shows Schedule button, date/time picker, scheduled badge, and cancel option on each lead card.
-- **Agent-to-Funnel Auto-Pipeline**: When an agent (e.g., Tax Lien Hunter, Govt Contracts) runs and finds leads, those leads are automatically added to a matching funnel pipeline. Each agent type has its own predefined pipeline with industry-specific stages (e.g., Tax Lien Pipeline: Discovered → Analyzing ROI → Due Diligence → Bidding → Won/Acquired). The funnel is auto-created on first run if it doesn't exist. The AI chat's `generate_leads` tool also supports an `agent_type` parameter for the same behavior. The mapping is defined in `AGENT_FUNNEL_STAGES` in `server/routes.ts`. Supported agent types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage.
-- **Voice AI Calling**: AI-powered phone calls via Twilio Voice API. Users can initiate calls from the Voice AI page or directly from lead cards. The system uses TwiML webhooks for conversational AI (Claude generates responses to caller speech via Twilio's `<Gather>` input). Call logs are stored in the `voice_calls` table with transcript, duration, status, and recording URL. Endpoints: `POST /api/voice/calls` (initiate), `GET /api/voice/calls` (list), `POST /api/twilio/voice/:callLogId/twiml` (TwiML webhook), `POST /api/twilio/voice/status` (status callback).
-- **Automatic Medical Billing Lead Generation**: Background job runs every 5 hours, using Claude AI to search for 30 real medical billing leads per batch. Rotates through 12 US regions (Tennessee, Missouri, Georgia, Texas, Florida, Ohio, NC, Illinois, California, Pennsylvania, Virginia, New York) with different focus strategies (hiring signals, new practices, pain points, specialty targeting). Leads are auto-added to the CRM with scoring, outreach drafts, and funnel pipeline assignment. Rate limit handling with retry/backoff. Tracked in `auto_lead_gen_runs` table. Endpoints: `GET /api/auto-lead-gen/status` (history/stats), `POST /api/auto-lead-gen/trigger` (manual trigger). UI panel on Agent Catalog page shows status, recent runs, and manual trigger button.
-- **Automated Follow-Up Sequences**: When outreach is sent to a lead, they're automatically enrolled in a 3-step follow-up sequence (Day 3: friendly check-in, Day 5: value reminder, Day 7: final nudge). Each follow-up email is AI-generated with escalating urgency. The sequence stops automatically when: the lead books an appointment, engagement score reaches 60+, or all 3 steps are completed. Background job runs every 5 minutes. Users can pause/resume follow-ups per lead. Fields on `leads` table: `followUpStep`, `followUpStatus` (none/active/paused/completed), `followUpNextAt`, `followUpLastSentAt`. Endpoints: `POST /api/leads/:id/follow-up/pause`, `POST /api/leads/:id/follow-up/resume`. Lead cards show follow-up status badge with pause/resume controls.
-- **Workflow Automation Engine**: Complete n8n-style workflow automation engine with event bus, execution engine, and 20+ API endpoints. 5 database tables: `workflows`, `workflow_nodes`, `workflow_edges`, `workflow_executions`, `workflow_execution_steps`. Supports 30+ action types (AI classify/score/generate, CRM CRUD, email/SMS/voice, webhooks, delays, conditions, A/B splits). 6 pre-built templates (Lead Capture Nurture, Email Engagement Escalation, Appointment Onboarding, Deal Won Pipeline, AI Content Pipeline, Review Request). 13 event hooks wired into existing routes (lead created/status changed, email opened/clicked, appointment booked/completed/cancelled, voice call completed, user registered, discovery submitted). Background delay processor runs every 60 seconds. Visual Workflow Builder at `/dashboard/workflows` with drag-and-drop canvas, node palette (6 categories), template gallery, analytics dashboard, and execution logs. **AI-Powered Workflow Generation**: When a user selects a template, they can click "AI Generate" to have Claude AI automatically customize all workflow nodes (labels, email copy, scoring criteria, conditions, timing) based on the company's profile, marketing strategy, website training data, and business lines. Endpoint: `POST /api/workflow-templates/:key/ai-generate`. Files: `shared/workflow-schema.ts`, `server/workflow-engine.ts`, `server/workflow-routes.ts`, `server/workflow-hooks.ts`, `client/src/pages/workflow-builder.tsx`.
-- **County-Level Tax Lien Discovery**: Dedicated per-county search system for the Tax Lien Hunter agent. Uses Claude's `web_search_20250305` tool to find real delinquent property tax data from county tax collector websites. Covers 10 tax lien states (FL 18%, AZ 16%, IN 10%, NJ 18%, IL 18%, MD 12%, SC 12%, CO 9%, IA 24%, WV 12%) with state-specific interest rates, redemption periods, key counties, and auction platforms. Each property found gets: ROI/risk scoring, 9-step purchase workflow (verify data, check title, register for auction, track redemption, etc.), and 14-point due diligence checklist. Settings include `targetStates`, `targetCounties` (for specific county targeting), `propertyTypes`, `minLienAmount`, `maxLienAmount`, `minInterestRate`, `bidStrategy`. Searches top 3 counties per state by default with 1.5s rate limiting between counties. Validates leads (skips placeholder names, invalid addresses). Saves properties as CRM leads with full metadata in JSON notes. Files: `server/agents/tax-lien-agent.ts`. Endpoints: `GET /api/agents/tax-lien/config` (available states/counties/strategies), `GET /api/agents/tax-lien/states/:stateCode` (state-specific info).
-- **AI Inbox Monitor & Auto-Reply**: Background job checks IMAP inbox every 2 minutes for replies from leads. Uses IMAP credentials (IMAP_HOST, IMAP_PORT) with SMTP_USERNAME/SMTP_PASSWORD for authentication. When a lead replies, the system: (1) matches reply to a lead by email, (2) stores the inbound reply in `email_replies` table, (3) generates an AI response via Claude with full context (original outreach, conversation thread, sender identity/signature), (4) sends reply via SMTP, (5) updates lead status to "contacted" with engagement boost, (6) creates notification for user. The `email_replies` table stores both inbound and outbound messages with direction, messageId, and threading support. Endpoints: `GET /api/leads/:id/replies` (conversation thread), `GET /api/inbox-monitor/status` (monitor stats), `POST /api/inbox-monitor/check-now` (manual trigger). Lead cards show "View Conversation" button to see the full reply thread.
-- **Instantly Email Infrastructure** (integrated Feb 2026): Full email infrastructure engine with 19 new database tables and 50+ API endpoints. Files: `shared/instantly-schema.ts`, `server/instantly-engine.ts`, `server/instantly-routes.ts`. All routes mounted at `/api/instantly/`. Features include:
-  - **Email Account Management**: Connect Google, Microsoft, or SMTP/IMAP accounts. Per-user multi-account support with health monitoring, DNS validation (SPF/DKIM/DMARC), and daily send limits.
-  - **Email Warmup Engine**: Multi-tier warmup pools (standard/premium), reputation scoring, daily ramp-up, simulated conversations. Background cycle pairs accounts for warmup exchanges.
-  - **Campaign Builder**: Multi-step email sequences with A/Z testing, spintax processing, variable substitution ({{firstName}}, {{companyName}}, etc.), inbox rotation, scheduling (timezone-aware, send windows), daily limits. Full CRUD + launch/pause/stop lifecycle.
-  - **Unibox (Unified Inbox)**: AI auto-labeling (interested/not_interested/out_of_office/meeting_booked/referral/question/wrong_person/bounced), sentiment analysis, starring, archiving, bulk actions, incoming webhook for IMAP sync.
-  - **Website Visitor Identification**: JavaScript pixel tracking, bot detection, company resolution (Clearbit/RB2B ready), visitor-to-lead conversion. Public pixel endpoint at `/api/pixel/t`.
-  - **Done-For-You Email Setup**: Domain provisioning orders, DNS record generation (SPF/DKIM/DMARC/MX), async provisioning pipeline, domain availability checking.
-  - **Email Verification**: Waterfall verification (format, disposable check, role-based check, MX/SMTP validation), bulk verification jobs, catch-all recovery. Ready for ZeroBounce/NeverBounce API integration.
-  - **Inbox Placement Testing**: Pre-send deliverability analysis scoring Gmail/Outlook/Yahoo placement, spam word detection, link/image/length analysis, actionable recommendations.
-  - **AI Copilot**: Business context memory (ICP, value props, objection handling), content generation (sequences, subject lines, follow-ups, campaign ideas). Ready for Claude API integration.
-  - **Email Templates Library**: User + public templates, categorized (cold_email/follow_up/break_up/meeting/nurture), usage tracking.
-  - **Campaign Analytics Dashboard**: Full analytics overview with open/reply/bounce rates, per-campaign daily metrics, status breakdown.
-  - **Frontend UI**: Complete Email Infrastructure dashboard at `/dashboard/email-infra` (`client/src/pages/email-infrastructure.tsx`) with 11 tabbed sub-sections: Email Accounts, Warmup, Campaigns, Unibox, Analytics, Visitors, Verification, Inbox Test, Templates, AI Copilot, DFY Setup. Sidebar navigation under "AI & Automation" section.

@@ -18,6 +18,8 @@ import { startWorkflowEngine } from "./workflow-engine";
 import { workflowHooks } from "./workflow-hooks";
 import { discoverTaxLiens, STATE_DATA, STATE_NAMES, type TaxLienSettings } from "./agents/tax-lien-agent";
 import instantlyRoutes, { handlePixelTrack } from "./instantly-routes";
+import intelligenceRoutes from "./intelligence-routes";
+import outreachAgentRoutes from "./outreach-agent-routes";
 
 function normalizePhoneNumber(phone: string | undefined | null): string {
   if (!phone) return "";
@@ -1458,6 +1460,12 @@ export async function registerRoutes(
   // ---- INSTANTLY FEATURES ----
   app.use("/api/instantly", instantlyRoutes);
   app.post("/api/pixel/t", handlePixelTrack);
+
+  // ---- B2B SALES INTELLIGENCE ----
+  app.use("/api/intelligence", intelligenceRoutes);
+
+  // ---- AI OUTREACH AGENT ----
+  app.use("/api/outreach-agent", outreachAgentRoutes);
 
   // ---- AUTH ----
 
