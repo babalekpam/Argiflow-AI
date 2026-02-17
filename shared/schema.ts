@@ -122,6 +122,8 @@ export const userSettings = pgTable("user_settings", {
   calendarLink: text("calendar_link"),
   webhookUrl: text("webhook_url"),
   anthropicApiKey: text("anthropic_api_key"),
+  youApiKey: text("you_api_key"),
+  webSearchProvider: text("web_search_provider").default("claude"),
   autoLeadGenEnabled: boolean("auto_lead_gen_enabled").default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
