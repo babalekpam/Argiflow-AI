@@ -45,6 +45,7 @@ Do not make changes to the file `Y`.
 
 ## External Dependencies
 - **Anthropic Claude**: AI model for conversational AI, strategy generation, and intelligent automation.
+- **You.com Search API**: Optional web search provider for AI agents, lead research, and intelligence. Configured per-user via Settings > Integrations. Uses `https://api.ydc-index.io/v1/search` with `X-API-Key` header. Falls back to Claude web search if not configured. User settings: `webSearchProvider` ("claude"|"you"), `youApiKey`.
 - **SendGrid**: Email service for system emails and user outreach campaigns.
 - **Twilio**: SMS and Voice service for text messages and AI-powered phone calls.
 - **Deepgram**: Speech-to-text (Nova-2) and text-to-speech (Aura) for real-time Voice AI streaming. Optional ELEVENLABS_API_KEY for higher quality TTS.

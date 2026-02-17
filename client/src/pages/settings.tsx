@@ -47,6 +47,7 @@ import {
   ChevronUp,
   Key,
   Cpu,
+  Search,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -773,6 +774,94 @@ export default function SettingsPage() {
                   }}
                   disabled={updateMutation.isPending || !dirtyFields.has("anthropicApiKey")}
                   data-testid="button-save-ai-api-key"
+                >
+                  <Save className="w-3.5 h-3.5 mr-1.5" />
+                  {updateMutation.isPending ? t("settings.saving") : t("settings.save")}
+                </Button>
+              </div>
+            )}
+          </Card>
+          <Card className="p-5" data-testid="integration-web-search">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-md bg-violet-500/10 flex items-center justify-center shrink-0">
+                <Search className="w-5 h-5 text-violet-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-sm">{t("settings.webSearchProvider")}</h3>
+                  {(() => {
+                    const provider = getFieldValue("webSearchProvider") || (settings as any)?.webSearchProvider || "claude";
+                    const youKey = getFieldValue("youApiKey");
+                    const connected = provider === "claude" || (provider === "you" && !!youKey);
+                    return connected ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        {provider === "you" ? "You.com" : "Claude"} {t("settings.active")}
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {t("settings.notConnected")}
+                      </Badge>
+                    );
+                  })()}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{t("settings.webSearchProviderDesc")}</p>
+              </div>
+            </div>
+            {isLoading ? (
+              <div className="space-y-3"><Skeleton className="h-9 w-full" /></div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("settings.searchProviderLabel")}</Label>
+                  <Select
+                    value={getFieldValue("webSearchProvider") || (settings as any)?.webSearchProvider || "claude"}
+                    onValueChange={(v) => setFieldValue("webSearchProvider", v)}
+                  >
+                    <SelectTrigger data-testid="select-web-search-provider">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="claude">Claude Web Search</SelectItem>
+                      <SelectItem value="you">You.com Search API</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {(getFieldValue("webSearchProvider") || (settings as any)?.webSearchProvider) === "you" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{t("settings.youApiKeyLabel")}</Label>
+                    <MaskedInput
+                      value={getFieldValue("youApiKey")}
+                      onChange={(v) => setFieldValue("youApiKey", v)}
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      sensitive={true}
+                      testId="input-youApiKey"
+                    />
+                    <p className="text-[10px] text-muted-foreground">{t("settings.youApiKeyHint")}</p>
+                  </div>
+                )}
+                <Button
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    const update: Record<string, any> = {
+                      webSearchProvider: getFieldValue("webSearchProvider") || "claude",
+                      youApiKey: getFieldValue("youApiKey"),
+                    };
+                    updateMutation.mutate(update as any, {
+                      onSuccess: (data) => {
+                        queryClient.setQueryData(["/api/settings"], data);
+                        const newDirty = new Set(dirtyFields);
+                        newDirty.delete("webSearchProvider");
+                        newDirty.delete("youApiKey");
+                        setDirtyFields(newDirty);
+                        toast({ title: t("settings.integrationSaved", { title: t("settings.webSearchProvider") }), description: t("settings.integrationSavedDesc") });
+                      },
+                    });
+                  }}
+                  disabled={updateMutation.isPending || (!dirtyFields.has("webSearchProvider") && !dirtyFields.has("youApiKey"))}
+                  data-testid="button-save-web-search"
                 >
                   <Save className="w-3.5 h-3.5 mr-1.5" />
                   {updateMutation.isPending ? t("settings.saving") : t("settings.save")}

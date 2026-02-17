@@ -1124,6 +1124,11 @@
     "aiApiKeyDesc": "Ajoutez votre propre clé API Anthropic pour alimenter les fonctionnalités IA comme le chat, la génération de leads, la création de contenu et l'IA vocale.",
     "anthropicApiKeyLabel": "Clé API Anthropic",
     "aiApiKeyHint": "Obtenez votre clé sur console.anthropic.com. Les clés commencent par sk-ant-.",
+    "webSearchProvider": "Recherche Web",
+    "webSearchProviderDesc": "Choisissez votre fournisseur de recherche web pour les agents IA, la recherche de leads et les fonctionnalités d'intelligence. You.com fournit des résultats optimisés pour l'IA.",
+    "searchProviderLabel": "Fournisseur de Recherche",
+    "youApiKeyLabel": "Clé API You.com",
+    "youApiKeyHint": "Obtenez votre clé sur api.you.com. Fournit une recherche web en temps réel pour les agents IA et la recherche.",
     "autoLeadGenToggle": "Génération Automatique de Leads",
     "autoLeadGenDesc": "Lorsque activé, le système recherchera et générera automatiquement des leads pour votre entreprise toutes les 5 heures en utilisant votre clé IA."
   },

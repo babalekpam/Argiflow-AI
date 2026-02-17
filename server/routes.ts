@@ -1442,6 +1442,53 @@ async function claudeWebSearch(query: string, userClient?: { client: Anthropic; 
   }
 }
 
+async function youWebSearch(query: string, apiKey: string): Promise<string> {
+  try {
+    const params = new URLSearchParams({
+      query,
+      count: "10",
+    });
+    const response = await fetch(`https://api.ydc-index.io/v1/search?${params.toString()}`, {
+      headers: { "X-API-Key": apiKey },
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("You.com search error:", response.status, errText);
+      return `You.com search failed (${response.status}). Please check your API key.`;
+    }
+    const data = await response.json();
+    const webResults = data?.results?.web || data?.hits || [];
+    if (webResults.length === 0) return "No results found.";
+
+    const formatted = webResults.slice(0, 8).map((r: any, i: number) => {
+      const title = r.title || "Untitled";
+      const url = r.url || "";
+      const snippets = r.snippets?.join(" ") || r.description || "";
+      return `${i + 1}. **${title}**\n   ${url}\n   ${snippets}`;
+    }).join("\n\n");
+
+    return `## Web Search Results for: "${query}"\n\n${formatted}`;
+  } catch (error: any) {
+    console.error("You.com search error:", error?.message || error);
+    return "You.com search temporarily unavailable. Please try again.";
+  }
+}
+
+async function webSearch(query: string, userId: string, userClient?: { client: Anthropic; model: string }): Promise<string> {
+  const settings = await storage.getSettingsByUser(userId);
+  const provider = settings?.webSearchProvider || "claude";
+
+  if (provider === "you") {
+    const youKey = settings?.youApiKey || process.env.YOU_API_KEY;
+    if (!youKey) {
+      return "You.com API key not configured. Go to Settings > Integrations to add your You.com API key, or switch to Claude web search.";
+    }
+    return youWebSearch(query, youKey);
+  }
+
+  return claudeWebSearch(query, userClient);
+}
+
 // ============================================================
 // CLAUDE CONTENT GENERATION ENDPOINT
 // Write emails, ad copy, social posts, etc.
@@ -4175,6 +4222,10 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         const key = result.anthropicApiKey;
         result.anthropicApiKey = key.length > 8 ? key.slice(0, 7) + "..." + key.slice(-4) : "****";
       }
+      if (result.youApiKey) {
+        const key = result.youApiKey;
+        result.youApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
+      }
       res.json(result);
     } catch (error) {
       console.error("Error fetching settings:", error);
@@ -4189,11 +4240,18 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (body.anthropicApiKey && body.anthropicApiKey.includes("...")) {
         delete body.anthropicApiKey;
       }
+      if (body.youApiKey && body.youApiKey.includes("...")) {
+        delete body.youApiKey;
+      }
       const settings = await storage.upsertSettings({ ...body, userId });
       const result = { ...settings };
       if (result.anthropicApiKey) {
         const key = result.anthropicApiKey;
         result.anthropicApiKey = key.length > 8 ? key.slice(0, 7) + "..." + key.slice(-4) : "****";
+      }
+      if (result.youApiKey) {
+        const key = result.youApiKey;
+        result.youApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
       }
       res.json(result);
     } catch (error) {
@@ -4274,6 +4332,18 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (!query || typeof query !== "string") {
         return res.status(400).json({ message: "Search query is required" });
       }
+      const settings = await storage.getSettingsByUser(userId);
+      const provider = settings?.webSearchProvider || "claude";
+
+      if (provider === "you") {
+        const youKey = settings?.youApiKey || process.env.YOU_API_KEY;
+        if (!youKey) {
+          return res.status(400).json({ message: "You.com API key not configured. Go to Settings > Integrations to add your key." });
+        }
+        const result = await youWebSearch(query, youKey);
+        return res.json({ result });
+      }
+
       let userClient: { client: Anthropic; model: string } | undefined;
       try { userClient = await getAnthropicForUser(userId); } catch {
         return res.status(400).json({ message: "AI API key not configured. Go to Settings > Integrations to add your Anthropic API key." });
