@@ -1532,19 +1532,21 @@ export async function registerRoutes(
       }
 
       try {
+        const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
         await storage.createSubscription({
           userId: user.id,
-          plan: "starter",
-          status: "active",
+          plan: "pro",
+          status: "trial",
           amount: 0,
-          paymentMethod: "free",
+          paymentMethod: "none",
+          trialEndsAt: trialEnd,
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date("2099-12-31"),
-          notes: "Free Starter plan",
+          currentPeriodEnd: trialEnd,
+          notes: "14-day Pro trial",
         });
-        console.log(`Starter subscription created for ${email}`);
+        console.log(`14-day Pro trial created for ${email} (expires ${trialEnd.toISOString()})`);
       } catch (subErr: any) {
-        console.error("Failed to create starter subscription:", subErr?.message || subErr);
+        console.error("Failed to create trial subscription:", subErr?.message || subErr);
       }
 
       try {
@@ -1764,16 +1766,31 @@ export async function registerRoutes(
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
-      const sub = await storage.getSubscriptionByUser(user.id);
+      let sub = await storage.getSubscriptionByUser(user.id);
+      if (sub && sub.status === "trial" && sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date()) {
+        await storage.updateSubscription(sub.id, {
+          plan: "starter",
+          status: "expired",
+          notes: "Pro trial expired — upgrade to continue",
+        });
+        sub = await storage.getSubscriptionByUser(user.id);
+        console.log(`[Trial] Expired trial for user ${user.email}, downgraded to starter`);
+      }
       let planLabel = "Free";
+      let trialDaysLeft: number | null = null;
       if (sub) {
         const planName = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
         if (sub.status === "active" && sub.paymentMethod === "lifetime") planLabel = `${planName} (Lifetime)`;
-        else if (sub.status === "trial") planLabel = `${planName} Trial`;
+        else if (sub.status === "trial") {
+          const daysLeft = sub.trialEndsAt ? Math.max(0, Math.ceil((new Date(sub.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
+          trialDaysLeft = daysLeft;
+          planLabel = `${planName} Trial (${daysLeft}d left)`;
+        }
         else if (sub.status === "active") planLabel = `${planName} Plan`;
+        else if (sub.status === "expired") planLabel = "Trial Expired — Upgrade";
         else planLabel = "Free";
       }
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, jobTitle: user.jobTitle, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified, planLabel });
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, jobTitle: user.jobTitle, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified, planLabel, trialDaysLeft });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -5899,7 +5916,58 @@ Return a JSON array of reply strings in the same order. Example:
   registerWorkflowRoutes(app);
   startWorkflowEngine();
 
+  fixIncorrectLifetimeTrials().catch(err => console.error("Trial fix error:", err));
+
   return httpServer;
+}
+
+async function fixIncorrectLifetimeTrials() {
+  try {
+    const { eq, and } = await import("drizzle-orm");
+    const { subscriptions } = await import("@shared/schema");
+    const ownerEmail = "abel@argilette.com";
+    const adminEmail = "babalekpam@gmail.com";
+    const ownerUser = await storage.getUserByEmail(ownerEmail);
+    const adminUser = await storage.getUserByEmail(adminEmail);
+    const protectedIds = new Set<string>();
+    if (ownerUser) protectedIds.add(ownerUser.id);
+    if (adminUser) protectedIds.add(adminUser.id);
+
+    const allSubs = await db.select().from(subscriptions).where(
+      and(
+        eq(subscriptions.status, "active"),
+        eq(subscriptions.paymentMethod, "lifetime"),
+      )
+    );
+    let fixed = 0;
+    for (const sub of allSubs) {
+      if (protectedIds.has(sub.userId)) continue;
+      if (sub.notes?.includes("Platform Owner") || sub.notes?.includes("Platform Admin")) continue;
+      const trialEnd = new Date(new Date(sub.createdAt!).getTime() + 14 * 24 * 60 * 60 * 1000);
+      if (trialEnd < new Date()) {
+        await storage.updateSubscription(sub.id, {
+          plan: "starter",
+          status: "expired",
+          paymentMethod: "none",
+          trialEndsAt: trialEnd,
+          currentPeriodEnd: trialEnd,
+          notes: "Pro trial expired — upgrade to continue",
+        });
+      } else {
+        await storage.updateSubscription(sub.id, {
+          status: "trial",
+          paymentMethod: "none",
+          trialEndsAt: trialEnd,
+          currentPeriodEnd: trialEnd,
+          notes: "14-day Pro trial (corrected from lifetime)",
+        });
+      }
+      fixed++;
+    }
+    if (fixed > 0) console.log(`[Trial Fix] Corrected ${fixed} incorrect lifetime subscriptions to 14-day trials`);
+  } catch (error) {
+    console.error("Error fixing lifetime trials:", error);
+  }
 }
 
 async function clearOldSeedData() {
