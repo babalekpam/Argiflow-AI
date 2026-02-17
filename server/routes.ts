@@ -624,6 +624,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
             await storage.createFunnelDeal({
               funnelId: funnel.id,
               stageId: firstStage.id,
+              userId,
               contactName: lead.name,
               contactEmail: lead.email || "",
               value: 0,
@@ -2306,7 +2307,10 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
   app.delete("/api/businesses/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await storage.deleteBusiness(req.params.id as string, userId);
+      const deleted = await storage.deleteBusiness(req.params.id as string, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Business not found" });
+      }
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting business:", error);
@@ -2354,7 +2358,10 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
   app.delete("/api/leads/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await storage.deleteLead(req.params.id as string, userId);
+      const deleted = await storage.deleteLead(req.params.id as string, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting lead:", error);
@@ -3989,7 +3996,10 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
   app.delete("/api/appointments/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await storage.deleteAppointment(req.params.id, userId);
+      const deleted = await storage.deleteAppointment(req.params.id, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
       res.json({ message: "Appointment deleted" });
     } catch (error) {
       console.error("Error deleting appointment:", error);
@@ -4684,7 +4694,10 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   app.delete("/api/automations/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.session as any).userId;
-      await storage.deleteAutomation(req.params.id as string, userId);
+      const deleted = await storage.deleteAutomation(req.params.id as string, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Automation not found" });
+      }
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete automation" });
@@ -5058,7 +5071,10 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       if (!funnel || funnel.userId !== userId) return res.status(404).json({ message: "Funnel not found" });
       await storage.deleteFunnelDeals(funnel.id);
       await storage.deleteFunnelStages(funnel.id);
-      await storage.deleteFunnel(funnel.id, userId);
+      const deleted = await storage.deleteFunnel(funnel.id, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Funnel not found" });
+      }
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete funnel" });
@@ -5119,15 +5135,16 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       const userId = req.session.userId!;
       const { stageId, contactName, contactEmail, value, status } = req.body;
       const existingDeal = await storage.getFunnelDeal(req.params.id as string);
-      const oldStageId = existingDeal?.stageId;
-      const updated = await storage.updateFunnelDeal(req.params.id as string, {
+      if (!existingDeal || existingDeal.userId !== userId) return res.status(404).json({ message: "Deal not found" });
+      const oldStageId = existingDeal.stageId;
+      const updated = await storage.updateFunnelDeal(req.params.id as string, userId, {
         ...(stageId && { stageId }),
         ...(contactName && { contactName }),
         ...(contactEmail !== undefined && { contactEmail }),
         ...(value !== undefined && { value }),
         ...(status && { status }),
       });
-      if (!updated || updated.userId !== userId) return res.status(404).json({ message: "Deal not found" });
+      if (!updated) return res.status(404).json({ message: "Deal not found" });
       if (stageId && oldStageId && stageId !== oldStageId) {
         workflowHooks.onDealStageChanged(userId, updated, oldStageId, stageId);
       }
@@ -5143,7 +5160,10 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   app.delete("/api/deals/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      await storage.deleteFunnelDeal(req.params.id as string, userId);
+      const deleted = await storage.deleteFunnelDeal(req.params.id as string, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Deal not found" });
+      }
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete deal" });
@@ -5238,7 +5258,10 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
 
   app.delete("/api/agent-configs/:id", isAuthenticated, async (req, res) => {
     try {
-      await storage.deleteAgentConfig(req.params.id, req.session.userId!);
+      const deleted = await storage.deleteAgentConfig(req.params.id, req.session.userId!);
+      if (!deleted) {
+        return res.status(404).json({ message: "Agent config not found" });
+      }
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting agent config:", error);
@@ -5645,7 +5668,10 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
 
   app.delete("/api/notifications/:id", isAuthenticated, async (req, res) => {
     try {
-      await storage.deleteNotification(req.params.id, req.session.userId!);
+      const deleted = await storage.deleteNotification(req.params.id, req.session.userId!);
+      if (!deleted) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete notification" });
@@ -5980,7 +6006,7 @@ Return a JSON array of reply strings in the same order. Example:
   }, PLATFORM_PROMOTER_INTERVAL);
   console.log("[Platform Promoter] Scheduled to run every 3.5 days (twice per week). Manual trigger available at /api/platform-promoter/trigger");
 
-  app.get("/api/platform-promoter/status", isAuthenticated, async (req, res) => {
+  app.get("/api/platform-promoter/status", isAdmin, async (req, res) => {
     try {
       const runs = await db.select().from(platformPromotionRuns)
         .orderBy(desc(platformPromotionRuns.startedAt))
@@ -5991,7 +6017,7 @@ Return a JSON array of reply strings in the same order. Example:
     }
   });
 
-  app.get("/api/platform-promoter/run/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/platform-promoter/run/:id", isAdmin, async (req, res) => {
     try {
       const runId = parseInt(req.params.id);
       const [run] = await db.select().from(platformPromotionRuns)
@@ -6003,7 +6029,7 @@ Return a JSON array of reply strings in the same order. Example:
     }
   });
 
-  app.post("/api/platform-promoter/trigger", isAuthenticated, async (req, res) => {
+  app.post("/api/platform-promoter/trigger", isAdmin, async (req, res) => {
     try {
       const { query } = req.body;
       runPlatformPromotion(query || undefined).catch(err =>

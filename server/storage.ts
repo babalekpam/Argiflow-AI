@@ -39,19 +39,19 @@ export interface IStorage {
   getBusinessById(id: string): Promise<Business | undefined>;
   createBusiness(business: InsertBusiness): Promise<Business>;
   updateBusiness(id: string, userId: string, data: Partial<Pick<Business, "name" | "industry" | "description" | "color">>): Promise<Business | undefined>;
-  deleteBusiness(id: string, userId: string): Promise<void>;
+  deleteBusiness(id: string, userId: string): Promise<boolean>;
   getLeadsByUser(userId: string, businessId?: string): Promise<Lead[]>;
   getLeadById(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, data: Partial<Pick<Lead, "status" | "score" | "notes" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt">>): Promise<Lead | undefined>;
   getScheduledLeadsToSend(): Promise<Lead[]>;
   getLeadsDueForFollowUp(): Promise<Lead[]>;
-  deleteLead(id: string, userId: string): Promise<void>;
+  deleteLead(id: string, userId: string): Promise<boolean>;
   deleteAllLeadsByUser(userId: string): Promise<void>;
   getAppointmentsByUser(userId: string): Promise<Appointment[]>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: string, userId: string, data: Partial<Appointment>): Promise<Appointment>;
-  deleteAppointment(id: string, userId: string): Promise<void>;
+  deleteAppointment(id: string, userId: string): Promise<boolean>;
   getAiAgentsByUser(userId: string): Promise<AiAgent[]>;
   createAiAgent(agent: InsertAiAgent): Promise<AiAgent>;
   updateAiAgent(id: string, userId: string, data: Partial<Pick<AiAgent, "name" | "status" | "description" | "type" | "script" | "workflowSteps">>): Promise<AiAgent | undefined>;
@@ -75,22 +75,22 @@ export interface IStorage {
   getFunnelById(id: string): Promise<Funnel | undefined>;
   getFunnelsByUser(userId: string): Promise<Funnel[]>;
   createFunnel(funnel: InsertFunnel): Promise<Funnel>;
-  deleteFunnel(id: string, userId: string): Promise<void>;
+  deleteFunnel(id: string, userId: string): Promise<boolean>;
   getFunnelStages(funnelId: string): Promise<FunnelStage[]>;
   createFunnelStage(stage: InsertFunnelStage): Promise<FunnelStage>;
   deleteFunnelStages(funnelId: string): Promise<void>;
   getFunnelDeal(id: string): Promise<FunnelDeal | undefined>;
   getFunnelDeals(funnelId: string): Promise<FunnelDeal[]>;
   createFunnelDeal(deal: InsertFunnelDeal): Promise<FunnelDeal>;
-  updateFunnelDeal(id: string, data: Partial<Pick<FunnelDeal, "stageId" | "contactName" | "contactEmail" | "value" | "status">>): Promise<FunnelDeal | undefined>;
-  deleteFunnelDeal(id: string, userId: string): Promise<void>;
+  updateFunnelDeal(id: string, userId: string, data: Partial<Pick<FunnelDeal, "stageId" | "contactName" | "contactEmail" | "value" | "status">>): Promise<FunnelDeal | undefined>;
+  deleteFunnelDeal(id: string, userId: string): Promise<boolean>;
   deleteFunnelDeals(funnelId: string): Promise<void>;
   getWebsiteProfile(userId: string): Promise<WebsiteProfile | undefined>;
   upsertWebsiteProfile(profile: InsertWebsiteProfile): Promise<WebsiteProfile>;
   getAutomationsByUser(userId: string): Promise<Automation[]>;
   createAutomation(automation: InsertAutomation): Promise<Automation>;
   updateAutomation(id: string, userId: string, data: Partial<Pick<Automation, "status" | "runs" | "successRate" | "lastRunAt">>): Promise<Automation | undefined>;
-  deleteAutomation(id: string, userId: string): Promise<void>;
+  deleteAutomation(id: string, userId: string): Promise<boolean>;
   createEmailEvent(event: InsertEmailEvent): Promise<EmailEvent>;
   getEmailEventsByLead(leadId: string): Promise<EmailEvent[]>;
   getEmailEventsByUser(userId: string): Promise<EmailEvent[]>;
@@ -104,7 +104,7 @@ export interface IStorage {
   getAgentConfig(userId: string, agentType: string): Promise<AgentConfig | undefined>;
   upsertAgentConfig(config: InsertAgentConfig): Promise<AgentConfig>;
   updateAgentConfig(id: string, userId: string, data: Partial<Pick<AgentConfig, "enabled" | "agentSettings" | "isRunning" | "lastRun" | "nextRun" | "lastError" | "totalLeadsFound" | "totalDealsCompleted" | "healthScore" | "runFrequency">>): Promise<AgentConfig | undefined>;
-  deleteAgentConfig(id: string, userId: string): Promise<void>;
+  deleteAgentConfig(id: string, userId: string): Promise<boolean>;
   getAgentTasksByUser(userId: string): Promise<AgentTask[]>;
   createAgentTask(task: InsertAgentTask): Promise<AgentTask>;
   updateAgentTask(id: string, data: Partial<Pick<AgentTask, "status" | "result" | "completedAt">>): Promise<AgentTask | undefined>;
@@ -113,7 +113,7 @@ export interface IStorage {
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationRead(id: string, userId: string): Promise<Notification | undefined>;
   markAllNotificationsRead(userId: string): Promise<void>;
-  deleteNotification(id: string, userId: string): Promise<void>;
+  deleteNotification(id: string, userId: string): Promise<boolean>;
   createPasswordResetToken(data: InsertPasswordResetToken): Promise<PasswordResetToken>;
   getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined>;
   markPasswordResetTokenUsed(id: string): Promise<void>;
@@ -171,9 +171,10 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deleteBusiness(id: string, userId: string): Promise<void> {
+  async deleteBusiness(id: string, userId: string): Promise<boolean> {
     await db.update(leads).set({ businessId: null }).where(and(eq(leads.businessId, id), eq(leads.userId, userId)));
-    await db.delete(businesses).where(and(eq(businesses.id, id), eq(businesses.userId, userId)));
+    const result = await db.delete(businesses).where(and(eq(businesses.id, id), eq(businesses.userId, userId))).returning({ id: businesses.id });
+    return result.length > 0;
   }
 
   async getLeadsByUser(userId: string, businessId?: string): Promise<Lead[]> {
@@ -188,8 +189,9 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deleteLead(id: string, userId: string): Promise<void> {
-    await db.delete(leads).where(and(eq(leads.id, id), eq(leads.userId, userId)));
+  async deleteLead(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(leads).where(and(eq(leads.id, id), eq(leads.userId, userId))).returning({ id: leads.id });
+    return result.length > 0;
   }
 
   async getLeadById(id: string): Promise<Lead | undefined> {
@@ -238,8 +240,9 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deleteAppointment(id: string, userId: string): Promise<void> {
-    await db.delete(appointments).where(and(eq(appointments.id, id), eq(appointments.userId, userId)));
+  async deleteAppointment(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(appointments).where(and(eq(appointments.id, id), eq(appointments.userId, userId))).returning({ id: appointments.id });
+    return result.length > 0;
   }
 
   async getAiAgentsByUser(userId: string): Promise<AiAgent[]> {
@@ -375,8 +378,9 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deleteFunnel(id: string, userId: string): Promise<void> {
-    await db.delete(funnels).where(and(eq(funnels.id, id), eq(funnels.userId, userId)));
+  async deleteFunnel(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(funnels).where(and(eq(funnels.id, id), eq(funnels.userId, userId))).returning({ id: funnels.id });
+    return result.length > 0;
   }
 
   async getFunnelStages(funnelId: string): Promise<FunnelStage[]> {
@@ -406,13 +410,14 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateFunnelDeal(id: string, data: Partial<Pick<FunnelDeal, "stageId" | "contactName" | "contactEmail" | "value" | "status">>): Promise<FunnelDeal | undefined> {
-    const [result] = await db.update(funnelDeals).set(data).where(eq(funnelDeals.id, id)).returning();
+  async updateFunnelDeal(id: string, userId: string, data: Partial<Pick<FunnelDeal, "stageId" | "contactName" | "contactEmail" | "value" | "status">>): Promise<FunnelDeal | undefined> {
+    const [result] = await db.update(funnelDeals).set(data).where(and(eq(funnelDeals.id, id), eq(funnelDeals.userId, userId))).returning();
     return result;
   }
 
-  async deleteFunnelDeal(id: string, userId: string): Promise<void> {
-    await db.delete(funnelDeals).where(and(eq(funnelDeals.id, id), eq(funnelDeals.userId, userId)));
+  async deleteFunnelDeal(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(funnelDeals).where(and(eq(funnelDeals.id, id), eq(funnelDeals.userId, userId))).returning({ id: funnelDeals.id });
+    return result.length > 0;
   }
 
   async deleteFunnelDeals(funnelId: string): Promise<void> {
@@ -452,8 +457,9 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deleteAutomation(id: string, userId: string): Promise<void> {
-    await db.delete(automations).where(and(eq(automations.id, id), eq(automations.userId, userId)));
+  async deleteAutomation(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(automations).where(and(eq(automations.id, id), eq(automations.userId, userId))).returning({ id: automations.id });
+    return result.length > 0;
   }
 
   async createEmailEvent(event: InsertEmailEvent): Promise<EmailEvent> {
@@ -520,8 +526,9 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deleteAgentConfig(id: string, userId: string): Promise<void> {
-    await db.delete(agentConfigs).where(and(eq(agentConfigs.id, id), eq(agentConfigs.userId, userId)));
+  async deleteAgentConfig(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(agentConfigs).where(and(eq(agentConfigs.id, id), eq(agentConfigs.userId, userId))).returning({ id: agentConfigs.id });
+    return result.length > 0;
   }
 
   async getAgentTasksByUser(userId: string): Promise<AgentTask[]> {
@@ -561,8 +568,9 @@ export class DatabaseStorage implements IStorage {
     await db.update(notifications).set({ read: true }).where(eq(notifications.userId, userId));
   }
 
-  async deleteNotification(id: string, userId: string): Promise<void> {
-    await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
+  async deleteNotification(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.userId, userId))).returning({ id: notifications.id });
+    return result.length > 0;
   }
 
   async createPasswordResetToken(data: InsertPasswordResetToken): Promise<PasswordResetToken> {
