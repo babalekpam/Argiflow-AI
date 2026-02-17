@@ -1097,6 +1097,7 @@
     "confirmDelete": "Confirmer la Suppression",
     "connected": "Connecté",
     "notConnected": "Non Connecté",
+    "active": "Actif",
     "connect": "Connecter",
     "disconnect": "Déconnecter",
     "profileUpdated": "Profil mis à jour avec succès",

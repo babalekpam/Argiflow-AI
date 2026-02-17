@@ -1954,6 +1954,7 @@
     "confirmDelete": "Confirm Delete",
     "connected": "Connected",
     "notConnected": "Not Connected",
+    "active": "Active",
     "connect": "Connect",
     "disconnect": "Disconnect",
     "profileUpdated": "Profile updated successfully",
