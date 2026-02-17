@@ -1534,17 +1534,17 @@ export async function registerRoutes(
       try {
         await storage.createSubscription({
           userId: user.id,
-          plan: "pro",
+          plan: "starter",
           status: "active",
           amount: 0,
-          paymentMethod: "lifetime",
+          paymentMethod: "free",
           currentPeriodStart: new Date(),
           currentPeriodEnd: new Date("2099-12-31"),
-          notes: "Lifetime Pro — All accounts",
+          notes: "Free Starter plan",
         });
-        console.log(`Lifetime Pro subscription created for ${email}`);
+        console.log(`Starter subscription created for ${email}`);
       } catch (subErr: any) {
-        console.error("Failed to create lifetime subscription:", subErr?.message || subErr);
+        console.error("Failed to create starter subscription:", subErr?.message || subErr);
       }
 
       try {
