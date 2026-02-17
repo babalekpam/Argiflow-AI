@@ -442,6 +442,69 @@ export const platformPromotionRuns = pgTable("platform_promotion_runs", {
 
 export type PlatformPromotionRun = typeof platformPromotionRuns.$inferSelect;
 
+export const usageTracking = pgTable("usage_tracking", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  aiChats: integer("ai_chats").notNull().default(0),
+  smsSent: integer("sms_sent").notNull().default(0),
+  emailsSent: integer("emails_sent").notNull().default(0),
+  voiceCalls: integer("voice_calls").notNull().default(0),
+  voiceMinutes: integer("voice_minutes").notNull().default(0),
+  leadsGenerated: integer("leads_generated").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertUsageTrackingSchema = createInsertSchema(usageTracking).omit({ id: true, createdAt: true, updatedAt: true });
+export type UsageTracking = typeof usageTracking.$inferSelect;
+export type InsertUsageTracking = z.infer<typeof insertUsageTrackingSchema>;
+
+export const PLAN_LIMITS = {
+  starter: {
+    name: "Starter",
+    price: 0,
+    aiChats: 10,
+    smsSent: 0,
+    emailsSent: 20,
+    voiceCalls: 0,
+    voiceMinutes: 0,
+    leadsGenerated: 5,
+    agents: 1,
+    funnels: 1,
+    features: ["Basic CRM", "1 AI Agent", "5 Leads/month", "10 AI Chats/month", "20 Emails/month", "1 Sales Funnel", "Email Support"],
+  },
+  pro: {
+    name: "Pro",
+    price: 97,
+    aiChats: 500,
+    smsSent: 200,
+    emailsSent: 1000,
+    voiceCalls: 25,
+    voiceMinutes: 100,
+    leadsGenerated: 100,
+    agents: 10,
+    funnels: 5,
+    features: ["Full CRM & Pipeline", "10 AI Agents", "100 Leads/month", "500 AI Chats/month", "200 SMS/month", "1,000 Emails/month", "25 Voice AI Calls", "5 Sales Funnels", "Marketing Automation", "B2B Intelligence", "Priority Support"],
+  },
+  enterprise: {
+    name: "Enterprise",
+    price: 297,
+    aiChats: -1,
+    smsSent: 1000,
+    emailsSent: -1,
+    voiceCalls: -1,
+    voiceMinutes: -1,
+    leadsGenerated: -1,
+    agents: -1,
+    funnels: -1,
+    features: ["Unlimited AI Agents", "Unlimited Leads", "Unlimited AI Chats", "1,000 SMS/month", "Unlimited Emails", "Unlimited Voice AI", "Unlimited Funnels", "Custom Workflows", "AI Outreach Agent", "Bring Your Own API Keys", "Dedicated Account Manager", "White-Glove Onboarding"],
+  },
+} as const;
+
+export type PlanTier = keyof typeof PLAN_LIMITS;
+
 export * from "./workflow-schema";
 export * from "./instantly-schema";
 export * from "./intelligence-schema";

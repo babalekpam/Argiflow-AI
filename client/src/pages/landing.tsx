@@ -1341,7 +1341,6 @@ export default function LandingPage() {
                   </p>
                   <div className="flex items-baseline justify-center gap-1">
                     <span className="text-4xl font-extrabold">{t("landing.pricing.starterPrice")}</span>
-                    <span className="text-muted-foreground">{t("landing.pricing.perMonth")}</span>
                   </div>
                 </div>
                 <ul className="space-y-3 mb-6">
@@ -1357,12 +1356,6 @@ export default function LandingPage() {
                     <Button className="w-full" variant="outline" data-testid="button-starter-trial">
                       {t("landing.pricing.starterCta")}
                       <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </a>
-                  <a href="https://venmo.com/argilette?txn=pay&amount=297&note=ArgiFlow%20Starter%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
-                    <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-starter-venmo">
-                      <SiVenmo className="w-4 h-4 mr-1" />
-                      {t("landing.pricing.payWith")} Venmo
                     </Button>
                   </a>
                 </div>
@@ -1398,7 +1391,7 @@ export default function LandingPage() {
                       <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </a>
-                  <a href="https://venmo.com/argilette?txn=pay&amount=597&note=ArgiFlow%20Pro%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
+                  <a href="https://venmo.com/argilette?txn=pay&amount=97&note=ArgiFlow%20Pro%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
                     <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-pro-venmo">
                       <SiVenmo className="w-4 h-4 mr-1" />
                       {t("landing.pricing.payWith")} Venmo
@@ -1434,7 +1427,7 @@ export default function LandingPage() {
                       <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </a>
-                  <a href="https://venmo.com/argilette?txn=pay&amount=1497&note=ArgiFlow%20Enterprise%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
+                  <a href="https://venmo.com/argilette?txn=pay&amount=297&note=ArgiFlow%20Enterprise%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
                     <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-enterprise-venmo">
                       <SiVenmo className="w-4 h-4 mr-1" />
                       {t("landing.pricing.payWith")} Venmo

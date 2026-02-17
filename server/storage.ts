@@ -26,6 +26,7 @@ import {
   type EmailVerificationToken, type InsertEmailVerificationToken,
   type VoiceCall, type InsertVoiceCall,
   type EmailReply, type InsertEmailReply,
+  usageTracking, type UsageTracking, type InsertUsageTracking,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc, isNull, sql, lte } from "drizzle-orm";
@@ -131,6 +132,8 @@ export interface IStorage {
   getEmailRepliesByLead(leadId: string): Promise<EmailReply[]>;
   getEmailRepliesByUser(userId: string): Promise<EmailReply[]>;
   getEmailReplyByMessageId(messageId: string): Promise<EmailReply | undefined>;
+  getOrCreateUsage(userId: string): Promise<UsageTracking>;
+  incrementUsage(userId: string, field: "aiChats" | "smsSent" | "emailsSent" | "voiceCalls" | "leadsGenerated", amount?: number): Promise<UsageTracking>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -642,6 +645,53 @@ export class DatabaseStorage implements IStorage {
   async getEmailReplyByMessageId(messageId: string): Promise<EmailReply | undefined> {
     const [result] = await db.select().from(emailReplies).where(eq(emailReplies.messageId, messageId));
     return result;
+  }
+
+  async getOrCreateUsage(userId: string): Promise<UsageTracking> {
+    const now = new Date();
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    const [existing] = await db.select().from(usageTracking).where(
+      and(
+        eq(usageTracking.userId, userId),
+        lte(usageTracking.periodStart, now),
+      )
+    ).orderBy(desc(usageTracking.periodStart)).limit(1);
+
+    if (existing && new Date(existing.periodStart).getMonth() === now.getMonth() && new Date(existing.periodStart).getFullYear() === now.getFullYear()) {
+      return existing;
+    }
+
+    const [created] = await db.insert(usageTracking).values({
+      userId,
+      periodStart,
+      periodEnd,
+      aiChats: 0,
+      smsSent: 0,
+      emailsSent: 0,
+      voiceCalls: 0,
+      voiceMinutes: 0,
+      leadsGenerated: 0,
+    }).returning();
+    return created;
+  }
+
+  async incrementUsage(userId: string, field: "aiChats" | "smsSent" | "emailsSent" | "voiceCalls" | "leadsGenerated", amount: number = 1): Promise<UsageTracking> {
+    const usage = await this.getOrCreateUsage(userId);
+    const columnMap = {
+      aiChats: usageTracking.aiChats,
+      smsSent: usageTracking.smsSent,
+      emailsSent: usageTracking.emailsSent,
+      voiceCalls: usageTracking.voiceCalls,
+      leadsGenerated: usageTracking.leadsGenerated,
+    };
+    const col = columnMap[field];
+    const [updated] = await db.update(usageTracking)
+      .set({ [field]: sql`${col} + ${amount}`, updatedAt: new Date() })
+      .where(eq(usageTracking.id, usage.id))
+      .returning();
+    return updated;
   }
 }
 

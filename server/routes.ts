@@ -120,6 +120,27 @@ export async function getAnthropicForUser(userId: string): Promise<{ client: Ant
   throw new Error("AI_NOT_CONFIGURED");
 }
 
+import { PLAN_LIMITS, type PlanTier } from "@shared/schema";
+
+async function checkUsageLimit(userId: string, field: "aiChats" | "smsSent" | "emailsSent" | "voiceCalls" | "leadsGenerated"): Promise<{ allowed: boolean; current: number; limit: number; planName: string }> {
+  const sub = await storage.getSubscriptionByUser(userId);
+  let plan: PlanTier = "starter";
+  if (sub) {
+    if (sub.status === "active" && sub.paymentMethod === "lifetime") {
+      return { allowed: true, current: 0, limit: -1, planName: "Lifetime" };
+    }
+    if (sub.status === "trial" || sub.status === "active") {
+      plan = (sub.plan as PlanTier) || "starter";
+    }
+  }
+  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.starter;
+  const maxVal = limits[field];
+  if (maxVal === -1) return { allowed: true, current: 0, limit: -1, planName: limits.name };
+  const usage = await storage.getOrCreateUsage(userId);
+  const current = (usage as any)[field] || 0;
+  return { allowed: current < maxVal, current, limit: maxVal, planName: limits.name };
+}
+
 const scryptAsync = promisify(scrypt);
 
 function escapeXml(text: string): string {
@@ -342,6 +363,10 @@ async function autoAddToFunnelDirect(userId: string, agentType: string, savedLea
 async function executeAction(userId: string, action: string, params: any): Promise<string> {
   switch (action) {
     case "generate_leads": {
+      const leadUsage = await checkUsageLimit(userId, "leadsGenerated");
+      if (!leadUsage.allowed) {
+        return `Lead generation limit reached (${leadUsage.current}/${leadUsage.limit} this month on ${leadUsage.planName} plan). Upgrade your plan to generate more leads.`;
+      }
       const leadsData = params.leads || [];
       if (!Array.isArray(leadsData) || leadsData.length === 0) {
         return "ERROR: No lead data provided. Use web_search first to find real businesses, then pass their details to this tool.";
@@ -420,6 +445,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
           intentSignal: lead.intentSignal || lead.intent_signal || "",
         };
         await storage.createLead(leadRecord);
+        await storage.incrementUsage(userId, "leadsGenerated");
         created.push(`${leadRecord.name}${lead.company ? ` (${lead.company})` : ""}`);
         createdLeadDetails.push({ name: leadRecord.name, email: leadRecord.email });
       }
@@ -496,6 +522,10 @@ async function executeAction(userId: string, action: string, params: any): Promi
       return `Leads: ${userLeads.length} total (${hot} hot, ${qualified} qualified, ${warm} warm, ${userLeads.length - hot - qualified - warm} new). Appointments: ${appts.length} total (${scheduled} scheduled, ${completed} completed). AI Agents: ${agents.length} total (${activeAgents} active).`;
     }
     case "send_outreach": {
+      const emailUsage = await checkUsageLimit(userId, "emailsSent");
+      if (!emailUsage.allowed) {
+        return `Email limit reached (${emailUsage.current}/${emailUsage.limit} this month on ${emailUsage.planName} plan). Upgrade your plan to send more emails.`;
+      }
       const allLeads = await storage.getLeadsByUser(userId);
       const leadIds = params.lead_ids || [];
       const sendAll = params.send_all !== false || leadIds.length === 0;
@@ -541,6 +571,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
         if (result.success) {
           const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
           await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm", followUpStep: 0, followUpStatus: "active", followUpNextAt });
+          await storage.incrementUsage(userId, "emailsSent");
           sent++;
           sentNames.push(lead.name);
         } else {
@@ -607,6 +638,10 @@ async function executeAction(userId: string, action: string, params: any): Promi
       return `Created sales funnel "${funnelName}" with ${stages.length} stages: ${stages.map((s: any) => s.name).join(" → ")}.${dealsInfo} View it at the Sales Funnels page.`;
     }
     case "send_sms": {
+      const smsUsage = await checkUsageLimit(userId, "smsSent");
+      if (!smsUsage.allowed) {
+        return `SMS limit reached (${smsUsage.current}/${smsUsage.limit} this month on ${smsUsage.planName} plan). Upgrade your plan for more SMS.`;
+      }
       const allLeads = await storage.getLeadsByUser(userId);
       const targetPhone = params.phone;
       const smsBody = params.message;
@@ -623,6 +658,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
 
         if (targetPhone) {
           const msg = await sendSMS(targetPhone, smsBody);
+          await storage.incrementUsage(userId, "smsSent");
           return `SMS sent successfully to ${targetPhone} (SID: ${msg.sid}). Message: "${smsBody.slice(0, 80)}..."`;
         }
 
@@ -632,6 +668,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
           if (!lead) return "Lead not found with that ID.";
           if (!lead.phone) return `Lead ${lead.name} has no phone number on file. Please add a phone number first.`;
           const msg = await sendSMS(lead.phone, smsBody);
+          await storage.incrementUsage(userId, "smsSent");
           return `SMS sent to ${lead.name} at ${lead.phone} (SID: ${msg.sid}). Message: "${smsBody.slice(0, 80)}..."`;
         }
 
@@ -643,6 +680,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
           if (matchedLead) {
             if (!matchedLead.phone) return `Lead ${matchedLead.name} has no phone number on file. Please add a phone number first.`;
             const msg = await sendSMS(matchedLead.phone, smsBody);
+            await storage.incrementUsage(userId, "smsSent");
             return `SMS sent to ${matchedLead.name} at ${matchedLead.phone} (SID: ${msg.sid}). Message: "${smsBody.slice(0, 80)}..."`;
           }
           return `No lead found matching "${leadName}". Available leads with phone numbers: ${allLeads.filter(l => l.phone).slice(0, 5).map(l => `${l.name} (${l.phone})`).join(", ")}.`;
@@ -1832,6 +1870,47 @@ export async function registerRoutes(
       console.error("Error updating profile:", error);
       res.status(500).json({ message: "Failed to update profile" });
     }
+  });
+
+  app.get("/api/usage", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const sub = await storage.getSubscriptionByUser(userId);
+      let plan: PlanTier = "starter";
+      let isLifetime = false;
+      if (sub) {
+        if (sub.status === "active" && sub.paymentMethod === "lifetime") {
+          isLifetime = true;
+          plan = (sub.plan as PlanTier) || "pro";
+        } else if (sub.status === "trial" || sub.status === "active") {
+          plan = (sub.plan as PlanTier) || "starter";
+        }
+      }
+      const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.starter;
+      const usage = await storage.getOrCreateUsage(userId);
+      res.json({
+        plan: plan,
+        planName: limits.name,
+        isLifetime,
+        isTrial: sub?.status === "trial",
+        trialEndsAt: sub?.trialEndsAt,
+        usage: {
+          aiChats: { used: usage.aiChats, limit: limits.aiChats },
+          smsSent: { used: usage.smsSent, limit: limits.smsSent },
+          emailsSent: { used: usage.emailsSent, limit: limits.emailsSent },
+          voiceCalls: { used: usage.voiceCalls, limit: limits.voiceCalls },
+          leadsGenerated: { used: usage.leadsGenerated, limit: limits.leadsGenerated },
+        },
+        limits,
+      });
+    } catch (error) {
+      console.error("Error fetching usage:", error);
+      res.status(500).json({ message: "Failed to fetch usage" });
+    }
+  });
+
+  app.get("/api/plans", (req, res) => {
+    res.json(PLAN_LIMITS);
   });
 
   app.get("/api/auth/is-owner", isAuthenticated, async (req, res) => {
@@ -3564,12 +3643,18 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
 
   app.post("/api/sms/send", isAuthenticated, async (req, res) => {
     try {
+      const userId = req.session.userId!;
+      const smsUsage = await checkUsageLimit(userId, "smsSent");
+      if (!smsUsage.allowed) {
+        return res.status(429).json({ message: `SMS limit reached (${smsUsage.current}/${smsUsage.limit} this month). Upgrade your plan for more.`, upgradeRequired: true });
+      }
       const { to, body } = req.body;
       if (!to || !body) {
         return res.status(400).json({ message: "Phone number (to) and message body are required" });
       }
       const { sendSMS } = await import("./twilio");
       const message = await sendSMS(to, body);
+      await storage.incrementUsage(userId, "smsSent");
       res.json({ success: true, sid: message.sid, status: message.status });
     } catch (error: any) {
       console.error("Error sending SMS:", error);
@@ -3580,6 +3665,10 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
   app.post("/api/leads/:id/send-sms", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
+      const smsUsage = await checkUsageLimit(userId, "smsSent");
+      if (!smsUsage.allowed) {
+        return res.status(429).json({ message: `SMS limit reached (${smsUsage.current}/${smsUsage.limit} this month). Upgrade your plan for more.`, upgradeRequired: true });
+      }
       const lead = await storage.getLeadById(req.params.id as string);
       if (!lead || lead.userId !== userId) {
         return res.status(404).json({ message: "Lead not found" });
@@ -3593,6 +3682,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
       }
       const { sendSMS } = await import("./twilio");
       const message = await sendSMS(lead.phone, body);
+      await storage.incrementUsage(userId, "smsSent");
       res.json({ success: true, sid: message.sid, status: message.status, leadName: lead.name });
     } catch (error: any) {
       console.error("Error sending SMS to lead:", error);
@@ -4123,6 +4213,12 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (!content || typeof content !== "string") {
         return res.status(400).json({ message: "Message content is required" });
       }
+
+      const usageCheck = await checkUsageLimit(userId, "aiChats");
+      if (!usageCheck.allowed) {
+        return res.status(429).json({ message: `You've reached your ${usageCheck.planName} plan limit of ${usageCheck.limit} AI chats this month (${usageCheck.current}/${usageCheck.limit} used). Upgrade your plan for more.`, upgradeRequired: true });
+      }
+
       const userMessage = await storage.createChatMessage({ userId, role: "user", content });
 
       const history = await storage.getChatMessages(userId);
@@ -4134,6 +4230,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         new Promise<string>((_, reject) => setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs)),
       ]);
       console.log(`[Chat] AI reply for user ${userId}: "${aiReply?.slice(0, 100)}..."`);
+      await storage.incrementUsage(userId, "aiChats");
       const aiMessage = await storage.createChatMessage({ userId, role: "assistant", content: aiReply });
 
       res.json({ userMessage, aiMessage });
@@ -4214,6 +4311,10 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
 
   app.post("/api/voice/calls", isAuthenticated, async (req, res) => {
     try {
+      const voiceUsage = await checkUsageLimit(req.session.userId!, "voiceCalls");
+      if (!voiceUsage.allowed) {
+        return res.status(429).json({ message: `Voice call limit reached (${voiceUsage.current}/${voiceUsage.limit} this month on ${voiceUsage.planName} plan). Upgrade your plan for more calls.`, upgradeRequired: true });
+      }
       const { toNumber, leadId, agentId, script: customScript } = req.body;
       if (!toNumber || typeof toNumber !== "string") {
         return res.status(400).json({ message: "Phone number is required" });
@@ -4325,6 +4426,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
           status: "initiated",
           startedAt: new Date(),
         });
+        await storage.incrementUsage(userId, "voiceCalls");
 
         res.json({ success: true, callId: callLog.id, twilioSid: call.sid });
       } catch (twilioErr: any) {
