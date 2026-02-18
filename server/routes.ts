@@ -531,16 +531,21 @@ async function executeAction(userId: string, action: string, params: any): Promi
         if (/^(test|fake|dummy|placeholder|sample|noreply|no-reply)@/i.test(lower)) return true;
         if (/^(prospect|lead|contact|debug|fresh|alpha)[\d_@]/i.test(lower)) return true;
         if (/\+1555|555-\d{3}-\d{4}|5550{4}/i.test(lower)) return true;
+        if (/@(familypractice|orthoclinic|urgentcare|familymed|internalmed|dentistry|dermatology|pediatrics|cardiology|oncology|neurology|gastro|pulmonology|rheumatology|endocrinology|nephrology|urology)\.(com|org|net)$/i.test(lower)) return true;
+        const namePart = lower.split("@")[0];
+        const domainPart = lower.split("@")[1] || "";
+        if (/^(dr|doctor|john|jane|robert|jessica|amanda|henry|maria|kevin|brian|sarah|steven|nick|jake|tina|laura|karen)[\._]/.test(namePart) && /^[a-z]+(practice|clinic|care|med|medical|health|surgery)\.(com|org|net)$/.test(domainPart)) return true;
         return false;
       };
       const isFakePhone = (phone: string) => {
         if (!phone) return false;
         const digits = phone.replace(/\D/g, '');
         if (digits.length === 0) return false;
-        if (/^1?555\d{7}$/.test(digits)) return true;
+        if (/555/.test(digits)) return true;
         if (/^(\d)\1{6,}$/.test(digits)) return true;
         if (/^(1234|0000|9999)/.test(digits)) return true;
         if (digits.length < 10) return true;
+        if (/^1?(\d{3})\1/.test(digits)) return true;
         return false;
       };
 
@@ -590,7 +595,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
       }
 
       if (created.length === 0 && skipped.length > 0) {
-        return `ERROR: All ${skipped.length} leads were rejected because they contained fake/placeholder data (generic names, fake emails like @example.com/@test.com, or 555 phone numbers). You MUST use web_search to find REAL businesses with VERIFIED contact info from actual websites. Each lead needs a real email or phone number you found on a real webpage. Try again with verified web search results.`;
+        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info (fake emails, 555 phone numbers, or generic domains like @familypractice.com). You MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] phone number" and "[business name] contact" to find REAL contact details\n3. ONLY use emails and phone numbers you see in actual search results\n4. Phone numbers must NOT contain "555" — those are fictional\n5. Emails must be from REAL domains you found in search results\nTry again with REAL verified data from actual web pages.`;
       }
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);
@@ -1230,14 +1235,17 @@ AGENT-TO-FUNNEL: When generating leads for a specific agent (Tax Lien, Govt Cont
 
 TOOL SEQUENCING: web_search → generate_leads (with agent_type if applicable) → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results and suggest next steps. Combine tools in one flow when beneficial.
 
-CONTACT VERIFICATION RULES (MANDATORY):
+CONTACT VERIFICATION RULES (MANDATORY — LEADS WITH FAKE DATA WILL BE AUTO-REJECTED):
 - ONLY use email addresses and phone numbers you actually found on a real website, directory, or contact page during your web searches.
 - NEVER fabricate, guess, or invent contact details. If you didn't see it in search results, don't use it.
 - NEVER use @example.com, @test.com, or any placeholder/test domain.
-- NEVER use 555-xxx-xxxx phone numbers — those are fictional US numbers.
+- NEVER invent email domains that match specialties (e.g. @familypractice.com, @orthoclinic.com, @urgentcare.com, @dermatology.com) — these are ALWAYS fake. Real practices have unique domain names.
+- NEVER use 555-xxx-xxxx phone numbers IN ANY POSITION — those are fictional US numbers. The system auto-rejects ANY phone containing "555".
+- NEVER guess email formats like firstname.lastname@companyname.com — only use emails you SAW in search results.
 - Phone numbers MUST be FULL US numbers with area code (10 digits). Example: (615) 482-6768 or 615-482-6768. NEVER submit partial or truncated phone numbers.
 - If a search result shows a phone number, copy the COMPLETE number including area code.
 - Each lead MUST have at least one real, verified contact method (phone or email) found from an actual webpage.
+- The system has a STRICT FILTER that auto-rejects fake data. If your leads get rejected, you MUST search more specifically for each business's real contact details.
 
 PHONE NUMBER HUNTING (CRITICAL — DO NOT SKIP):
 - For EVERY potential lead, you MUST do a DEDICATED phone number search BEFORE saving them.
