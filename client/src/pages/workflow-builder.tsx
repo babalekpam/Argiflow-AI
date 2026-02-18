@@ -186,7 +186,7 @@ const NODE_PALETTE = [
     items: [
       { actionType: "ai_classify", nodeType: "action", label: "AI Classify", desc: "Classify text into categories" },
       { actionType: "ai_score_lead", nodeType: "action", label: "AI Lead Score", desc: "Score leads 0-100" },
-      { actionType: "ai_generate_content", nodeType: "action", label: "AI Generate", desc: "Create content with Claude" },
+      { actionType: "ai_generate_content", nodeType: "action", label: "AI Generate", desc: "Create content with AI" },
       { actionType: "ai_summarize", nodeType: "action", label: "AI Summarize", desc: "Summarize text" },
     ],
   },

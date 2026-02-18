@@ -795,7 +795,7 @@ function AIResearchTab() {
           AI-Powered Deep Research
         </h3>
         <p className="text-sm text-muted-foreground mb-4">
-          Claude AI analyzes companies and contacts to find pain points, competitors, best approach angles, buyer personas, and icebreakers.
+          AI analyzes companies and contacts to find pain points, competitors, best approach angles, buyer personas, and icebreakers.
         </p>
         <div className="flex gap-2 mb-4">
           <Button size="sm" variant={researchType === "company" ? "default" : "outline"} onClick={() => setResearchType("company")} data-testid="button-research-company">Company</Button>

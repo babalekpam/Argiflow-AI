@@ -150,7 +150,7 @@ const phases: PhaseData[] = [
     tasks: [
       "Go to the Workflow Builder (drag-and-drop visual editor)",
       "Choose from 6 pre-built templates or build custom workflows",
-      'Use "AI Generate" to have Claude automatically customize workflows for your business',
+      'Use "AI Generate" to have AI automatically customize workflows for your business',
     ],
     whyItMatters:
       "Workflows connect all the pieces together. When a lead opens your email, the system automatically scores them higher, sends a follow-up, and alerts you.",
@@ -310,7 +310,7 @@ const featureCategories = [
       "Visual Workflow Builder - Drag-and-drop automation designer",
       "30+ Action Types - AI classify, score, generate, email, SMS, voice",
       "Pre-Built Templates - 6 ready-to-use workflow templates",
-      "AI Workflow Generation - Claude AI customizes workflows for you",
+      "AI Workflow Generation - AI customizes workflows for you",
       "Event-Driven Triggers - 13 event hooks for full automation",
     ],
   },
