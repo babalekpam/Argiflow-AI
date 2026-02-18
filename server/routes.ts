@@ -3159,6 +3159,212 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
     }
   });
 
+  let enrichmentRunning = false;
+  let enrichmentProgress = { enriched: 0, failed: 0, total: 0, status: "idle" as string };
+
+  app.get("/api/leads/enrich-status", isAuthenticated, async (_req, res) => {
+    res.json(enrichmentProgress);
+  });
+
+  app.post("/api/leads/enrich-followups", isAuthenticated, async (req, res) => {
+    try {
+      if (enrichmentRunning) {
+        return res.json({ message: "Enrichment already running", ...enrichmentProgress, status: "processing" });
+      }
+
+      const userId = req.session.userId!;
+
+      let userAi: { client: any; model: string };
+      try { userAi = await getAnthropicForUser(userId); } catch {
+        return res.status(400).json({ message: "AI provider not configured. Go to Settings > Integrations to add your API key." });
+      }
+
+      const allLeads = await storage.getLeadsByUser(userId);
+      const followUpLeads = allLeads.filter(l => l.followUpStatus === "active" || l.followUpStatus === "completed");
+
+      const genericPrefixes = ["info@", "contact@", "office@", "admin@", "reception@", "frontdesk@", "careers@", "hr@", "concierge@", "legal@", "billing@", "general@", "team@", "staff@", "help@", "appointments@", "scheduling@", "support@"];
+      const approvedTitles = ["ceo", "founder", "owner", "president", "director", "vp", "vice president", "partner", "physician", "md", "do", "chief", "principal"];
+      const needsEnrichment = followUpLeads.filter(l => {
+        const email = (l.email || "").toLowerCase();
+        const phone = (l.phone || "").trim();
+        const name = (l.name || "").toLowerCase();
+        const hasGenericEmail = genericPrefixes.some(p => email.startsWith(p));
+        const hasBadPhone = !phone || phone.includes("555") || phone.startsWith("Remote") || phone.length < 7;
+        const hasGenericName = name.includes("practice manager") || name.includes("practice administrator") || name.includes("revenue cycle") || name.includes("billing manager");
+        return hasGenericEmail || hasBadPhone || hasGenericName;
+      });
+
+      if (needsEnrichment.length === 0) {
+        return res.json({ message: "All follow-up contacts already have valid decision-maker info", enriched: 0, total: followUpLeads.length, status: "complete" });
+      }
+
+      enrichmentRunning = true;
+      enrichmentProgress = { enriched: 0, failed: 0, total: needsEnrichment.length, status: "processing" };
+
+      res.json({
+        message: `Starting enrichment for ${needsEnrichment.length} contacts`,
+        enriching: needsEnrichment.length,
+        total: followUpLeads.length,
+        status: "processing",
+      });
+
+      (async () => {
+        for (const lead of needsEnrichment) {
+          try {
+            if (!lead.company) { enrichmentProgress.failed++; continue; }
+            const searchQueries = [
+              `"${lead.company}" owner CEO founder physician director site:linkedin.com`,
+              `"${lead.company}" decision maker contact email phone`,
+              `"${lead.company}" practice owner medical director managing partner`,
+            ];
+
+            let webContext = "";
+            for (const sq of searchQueries) {
+              try {
+                const result = await webSearch(sq, userId);
+                if (result && result !== "No results found.") {
+                  webContext += `\n\n### Search: "${sq}"\n${result}`;
+                }
+              } catch (err) {
+                console.warn("[ENRICH] Search failed:", sq);
+              }
+            }
+
+            if (!webContext.trim()) {
+              console.warn(`[ENRICH] No web results for ${lead.company}, skipping`);
+              enrichmentProgress.failed++;
+              continue;
+            }
+
+            const enrichPrompt = `You are a B2B sales research specialist. Find the DECISION MAKER contact for this company.
+
+Current lead data:
+- Company: ${lead.company}
+- Current Name: ${lead.name}
+- Current Email: ${lead.email}
+- Current Phone: ${lead.phone || "MISSING"}
+
+PROBLEMS with current data (fix these):
+${genericPrefixes.some(p => (lead.email || "").toLowerCase().startsWith(p)) ? "- Email is GENERIC — need the decision maker's PERSONAL email" : ""}
+${!lead.phone || lead.phone.includes("555") || lead.phone.startsWith("Remote") || lead.phone.length < 7 ? "- Phone is MISSING or INVALID — need a real direct phone number" : ""}
+${(lead.name || "").toLowerCase().includes("practice") || (lead.name || "").toLowerCase().includes("revenue") || (lead.name || "").toLowerCase().includes("billing") ? "- Name is a GENERIC TITLE — need the actual decision maker's name" : ""}
+
+Web Research Results:
+${webContext}
+
+INSTRUCTIONS:
+1. Find the DECISION MAKER: CEO, Founder, Owner, President, Medical Director, Managing Partner, or Practice Owner
+2. Find their PERSONAL/DIRECT email (not generic company emails)
+3. Find a REAL phone number (not 555 numbers)
+4. ONLY use data from the search results above — NEVER fabricate
+5. The person MUST be associated with "${lead.company}" — do not return contacts from other companies
+
+Respond in JSON format:
+{
+  "name": "Full Name",
+  "title": "Title (CEO, Owner, MD, etc.)",
+  "email": "personal@email.com or null",
+  "phone": "(XXX) XXX-XXXX or null",
+  "confidence": "high|medium|low",
+  "source": "Where found",
+  "notes": "Why this person is right"
+}
+
+Use null for any field you cannot verify from search results.`;
+
+            const aiResponse = await userAi.client.messages.create({
+              model: userAi.model,
+              max_tokens: 500,
+              messages: [{ role: "user", content: enrichPrompt }],
+            });
+
+            const raw = aiResponse.content
+              ?.filter((b: any) => b.type === "text")
+              ?.map((b: any) => b.text)
+              ?.join("") || "{}";
+
+            let enriched_data: any;
+            try {
+              const jsonMatch = raw.match(/\{[\s\S]*\}/);
+              enriched_data = JSON.parse(jsonMatch ? jsonMatch[0] : "{}");
+            } catch {
+              console.warn(`[ENRICH] Failed to parse AI response for ${lead.company}`);
+              enrichmentProgress.failed++;
+              continue;
+            }
+
+            if (enriched_data.confidence === "low") {
+              console.log(`[ENRICH] Skipping low-confidence result for ${lead.company}`);
+              enrichmentProgress.failed++;
+              continue;
+            }
+
+            const updates: any = {};
+            let changed = false;
+
+            if (enriched_data.name && enriched_data.name !== "null" && enriched_data.name !== lead.name) {
+              const nameLC = enriched_data.name.toLowerCase();
+              if (!nameLC.includes("practice") && !nameLC.includes("administrator") && !nameLC.includes("revenue cycle") && !nameLC.includes("office manager") && !nameLC.includes("billing")) {
+                updates.name = enriched_data.name;
+                changed = true;
+              }
+            }
+
+            if (enriched_data.title) {
+              const titleLC = enriched_data.title.toLowerCase();
+              const isApproved = approvedTitles.some(t => titleLC.includes(t));
+              if (!isApproved) {
+                console.log(`[ENRICH] Rejected non-decision-maker title "${enriched_data.title}" for ${lead.company}`);
+                enrichmentProgress.failed++;
+                continue;
+              }
+            }
+
+            if (enriched_data.email && enriched_data.email !== "null") {
+              const newEmail = enriched_data.email.toLowerCase();
+              if (!genericPrefixes.some(p => newEmail.startsWith(p)) && newEmail.includes("@") && newEmail.includes(".")) {
+                updates.email = enriched_data.email;
+                changed = true;
+              }
+            }
+
+            if (enriched_data.phone && enriched_data.phone !== "null") {
+              const ph = enriched_data.phone.replace(/\D/g, "");
+              if (ph.length >= 10 && !ph.includes("555")) {
+                updates.phone = enriched_data.phone;
+                changed = true;
+              }
+            }
+
+            if (changed) {
+              const enrichNote = `[ENRICHED ${new Date().toLocaleDateString()}] ${enriched_data.title || ""} — ${enriched_data.source || "web search"} (${enriched_data.confidence || "medium"} confidence). ${enriched_data.notes || ""}`;
+              updates.notes = lead.notes ? `${enrichNote}\n\n${lead.notes}` : enrichNote;
+              await storage.updateLead(lead.id, updates);
+              enrichmentProgress.enriched++;
+              console.log(`[ENRICH] Updated ${lead.company}: name=${updates.name || "unchanged"}, email=${updates.email || "unchanged"}, phone=${updates.phone || "unchanged"}`);
+            } else {
+              enrichmentProgress.failed++;
+              console.log(`[ENRICH] No valid updates found for ${lead.company}`);
+            }
+
+            await new Promise(r => setTimeout(r, 2000));
+          } catch (err) {
+            console.error(`[ENRICH] Error processing ${lead.company}:`, err);
+            enrichmentProgress.failed++;
+          }
+        }
+        enrichmentProgress.status = "complete";
+        enrichmentRunning = false;
+        console.log(`[ENRICH] Complete: ${enrichmentProgress.enriched} enriched, ${enrichmentProgress.failed} failed out of ${needsEnrichment.length}`);
+      })();
+    } catch (error) {
+      console.error("Error starting enrichment:", error);
+      enrichmentRunning = false;
+      enrichmentProgress.status = "error";
+      res.status(500).json({ message: "Failed to start enrichment" });
+    }
+  });
+
   // ---- BACKGROUND SCHEDULER ----
 
   async function processScheduledOutreach() {

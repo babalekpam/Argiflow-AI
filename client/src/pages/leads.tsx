@@ -996,6 +996,47 @@ function FollowUpTracker({ data, isLoading, pauseFollowUpMutation, resumeFollowU
   resumeFollowUpMutation: any;
 }) {
   const [subTab, setSubTab] = useState<"active" | "overdue" | "upcoming" | "completed" | "paused" | "opened" | "not_opened">("active");
+  const { toast } = useToast();
+
+  const [enrichmentActive, setEnrichmentActive] = useState(false);
+  const { data: enrichStatus } = useQuery<{ enriched: number; failed: number; total: number; status: string }>({
+    queryKey: ["/api/leads/enrich-status"],
+    refetchInterval: enrichmentActive ? 5000 : false,
+  });
+
+  useEffect(() => {
+    if (enrichStatus?.status === "processing") {
+      setEnrichmentActive(true);
+    } else if (enrichStatus?.status === "complete" && enrichmentActive) {
+      setEnrichmentActive(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/follow-up-tracker"] });
+      if (enrichStatus.enriched > 0) {
+        toast({ title: `Enrichment complete: ${enrichStatus.enriched} contacts updated` });
+      }
+    }
+  }, [enrichStatus?.status]);
+
+  const enrichMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/leads/enrich-followups");
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.enriching > 0 || data.status === "processing") {
+        setEnrichmentActive(true);
+        toast({
+          title: `Enriching ${data.enriching || data.total} contacts`,
+          description: `Searching the web for decision maker contacts. Progress updates will appear here.`,
+        });
+      } else {
+        toast({ title: data.message });
+      }
+    },
+    onError: () => {
+      toast({ title: "Failed to start enrichment", variant: "destructive" });
+    },
+  });
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "N/A";
@@ -1103,6 +1144,31 @@ function FollowUpTracker({ data, isLoading, pauseFollowUpMutation, resumeFollowU
           <div className="text-xs text-muted-foreground">Open Rate</div>
           <div className="text-[10px] text-purple-400/70 mt-0.5">{openedLeads.length} of {allFollowUps.length} leads</div>
         </Card>
+      </div>
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button
+          variant="outline"
+          onClick={() => enrichMutation.mutate()}
+          disabled={enrichMutation.isPending || enrichmentActive}
+          data-testid="button-enrich-followups"
+        >
+          {enrichMutation.isPending || enrichmentActive ? (
+            <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Enriching... {enrichStatus ? `(${enrichStatus.enriched + enrichStatus.failed}/${enrichStatus.total})` : ""}</>
+          ) : (
+            <><Microscope className="w-4 h-4 mr-2" />Enrich Decision Maker Contacts</>
+          )}
+        </Button>
+        {enrichmentActive && enrichStatus && (
+          <span className="text-xs text-purple-400" data-testid="text-enrich-progress">
+            {enrichStatus.enriched} enriched, {enrichStatus.failed} skipped of {enrichStatus.total}
+          </span>
+        )}
+        {!enrichmentActive && (
+          <span className="text-xs text-muted-foreground">
+            Searches the web to find real decision maker names, emails, and phone numbers for contacts with generic or missing info
+          </span>
+        )}
       </div>
 
       <Card className="p-4">
