@@ -65,6 +65,8 @@ import {
   PauseCircle,
   Inbox,
   Reply,
+  Microscope,
+  Zap,
 } from "lucide-react";
 import type { Lead, Business, EmailReply } from "@shared/schema";
 import { useState, useEffect, useMemo } from "react";
@@ -284,6 +286,8 @@ function LeadCard({
   pauseFollowUpMutation,
   resumeFollowUpMutation,
   onSmsClick,
+  researchCompanyMutation,
+  researchingLeadId,
 }: {
   lead: Lead;
   isExpanded: boolean;
@@ -299,6 +303,8 @@ function LeadCard({
   pauseFollowUpMutation: any;
   resumeFollowUpMutation: any;
   onSmsClick: (lead: Lead) => void;
+  researchCompanyMutation: any;
+  researchingLeadId: string | null;
 }) {
   const { t } = useTranslation();
   const isSent = !!lead.outreachSentAt;
@@ -518,6 +524,52 @@ function LeadCard({
               <p className="text-sm pl-6" data-testid={`text-notes-${lead.id}`}>{lead.notes}</p>
             </div>
           )}
+
+          <div className="border rounded-md p-3 bg-background" data-testid={`company-research-panel-${lead.id}`}>
+            <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Microscope className="w-4 h-4 text-primary" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("leads.companyResearch.title")}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {lead.companyResearchedAt && (
+                  <span className="text-xs text-muted-foreground">
+                    {t("leads.companyResearch.lastResearched", { date: new Date(lead.companyResearchedAt).toLocaleDateString() })}
+                  </span>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (lead.company) {
+                      researchCompanyMutation.mutate(lead.id);
+                    }
+                  }}
+                  disabled={researchingLeadId === lead.id || !lead.company}
+                  data-testid={`button-research-company-${lead.id}`}
+                >
+                  {researchingLeadId === lead.id ? (
+                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> {t("leads.companyResearch.researching")}</>
+                  ) : lead.companyResearch ? (
+                    <><RefreshCw className="w-3 h-3 mr-1" /> {t("leads.companyResearch.refresh")}</>
+                  ) : (
+                    <><Zap className="w-3 h-3 mr-1" /> {t("leads.companyResearch.research")}</>
+                  )}
+                </Button>
+              </div>
+            </div>
+            {lead.companyResearch ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed whitespace-pre-wrap" data-testid={`text-company-research-${lead.id}`}>
+                {lead.companyResearch}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground text-center py-4">
+                <Microscope className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p>{lead.company ? t("leads.companyResearch.research") : t("leads.companyResearch.noCompany")}</p>
+              </div>
+            )}
+          </div>
 
           {lead.outreach && !isEditingOutreach && (
             <div>
@@ -943,7 +995,7 @@ export default function LeadsPage() {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"new" | "engaged">("new");
+  const [activeTab, setActiveTab] = useState<"new" | "engaged" | "hot">("new");
   const [smsLead, setSmsLead] = useState<Lead | null>(null);
   const [smsBody, setSmsBody] = useState("");
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
@@ -1242,6 +1294,25 @@ export default function LeadsPage() {
     },
   });
 
+  const [researchingLeadId, setResearchingLeadId] = useState<string | null>(null);
+
+  const researchCompanyMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      setResearchingLeadId(leadId);
+      const res = await apiRequest("POST", `/api/leads/${leadId}/research-company`);
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateLeads();
+      setResearchingLeadId(null);
+      toast({ title: t("leads.companyResearch.researchSuccess") });
+    },
+    onError: (err: any) => {
+      setResearchingLeadId(null);
+      toast({ title: err?.message || t("leads.companyResearch.researchFailed"), variant: "destructive" });
+    },
+  });
+
   const [expandedLeads, setExpandedLeads] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -1269,8 +1340,11 @@ export default function LeadsPage() {
 
   const newLeads = sourceFilteredLeads.filter(l => !l.outreachSentAt);
   const engagedLeads = sourceFilteredLeads.filter(l => !!l.outreachSentAt);
+  const hotLeads = sourceFilteredLeads.filter(l =>
+    l.status === "hot" || (l.engagementScore && l.engagementScore >= 50) || l.engagementLevel === "hot"
+  );
 
-  const currentLeads = activeTab === "new" ? newLeads : engagedLeads;
+  const currentLeads = activeTab === "new" ? newLeads : activeTab === "engaged" ? engagedLeads : hotLeads;
 
   const filteredLeads = currentLeads.filter(
     (l) =>
@@ -1486,6 +1560,19 @@ export default function LeadsPage() {
           {t("leads.engagedLeads")}
           <Badge variant="secondary" className="text-xs ml-1">{engagedLeads.length}</Badge>
         </button>
+        <button
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "hot"
+              ? "border-red-500 text-red-400"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setActiveTab("hot")}
+          data-testid="tab-hot-leads"
+        >
+          <Flame className="w-4 h-4" />
+          {t("leads.hotLeads")}
+          <Badge variant="secondary" className="text-xs ml-1 bg-red-500/10 text-red-400">{hotLeads.length}</Badge>
+        </button>
       </div>
 
       <Card className="p-4">
@@ -1493,7 +1580,7 @@ export default function LeadsPage() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder={activeTab === "new" ? t("leads.searchNewLeads") : t("leads.searchEngagedLeads")}
+              placeholder={activeTab === "new" ? t("leads.searchNewLeads") : activeTab === "engaged" ? t("leads.searchEngagedLeads") : t("leads.searchHotLeads")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
@@ -1557,11 +1644,17 @@ export default function LeadsPage() {
                 <p className="font-medium">{t("leads.noNewLeads")}</p>
                 <p className="text-sm">{t("leads.addLeadsManually")}</p>
               </>
-            ) : (
+            ) : activeTab === "engaged" ? (
               <>
                 <UserCheck className="w-10 h-10 mx-auto mb-3 opacity-50" />
                 <p className="font-medium">{t("leads.noEngagedLeads")}</p>
                 <p className="text-sm">{t("leads.sendOutreachToSee")}</p>
+              </>
+            ) : (
+              <>
+                <Flame className="w-10 h-10 mx-auto mb-3 opacity-50 text-red-400" />
+                <p className="font-medium">{t("leads.noHotLeads")}</p>
+                <p className="text-sm">{t("leads.noHotLeadsDesc")}</p>
               </>
             )}
           </div>
@@ -1584,6 +1677,8 @@ export default function LeadsPage() {
                 pauseFollowUpMutation={pauseFollowUpMutation}
                 resumeFollowUpMutation={resumeFollowUpMutation}
                 onSmsClick={(lead) => { setSmsLead(lead); setSmsBody(""); }}
+                researchCompanyMutation={researchCompanyMutation}
+                researchingLeadId={researchingLeadId}
               />
             ))}
           </div>

@@ -45,6 +45,8 @@ export const leads = pgTable("leads", {
   followUpStatus: text("follow_up_status").default("none"),
   followUpNextAt: timestamp("follow_up_next_at"),
   followUpLastSentAt: timestamp("follow_up_last_sent_at"),
+  companyResearch: text("company_research"),
+  companyResearchedAt: timestamp("company_researched_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

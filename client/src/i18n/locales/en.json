@@ -936,7 +936,29 @@
       "invalidEmail": "Invalid email",
       "sourceRequired": "Source is required"
     },
-    "outreachPlaceholder": "Hi {{name}}, I wanted to reach out about..."
+    "outreachPlaceholder": "Hi {{name}}, I wanted to reach out about...",
+    "regenerateNewOutreach": "Regenerate New Leads Outreach",
+    "hotLeads": "Hot Leads",
+    "searchHotLeads": "Search hot leads...",
+    "noHotLeads": "No hot leads yet",
+    "noHotLeadsDesc": "Leads with high engagement scores or \"hot\" status will appear here.",
+    "companyResearch": {
+      "title": "Company Intelligence Report",
+      "research": "Research Company",
+      "researching": "Researching...",
+      "researchSuccess": "Company research completed",
+      "researchFailed": "Failed to research company",
+      "refresh": "Refresh Research",
+      "noCompany": "No company name available",
+      "lastResearched": "Last researched: {{date}}",
+      "overview": "Company Overview",
+      "services": "Key Services/Products",
+      "painPoints": "Pain Points",
+      "decisionMakers": "Decision Makers",
+      "competitors": "Competitive Landscape",
+      "recommendedOffer": "Recommended Offer",
+      "talkingPoints": "Talking Points"
+    }
   },
   "appointments": {
     "title": "Appointments",

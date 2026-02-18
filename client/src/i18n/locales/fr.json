@@ -740,6 +740,27 @@
       "interested": "Intéressé",
       "noEngagement": "Aucun Engagement",
       "na": "N/D"
+    },
+    "hotLeads": "Leads Chauds",
+    "searchHotLeads": "Rechercher des leads chauds...",
+    "noHotLeads": "Aucun lead chaud",
+    "noHotLeadsDesc": "Les leads avec un score d'engagement élevé ou un statut « chaud » apparaîtront ici.",
+    "companyResearch": {
+      "title": "Rapport d'Intelligence Entreprise",
+      "research": "Rechercher l'Entreprise",
+      "researching": "Recherche en cours...",
+      "researchSuccess": "Recherche terminée",
+      "researchFailed": "Échec de la recherche",
+      "refresh": "Actualiser la Recherche",
+      "noCompany": "Aucun nom d'entreprise disponible",
+      "lastResearched": "Dernière recherche : {{date}}",
+      "overview": "Aperçu de l'Entreprise",
+      "services": "Services/Produits Clés",
+      "painPoints": "Points de Douleur",
+      "decisionMakers": "Décideurs",
+      "competitors": "Paysage Concurrentiel",
+      "recommendedOffer": "Offre Recommandée",
+      "talkingPoints": "Points de Discussion"
     }
   },
   "appointments": {

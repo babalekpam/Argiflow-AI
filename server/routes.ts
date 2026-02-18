@@ -2788,6 +2788,79 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     }
   });
 
+  app.post("/api/leads/:id/research-company", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const lead = await storage.getLeadById(req.params.id as string);
+      if (!lead || lead.userId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      if (!lead.company) {
+        return res.status(400).json({ message: "No company name available for this lead" });
+      }
+
+      let userAi: { client: Anthropic; model: string };
+      try { userAi = await getAnthropicForUser(userId); } catch {
+        return res.status(400).json({ message: "AI API key not configured. Go to Settings > Integrations to add your Anthropic API key." });
+      }
+
+      const searchQuery = `${lead.company} company overview services revenue`;
+      let webContext = "";
+      try {
+        webContext = await webSearch(searchQuery, userId, userAi);
+      } catch (err) {
+        console.warn("[RESEARCH] Web search failed, proceeding with AI knowledge only:", err);
+      }
+
+      const user = await storage.getUserById(userId);
+      const settings = await storage.getSettingsByUser(userId);
+
+      const prompt = `You are a B2B sales research analyst. Research the following company and provide a detailed intelligence report that will help craft a compelling offer.
+
+Company: ${lead.company}
+Contact: ${lead.name}
+Email: ${lead.email}
+${lead.phone ? `Phone: ${lead.phone}` : ""}
+
+Our Company: ${user?.companyName || "Our company"}
+Our Services: ${settings?.industry || "business services"}
+
+${webContext ? `## Web Research Results:\n${webContext}\n\n` : ""}
+
+Provide a structured report with these sections:
+1. **Company Overview**: What the company does, their industry, size estimate, location
+2. **Key Services/Products**: What they offer to their customers
+3. **Pain Points**: Common challenges companies like this face that our services could solve
+4. **Decision Makers**: Likely decision-making structure and who to target
+5. **Competitive Landscape**: Who their competitors are
+6. **Recommended Offer**: A tailored offer/value proposition specifically for this company based on their needs and our services
+7. **Talking Points**: 3-5 key conversation starters for outreach
+
+Be specific and actionable. If web data is limited, use industry knowledge to provide useful insights. Format in clean markdown.`;
+
+      const response = await userAi.client.messages.create({
+        model: userAi.model,
+        max_tokens: 2000,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const research = response.content
+        .filter((b: any) => b.type === "text")
+        .map((b: any) => b.text)
+        .join("\n");
+
+      await storage.updateLead(lead.id, {
+        companyResearch: research,
+        companyResearchedAt: new Date(),
+      });
+
+      res.json({ success: true, research });
+    } catch (error) {
+      console.error("Error researching company:", error);
+      res.status(500).json({ message: "Failed to research company" });
+    }
+  });
+
   // ---- BACKGROUND SCHEDULER ----
 
   async function processScheduledOutreach() {
