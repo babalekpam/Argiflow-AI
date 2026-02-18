@@ -381,6 +381,16 @@ const AGENT_FUNNEL_STAGES: Record<string, { name: string; stages: { name: string
       { name: "Closed Won", color: "#22c55e" },
     ],
   },
+  "medical-billing": {
+    name: "Track-Med Billing Solutions Pipeline",
+    stages: [
+      { name: "New Leads", color: "#3b82f6" },
+      { name: "Contacted", color: "#8b5cf6" },
+      { name: "Qualified", color: "#f59e0b" },
+      { name: "Proposal Sent", color: "#f97316" },
+      { name: "Closed Won", color: "#22c55e" },
+    ],
+  },
   "govt-tender-africa": {
     name: "Govt Tender Pipeline",
     stages: [
@@ -1289,7 +1299,7 @@ LEAD SCORING (use this scoring model):
 
 OUTREACH PERSONALIZATION: Reference their specific pain point or situation. If hiring for billing = mention your full-service solution. If new practice = mention your startup billing packages. If complaining about current service = mention your 98%+ clean claim rate and dedicated account manager.
 
-AGENT-TO-FUNNEL: When generating leads for a specific agent (Tax Lien, Govt Contracts, Lead Gen, etc.), ALWAYS include agent_type in generate_leads (e.g. agent_type="tax-lien"). This auto-creates or finds the matching funnel pipeline and adds leads as deals. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage.
+AGENT-TO-FUNNEL: When generating leads for a specific agent (Tax Lien, Govt Contracts, Medical Billing, etc.), ALWAYS include agent_type in generate_leads (e.g. agent_type="tax-lien"). This auto-creates or finds the matching funnel pipeline and adds leads as deals. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. For medical billing leads, ALWAYS use agent_type="medical-billing" to add them to the Track-Med Billing Solutions Pipeline.
 
 TOOL SEQUENCING: web_search → generate_leads (with agent_type if applicable) → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results and suggest next steps. Combine tools in one flow when beneficial.
 
@@ -1341,7 +1351,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
       input_schema: {
         type: "object" as const,
         properties: {
-          agent_type: { type: "string", description: "Optional agent type if leads are from a specific agent. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. When provided, leads are auto-added to the matching funnel pipeline." },
+          agent_type: { type: "string", description: "Optional agent type if leads are from a specific agent. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. When provided, leads are auto-added to the matching funnel pipeline. For medical billing leads, ALWAYS use 'medical-billing'." },
           leads: {
             type: "array",
             items: {
@@ -3199,6 +3209,56 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
     }
   });
 
+  app.post("/api/leads/backfill-funnel", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const allLeads = await storage.getLeadsByUser(userId);
+      const medBillingLeads = allLeads.filter(l => {
+        const src = (l.source || "").toLowerCase();
+        return src.includes("dataseo") || src.includes("datafor") || src.includes("medical billing") || src.includes("lead hunter") || src.includes("web research");
+      });
+
+      if (medBillingLeads.length === 0) {
+        return res.json({ message: "No medical billing leads found to backfill", added: 0 });
+      }
+
+      const funnelInfo = await findOrCreateAgentFunnel(userId, "medical-billing");
+      if (!funnelInfo) {
+        return res.status(500).json({ message: "Failed to create Track-Med pipeline" });
+      }
+
+      const existingDeals = await storage.getFunnelDeals(funnelInfo.funnelId);
+      const existingEmails = new Set(existingDeals.map(d => (d.contactEmail || "").toLowerCase().trim()).filter(Boolean));
+      const existingNames = new Set(existingDeals.map(d => (d.contactName || "").toLowerCase().trim()).filter(Boolean));
+
+      let added = 0;
+      for (const lead of medBillingLeads) {
+        const emailLC = (lead.email || "").toLowerCase().trim();
+        const nameLC = (lead.name || "").toLowerCase().trim();
+        if ((emailLC && existingEmails.has(emailLC)) || (nameLC && existingNames.has(nameLC))) {
+          continue;
+        }
+        await storage.createFunnelDeal({
+          funnelId: funnelInfo.funnelId,
+          stageId: funnelInfo.firstStageId,
+          userId,
+          contactName: lead.name || "",
+          contactEmail: lead.email || "",
+          value: 0,
+          status: "open",
+        });
+        existingEmails.add(emailLC);
+        existingNames.add(nameLC);
+        added++;
+      }
+
+      res.json({ message: `Added ${added} leads to Track-Med Billing Solutions Pipeline`, added, total: medBillingLeads.length });
+    } catch (error) {
+      console.error("Error backfilling funnel:", error);
+      res.status(500).json({ message: "Failed to backfill funnel" });
+    }
+  });
+
   let enrichmentRunning = false;
   let enrichmentProgress = { enriched: 0, failed: 0, total: 0, status: "idle" as string };
 
@@ -4076,7 +4136,7 @@ SCORING:
 
 For EACH lead provide: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score (40-95), intent_signal, notes (title + why they're a good prospect + WHERE you found their contact info), outreach (personalized 3-5 sentence email ending with: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246)
 
-CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} leads in a single call. Use agent_type="lead-gen". Do NOT just talk about leads — you MUST use the generate_leads tool to save them. Every lead MUST have real, verifiable contact details.`;
+CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} leads in a single call. Use agent_type="medical-billing". Do NOT just talk about leads — you MUST use the generate_leads tool to save them. Every lead MUST have real, verifiable contact details.`;
 
       const tavilyKey2 = process.env.TAVILY_API_KEY;
       let autoGenSearchResults = "";
@@ -4231,7 +4291,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
         currentMessages.push({ role: "assistant", content: response.content as any });
         currentMessages.push({
           role: "user",
-          content: `You MUST now call the generate_leads tool with all the leads you found. Do NOT just describe them in text. Call the tool NOW with an array of lead objects. Each lead needs: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score, intent_signal, notes, outreach. Use agent_type="lead-gen". CRITICAL: Every email and phone number MUST be real and verified from your web search results. NEVER fabricate contacts. NEVER use @example.com, @test.com, or 555 phone numbers. If you don't have real contact info for a lead, skip that lead entirely.`,
+          content: `You MUST now call the generate_leads tool with all the leads you found. Do NOT just describe them in text. Call the tool NOW with an array of lead objects. Each lead needs: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score, intent_signal, notes, outreach. Use agent_type="medical-billing". CRITICAL: Every email and phone number MUST be real and verified from your web search results. NEVER fabricate contacts. NEVER use @example.com, @test.com, or 555 phone numbers. If you don't have real contact info for a lead, skip that lead entirely.`,
         });
 
         const retryResponse = await claudeCallWithRetry({
@@ -5462,6 +5522,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   await ensureOwnerPassword();
   await ensureAllUsersProLifetime();
   await cleanupFakeLeads();
+  await backfillMedBillingFunnel();
 
   app.post("/api/admin/login", async (req, res) => {
     try {
@@ -7043,6 +7104,52 @@ async function ensureOwnerPassword() {
     console.log("Owner password & profile synced from ADMIN_PASSWORD secret");
   } catch (err) {
     console.error("Error syncing owner password:", err);
+  }
+}
+
+async function backfillMedBillingFunnel() {
+  try {
+    const ownerUser = await storage.getUserByEmail("abel@argilette.com");
+    if (!ownerUser) return;
+
+    const allLeads = await storage.getLeadsByUser(ownerUser.id);
+    const medBillingLeads = allLeads.filter(l => {
+      const src = (l.source || "").toLowerCase();
+      return src.includes("dataseo") || src.includes("datafor") || src.includes("medical billing") || src.includes("lead hunter") || src.includes("web research");
+    });
+
+    if (medBillingLeads.length === 0) return;
+
+    const funnelInfo = await findOrCreateAgentFunnel(ownerUser.id, "medical-billing");
+    if (!funnelInfo) return;
+
+    const existingDeals = await storage.getFunnelDeals(funnelInfo.funnelId);
+    const existingEmails = new Set(existingDeals.map(d => (d.contactEmail || "").toLowerCase().trim()).filter(Boolean));
+    const existingNames = new Set(existingDeals.map(d => (d.contactName || "").toLowerCase().trim()).filter(Boolean));
+
+    let added = 0;
+    for (const lead of medBillingLeads) {
+      const emailLC = (lead.email || "").toLowerCase().trim();
+      const nameLC = (lead.name || "").toLowerCase().trim();
+      if ((emailLC && existingEmails.has(emailLC)) || (nameLC && existingNames.has(nameLC))) continue;
+      await storage.createFunnelDeal({
+        funnelId: funnelInfo.funnelId,
+        stageId: funnelInfo.firstStageId,
+        userId: ownerUser.id,
+        contactName: lead.name || "",
+        contactEmail: lead.email || "",
+        value: 0,
+        status: "open",
+      });
+      existingEmails.add(emailLC);
+      existingNames.add(nameLC);
+      added++;
+    }
+    if (added > 0) {
+      console.log(`[Startup] Backfilled ${added} leads into Track-Med Billing Solutions Pipeline`);
+    }
+  } catch (err) {
+    console.error("[Startup] Error backfilling funnel:", err);
   }
 }
 
