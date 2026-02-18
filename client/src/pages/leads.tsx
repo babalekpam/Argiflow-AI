@@ -989,13 +989,186 @@ function BusinessManageDialog({
   );
 }
 
+function FollowUpTracker({ data, isLoading, pauseFollowUpMutation, resumeFollowUpMutation }: {
+  data: any;
+  isLoading: boolean;
+  pauseFollowUpMutation: any;
+  resumeFollowUpMutation: any;
+}) {
+  const [subTab, setSubTab] = useState<"active" | "overdue" | "upcoming" | "completed" | "paused">("active");
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = d.getTime() - now.getTime();
+    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    if (diffMs < 0) {
+      const absDays = Math.abs(diffDays);
+      if (absDays === 0) return "Today";
+      if (absDays === 1) return "1 day ago";
+      return `${absDays} days ago`;
+    }
+    if (diffHours < 24) return `In ${diffHours}h`;
+    if (diffDays === 1) return "Tomorrow";
+    return `In ${diffDays} days`;
+  };
+
+  const stepLabel = (step: number) => {
+    const labels = ["Initial Outreach", "Follow-Up #1", "Follow-Up #2", "Follow-Up #3", "Final Follow-Up"];
+    return labels[Math.min(step, labels.length - 1)];
+  };
+
+  const summary = data?.summary || { active: 0, completed: 0, paused: 0, overdue: 0, totalWithFollowUp: 0 };
+  const lists: Record<string, any[]> = {
+    active: data?.active || [],
+    overdue: data?.overdue || [],
+    upcoming: data?.upcoming || [],
+    completed: data?.completed || [],
+    paused: data?.paused || [],
+  };
+  const currentList = lists[subTab] || [];
+
+  return (
+    <div className="space-y-4" data-testid="follow-up-tracker">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("active")} data-testid="card-followup-active">
+          <div className="text-2xl font-bold text-purple-400" data-testid="text-followup-active-count">{summary.active}</div>
+          <div className="text-xs text-muted-foreground">Active Sequences</div>
+        </Card>
+        <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("overdue")} data-testid="card-followup-overdue">
+          <div className={`text-2xl font-bold ${summary.overdue > 0 ? "text-red-400" : "text-muted-foreground"}`} data-testid="text-followup-overdue-count">{summary.overdue}</div>
+          <div className="text-xs text-muted-foreground">Overdue</div>
+        </Card>
+        <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("upcoming")} data-testid="card-followup-upcoming">
+          <div className="text-2xl font-bold text-sky-400" data-testid="text-followup-upcoming-count">{summary.upcoming || (data?.upcoming || []).length}</div>
+          <div className="text-xs text-muted-foreground">Upcoming</div>
+        </Card>
+        <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("completed")} data-testid="card-followup-completed">
+          <div className="text-2xl font-bold text-emerald-400" data-testid="text-followup-completed-count">{summary.completed}</div>
+          <div className="text-xs text-muted-foreground">Completed</div>
+        </Card>
+        <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("paused")} data-testid="card-followup-paused">
+          <div className="text-2xl font-bold text-amber-400" data-testid="text-followup-paused-count">{summary.paused}</div>
+          <div className="text-xs text-muted-foreground">Paused</div>
+        </Card>
+      </div>
+
+      <Card className="p-4">
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <h3 className="text-sm font-semibold capitalize" data-testid="text-followup-subtab-title">
+            {subTab === "active" ? "Active Sequences" : subTab === "overdue" ? "Overdue Follow-Ups" : subTab === "upcoming" ? "Upcoming Follow-Ups" : subTab === "completed" ? "Completed Sequences" : "Paused Sequences"}
+          </h3>
+          <Badge variant="secondary" className="text-xs">{currentList.length}</Badge>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-3">
+                <Skeleton className="w-8 h-8 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
+          </div>
+        ) : currentList.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <CalendarClock className="w-10 h-10 mx-auto mb-3 opacity-50" />
+            <p className="font-medium">No {subTab} follow-ups</p>
+            <p className="text-sm">Follow-ups are automatically created when you send outreach emails</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {currentList.map((lead: any) => (
+              <div
+                key={lead.id}
+                className="flex items-center gap-3 p-3 rounded-md border border-border/50 hover-elevate"
+                data-testid={`row-followup-${lead.id}`}
+              >
+                <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center text-xs font-bold text-purple-400 shrink-0">
+                  {lead.followUpStep}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm truncate" data-testid={`text-followup-name-${lead.id}`}>{lead.name}</span>
+                    {lead.company && (
+                      <span className="text-xs text-muted-foreground truncate">
+                        <Building2 className="w-3 h-3 inline mr-1" />{lead.company}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                    <span>{stepLabel(lead.followUpStep)}</span>
+                    {lead.email && (
+                      <span className="truncate"><Mail className="w-3 h-3 inline mr-1" />{lead.email}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  {lead.engagementLevel && lead.engagementLevel !== "none" && (
+                    <Badge variant="outline" className={`text-[10px] ${
+                      lead.engagementLevel === "hot" ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                      lead.engagementLevel === "warm" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                      "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                    }`}>
+                      {lead.emailOpens > 0 && <Eye className="w-3 h-3 mr-1" />}
+                      {lead.engagementLevel.toUpperCase()}
+                    </Badge>
+                  )}
+                  <div className="text-right">
+                    {subTab === "overdue" || subTab === "upcoming" ? (
+                      <div className={`text-xs font-medium ${subTab === "overdue" ? "text-red-400" : "text-sky-400"}`} data-testid={`text-followup-date-${lead.id}`}>
+                        <Clock className="w-3 h-3 inline mr-1" />
+                        {formatDate(lead.followUpNextAt)}
+                      </div>
+                    ) : lead.followUpLastSentAt ? (
+                      <div className="text-xs text-muted-foreground" data-testid={`text-followup-lastsent-${lead.id}`}>
+                        Last sent: {formatDate(lead.followUpLastSentAt)}
+                      </div>
+                    ) : null}
+                  </div>
+                  {lead.followUpStatus === "active" && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => pauseFollowUpMutation.mutate(lead.id)}
+                      data-testid={`button-pause-followup-${lead.id}`}
+                    >
+                      <PauseCircle className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {lead.followUpStatus === "paused" && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => resumeFollowUpMutation.mutate(lead.id)}
+                      data-testid={`button-resume-followup-${lead.id}`}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 export default function LeadsPage() {
   const { t } = useTranslation();
   usePageTitle(t("leads.title"));
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"new" | "engaged" | "hot">("new");
+  const [activeTab, setActiveTab] = useState<"new" | "engaged" | "hot" | "followups">("new");
   const [smsLead, setSmsLead] = useState<Lead | null>(null);
   const [smsBody, setSmsBody] = useState("");
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
@@ -1031,10 +1204,23 @@ export default function LeadsPage() {
     defaultValues: { name: "", email: "", phone: "", source: "", status: "new" },
   });
 
+  const { data: followUpData, isLoading: followUpLoading } = useQuery<{
+    summary: { active: number; completed: number; paused: number; overdue: number; upcoming: number; totalWithFollowUp: number };
+    overdue: any[];
+    upcoming: any[];
+    active: any[];
+    completed: any[];
+    paused: any[];
+  }>({
+    queryKey: ["/api/follow-up-tracker"],
+    enabled: activeTab === "followups",
+  });
+
   const invalidateLeads = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
     queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
     queryClient.invalidateQueries({ queryKey: ["/api/email-analytics"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/follow-up-tracker"] });
   };
 
   const createMutation = useMutation({
@@ -1573,8 +1759,26 @@ export default function LeadsPage() {
           {t("leads.hotLeads")}
           <Badge variant="secondary" className="text-xs ml-1 bg-red-500/10 text-red-400">{hotLeads.length}</Badge>
         </button>
+        <button
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "followups"
+              ? "border-purple-500 text-purple-400"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setActiveTab("followups")}
+          data-testid="tab-follow-ups"
+        >
+          <CalendarClock className="w-4 h-4" />
+          Follow-Ups
+          {followUpData?.summary && (
+            <Badge variant="secondary" className="text-xs ml-1 bg-purple-500/10 text-purple-400">{followUpData.summary.active}</Badge>
+          )}
+        </button>
       </div>
 
+      {activeTab === "followups" ? (
+        <FollowUpTracker data={followUpData} isLoading={followUpLoading} pauseFollowUpMutation={pauseFollowUpMutation} resumeFollowUpMutation={resumeFollowUpMutation} />
+      ) : (
       <Card className="p-4">
         <div className="flex items-center gap-3 mb-4 flex-wrap">
           <div className="relative flex-1 max-w-sm">
@@ -1684,6 +1888,7 @@ export default function LeadsPage() {
           </div>
         )}
       </Card>
+      )}
 
       <Dialog open={!!smsLead} onOpenChange={(open) => !open && setSmsLead(null)}>
         <DialogContent data-testid="dialog-send-sms">

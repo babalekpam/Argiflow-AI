@@ -4346,6 +4346,57 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
     }
   });
 
+  app.get("/api/follow-up-tracker", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const allLeads = await storage.getLeadsByUser(userId);
+      const activeFollowUps = allLeads.filter(l => l.followUpStatus === "active");
+      const completedFollowUps = allLeads.filter(l => l.followUpStatus === "completed");
+      const pausedFollowUps = allLeads.filter(l => l.followUpStatus === "paused");
+      const now = new Date();
+
+      const overdue = activeFollowUps.filter(l => l.followUpNextAt && new Date(l.followUpNextAt) < now);
+      const upcoming = activeFollowUps.filter(l => l.followUpNextAt && new Date(l.followUpNextAt) >= now)
+        .sort((a, b) => new Date(a.followUpNextAt!).getTime() - new Date(b.followUpNextAt!).getTime());
+
+      const formatLead = (l: any) => ({
+        id: l.id,
+        name: l.name,
+        email: l.email,
+        company: l.company,
+        status: l.status,
+        score: l.score,
+        followUpStep: l.followUpStep || 0,
+        followUpStatus: l.followUpStatus,
+        followUpNextAt: l.followUpNextAt,
+        followUpLastSentAt: l.followUpLastSentAt,
+        engagementLevel: l.engagementLevel || "none",
+        emailOpens: l.emailOpens || 0,
+        emailClicks: l.emailClicks || 0,
+        outreachSentAt: l.outreachSentAt,
+      });
+
+      res.json({
+        summary: {
+          active: activeFollowUps.length,
+          completed: completedFollowUps.length,
+          paused: pausedFollowUps.length,
+          overdue: overdue.length,
+          upcoming: upcoming.length,
+          totalWithFollowUp: activeFollowUps.length + completedFollowUps.length + pausedFollowUps.length,
+        },
+        overdue: overdue.map(formatLead),
+        upcoming: upcoming.map(formatLead),
+        active: activeFollowUps.sort((a, b) => (b.followUpStep || 0) - (a.followUpStep || 0)).map(formatLead),
+        completed: completedFollowUps.map(formatLead),
+        paused: pausedFollowUps.map(formatLead),
+      });
+    } catch (error) {
+      console.error("Error fetching follow-up tracker:", error);
+      res.status(500).json({ message: "Failed to fetch follow-up data" });
+    }
+  });
+
   app.post("/api/email-analytics/recalculate", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
