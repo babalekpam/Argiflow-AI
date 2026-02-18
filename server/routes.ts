@@ -5146,6 +5146,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   await seedSuperAdmin();
   await ensureOwnerPassword();
   await ensureAllUsersProLifetime();
+  await cleanupFakeLeads();
 
   app.post("/api/admin/login", async (req, res) => {
     try {
@@ -5442,6 +5443,23 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete subscription" });
+    }
+  });
+
+  app.post("/api/admin/cleanup-fake-leads", isAdmin, async (_req, res) => {
+    try {
+      const result = await db.execute(sql`
+        DELETE FROM leads WHERE 
+          phone LIKE '%555%'
+          OR email ~* '@(familypractice|orthoclinic|urgentcare|familymed|internalmed|dentistry|dermatology|pediatrics|cardiology|oncology|neurology|gastro|pulmonology|rheumatology|endocrinology|nephrology|urology|geriatrics|sleepmedic|pathology|brownfamily|browngastro|brownallergy|brownorthopedics|brownpediatrics|browneye|atlantaurology|gastroenterologystl|geriatricsstl|oncologystl)\.(com|org|net)$'
+        RETURNING id
+      `);
+      const count = (result as any).rowCount || (result as any).length || 0;
+      console.log(`[Cleanup] Removed ${count} fake leads from database`);
+      res.json({ success: true, removed: count });
+    } catch (error) {
+      console.error("[Cleanup] Error:", error);
+      res.status(500).json({ message: "Failed to cleanup fake leads" });
     }
   });
 
@@ -6680,6 +6698,23 @@ async function ensureOwnerPassword() {
     console.log("Owner password & profile synced from ADMIN_PASSWORD secret");
   } catch (err) {
     console.error("Error syncing owner password:", err);
+  }
+}
+
+async function cleanupFakeLeads() {
+  try {
+    const result = await db.execute(sql`
+      DELETE FROM leads WHERE 
+        phone LIKE '%555%'
+        OR email ~* '@(familypractice|orthoclinic|urgentcare|familymed|internalmed|dentistry|dermatology|pediatrics|cardiology|oncology|neurology|gastro|pulmonology|rheumatology|endocrinology|nephrology|urology|geriatrics|sleepmedic|pathology|brownfamily|browngastro|brownallergy|brownorthopedics|brownpediatrics|browneye|atlantaurology|gastroenterologystl|geriatricsstl|oncologystl)\.(com|org|net)$'
+      RETURNING id
+    `);
+    const count = (result as any).rowCount || (result as any).length || 0;
+    if (count > 0) {
+      console.log(`[Startup Cleanup] Removed ${count} fake leads (555 phones / generic email domains)`);
+    }
+  } catch (error) {
+    console.error("[Startup Cleanup] Error:", error);
   }
 }
 
