@@ -565,6 +565,22 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const created: string[] = [];
       const skipped: string[] = [];
       const createdLeadDetails: { name: string; email?: string }[] = [];
+      const existingLeads = await storage.getLeadsByUser(userId);
+      const existingIndex = new Set<string>();
+      for (const el of existingLeads) {
+        if (el.email && el.email.trim()) existingIndex.add(el.email.toLowerCase().trim());
+        if (el.company && el.company.trim()) {
+          const companyKey = el.company.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+          if (companyKey.length > 2) existingIndex.add(`company:${companyKey}`);
+        }
+        if (el.phone && el.phone.trim()) {
+          const phoneDigits = el.phone.replace(/\D/g, "").slice(-10);
+          if (phoneDigits.length >= 10) existingIndex.add(`phone:${phoneDigits}`);
+        }
+      }
+
+      const duplicates: string[] = [];
+
       for (const lead of leadsData.slice(0, 30)) {
         if (isFakeName(lead.name)) {
           skipped.push(lead.name || "unnamed");
@@ -589,6 +605,25 @@ async function executeAction(userId: string, action: string, params: any): Promi
           continue;
         }
 
+        let isDuplicate = false;
+        const emailLC = (lead.email || "").toLowerCase().trim();
+        const companyLC = (lead.company || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+        const phoneDigits = (lead.phone || "").replace(/\D/g, "").slice(-10);
+
+        if (emailLC && emailLC.includes("@") && existingIndex.has(emailLC)) {
+          isDuplicate = true;
+        } else if (companyLC.length > 2 && existingIndex.has(`company:${companyLC}`)) {
+          isDuplicate = true;
+        } else if (phoneDigits.length >= 10 && existingIndex.has(`phone:${phoneDigits}`)) {
+          isDuplicate = true;
+        }
+
+        if (isDuplicate) {
+          duplicates.push(lead.name || lead.company || "unnamed");
+          console.log(`[Lead Filter] Skipped duplicate: name="${lead.name}", email="${lead.email}", company="${lead.company}"`);
+          continue;
+        }
+
         const leadRecord = {
           userId,
           name: lead.name || "Unknown",
@@ -606,6 +641,10 @@ async function executeAction(userId: string, action: string, params: any): Promi
         await storage.incrementUsage(userId, "leadsGenerated");
         created.push(`${leadRecord.name}${lead.company ? ` (${lead.company})` : ""}`);
         createdLeadDetails.push({ name: leadRecord.name, email: leadRecord.email });
+
+        if (emailLC && emailLC.includes("@")) existingIndex.add(emailLC);
+        if (companyLC.length > 2) existingIndex.add(`company:${companyLC}`);
+        if (phoneDigits.length >= 10) existingIndex.add(`phone:${phoneDigits}`);
       }
 
       if (created.length === 0 && skipped.length > 0) {
@@ -624,7 +663,8 @@ async function executeAction(userId: string, action: string, params: any): Promi
       }
 
       let skippedMessage = skipped.length > 0 ? ` (${skipped.length} fake/placeholder leads were filtered out)` : "";
-      return `Saved ${created.length} real leads to CRM: ${created.join(", ")}. Total leads now: ${allLeads.length}.${funnelMessage}${skippedMessage}`;
+      let dupMessage = duplicates.length > 0 ? ` (${duplicates.length} duplicates skipped: ${duplicates.join(", ")})` : "";
+      return `Saved ${created.length} real leads to CRM: ${created.join(", ")}. Total leads now: ${allLeads.length}.${funnelMessage}${skippedMessage}${dupMessage}`;
     }
     case "book_appointments": {
       const allAppts = await storage.getAppointmentsByUser(userId);
@@ -6048,11 +6088,26 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
             const results = await discoverTaxLiens(aiClient, aiModel, tlSettings);
 
             let leadsFound = 0;
+            let leadsSkippedDup = 0;
             const savedLeadsList: { name: string; email?: string; value?: number }[] = [];
             const user = await storage.getUserById(userId);
             const bookingLink = (await storage.getSettingsByUser(userId))?.calendarLink || "";
             const senderName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Clara Motena";
             const companyName = user?.companyName || "Track-Med Billing Solutions";
+
+            const existingLeadsTL = await storage.getLeadsByUser(userId);
+            const existingTLSet = new Set<string>();
+            for (const el of existingLeadsTL) {
+              if (el.source === "Tax Lien Hunter Agent" && el.notes) {
+                try {
+                  const parsed = JSON.parse(el.notes);
+                  if (parsed.parcelNumber) existingTLSet.add(`parcel:${parsed.parcelNumber.toLowerCase().trim()}`);
+                  if (parsed.propertyAddress) existingTLSet.add(`addr:${parsed.propertyAddress.toLowerCase().trim().replace(/[^a-z0-9]/g, "")}`);
+                } catch {}
+              }
+              const nameCompanyKey = `${(el.name || "").toLowerCase().trim()}::${(el.company || "").toLowerCase().trim()}`;
+              existingTLSet.add(nameCompanyKey);
+            }
 
             for (const property of results.properties.slice(0, 50)) {
               try {
@@ -6064,6 +6119,21 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
                   console.log(`[tax-lien] Skipping property with invalid address: "${property.propertyAddress}"`);
                   continue;
                 }
+
+                let isTLDuplicate = false;
+                if (property.parcelNumber && existingTLSet.has(`parcel:${property.parcelNumber.toLowerCase().trim()}`)) {
+                  isTLDuplicate = true;
+                } else if (property.propertyAddress) {
+                  const addrKey = `addr:${property.propertyAddress.toLowerCase().trim().replace(/[^a-z0-9]/g, "")}`;
+                  if (existingTLSet.has(addrKey)) isTLDuplicate = true;
+                }
+                if (isTLDuplicate) {
+                  console.log(`[tax-lien] Skipping duplicate property: "${property.propertyAddress}" (parcel: ${property.parcelNumber})`);
+                  leadsSkippedDup++;
+                  continue;
+                }
+                if (property.parcelNumber) existingTLSet.add(`parcel:${property.parcelNumber.toLowerCase().trim()}`);
+                if (property.propertyAddress) existingTLSet.add(`addr:${property.propertyAddress.toLowerCase().trim().replace(/[^a-z0-9]/g, "")}`);
 
                 const outreach = `Hi ${property.ownerName},\n\nI noticed a tax lien on your property at ${property.propertyAddress} (${property.county} County, ${STATE_NAMES[property.state] || property.state}). The amount owed is $${property.amountOwed?.toLocaleString()} with a ${property.interestRate}% interest rate.\n\nI specialize in helping property owners resolve tax liens before auction deadlines. I'd love to discuss your options.\n\nBest regards,\n${senderName}, ${companyName}${bookingLink ? `\nBook a call: ${bookingLink}` : ""}`;
 
@@ -6130,7 +6200,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
               priority: leadsFound > 5 ? "high" : "normal",
             });
 
-            console.log(`[Agent Run] Tax Lien Hunter completed: ${leadsFound} properties saved for user ${userId}`);
+            console.log(`[Agent Run] Tax Lien Hunter completed: ${leadsFound} properties saved, ${leadsSkippedDup} duplicates skipped for user ${userId}`);
             return;
           }
 
