@@ -717,9 +717,8 @@ export default function SettingsPage() {
                     OpenAI {t("settings.active")}
                   </Badge>
                   {getFieldValue("anthropicApiKey") && getFieldValue("anthropicApiKey").startsWith("sk-ant-") && (
-                    <Badge className="bg-violet-500/10 text-violet-400 border-violet-500/20">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Anthropic
+                    <Badge variant="outline" className="text-muted-foreground border-violet-500/30 text-[10px]">
+                      Anthropic Override
                     </Badge>
                   )}
                 </div>
