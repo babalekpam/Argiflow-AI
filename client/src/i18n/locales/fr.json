@@ -1144,7 +1144,7 @@
     "save": "Enregistrer",
     "aiApiKey": "Clé API IA",
     "aiApiKeyDesc": "Ajoutez votre propre clé API IA pour alimenter les fonctionnalités IA comme le chat, la génération de leads, la création de contenu et l'IA vocale.",
-    "anthropicApiKeyLabel": "Clé API IA",
+    "anthropicApiKeyLabel": "Clé API Anthropic",
     "aiApiKeyHint": "Obtenez votre clé sur console.anthropic.com. Les clés commencent par sk-ant-.",
     "webSearchProvider": "Recherche Web",
     "webSearchProviderDesc": "Choisissez votre fournisseur de recherche web pour les agents IA, la recherche de leads et les fonctionnalités d'intelligence. You.com fournit des résultats optimisés pour l'IA.",
