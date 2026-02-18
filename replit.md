@@ -15,7 +15,7 @@ Do not make changes to the file `Y`.
 **Backend**: Express.js with TypeScript.
 **Database**: PostgreSQL with Drizzle ORM.
 **Authentication**: Email/password with session-based authentication using scrypt hashing, including email verification and password reset.
-**AI Integration**: Multi-tenant Anthropic Claude integration, allowing users to provide their own API keys for isolation.
+**AI Integration**: OpenAI GPT-4o-mini as primary AI provider (cost-effective). Anthropic Claude available as optional override via per-user API keys. OpenAI-to-Anthropic compatibility wrapper ensures seamless provider switching.
 **UI/UX Design**: Dark theme with sky blue gradient accents and Inter font.
 **Core Features**:
 - **User Management**: Standard authentication and account management.
@@ -44,8 +44,10 @@ Do not make changes to the file `Y`.
 - **AI Outreach Agent**: An autonomous agent that integrates email infrastructure, sales intelligence, and CRM for an 8-step outreach loop: discover, enroll, send, monitor, classify, respond, book, and repeat.
 
 ## External Dependencies
-- **Anthropic Claude**: AI model for conversational AI, strategy generation, and intelligent automation.
-- **You.com Search API**: Optional web search provider for AI agents, lead research, and intelligence. Configured per-user via Settings > Integrations. Uses `https://api.ydc-index.io/v1/search` with `X-API-Key` header. Falls back to Claude web search if not configured. User settings: `webSearchProvider` ("claude"|"you"), `youApiKey`.
+- **OpenAI**: Primary AI provider (GPT-4o-mini) for all AI features — chat, lead generation, content creation, research. Cost-effective at ~$0.15/$0.60 per 1M tokens.
+- **Anthropic Claude**: Available as optional per-user override via Settings > Integrations. Also used for built-in web search fallback.
+- **Tavily**: Default web search provider for company research and AI agents. Uses advanced search with AI summaries. Platform-managed key.
+- **You.com Search API**: Alternative web search provider. Configured per-user via Settings > Integrations. Uses `https://api.ydc-index.io/v1/search` with `X-API-Key` header. User settings: `webSearchProvider` ("tavily"|"claude"|"you"), `youApiKey`.
 - **SendGrid**: Email service for system emails and user outreach campaigns.
 - **Twilio**: SMS and Voice service for text messages and AI-powered phone calls.
 - **Deepgram**: Speech-to-text (Nova-2) and text-to-speech (Aura) for real-time Voice AI streaming. Optional ELEVENLABS_API_KEY for higher quality TTS.

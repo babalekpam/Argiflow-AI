@@ -712,19 +712,18 @@ export default function SettingsPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-sm">{t("settings.aiApiKey")}</h3>
-                  {getFieldValue("anthropicApiKey") && getFieldValue("anthropicApiKey").startsWith("sk-ant-") ? (
-                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    OpenAI {t("settings.active")}
+                  </Badge>
+                  {getFieldValue("anthropicApiKey") && getFieldValue("anthropicApiKey").startsWith("sk-ant-") && (
+                    <Badge className="bg-violet-500/10 text-violet-400 border-violet-500/20">
                       <CheckCircle className="w-3 h-3 mr-1" />
-                      {t("settings.connected")}
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">
-                      <AlertCircle className="w-3 h-3 mr-1" />
-                      {t("settings.notConnected")}
+                      Anthropic
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{t("settings.aiApiKeyDesc")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("settings.aiApiKeyDescOpenAI")}</p>
               </div>
             </div>
             {isLoading ? (
@@ -740,7 +739,7 @@ export default function SettingsPage() {
                     sensitive={true}
                     testId="input-anthropicApiKey"
                   />
-                  <p className="text-[10px] text-muted-foreground">{t("settings.aiApiKeyHint")}</p>
+                  <p className="text-[10px] text-muted-foreground">{t("settings.anthropicKeyHint")}</p>
                 </div>
                 <div className="flex items-center justify-between gap-3 pt-1">
                   <div className="flex items-center gap-2">

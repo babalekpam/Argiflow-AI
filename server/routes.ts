@@ -9,6 +9,7 @@ import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, on
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import sgMail from "@sendgrid/mail";
 import nodemailer from "nodemailer";
 import { AGENT_CATALOG, getAgentsByRegion, getAgentByType } from "./agent-catalog";
@@ -87,36 +88,160 @@ const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
 
 const anthropicConfig: { apiKey: string; baseURL: string } = (() => {
   if (isValidAnthropicKey(process.env.ANTHROPIC_API_KEY)) {
-    console.log("[AI] Using direct Anthropic API key");
+    console.log("[AI] Anthropic API key available (fallback/web search)");
     return {
       apiKey: process.env.ANTHROPIC_API_KEY!,
       baseURL: "https://api.anthropic.com",
     };
   }
-  if (process.env.ANTHROPIC_API_KEY) {
-    console.warn("[AI] WARNING: ANTHROPIC_API_KEY is set but does not look like a valid key (should start with 'sk-ant-').");
-  }
-  console.error("[AI] WARNING: No Anthropic API key found! AI features will not work.");
   return { apiKey: "", baseURL: "https://api.anthropic.com" };
 })();
 
 const anthropic = new Anthropic({ apiKey: anthropicConfig.apiKey, baseURL: anthropicConfig.baseURL });
-
 const CLAUDE_MODEL = "claude-sonnet-4-20250514";
 
-export async function getAnthropicForUser(userId: string): Promise<{ client: Anthropic; model: string }> {
+const OPENAI_MODEL = "gpt-4o-mini";
+
+class OpenAIAnthropicWrapper {
+  private openai: OpenAI;
+  private defaultModel: string;
+
+  constructor(apiKey: string, model: string = OPENAI_MODEL) {
+    this.openai = new OpenAI({ apiKey });
+    this.defaultModel = model;
+  }
+
+  messages = {
+    create: async (params: any): Promise<any> => {
+      const { max_tokens, system, messages, tools } = params;
+
+      const openaiMessages: any[] = [];
+      if (system) {
+        openaiMessages.push({ role: "system", content: typeof system === "string" ? system : JSON.stringify(system) });
+      }
+
+      for (const msg of messages) {
+        if (msg.role === "assistant") {
+          if (Array.isArray(msg.content)) {
+            const textParts = msg.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n");
+            const toolCalls = msg.content.filter((b: any) => b.type === "tool_use").map((b: any) => ({
+              id: b.id,
+              type: "function" as const,
+              function: { name: b.name, arguments: JSON.stringify(b.input || {}) }
+            }));
+            openaiMessages.push({
+              role: "assistant",
+              content: textParts || null,
+              ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {})
+            });
+          } else {
+            openaiMessages.push({ role: "assistant", content: msg.content });
+          }
+        } else if (msg.role === "user") {
+          if (Array.isArray(msg.content)) {
+            const toolResults = msg.content.filter((b: any) => b.type === "tool_result");
+            if (toolResults.length > 0) {
+              for (const tr of toolResults) {
+                openaiMessages.push({
+                  role: "tool",
+                  tool_call_id: tr.tool_use_id,
+                  content: typeof tr.content === "string" ? tr.content : JSON.stringify(tr.content),
+                });
+              }
+            } else {
+              const textContent = msg.content.map((b: any) => {
+                if (typeof b === "string") return b;
+                if (b.type === "text") return b.text;
+                return JSON.stringify(b);
+              }).join("\n");
+              openaiMessages.push({ role: "user", content: textContent });
+            }
+          } else {
+            openaiMessages.push({ role: "user", content: msg.content });
+          }
+        }
+      }
+
+      let openaiTools: any[] | undefined;
+      if (tools && tools.length > 0) {
+        openaiTools = tools
+          .filter((t: any) => t.type !== "web_search_20250305")
+          .map((t: any) => ({
+            type: "function",
+            function: {
+              name: t.name,
+              description: t.description || "",
+              parameters: t.input_schema || { type: "object", properties: {} },
+            }
+          }));
+        if (openaiTools.length === 0) openaiTools = undefined;
+      }
+
+      const openaiResponse = await this.openai.chat.completions.create({
+        model: this.defaultModel,
+        max_tokens: max_tokens || 4096,
+        messages: openaiMessages,
+        ...(openaiTools ? { tools: openaiTools } : {}),
+      });
+
+      const choice = openaiResponse.choices[0];
+      const content: any[] = [];
+
+      if (choice?.message?.content) {
+        content.push({ type: "text", text: choice.message.content });
+      }
+
+      if (choice?.message?.tool_calls) {
+        for (const tc of choice.message.tool_calls) {
+          const fn = (tc as any).function;
+          content.push({
+            type: "tool_use",
+            id: tc.id,
+            name: fn.name,
+            input: JSON.parse(fn.arguments || "{}"),
+          });
+        }
+      }
+
+      return {
+        content: content.length > 0 ? content : [{ type: "text", text: "" }],
+        stop_reason: choice?.finish_reason === "tool_calls" ? "tool_use" : "end_turn",
+        model: openaiResponse.model,
+        usage: openaiResponse.usage,
+      };
+    }
+  };
+}
+
+const openaiKey = process.env.OPENAI_API_KEY;
+let platformOpenAI: OpenAIAnthropicWrapper | null = null;
+if (openaiKey) {
+  platformOpenAI = new OpenAIAnthropicWrapper(openaiKey, OPENAI_MODEL);
+  console.log("[AI] OpenAI configured as primary AI provider (gpt-4o-mini)");
+} else {
+  console.log("[AI] No OpenAI key — using Anthropic as primary AI provider");
+}
+
+export async function getAnthropicForUser(userId: string): Promise<{ client: any; model: string }> {
   const settings = await storage.getSettingsByUser(userId);
-  const userKey = settings?.anthropicApiKey;
-  if (userKey && userKey.startsWith("sk-ant-")) {
+
+  const userAnthropicKey = settings?.anthropicApiKey;
+  if (userAnthropicKey && userAnthropicKey.startsWith("sk-ant-")) {
     return {
-      client: new Anthropic({ apiKey: userKey, baseURL: "https://api.anthropic.com" }),
-      model: "claude-sonnet-4-20250514",
+      client: new Anthropic({ apiKey: userAnthropicKey, baseURL: "https://api.anthropic.com" }),
+      model: CLAUDE_MODEL,
     };
   }
+
+  if (platformOpenAI) {
+    return { client: platformOpenAI, model: OPENAI_MODEL };
+  }
+
   if (anthropicConfig.apiKey) {
-    console.log(`[AI] User ${userId} has no personal key — using platform AI`);
+    console.log(`[AI] User ${userId} — falling back to platform Anthropic`);
     return { client: anthropic, model: CLAUDE_MODEL };
   }
+
   throw new Error("AI_NOT_CONFIGURED");
 }
 
@@ -1399,9 +1524,9 @@ async function fallbackResponse(userId: string, msg: string): Promise<string> {
 // Standalone endpoint for web research (used by frontend)
 // ============================================================
 
-async function claudeWebSearch(query: string, userClient?: { client: Anthropic; model: string }): Promise<string> {
-  const ai = userClient?.client || anthropic;
-  const model = userClient?.model || CLAUDE_MODEL;
+async function claudeWebSearch(query: string): Promise<string> {
+  const ai = anthropic;
+  const model = CLAUDE_MODEL;
   try {
     const response = await ai.messages.create({
       model,
@@ -1515,7 +1640,7 @@ async function tavilySearch(query: string, apiKey: string): Promise<string> {
   }
 }
 
-async function webSearch(query: string, userId: string, userClient?: { client: Anthropic; model: string }): Promise<string> {
+async function webSearch(query: string, userId: string): Promise<string> {
   const settings = await storage.getSettingsByUser(userId);
   const provider = settings?.webSearchProvider || "tavily";
 
@@ -1524,7 +1649,7 @@ async function webSearch(query: string, userId: string, userClient?: { client: A
     if (tavilyKey) {
       return tavilySearch(query, tavilyKey);
     }
-    return claudeWebSearch(query, userClient);
+    return claudeWebSearch(query);
   }
 
   if (provider === "you") {
@@ -1535,7 +1660,7 @@ async function webSearch(query: string, userId: string, userClient?: { client: A
     return youWebSearch(query, youKey);
   }
 
-  return claudeWebSearch(query, userClient);
+  return claudeWebSearch(query);
 }
 
 // ============================================================
@@ -2860,7 +2985,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       let webContext = "";
       for (const sq of searchQueries) {
         try {
-          const result = await webSearch(sq, userId, userAi);
+          const result = await webSearch(sq, userId);
           if (result && result !== "No results found.") {
             webContext += `\n\n### Search: "${sq}"\n${result}`;
           }
@@ -4462,10 +4587,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (!query || typeof query !== "string") {
         return res.status(400).json({ message: "Search query is required" });
       }
-      let userClient: { client: Anthropic; model: string } | undefined;
-      try { userClient = await getAnthropicForUser(userId); } catch {}
-
-      const result = await webSearch(query, userId, userClient);
+      const result = await webSearch(query, userId);
       res.json({ result });
     } catch (error) {
       console.error("Error in AI search:", error);
