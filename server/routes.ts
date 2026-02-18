@@ -1474,14 +1474,63 @@ async function youWebSearch(query: string, apiKey: string): Promise<string> {
   }
 }
 
+async function tavilySearch(query: string, apiKey: string): Promise<string> {
+  try {
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query,
+        search_depth: "advanced",
+        max_results: 8,
+        include_answer: true,
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Tavily search error:", response.status, errText);
+      return `Tavily search failed (${response.status}). Please check your API key.`;
+    }
+    const data = await response.json();
+
+    let output = "";
+    if (data.answer) {
+      output += `## AI Summary\n${data.answer}\n\n`;
+    }
+    const results = data.results || [];
+    if (results.length > 0) {
+      output += `## Sources\n\n`;
+      output += results.map((r: any, i: number) => {
+        const title = r.title || "Untitled";
+        const url = r.url || "";
+        const content = r.content || "";
+        return `${i + 1}. **${title}**\n   ${url}\n   ${content}`;
+      }).join("\n\n");
+    }
+    return output || "No results found.";
+  } catch (error: any) {
+    console.error("Tavily search error:", error?.message || error);
+    return "Tavily search temporarily unavailable. Please try again.";
+  }
+}
+
 async function webSearch(query: string, userId: string, userClient?: { client: Anthropic; model: string }): Promise<string> {
   const settings = await storage.getSettingsByUser(userId);
-  const provider = settings?.webSearchProvider || "claude";
+  const provider = settings?.webSearchProvider || "tavily";
+
+  if (provider === "tavily") {
+    const tavilyKey = process.env.TAVILY_API_KEY;
+    if (tavilyKey) {
+      return tavilySearch(query, tavilyKey);
+    }
+    return claudeWebSearch(query, userClient);
+  }
 
   if (provider === "you") {
     const youKey = settings?.youApiKey || process.env.YOU_API_KEY;
     if (!youKey) {
-      return "You.com API key not configured. Go to Settings > Integrations to add your You.com API key, or switch to Claude web search.";
+      return "You.com API key not configured. Go to Settings > Integrations to add your You.com API key.";
     }
     return youWebSearch(query, youKey);
   }
@@ -2804,12 +2853,20 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return res.status(400).json({ message: "AI API key not configured. Go to Settings > Integrations to add your Anthropic API key." });
       }
 
-      const searchQuery = `${lead.company} company overview services revenue`;
+      const searchQueries = [
+        `${lead.company} company overview services products`,
+        `${lead.company} leadership team decision makers`,
+      ];
       let webContext = "";
-      try {
-        webContext = await webSearch(searchQuery, userId, userAi);
-      } catch (err) {
-        console.warn("[RESEARCH] Web search failed, proceeding with AI knowledge only:", err);
+      for (const sq of searchQueries) {
+        try {
+          const result = await webSearch(sq, userId, userAi);
+          if (result && result !== "No results found.") {
+            webContext += `\n\n### Search: "${sq}"\n${result}`;
+          }
+        } catch (err) {
+          console.warn("[RESEARCH] Web search failed for query:", sq, err);
+        }
       }
 
       const user = await storage.getUserById(userId);
@@ -4405,23 +4462,10 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (!query || typeof query !== "string") {
         return res.status(400).json({ message: "Search query is required" });
       }
-      const settings = await storage.getSettingsByUser(userId);
-      const provider = settings?.webSearchProvider || "claude";
-
-      if (provider === "you") {
-        const youKey = settings?.youApiKey || process.env.YOU_API_KEY;
-        if (!youKey) {
-          return res.status(400).json({ message: "You.com API key not configured. Go to Settings > Integrations to add your key." });
-        }
-        const result = await youWebSearch(query, youKey);
-        return res.json({ result });
-      }
-
       let userClient: { client: Anthropic; model: string } | undefined;
-      try { userClient = await getAnthropicForUser(userId); } catch {
-        return res.status(400).json({ message: "AI API key not configured. Go to Settings > Integrations to add your Anthropic API key." });
-      }
-      const result = await claudeWebSearch(query, userClient);
+      try { userClient = await getAnthropicForUser(userId); } catch {}
+
+      const result = await webSearch(query, userId, userClient);
       res.json({ result });
     } catch (error) {
       console.error("Error in AI search:", error);

@@ -790,13 +790,13 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-sm">{t("settings.webSearchProvider")}</h3>
                   {(() => {
-                    const provider = getFieldValue("webSearchProvider") || (settings as any)?.webSearchProvider || "claude";
+                    const provider = getFieldValue("webSearchProvider") || (settings as any)?.webSearchProvider || "tavily";
                     const youKey = getFieldValue("youApiKey");
-                    const connected = provider === "claude" || (provider === "you" && !!youKey);
+                    const connected = provider === "tavily" || provider === "claude" || (provider === "you" && !!youKey);
                     return connected ? (
                       <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        {provider === "you" ? "You.com" : "AI Search"} {t("settings.active")}
+                        {provider === "you" ? "You.com" : provider === "tavily" ? "Tavily AI" : "AI Search"} {t("settings.active")}
                       </Badge>
                     ) : (
                       <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">
@@ -816,13 +816,14 @@ export default function SettingsPage() {
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">{t("settings.searchProviderLabel")}</Label>
                   <Select
-                    value={getFieldValue("webSearchProvider") || (settings as any)?.webSearchProvider || "claude"}
+                    value={getFieldValue("webSearchProvider") || (settings as any)?.webSearchProvider || "tavily"}
                     onValueChange={(v) => setFieldValue("webSearchProvider", v)}
                   >
                     <SelectTrigger data-testid="select-web-search-provider">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="tavily">Tavily AI Search (Recommended)</SelectItem>
                       <SelectItem value="claude">Built-in AI Search</SelectItem>
                       <SelectItem value="you">You.com Search API</SelectItem>
                     </SelectContent>
@@ -846,7 +847,7 @@ export default function SettingsPage() {
                   className="mt-2"
                   onClick={() => {
                     const update: Record<string, any> = {
-                      webSearchProvider: getFieldValue("webSearchProvider") || "claude",
+                      webSearchProvider: getFieldValue("webSearchProvider") || "tavily",
                       youApiKey: getFieldValue("youApiKey"),
                     };
                     updateMutation.mutate(update as any, {
