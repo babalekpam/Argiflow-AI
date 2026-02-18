@@ -511,6 +511,15 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return "ERROR: No lead data provided. Use web_search first to find real businesses, then pass their details to this tool.";
       }
 
+      const isGatekeeper = (name: string, email: string) => {
+        const lower = (name || "").toLowerCase().trim();
+        const emailLower = (email || "").toLowerCase().trim();
+        const gatekeeperTitles = /(receptionist|front\s*desk|assistant|secretary|coordinator|scheduler|intake\s*specialist|office\s*staff|billing\s*clerk|medical\s*assistant|nurse(?!\s*practitioner)|ma\b|rn\b|lpn\b|cna\b)/i;
+        if (gatekeeperTitles.test(lower)) return true;
+        const gatekeeperEmails = /^(info|contact|office|admin|hello|support|reception|frontdesk|appointments?|scheduling|billing|general|team|staff|help|enquir|inquir|mail)@/i;
+        if (gatekeeperEmails.test(emailLower)) return true;
+        return false;
+      };
       const isFakeName = (name: string) => {
         if (!name) return true;
         const lower = name.toLowerCase().trim();
@@ -567,6 +576,11 @@ async function executeAction(userId: string, action: string, params: any): Promi
           console.warn(`[Lead Filter] Rejected fake contact: email="${lead.email}", phone="${lead.phone}"`);
           continue;
         }
+        if (isGatekeeper(lead.name, lead.email)) {
+          skipped.push(`${lead.name || "unnamed"} (gatekeeper)`);
+          console.warn(`[Lead Filter] Rejected gatekeeper: name="${lead.name}", email="${lead.email}" — we only want decision makers`);
+          continue;
+        }
         const hasRealEmail = lead.email && lead.email.trim().length > 3 && lead.email.includes("@") && lead.email.includes(".");
         const hasRealPhone = lead.phone && lead.phone.replace(/\D/g, '').length >= 10;
         if (!hasRealEmail && !hasRealPhone) {
@@ -595,7 +609,9 @@ async function executeAction(userId: string, action: string, params: any): Promi
       }
 
       if (created.length === 0 && skipped.length > 0) {
-        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info (fake emails, 555 phone numbers, or generic domains like @familypractice.com). You MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] phone number" and "[business name] contact" to find REAL contact details\n3. ONLY use emails and phone numbers you see in actual search results\n4. Phone numbers must NOT contain "555" — those are fictional\n5. Emails must be from REAL domains you found in search results\nTry again with REAL verified data from actual web pages.`;
+        const hasGatekeepers = skipped.some(s => s.includes("gatekeeper"));
+        const gatekeeperMsg = hasGatekeepers ? "\n- GATEKEEPER contacts (info@, contact@, office@, receptionists, assistants, coordinators) are AUTO-REJECTED. Find the DECISION MAKER: the practice owner, physician, CEO, medical director, or managing partner." : "";
+        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info or were gatekeeper contacts.${gatekeeperMsg}\nYou MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] owner" or "[business name] physician" to find the DECISION MAKER\n3. Search "[decision maker name] email" or "[business name] phone number" for REAL contact details\n4. ONLY use emails and phone numbers you see in actual search results\n5. Phone numbers must NOT contain "555" — those are fictional\n6. Emails must NOT be generic (info@, contact@, office@) — find the owner's PERSONAL email\n7. Emails must be from REAL domains you found in search results\nTry again with REAL decision-maker contacts from actual web pages.`;
       }
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);
@@ -1191,15 +1207,17 @@ LEAD GENERATION (CRITICAL):
 5. EVERY lead MUST include all fields: name (Real Person), email (Real Email), phone (Real Phone), company (Real Business), source, status="new", score, intent_signal (what buying signal found), notes (research about prospect), outreach (personalized 3-5 sentence email referencing their situation/pain point).${bookingLink ? ` Include booking link in outreach: ${bookingLink}` : ' Include CTA: "Would you be open to a 15-minute call this week?"'}
 6. ALWAYS end outreach with signature: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246
 
-DECISION-MAKER TARGETING (MANDATORY):
-- ALWAYS target decision makers: CEO, Founder, Owner, President, Managing Director, VP, Director, Partner, CFO, COO, CTO, CMO, Head of Department, General Manager.
-- For medical practices specifically: Practice Owner, Physician/Doctor (MD/DO), Practice Administrator, Clinic Administrator, Practice Manager, Office Manager, Clinic Manager, Medical Director, Revenue Cycle Director, Billing Manager, Managing Partner, CFO.
-- For real estate/tax lien specifically: Property Owner, Landlord, Investment Principal.
-- NEVER target gatekeepers: receptionist, front desk, secretary, administrative assistant, medical assistant, nurse, scheduler, coordinator, associate, junior, intern.
-- When searching, add terms like "CEO", "founder", "owner", "director", "practice owner", "physician", "property owner" to your queries.
+DECISION-MAKER TARGETING (MANDATORY — GATEKEEPERS ARE AUTO-REJECTED BY THE SYSTEM):
+- ONLY target decision makers who have AUTHORITY to sign contracts and approve billing service changes.
+- Accepted titles: CEO, Founder, Owner, President, Managing Director, VP, Director, Partner, CFO, COO, CTO, CMO, Head of Department, General Manager, Principal.
+- For medical practices: Practice Owner, Physician/Doctor (MD/DO), Medical Director, Practice Administrator, Managing Partner, Revenue Cycle Director, CFO.
+- For real estate/tax lien: Property Owner, Landlord, Investment Principal.
+- NEVER target gatekeepers — THE SYSTEM AUTO-REJECTS THEM: receptionist, front desk, secretary, assistant, medical assistant, nurse (except NP), scheduler, coordinator, intake specialist, office staff, billing clerk, MA, RN, LPN, CNA.
+- NEVER use generic emails — THE SYSTEM AUTO-REJECTS THEM: info@, contact@, office@, admin@, hello@, support@, reception@, frontdesk@, appointments@, scheduling@, billing@, general@, team@, staff@, help@, enquiries@, mail@.
+- These generic emails belong to gatekeepers, NOT decision makers. You MUST find the decision maker's PERSONAL/DIRECT email address.
+- When searching, ALWAYS include "owner", "physician", "MD", "director", "founder" in your search queries.
 - Use LinkedIn, company About/Team pages, press releases, NPI registry, and industry directories to find decision-maker contacts.
-- If only a general contact (info@, contact@) is found, note the decision maker's NAME in the lead and address the outreach to them personally.
-- In the lead's "notes" field, always include the person's title/role to confirm they are a decision maker.
+- In the lead's "notes" field, ALWAYS include the person's title/role to confirm they are a decision maker.
 
 MEDICAL BILLING LEAD HUNTER (Track-Med Billing Solutions — PRIMARY AGENT):
 You are the AI lead hunter for Track-Med Billing Solutions. Use these multi-source strategies to find high-quality medical billing leads:
@@ -6707,11 +6725,12 @@ async function cleanupFakeLeads() {
       DELETE FROM leads WHERE 
         phone LIKE '%555%'
         OR email ~* '@(familypractice|orthoclinic|urgentcare|familymed|internalmed|dentistry|dermatology|pediatrics|cardiology|oncology|neurology|gastro|pulmonology|rheumatology|endocrinology|nephrology|urology|geriatrics|sleepmedic|pathology|brownfamily|browngastro|brownallergy|brownorthopedics|brownpediatrics|browneye|atlantaurology|gastroenterologystl|geriatricsstl|oncologystl)\.(com|org|net)$'
+        OR email ~* '^(info|contact|office|admin|hello|support|reception|frontdesk|appointments?|scheduling|billing|general|team|staff|help|enquir|inquir|mail)@'
       RETURNING id
     `);
     const count = (result as any).rowCount || (result as any).length || 0;
     if (count > 0) {
-      console.log(`[Startup Cleanup] Removed ${count} fake leads (555 phones / generic email domains)`);
+      console.log(`[Startup Cleanup] Removed ${count} fake/gatekeeper leads (555 phones, generic domains, generic emails)`);
     }
   } catch (error) {
     console.error("[Startup Cleanup] Error:", error);
