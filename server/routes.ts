@@ -1097,8 +1097,8 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
 
 // ============================================================
 // CLAUDE-POWERED AI HANDLER
-// Uses Claude for EVERYTHING: chat, web search, CRM actions
-// Web search via Claude's built-in web_search tool
+// AI-powered chat with CRM actions
+// Web search via Tavily, AI processing via OpenAI (primary) or Anthropic (fallback)
 // CRM actions via custom tools that call executeAction()
 // ============================================================
 
@@ -1254,17 +1254,11 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
     claudeMessages.push({ role: "user", content: userMessage });
   }
 
-  // Define tools: Claude's built-in web search + our CRM action tools
-  const tools: Anthropic.Tool[] = [
-    // Claude's native web search — replaces Tavily entirely
-    {
-      type: "web_search_20250305" as any,
-      name: "web_search",
-    } as any,
-    // CRM Tools
+  // Define tools: CRM action tools (web search handled via Tavily)
+  const tools: any[] = [
     {
       name: "generate_leads",
-      description: "Save leads to CRM. MUST use web_search FIRST. Never fabricate data. ALWAYS target decision makers (CEO, Founder, Owner, Director, VP, Partner) — NEVER gatekeepers. If leads come from a specific agent (e.g. tax-lien, lead-gen), include agent_type to auto-add them to the matching funnel pipeline.",
+      description: "Save leads to CRM. Never fabricate data. ALWAYS target decision makers (CEO, Founder, Owner, Director, VP, Partner) — NEVER gatekeepers. If leads come from a specific agent (e.g. tax-lien, lead-gen), include agent_type to auto-add them to the matching funnel pipeline.",
       input_schema: {
         type: "object" as const,
         properties: {
@@ -1443,7 +1437,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
 
     return finalText || "Done! I've completed the actions. Check your dashboard to see the updates.";
   } catch (error: any) {
-    console.error("Claude API error details:", {
+    console.error("AI API error details:", {
       message: error?.message,
       status: error?.status,
       type: error?.type,
@@ -1489,7 +1483,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
 }
 
 // ============================================================
-// FALLBACK — runs if Claude API is temporarily down
+// FALLBACK — runs if AI API is temporarily down
 // Basic keyword matching to still execute CRM actions
 // ============================================================
 
@@ -1515,53 +1509,34 @@ async function fallbackResponse(userId: string, msg: string): Promise<string> {
     return `Running in fallback mode, but done! ${result}`;
   }
   if (lower.includes("help")) {
-    return "I can help you with:\n\n- Generating new leads for your CRM\n- Booking appointments with your leads\n- Activating AI automation agents\n- Following up with warm leads\n- Showing your performance stats\n- Researching markets, competitors, and trends\n- Writing emails, ad copy, and marketing content\n\nPowered 100% by Anthropic Claude. Just tell me what you need!";
+    return "I can help you with:\n\n- Generating new leads for your CRM\n- Booking appointments with your leads\n- Activating AI automation agents\n- Following up with warm leads\n- Showing your performance stats\n- Researching markets, competitors, and trends\n- Writing emails, ad copy, and marketing content\n\nJust tell me what you need!";
   }
-  return "I'm experiencing a temporary issue connecting to Claude. Please try again in a moment. In the meantime, you can still ask me to generate leads, book appointments, or activate agents — those actions still work!";
+  return "I'm experiencing a temporary issue with the AI service. Please try again in a moment. In the meantime, you can still ask me to generate leads, book appointments, or activate agents — those actions still work!";
 }
 
 // ============================================================
-// CLAUDE-POWERED WEB SEARCH ENDPOINT
-// Standalone endpoint for web research (used by frontend)
+// AI-POWERED WEB SEARCH FALLBACK (OpenAI)
+// Used when Tavily/You.com not available
 // ============================================================
 
-async function claudeWebSearch(query: string): Promise<string> {
-  const ai = anthropic;
-  const model = CLAUDE_MODEL;
+async function openaiWebSearch(query: string): Promise<string> {
+  if (!openaiKey) {
+    return "Web search is not available. Please configure a search provider in Settings > Integrations.";
+  }
   try {
-    const response = await ai.messages.create({
-      model,
+    const openai = new OpenAI({ apiKey: openaiKey });
+    const response = await openai.chat.completions.create({
+      model: OPENAI_MODEL,
       max_tokens: 4000,
-      system: "You are a helpful research assistant. Search the web and provide a clear, concise summary of the findings. Include relevant source URLs when available.",
-      messages: [{ role: "user", content: query }],
-      tools: [
-        {
-          type: "web_search_20250305" as any,
-          name: "web_search",
-          max_uses: 5,
-        } as any,
+      messages: [
+        { role: "system", content: "You are a helpful research assistant. Provide a clear, concise summary based on your knowledge. Note that you cannot browse the web, so provide your best knowledge-based answer and suggest the user configure Tavily or You.com search for real-time web results." },
+        { role: "user", content: query },
       ],
     });
-
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map(b => b.text)
-      .join("\n");
-
-    return text || "No results found.";
+    return response.choices[0]?.message?.content || "No results found.";
   } catch (error: any) {
-    console.error("Claude web search error:", error?.message || error);
+    console.error("OpenAI web search fallback error:", error?.message || error);
     if (error?.status === 429) {
-      await new Promise(r => setTimeout(r, 5000));
-      try {
-        const retry = await ai.messages.create({
-          model, max_tokens: 4000,
-          system: "You are a helpful research assistant. Provide a clear, concise summary.",
-          messages: [{ role: "user", content: query }],
-        });
-        const t = retry.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map(b => b.text).join("\n");
-        if (t) return t;
-      } catch {}
       return "The AI is currently busy. Please wait about 30 seconds and try your search again.";
     }
     return "Search temporarily unavailable. Please try again.";
@@ -1650,7 +1625,7 @@ async function webSearch(query: string, userId: string): Promise<string> {
     if (tavilyKey) {
       return tavilySearch(query, tavilyKey);
     }
-    return claudeWebSearch(query);
+    return openaiWebSearch(query);
   }
 
   if (provider === "you") {
@@ -1661,17 +1636,15 @@ async function webSearch(query: string, userId: string): Promise<string> {
     return youWebSearch(query, youKey);
   }
 
-  return claudeWebSearch(query);
+  return openaiWebSearch(query);
 }
 
 // ============================================================
-// CLAUDE CONTENT GENERATION ENDPOINT
+// AI CONTENT GENERATION (OpenAI primary)
 // Write emails, ad copy, social posts, etc.
 // ============================================================
 
-async function claudeGenerate(prompt: string, type: string = "general", userClient?: { client: Anthropic; model: string }): Promise<string> {
-  const ai = userClient?.client || anthropic;
-  const model = userClient?.model || CLAUDE_MODEL;
+async function aiGenerate(prompt: string, type: string = "general", userClient?: { client: any; model: string }): Promise<string> {
   const systemPrompts: Record<string, string> = {
     email: "You are an expert email copywriter for B2B businesses. Write compelling, conversion-focused emails that drive action. Keep them concise and professional.",
     ad: "You are an expert advertising copywriter. Write attention-grabbing ad copy optimized for the specified platform. Include headlines, body copy, and CTAs.",
@@ -1682,33 +1655,45 @@ async function claudeGenerate(prompt: string, type: string = "general", userClie
     general: "You are a helpful AI assistant for ArgiFlow, an AI Automation Agency. Help the user with whatever they need.",
   };
 
+  if (userClient) {
+    try {
+      const response = await userClient.client.messages.create({
+        model: userClient.model,
+        max_tokens: 2048,
+        system: systemPrompts[type] || systemPrompts.general,
+        messages: [{ role: "user", content: prompt }],
+      });
+      const text = response.content
+        .filter((b: any) => b.type === "text")
+        .map((b: any) => b.text)
+        .join("\n");
+      if (text) return text;
+    } catch (error: any) {
+      console.error("AI generate error (wrapper):", error?.message);
+      if (error?.status === 429) {
+        return "The AI is currently busy. Please wait about 30 seconds and try again.";
+      }
+    }
+  }
+
+  if (!openaiKey) {
+    return "Content generation is not available. AI provider not configured.";
+  }
+
   try {
-    const response = await ai.messages.create({
-      model,
+    const openai = new OpenAI({ apiKey: openaiKey });
+    const response = await openai.chat.completions.create({
+      model: OPENAI_MODEL,
       max_tokens: 2048,
-      system: systemPrompts[type] || systemPrompts.general,
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: systemPrompts[type] || systemPrompts.general },
+        { role: "user", content: prompt },
+      ],
     });
-
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map(b => b.text)
-      .join("\n");
-
-    return text || "Unable to generate content. Please try again.";
+    return response.choices[0]?.message?.content || "Unable to generate content. Please try again.";
   } catch (error: any) {
-    console.error("Claude generate error:", error?.message || error);
+    console.error("OpenAI generate error:", error?.message || error);
     if (error?.status === 429) {
-      await new Promise(r => setTimeout(r, 5000));
-      try {
-        const retry = await ai.messages.create({
-          model, max_tokens: 2048,
-          system: systemPrompts[type] || systemPrompts.general,
-          messages: [{ role: "user", content: prompt }],
-        });
-        const t = retry.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map(b => b.text).join("\n");
-        if (t) return t;
-      } catch {}
       return "The AI is currently busy. Please wait about 30 seconds and try again.";
     }
     return "Content generation temporarily unavailable.";
@@ -2384,24 +2369,48 @@ Phone numbers, email addresses, physical address, scheduling links, social media
 ===SUMMARY===
 A comprehensive 3-4 paragraph summary of this business that an AI agent could use to represent the company professionally. Include the company name, what they do, who they serve, and what makes them different.`;
 
+          const tavilyKey = process.env.TAVILY_API_KEY;
+          let websiteSearchResults = "";
+          if (tavilyKey) {
+            try {
+              const tRes = await fetch("https://api.tavily.com/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  api_key: tavilyKey,
+                  query: `site:${websiteUrl} about services pricing contact`,
+                  search_depth: "advanced",
+                  max_results: 10,
+                  include_answer: true,
+                }),
+              });
+              if (tRes.ok) {
+                const tData = await tRes.json();
+                websiteSearchResults = [
+                  tData.answer || "",
+                  ...(tData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
+                ].join("\n\n");
+              }
+            } catch (e: any) {
+              console.error("Tavily search error:", e.message);
+            }
+          } else {
+            console.warn("[Website Training] No TAVILY_API_KEY — proceeding without web search");
+          }
+
           const trainAi = await getAnthropicForUser(userId);
+          const systemMsg = "You are a business analyst. Your job is to thoroughly analyze business websites and extract structured information that will be used to train AI agents. Be thorough, specific, and use actual information from the website — never make things up." +
+            (websiteSearchResults ? `\n\nHere are web search results about the website to help your analysis:\n\n${websiteSearchResults}` : "");
           const response = await trainAi.client.messages.create({
             model: trainAi.model,
             max_tokens: 8000,
-            system: "You are a business analyst. Your job is to thoroughly analyze business websites and extract structured information that will be used to train AI agents. Be thorough, specific, and use actual information from the website — never make things up. Always search the web to find real data from the website.",
+            system: systemMsg,
             messages: [{ role: "user", content: searchPrompt }],
-            tools: [
-              {
-                type: "web_search_20250305" as any,
-                name: "web_search",
-                max_uses: 10,
-              } as any,
-            ],
           });
 
           const fullText = response.content
-            .filter((b): b is Anthropic.TextBlock => b.type === "text")
-            .map(b => b.text)
+            .filter((b: any) => b.type === "text")
+            .map((b: any) => b.text)
             .join("\n");
 
           console.log(`Website training raw response length: ${fullText.length} chars for ${websiteUrl}`);
@@ -3119,7 +3128,7 @@ RULES:
 - Do not use placeholder brackets like [Company] — use actual values`;
 
     try {
-      return await claudeGenerate(prompt, "email", userClient);
+      return await aiGenerate(prompt, "email", userClient);
     } catch (err) {
       console.error(`[FOLLOW-UP] Failed to generate email for step ${step}:`, err);
       return "";
@@ -3717,12 +3726,40 @@ For EACH lead provide: name, email, phone, company, source ("Medical Billing Lea
 
 CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} leads in a single call. Use agent_type="lead-gen". Do NOT just talk about leads — you MUST use the generate_leads tool to save them. Every lead MUST have real, verifiable contact details.`;
 
+      const tavilyKey2 = process.env.TAVILY_API_KEY;
+      let autoGenSearchResults = "";
+      if (tavilyKey2) {
+        try {
+          const tRes = await fetch("https://api.tavily.com/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              api_key: tavilyKey2,
+              query: `medical billing leads ${rotation.region} ${rotation.focus}`,
+              search_depth: "advanced",
+              max_results: 10,
+              include_answer: true,
+            }),
+          });
+          if (tRes.ok) {
+            const tData = await tRes.json();
+            autoGenSearchResults = [
+              tData.answer || "",
+              ...(tData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
+            ].join("\n\n");
+          }
+        } catch (e: any) {
+          console.error("Tavily search error:", e.message);
+        }
+      } else {
+        console.warn("[Auto Lead Gen] No TAVILY_API_KEY — proceeding without web search");
+      }
+
+      const autoGenSystemPrompt = autoGenSearchResults
+        ? `Use the following web search results to find real leads with verified contact information:\n\n${autoGenSearchResults}`
+        : "";
+
       const tools: any[] = [
-        {
-          type: "web_search_20250305",
-          name: "web_search",
-          max_uses: 10,
-        },
         {
           name: "generate_leads",
           description: "Save leads to CRM. Pass all leads at once.",
@@ -3774,6 +3811,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
       let response = await claudeCallWithRetry({
         model: userModelName,
         max_tokens: 4096,
+        ...(autoGenSystemPrompt ? { system: autoGenSystemPrompt } : {}),
         messages: [{ role: "user", content: autoGenPrompt }],
         tools,
       });
@@ -4609,7 +4647,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       try { userClient = await getAnthropicForUser(userId); } catch {
         return res.status(400).json({ message: "AI API key not configured. Go to Settings > Integrations to add your Anthropic API key." });
       }
-      const result = await claudeGenerate(prompt, type || "general", userClient);
+      const result = await aiGenerate(prompt, type || "general", userClient);
       res.json({ result });
     } catch (error) {
       console.error("Error in AI generate:", error);
@@ -5757,11 +5795,38 @@ CRITICAL RULES:
 
 After searching, call generate_leads with agent_type="${config.agentType}" to save the leads to CRM.`;
 
-          const aiTools: Anthropic.Tool[] = [
-            {
-              type: "web_search_20250305" as any,
-              name: "web_search",
-            } as any,
+          const tavilyKey3 = process.env.TAVILY_API_KEY;
+          let agentSearchResults = "";
+          if (tavilyKey3) {
+            try {
+              const tRes = await fetch("https://api.tavily.com/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  api_key: tavilyKey3,
+                  query: searchPrompt.slice(0, 400),
+                  search_depth: "advanced",
+                  max_results: 10,
+                  include_answer: true,
+                }),
+              });
+              if (tRes.ok) {
+                const tData = await tRes.json();
+                agentSearchResults = [
+                  tData.answer || "",
+                  ...(tData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
+                ].join("\n\n");
+              }
+            } catch (e: any) {
+              console.error("Tavily search error:", e.message);
+            }
+          } else {
+            console.warn("[Agent Run] No TAVILY_API_KEY — proceeding without web search");
+          }
+
+          const finalAiSystemPrompt = aiSystemPrompt + (agentSearchResults ? `\n\nHere are web search results to help you find real leads:\n\n${agentSearchResults}` : "");
+
+          const aiTools: any[] = [
             {
               name: "generate_leads",
               description: `Save real leads found via web search to CRM. Include agent_type="${config.agentType}" to auto-add to funnel. ONLY save leads with real names, real emails, and real contact info. Never save placeholder data.`,
@@ -5799,14 +5864,14 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
           let response = await aiClient.messages.create({
             model: aiModel,
             max_tokens: 8192,
-            system: aiSystemPrompt,
+            system: finalAiSystemPrompt,
             messages: [{ role: "user", content: searchPrompt }],
             tools: aiTools,
           });
 
           let loopCount = 0;
           const maxLoops = 10;
-          let currentMessages: Anthropic.MessageParam[] = [{ role: "user", content: searchPrompt }];
+          let currentMessages: any[] = [{ role: "user", content: searchPrompt }];
           let leadsFound = 0;
           let funnelInfo = "";
 
@@ -5815,11 +5880,11 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
             currentMessages.push({ role: "assistant", content: response.content as any });
 
             const toolUseBlocks = response.content.filter(
-              (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
+              (block: any) => block.type === "tool_use"
             );
 
-            const crmToolUses = toolUseBlocks.filter(t => t.name !== "web_search");
-            const toolResults: Anthropic.ToolResultBlockParam[] = [];
+            const crmToolUses = toolUseBlocks.filter((t: any) => t.name !== "web_search");
+            const toolResults: any[] = [];
 
             for (const toolUse of crmToolUses) {
               console.log(`[Agent Run] Tool: ${toolUse.name}`, JSON.stringify(toolUse.input || {}).slice(0, 300));
@@ -5845,7 +5910,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
             response = await aiClient.messages.create({
               model: aiModel,
               max_tokens: 8192,
-              system: aiSystemPrompt,
+              system: finalAiSystemPrompt,
               messages: currentMessages,
               tools: aiTools,
             });
@@ -6027,9 +6092,45 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
       const website = user?.website || "";
       const industryLabel = industry || (user as any)?.industry || "medical billing";
 
-      const searchPrompt = `Search forums, Reddit, Quora, community sites, and discussion boards for people actively asking about or looking for ${industryLabel} services. ${query ? `Specific search: ${query}` : ""} Find at least 5-8 recent discussions where someone needs help with ${industryLabel}.
+      const forumSearchQuery = `${industryLabel} services help needed forum discussion ${query || ""} site:reddit.com OR site:quora.com OR forum`;
 
-For EACH discussion found, provide this EXACT JSON format (return a JSON array):
+      const tavilyKey = process.env.TAVILY_API_KEY;
+      let searchContent = "";
+      if (tavilyKey) {
+        try {
+          const tavilyRes = await fetch("https://api.tavily.com/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              api_key: tavilyKey,
+              query: forumSearchQuery,
+              search_depth: "advanced",
+              max_results: 10,
+              include_answer: true,
+            }),
+          });
+          if (tavilyRes.ok) {
+            const tavilyData = await tavilyRes.json();
+            searchContent = [
+              tavilyData.answer || "",
+              ...(tavilyData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
+            ].join("\n\n");
+          }
+        } catch (e: any) {
+          console.error("Forum Tavily search error:", e.message);
+        }
+      }
+
+      if (!searchContent) {
+        return res.json({ posts: [], message: "Web search not available. Please configure Tavily API key." });
+      }
+
+      const extractPrompt = `You are a lead prospecting expert. From these web search results, extract real forum posts and community discussions where people are asking about or need ${industryLabel} services.
+
+Search Results:
+${searchContent}
+
+For EACH relevant discussion found, provide this EXACT JSON format (return a JSON array):
 [
   {
     "title": "Post/thread title",
@@ -6041,25 +6142,18 @@ For EACH discussion found, provide this EXACT JSON format (return a JSON array):
   }
 ]
 
-IMPORTANT: Return ONLY the JSON array, no other text. Find REAL posts with REAL URLs. Focus on recent, active discussions where people clearly need ${industryLabel} help.`;
+IMPORTANT: Return ONLY the JSON array, no other text. Only include REAL posts with REAL URLs from the search results.`;
 
       const searchResponse = await ai.messages.create({
         model,
         max_tokens: 6000,
-        system: "You are a lead prospecting expert. Search the web for real forum posts and community discussions. Return structured JSON data only.",
-        messages: [{ role: "user", content: searchPrompt }],
-        tools: [
-          {
-            type: "web_search_20250305" as any,
-            name: "web_search",
-            max_uses: 10,
-          } as any,
-        ],
+        system: "You are a lead prospecting expert. Extract structured data from search results. Return JSON data only.",
+        messages: [{ role: "user", content: extractPrompt }],
       });
 
       const searchText = searchResponse.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map(b => b.text)
+        .filter((b: any) => b.type === "text")
+        .map((b: any) => b.text)
         .join("\n");
 
       let posts: any[] = [];
@@ -6109,8 +6203,8 @@ Return ONLY the JSON array.`;
       });
 
       const replyText = replyResponse.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map(b => b.text)
+        .filter((b: any) => b.type === "text")
+        .map((b: any) => b.text)
         .join("\n");
 
       let replies: string[] = [];
@@ -6172,25 +6266,62 @@ Return ONLY the JSON array.`;
     }).returning();
 
     try {
-      const platformAi = new Anthropic();
-      const searchResponse = await platformAi.messages.create({
-        model: "claude-sonnet-4-20250514",
+      const promoterTavilyKey = process.env.TAVILY_API_KEY;
+      let promoterSearchContent = "";
+      if (promoterTavilyKey) {
+        try {
+          const tRes = await fetch("https://api.tavily.com/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              api_key: promoterTavilyKey,
+              query: `${query} site:reddit.com OR site:quora.com OR forum OR discussion`,
+              search_depth: "advanced",
+              max_results: 10,
+              include_answer: true,
+            }),
+          });
+          if (tRes.ok) {
+            const tData = await tRes.json();
+            promoterSearchContent = [
+              tData.answer || "",
+              ...(tData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
+            ].join("\n\n");
+          }
+        } catch (e: any) {
+          console.error("[Platform Promoter] Tavily search error:", e.message);
+        }
+      }
+
+      if (!promoterSearchContent && !openaiKey) {
+        await db.update(platformPromotionRuns).set({
+          status: "failed", results: JSON.stringify([]),
+          completedAt: new Date(),
+        }).where(eq(platformPromotionRuns.id, run.id));
+        return res.json({ message: "No search provider available." });
+      }
+
+      if (!openaiKey) {
+        await db.update(platformPromotionRuns).set({
+          status: "failed", results: JSON.stringify([]),
+          completedAt: new Date(),
+        }).where(eq(platformPromotionRuns.id, run.id));
+        return res.json({ message: "OpenAI not configured." });
+      }
+
+      const promoterOpenAI = new OpenAI({ apiKey: openaiKey });
+      const extractResponse = await promoterOpenAI.chat.completions.create({
+        model: OPENAI_MODEL,
         max_tokens: 4096,
-        tools: [{ type: "web_search_20250305" as any, name: "web_search", max_uses: 10 } as any],
-        messages: [{
-          role: "user",
-          content: `You are an expert at finding online discussions where business owners are looking for automation tools, CRM platforms, AI lead generation, sales automation, or business growth software.
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: "You are an expert at finding online discussions about business automation tools. Extract structured data from search results. Return JSON only." },
+          { role: "user", content: `From these search results, extract forum posts and discussions where people are looking for automation tools, CRM platforms, AI lead generation, or sales automation.
 
-Search for: "${query}"
+Search Results:
+${promoterSearchContent}
 
-Find 5-10 recent online discussions (Reddit posts, Quora questions, forum threads, blog comments, review sites) where people are:
-- Asking for recommendations for business automation tools
-- Comparing CRM/lead generation platforms
-- Looking for AI-powered sales tools
-- Seeking help with automated outreach, follow-ups, or client acquisition
-- Discussing problems that automation could solve (manual lead gen, inconsistent pipeline, etc.)
-
-Return a JSON array of posts found. Each post should have:
+Return a JSON object with a "posts" array. Each post should have:
 - "title": The post/question title
 - "url": The full URL
 - "platform": Where it was found (Reddit, Quora, G2, Capterra, etc.)
@@ -6198,23 +6329,24 @@ Return a JSON array of posts found. Each post should have:
 - "postedDate": When it was posted (if available)
 - "relevanceScore": 1-100 how relevant to automation/CRM tools
 
-Return ONLY the JSON array, no other text. Example:
-[{"title":"Best AI automation for small biz?","url":"https://...","platform":"Reddit","snippet":"Looking for...","postedDate":"2025","relevanceScore":85}]`
-        }],
+Example: {"posts": [{"title":"Best AI automation?","url":"https://...","platform":"Reddit","snippet":"Looking for...","postedDate":"2025","relevanceScore":85}]}` },
+        ],
       });
 
-      const searchText = searchResponse.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map(b => b.text)
-        .join("\n");
+      const searchText = extractResponse.choices[0]?.message?.content || "";
 
       let posts: any[] = [];
       try {
-        const jsonMatch = searchText.match(/\[[\s\S]*?\]/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (Array.isArray(parsed)) {
-            posts = parsed.filter((p: any) => p && typeof p === "object" && p.title);
+        const parsed = JSON.parse(searchText);
+        if (parsed?.posts && Array.isArray(parsed.posts)) {
+          posts = parsed.posts.filter((p: any) => p && typeof p === "object" && p.title);
+        } else {
+          const jsonMatch = searchText.match(/\[[\s\S]*?\]/);
+          if (jsonMatch) {
+            const arrParsed = JSON.parse(jsonMatch[0]);
+            if (Array.isArray(arrParsed)) {
+              posts = arrParsed.filter((p: any) => p && typeof p === "object" && p.title);
+            }
           }
         }
       } catch {
@@ -6233,47 +6365,38 @@ Return ONLY the JSON array, no other text. Example:
         return;
       }
 
-      const replyResponse = await platformAi.messages.create({
-        model: "claude-sonnet-4-20250514",
+      const replyGenResponse = await promoterOpenAI.chat.completions.create({
+        model: OPENAI_MODEL,
         max_tokens: 4096,
-        messages: [{
-          role: "user",
-          content: `You are a helpful tech community member who has genuine experience with ArgiFlow (argilette.co), an AI-powered business automation platform by ARGILETTE Labs.
-
-ArgiFlow key features to naturally mention when relevant:
-- AI-powered lead generation with 10+ specialized agents (finds 30+ leads per batch automatically)
+        messages: [
+          { role: "system", content: "You are a helpful tech community member who has genuine experience with ArgiFlow (argilette.co). Return a JSON array of reply strings." },
+          { role: "user", content: `ArgiFlow key features to naturally mention when relevant:
+- AI-powered lead generation with 10+ specialized agents
 - Voice AI calling that qualifies leads and books appointments
-- Automated email outreach with AI-personalized messages and follow-up sequences
+- Automated email outreach with AI-personalized messages
 - Forum Prospector that finds warm leads on Reddit/Quora/forums
-- Visual workflow builder with 30+ action types (drag-and-drop, no coding)
-- Built-in CRM with lead scoring and engagement tracking
-- Sales funnels with Kanban-style pipeline management
-- SMS messaging and multi-channel outreach
-- AI marketing strategy generator
-- Serves both Western markets (ArgiFlow) and African markets (TradeFlow)
+- Visual workflow builder with 30+ action types
+- Built-in CRM with lead scoring
+- Sales funnels with Kanban-style pipeline
 - Website: argilette.co
 
 For each of these ${posts.length} forum posts, write a GENUINELY HELPFUL reply that:
-1. Actually answers their question or addresses their problem first
-2. Shares specific relevant tips from your experience
-3. Naturally mentions ArgiFlow ONLY where it genuinely fits their need — don't force it
+1. Actually answers their question first
+2. Shares specific relevant tips
+3. Naturally mentions ArgiFlow ONLY where it fits
 4. Sounds like a real person, not marketing copy
 5. Is 3-6 sentences long
-6. NEVER says "I work for" or "disclaimer" — you're a user sharing experience
-7. Includes the website (argilette.co) only once, naturally
+6. Includes argilette.co only once, naturally
 
-Posts to reply to:
+Posts:
 ${posts.map((p: any, i: number) => `${i + 1}. "${p.title}" — ${p.snippet}`).join("\n")}
 
-Return a JSON array of reply strings in the same order. Example:
-["Reply to post 1...", "Reply to post 2..."]`
-        }],
+Return a JSON array of reply strings in the same order:
+["Reply to post 1...", "Reply to post 2..."]` },
+        ],
       });
 
-      const replyText = replyResponse.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map(b => b.text)
-        .join("\n");
+      const replyText = replyGenResponse.choices[0]?.message?.content || "";
 
       let replies: string[] = [];
       try {
