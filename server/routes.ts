@@ -105,6 +105,9 @@ const OPENAI_MODEL = "gpt-4o-mini";
 class OpenAIAnthropicWrapper {
   private openai: OpenAI;
   private defaultModel: string;
+  private _quotaExhausted = false;
+
+  get quotaExhausted() { return this._quotaExhausted; }
 
   constructor(apiKey: string, model: string = OPENAI_MODEL) {
     this.openai = new OpenAI({ apiKey });
@@ -177,38 +180,46 @@ class OpenAIAnthropicWrapper {
         if (openaiTools.length === 0) openaiTools = undefined;
       }
 
-      const openaiResponse = await this.openai.chat.completions.create({
-        model: this.defaultModel,
-        max_tokens: max_tokens || 4096,
-        messages: openaiMessages,
-        ...(openaiTools ? { tools: openaiTools } : {}),
-      });
+      try {
+        const openaiResponse = await this.openai.chat.completions.create({
+          model: this.defaultModel,
+          max_tokens: max_tokens || 4096,
+          messages: openaiMessages,
+          ...(openaiTools ? { tools: openaiTools } : {}),
+        });
 
-      const choice = openaiResponse.choices[0];
-      const content: any[] = [];
+        const choice = openaiResponse.choices[0];
+        const content: any[] = [];
 
-      if (choice?.message?.content) {
-        content.push({ type: "text", text: choice.message.content });
-      }
-
-      if (choice?.message?.tool_calls) {
-        for (const tc of choice.message.tool_calls) {
-          const fn = (tc as any).function;
-          content.push({
-            type: "tool_use",
-            id: tc.id,
-            name: fn.name,
-            input: JSON.parse(fn.arguments || "{}"),
-          });
+        if (choice?.message?.content) {
+          content.push({ type: "text", text: choice.message.content });
         }
-      }
 
-      return {
-        content: content.length > 0 ? content : [{ type: "text", text: "" }],
-        stop_reason: choice?.finish_reason === "tool_calls" ? "tool_use" : "end_turn",
-        model: openaiResponse.model,
-        usage: openaiResponse.usage,
-      };
+        if (choice?.message?.tool_calls) {
+          for (const tc of choice.message.tool_calls) {
+            const fn = (tc as any).function;
+            content.push({
+              type: "tool_use",
+              id: tc.id,
+              name: fn.name,
+              input: JSON.parse(fn.arguments || "{}"),
+            });
+          }
+        }
+
+        return {
+          content: content.length > 0 ? content : [{ type: "text", text: "" }],
+          stop_reason: choice?.finish_reason === "tool_calls" ? "tool_use" : "end_turn",
+          model: openaiResponse.model,
+          usage: openaiResponse.usage,
+        };
+      } catch (error: any) {
+        if (error?.code === "insufficient_quota" || (error?.status === 429 && error?.message?.includes("quota"))) {
+          this._quotaExhausted = true;
+          console.error("[AI] OpenAI quota exhausted — marking for Anthropic fallback");
+        }
+        throw error;
+      }
     }
   };
 }
@@ -225,13 +236,16 @@ if (openaiKey) {
 export async function getAnthropicForUser(userId: string): Promise<{ client: any; model: string }> {
   const settings = await storage.getSettingsByUser(userId);
 
-  if (platformOpenAI) {
+  if (platformOpenAI && !platformOpenAI.quotaExhausted) {
     return { client: platformOpenAI, model: OPENAI_MODEL };
+  }
+
+  if (platformOpenAI?.quotaExhausted) {
+    console.log(`[AI] OpenAI quota exhausted — using Anthropic for user ${userId}`);
   }
 
   const userAnthropicKey = settings?.anthropicApiKey;
   if (userAnthropicKey && userAnthropicKey.startsWith("sk-ant-")) {
-    console.log(`[AI] User ${userId} — using user-provided Anthropic key (OpenAI not available)`);
     return {
       client: new Anthropic({ apiKey: userAnthropicKey, baseURL: "https://api.anthropic.com" }),
       model: CLAUDE_MODEL,
@@ -239,7 +253,6 @@ export async function getAnthropicForUser(userId: string): Promise<{ client: any
   }
 
   if (anthropicConfig.apiKey) {
-    console.log(`[AI] User ${userId} — falling back to platform Anthropic`);
     return { client: anthropic, model: CLAUDE_MODEL };
   }
 
@@ -1445,26 +1458,52 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
       fullError: JSON.stringify(error, null, 2).slice(0, 1000),
     });
 
-    if (error?.status === 429) {
-      const retryAfter = error?.headers?.["retry-after"];
-      const waitMs = retryAfter ? Math.min(parseInt(retryAfter) * 1000, 30000) : 5000;
-      console.log(`Rate limited — retrying in ${waitMs}ms...`);
-      await new Promise(resolve => setTimeout(resolve, waitMs));
+    if (error?.status === 429 || error?.code === "insufficient_quota") {
+      const isQuotaIssue = error?.code === "insufficient_quota" || error?.message?.includes("quota");
+      if (isQuotaIssue) {
+        console.log("[AI] Quota exhausted — switching to fallback AI provider");
+      }
+
       try {
-        const retryResponse = await userAnthropicClient.messages.create({
-          model: userModel,
+        const fallbackAi = await getAnthropicForUser(userId);
+        console.log(`[AI] Retrying with fallback provider: ${fallbackAi.model}`);
+        const retryResponse = await fallbackAi.client.messages.create({
+          model: fallbackAi.model,
           max_tokens: 2048,
           system: systemPrompt,
           messages: claudeMessages,
         });
         const retryText = retryResponse.content
-          .filter((b): b is Anthropic.TextBlock => b.type === "text")
-          .map(b => b.text)
+          .filter((b: any) => b.type === "text")
+          .map((b: any) => b.text)
           .join("\n")
           .trim();
         if (retryText) return retryText;
       } catch (retryErr: any) {
-        console.error("Retry also failed:", retryErr?.message);
+        console.error("Retry with fallback also failed:", retryErr?.message);
+      }
+
+      if (!isQuotaIssue) {
+        const retryAfter = error?.headers?.["retry-after"];
+        const waitMs = retryAfter ? Math.min(parseInt(retryAfter) * 1000, 30000) : 5000;
+        console.log(`Rate limited — retrying in ${waitMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+        try {
+          const retryResponse2 = await userAnthropicClient.messages.create({
+            model: userModel,
+            max_tokens: 2048,
+            system: systemPrompt,
+            messages: claudeMessages,
+          });
+          const retryText2 = retryResponse2.content
+            .filter((b: any) => b.type === "text")
+            .map((b: any) => b.text)
+            .join("\n")
+            .trim();
+          if (retryText2) return retryText2;
+        } catch (retryErr2: any) {
+          console.error("Second retry also failed:", retryErr2?.message);
+        }
       }
       return "The AI is currently handling a lot of requests. Please wait about 30 seconds and try again — your message will go through. In the meantime, actions like booking appointments and activating agents still work!";
     }
