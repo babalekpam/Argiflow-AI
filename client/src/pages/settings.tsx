@@ -796,7 +796,7 @@ export default function SettingsPage() {
                     return connected ? (
                       <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        {provider === "you" ? "You.com" : "Claude"} {t("settings.active")}
+                        {provider === "you" ? "You.com" : "AI Search"} {t("settings.active")}
                       </Badge>
                     ) : (
                       <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">
@@ -823,7 +823,7 @@ export default function SettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="claude">Claude Web Search</SelectItem>
+                      <SelectItem value="claude">Built-in AI Search</SelectItem>
                       <SelectItem value="you">You.com Search API</SelectItem>
                     </SelectContent>
                   </Select>

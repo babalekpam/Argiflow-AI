@@ -64,7 +64,7 @@
     "generating": "Génération...",
     "brandName": "ArgiFlow",
     "brandTag": "IA",
-    "poweredBy": "Propulsé par Anthropic Claude"
+    "poweredBy": "Propulsé par l'IA Avancée"
   },
   "nav": {
     "services": "Services",
@@ -187,7 +187,7 @@
     },
     "platformFeatures": {
       "f0title": "Stratégie Marketing Générée par l'IA",
-      "f0desc": "Claude analyse votre entreprise et génère une stratégie marketing complète à l'inscription — automatiquement adaptée à votre industrie, services et audience cible.",
+      "f0desc": "L'IA analyse votre entreprise et génère une stratégie marketing complète à l'inscription — automatiquement adaptée à votre industrie, services et audience cible.",
       "f1title": "Intelligence de Site Web",
       "f1desc": "L'IA scanne et analyse votre site web pour extraire les services, propositions de valeur, tarifs, FAQ et coordonnées — puis injecte ces connaissances dans chaque interaction IA.",
       "f2title": "Prospection Omnicanale",
@@ -421,7 +421,7 @@
       "f6title": "Constructeur d'Organigrammes",
       "f6desc": "Cartographiez les hiérarchies d'entreprise. Identifiez décideurs, détenteurs de budget et influenceurs pour une prospection multi-niveaux.",
       "f7title": "Recherche IA Approfondie",
-      "f7desc": "Claude IA recherche entreprises et contacts. Obtenez points de douleur, concurrents, angles d'approche, personas acheteurs et accroches personnalisées.",
+      "f7desc": "L'IA recherche entreprises et contacts. Obtenez points de douleur, concurrents, angles d'approche, personas acheteurs et accroches personnalisées.",
       "stat1Value": "12+",
       "stat1Label": "Points de Données par Contact",
       "stat2Value": "8",
@@ -508,7 +508,7 @@
       "contactTitle": "Contact",
       "getStarted": "Commencer",
       "soc2": "Sécurité de Niveau Entreprise",
-      "poweredBy": "Propulsé par Claude IA",
+      "poweredBy": "Propulsé par l'IA Avancée",
       "productOf": "ArgiFlow est un produit de ARGILETTE Labs"
     }
   },
@@ -1143,8 +1143,8 @@
     "saving": "Enregistrement...",
     "save": "Enregistrer",
     "aiApiKey": "Clé API IA",
-    "aiApiKeyDesc": "Ajoutez votre propre clé API Anthropic pour alimenter les fonctionnalités IA comme le chat, la génération de leads, la création de contenu et l'IA vocale.",
-    "anthropicApiKeyLabel": "Clé API Anthropic",
+    "aiApiKeyDesc": "Ajoutez votre propre clé API IA pour alimenter les fonctionnalités IA comme le chat, la génération de leads, la création de contenu et l'IA vocale.",
+    "anthropicApiKeyLabel": "Clé API IA",
     "aiApiKeyHint": "Obtenez votre clé sur console.anthropic.com. Les clés commencent par sk-ant-.",
     "webSearchProvider": "Recherche Web",
     "webSearchProviderDesc": "Choisissez votre fournisseur de recherche web pour les agents IA, la recherche de leads et les fonctionnalités d'intelligence. You.com fournit des résultats optimisés pour l'IA.",
@@ -1266,7 +1266,7 @@
       "accountSid": "SID du Compte",
       "authToken": "Jeton d'Authentification",
       "phoneNumber": "Numéro de Téléphone",
-      "aiService": "Service IA (Anthropic)",
+      "aiService": "Service IA",
       "security": "Sécurité",
       "sessionSecret": "Secret de Session",
       "adminPassword": "Mot de Passe Admin",
