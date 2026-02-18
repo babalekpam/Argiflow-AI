@@ -228,21 +228,17 @@ const openaiKey = process.env.OPENAI_API_KEY;
 let platformOpenAI: OpenAIAnthropicWrapper | null = null;
 if (openaiKey) {
   platformOpenAI = new OpenAIAnthropicWrapper(openaiKey, OPENAI_MODEL);
-  console.log("[AI] OpenAI configured as primary AI provider (gpt-4o-mini)");
+  console.log("[AI] OpenAI key present (available as fallback)");
+}
+
+if (anthropicConfig.apiKey) {
+  console.log("[AI] Anthropic configured as primary AI provider");
 } else {
-  console.log("[AI] No OpenAI key — using Anthropic as primary AI provider");
+  console.log("[AI] No Anthropic key — will attempt OpenAI");
 }
 
 export async function getAnthropicForUser(userId: string): Promise<{ client: any; model: string }> {
   const settings = await storage.getSettingsByUser(userId);
-
-  if (platformOpenAI && !platformOpenAI.quotaExhausted) {
-    return { client: platformOpenAI, model: OPENAI_MODEL };
-  }
-
-  if (platformOpenAI?.quotaExhausted) {
-    console.log(`[AI] OpenAI quota exhausted — using Anthropic for user ${userId}`);
-  }
 
   const userAnthropicKey = settings?.anthropicApiKey;
   if (userAnthropicKey && userAnthropicKey.startsWith("sk-ant-")) {
@@ -254,6 +250,10 @@ export async function getAnthropicForUser(userId: string): Promise<{ client: any
 
   if (anthropicConfig.apiKey) {
     return { client: anthropic, model: CLAUDE_MODEL };
+  }
+
+  if (platformOpenAI && !platformOpenAI.quotaExhausted) {
+    return { client: platformOpenAI, model: OPENAI_MODEL };
   }
 
   throw new Error("AI_NOT_CONFIGURED");
