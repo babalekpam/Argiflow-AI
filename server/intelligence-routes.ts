@@ -118,6 +118,11 @@ router.post("/companies/search", async (req, res) => {
     let conditions: any[] = [];
     if (filters.name) conditions.push(ilike(companyProfiles.name, `%${filters.name}%`));
     if (filters.industry) conditions.push(ilike(companyProfiles.industry, `%${filters.industry}%`));
+    if (filters.location) {
+      conditions.push(sql`(${ilike(companyProfiles.headquarters, `%${filters.location}%`)} OR ${ilike(companyProfiles.hqCity, `%${filters.location}%`)} OR ${ilike(companyProfiles.hqState, `%${filters.location}%`)} OR ${ilike(companyProfiles.hqCountry, `%${filters.location}%`)})`);
+    }
+    if (filters.minEmployees) conditions.push(sql`${companyProfiles.employeeCount} >= ${parseInt(filters.minEmployees)}`);
+    if (filters.maxEmployees) conditions.push(sql`${companyProfiles.employeeCount} <= ${parseInt(filters.maxEmployees)}`);
 
     let dbResults: any[] = [];
     if (conditions.length > 0) {

@@ -415,8 +415,8 @@ function EnrichmentTab() {
             {jobs.map((job: any) => (
               <Card key={job.id} className="p-3 flex items-center justify-between gap-4 flex-wrap">
                 <div>
-                  <p className="text-sm font-medium">{job.jobType} enrichment</p>
-                  <p className="text-xs text-muted-foreground">{job.totalRecords} records - {job.status}</p>
+                  <p className="text-sm font-medium">{job.type || job.jobType} enrichment</p>
+                  <p className="text-xs text-muted-foreground">{job.totalRecords} records - {job.enrichedCount || 0} enriched</p>
                 </div>
                 <Badge variant={job.status === "completed" ? "default" : "outline"}>{job.status}</Badge>
               </Card>
@@ -672,13 +672,15 @@ function TechnographicsTab() {
         <div className="grid gap-3 md:grid-cols-2">
           {results.map((item: any, i: number) => (
             <Card key={i} className="p-4">
-              <p className="font-medium" data-testid={`text-tech-company-${i}`}>{item.companyName || item.company}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-medium" data-testid={`text-tech-company-${i}`}>{item.companyDomain || item.companyName || item.company || "Unknown"}</p>
+                {item.status && <Badge variant="outline" className="text-[10px]">{item.status}</Badge>}
+              </div>
               <div className="flex flex-wrap gap-1 mt-2">
-                {(item.technologies || [item.technology]).map((tech: string, j: number) => (
-                  <Badge key={j} variant="outline" className="text-xs">{tech}</Badge>
-                ))}
+                <Badge className="text-xs">{item.technology}</Badge>
               </div>
               {item.category && <p className="text-xs text-muted-foreground mt-2">Category: {item.category}</p>}
+              {item.confidence && <p className="text-xs text-muted-foreground">Confidence: {Math.round(item.confidence * 100)}%</p>}
             </Card>
           ))}
         </div>
@@ -878,13 +880,24 @@ function AIResearchTab() {
             <p className="text-sm text-destructive">{result.error}</p>
           ) : (
             <div className="space-y-4">
-              {result.name && <div><p className="text-sm font-medium">{result.name}</p><p className="text-xs text-muted-foreground">{result.description}</p></div>}
+              {result.name && <div><p className="text-sm font-medium">{result.name}</p>{result.description && <p className="text-xs text-muted-foreground">{result.description}</p>}</div>}
               {result.industry && <div><Label className="text-xs text-muted-foreground">Industry</Label><p className="text-sm">{result.industry}{result.subIndustry ? ` / ${result.subIndustry}` : ""}</p></div>}
+              {result.targetMarket && <div><Label className="text-xs text-muted-foreground">Target Market</Label><p className="text-sm">{result.targetMarket}</p></div>}
+              {result.estimatedEmployees && <div><Label className="text-xs text-muted-foreground">Estimated Employees</Label><p className="text-sm">{result.estimatedEmployees}</p></div>}
+              {result.estimatedRevenue && <div><Label className="text-xs text-muted-foreground">Estimated Revenue</Label><p className="text-sm">{result.estimatedRevenue}</p></div>}
               {result.keyProducts?.length > 0 && <div><Label className="text-xs text-muted-foreground">Key Products</Label><div className="flex flex-wrap gap-1 mt-1">{result.keyProducts.map((p: string, i: number) => <Badge key={i} variant="outline" className="text-xs">{p}</Badge>)}</div></div>}
               {result.competitors?.length > 0 && <div><Label className="text-xs text-muted-foreground">Competitors</Label><div className="flex flex-wrap gap-1 mt-1">{result.competitors.map((c: string, i: number) => <Badge key={i} variant="outline" className="text-xs">{c}</Badge>)}</div></div>}
-              {result.painPoints?.length > 0 && <div><Label className="text-xs text-muted-foreground">Pain Points</Label><ul className="text-sm text-muted-foreground mt-1 list-disc pl-4">{result.painPoints.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>}
-              {result.bestApproachAngle && <div><Label className="text-xs text-muted-foreground">Best Approach</Label><p className="text-sm mt-1">{result.bestApproachAngle}</p></div>}
+              {result.recentNews && <div><Label className="text-xs text-muted-foreground">Recent News</Label><p className="text-sm mt-1">{result.recentNews}</p></div>}
+              {(result.painPoints?.length > 0 || result.likelyChallenges?.length > 0) && <div><Label className="text-xs text-muted-foreground">Pain Points / Challenges</Label><ul className="text-sm text-muted-foreground mt-1 list-disc pl-4">{(result.painPoints || result.likelyChallenges || []).map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>}
+              {result.decisionMakers?.length > 0 && <div><Label className="text-xs text-muted-foreground">Decision Makers</Label><div className="flex flex-wrap gap-1 mt-1">{result.decisionMakers.map((d: any, i: number) => <Badge key={i} variant="outline" className="text-xs">{typeof d === "string" ? d : `${d.title} (${d.department})`}</Badge>)}</div></div>}
+              {result.likelyResponsibilities?.length > 0 && <div><Label className="text-xs text-muted-foreground">Likely Responsibilities</Label><ul className="text-sm text-muted-foreground mt-1 list-disc pl-4">{result.likelyResponsibilities.map((r: string, i: number) => <li key={i}>{r}</li>)}</ul></div>}
+              {result.decisionMakingPower && <div><Label className="text-xs text-muted-foreground">Decision Making Power</Label><Badge variant="outline" className="text-xs mt-1">{result.decisionMakingPower}</Badge></div>}
+              {result.buyerPersonaType && <div><Label className="text-xs text-muted-foreground">Buyer Persona</Label><Badge variant="outline" className="text-xs mt-1">{result.buyerPersonaType}</Badge></div>}
+              {result.bestOutreachChannel && <div><Label className="text-xs text-muted-foreground">Best Outreach Channel</Label><p className="text-sm mt-1">{result.bestOutreachChannel}</p></div>}
+              {result.bestTimeToContact && <div><Label className="text-xs text-muted-foreground">Best Time to Contact</Label><p className="text-sm mt-1">{result.bestTimeToContact}</p></div>}
+              {result.bestApproachAngle && <div><Label className="text-xs text-muted-foreground">Best Approach Angle</Label><p className="text-sm mt-1">{result.bestApproachAngle}</p></div>}
               {result.talkingPoints?.length > 0 && <div><Label className="text-xs text-muted-foreground">Talking Points</Label><ul className="text-sm text-muted-foreground mt-1 list-disc pl-4">{result.talkingPoints.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>}
+              {result.objections?.length > 0 && <div><Label className="text-xs text-muted-foreground">Likely Objections</Label><ul className="text-sm text-muted-foreground mt-1 list-disc pl-4">{result.objections.map((o: string, i: number) => <li key={i}>{o}</li>)}</ul></div>}
               {result.icebreaker && <div><Label className="text-xs text-muted-foreground">Icebreaker</Label><p className="text-sm italic mt-1">"{result.icebreaker}"</p></div>}
               {result.sources?.length > 0 && <div><Label className="text-xs text-muted-foreground">Sources</Label><div className="flex flex-col gap-1 mt-1">{result.sources.map((s: string, i: number) => <a key={i} href={s} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate">{s}</a>)}</div></div>}
             </div>
