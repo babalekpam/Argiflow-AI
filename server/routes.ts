@@ -78,10 +78,10 @@ async function sendSystemEmail(to: string, from: { email: string; name: string }
 
 
 // ============================================================
-// ANTHROPIC CLAUDE — SINGLE AI PROVIDER FOR EVERYTHING
-// No Tavily, no OpenAI, no other providers.
-// Claude handles: chat, web search, actions, research
-// Robust config: tries Replit AI integration first, falls back to direct API
+// AI PROVIDER CONFIGURATION
+// OpenAI GPT-4o-mini is the PRIMARY provider for all AI features.
+// Users can optionally override with their own Anthropic key in Settings.
+// Anthropic platform key available as fallback for web search only.
 // ============================================================
 
 const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
@@ -225,16 +225,17 @@ if (openaiKey) {
 export async function getAnthropicForUser(userId: string): Promise<{ client: any; model: string }> {
   const settings = await storage.getSettingsByUser(userId);
 
+  if (platformOpenAI) {
+    return { client: platformOpenAI, model: OPENAI_MODEL };
+  }
+
   const userAnthropicKey = settings?.anthropicApiKey;
   if (userAnthropicKey && userAnthropicKey.startsWith("sk-ant-")) {
+    console.log(`[AI] User ${userId} — using user-provided Anthropic key (OpenAI not available)`);
     return {
       client: new Anthropic({ apiKey: userAnthropicKey, baseURL: "https://api.anthropic.com" }),
       model: CLAUDE_MODEL,
     };
-  }
-
-  if (platformOpenAI) {
-    return { client: platformOpenAI, model: OPENAI_MODEL };
   }
 
   if (anthropicConfig.apiKey) {
