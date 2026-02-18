@@ -1375,6 +1375,17 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
         required: ["message"],
       },
     },
+    {
+      name: "web_search",
+      description: "Search the internet for real-time information. Use this to find real businesses, contact info, job postings, and verify data. ALWAYS use this before generate_leads to find REAL companies with VERIFIED contact details. Search for specific terms like company names, industries, locations, job postings for billing managers, etc.",
+      input_schema: {
+        type: "object" as const,
+        properties: {
+          query: { type: "string", description: "The search query to find real businesses and contact information" },
+        },
+        required: ["query"],
+      },
+    },
   ];
 
   try {
@@ -1400,11 +1411,41 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
         (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
       );
 
-      const crmToolUses = toolUseBlocks.filter(t => t.name !== "web_search");
-
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
-      for (const toolUse of crmToolUses) {
+      for (const toolUse of toolUseBlocks) {
+        if (toolUse.name === "web_search") {
+          const query = (toolUse.input as any)?.query || "";
+          console.log(`[AI Tool] web_search: "${query}"`);
+          try {
+            const tavilyKey = process.env.TAVILY_API_KEY;
+            if (!tavilyKey) {
+              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: "Web search not configured (no TAVILY_API_KEY)" });
+              continue;
+            }
+            const searchRes = await fetch("https://api.tavily.com/search", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                api_key: tavilyKey,
+                query,
+                search_depth: "advanced",
+                max_results: 10,
+                include_raw_content: false,
+              }),
+            });
+            const searchData = await searchRes.json() as any;
+            const results = (searchData.results || []).map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nSnippet: ${r.content?.slice(0, 500)}`).join("\n\n---\n\n");
+            const searchSummary = results || "No results found.";
+            console.log(`[AI Tool] web_search returned ${(searchData.results || []).length} results`);
+            toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: searchSummary.slice(0, 15000) });
+          } catch (searchErr: any) {
+            console.error(`[AI Tool] web_search ERROR:`, searchErr?.message);
+            toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `Search error: ${searchErr?.message}`, is_error: true });
+          }
+          continue;
+        }
+
         console.log(`[AI Tool] Executing: ${toolUse.name}`, JSON.stringify(toolUse.input || {}).slice(0, 200));
         try {
           const result = await executeAction(userId, toolUse.name, toolUse.input || {});
