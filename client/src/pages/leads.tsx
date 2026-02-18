@@ -995,7 +995,7 @@ function FollowUpTracker({ data, isLoading, pauseFollowUpMutation, resumeFollowU
   pauseFollowUpMutation: any;
   resumeFollowUpMutation: any;
 }) {
-  const [subTab, setSubTab] = useState<"active" | "overdue" | "upcoming" | "completed" | "paused">("active");
+  const [subTab, setSubTab] = useState<"active" | "overdue" | "upcoming" | "completed" | "paused" | "opened" | "not_opened">("active");
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "N/A";
@@ -1020,19 +1020,38 @@ function FollowUpTracker({ data, isLoading, pauseFollowUpMutation, resumeFollowU
     return labels[Math.min(step, labels.length - 1)];
   };
 
-  const summary = data?.summary || { active: 0, completed: 0, paused: 0, overdue: 0, totalWithFollowUp: 0 };
+  const summary = data?.summary || { active: 0, completed: 0, paused: 0, overdue: 0, upcoming: 0, totalWithFollowUp: 0 };
+  const allFollowUps = [...(data?.active || []), ...(data?.completed || []), ...(data?.paused || [])];
+  const openedLeads = allFollowUps.filter((l: any) => (l.emailOpens || 0) > 0);
+  const notOpenedLeads = allFollowUps.filter((l: any) => (l.emailOpens || 0) === 0);
+  const totalClicks = allFollowUps.reduce((sum: number, l: any) => sum + (l.emailClicks || 0), 0);
+  const totalOpens = allFollowUps.reduce((sum: number, l: any) => sum + (l.emailOpens || 0), 0);
+  const openRate = allFollowUps.length > 0 ? Math.round((openedLeads.length / allFollowUps.length) * 100) : 0;
+
   const lists: Record<string, any[]> = {
     active: data?.active || [],
     overdue: data?.overdue || [],
     upcoming: data?.upcoming || [],
     completed: data?.completed || [],
     paused: data?.paused || [],
+    opened: openedLeads,
+    not_opened: notOpenedLeads,
   };
   const currentList = lists[subTab] || [];
 
+  const subTabTitle: Record<string, string> = {
+    active: "Active Sequences",
+    overdue: "Overdue Follow-Ups",
+    upcoming: "Upcoming Follow-Ups",
+    completed: "Completed Sequences",
+    paused: "Paused Sequences",
+    opened: "Opened Emails",
+    not_opened: "Not Opened Emails",
+  };
+
   return (
     <div className="space-y-4" data-testid="follow-up-tracker">
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("active")} data-testid="card-followup-active">
           <div className="text-2xl font-bold text-purple-400" data-testid="text-followup-active-count">{summary.active}</div>
           <div className="text-xs text-muted-foreground">Active Sequences</div>
@@ -1040,10 +1059,6 @@ function FollowUpTracker({ data, isLoading, pauseFollowUpMutation, resumeFollowU
         <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("overdue")} data-testid="card-followup-overdue">
           <div className={`text-2xl font-bold ${summary.overdue > 0 ? "text-red-400" : "text-muted-foreground"}`} data-testid="text-followup-overdue-count">{summary.overdue}</div>
           <div className="text-xs text-muted-foreground">Overdue</div>
-        </Card>
-        <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("upcoming")} data-testid="card-followup-upcoming">
-          <div className="text-2xl font-bold text-sky-400" data-testid="text-followup-upcoming-count">{summary.upcoming || (data?.upcoming || []).length}</div>
-          <div className="text-xs text-muted-foreground">Upcoming</div>
         </Card>
         <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("completed")} data-testid="card-followup-completed">
           <div className="text-2xl font-bold text-emerald-400" data-testid="text-followup-completed-count">{summary.completed}</div>
@@ -1055,10 +1070,45 @@ function FollowUpTracker({ data, isLoading, pauseFollowUpMutation, resumeFollowU
         </Card>
       </div>
 
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("opened")} data-testid="card-followup-opened">
+          <div className="flex items-center justify-center gap-1.5">
+            <Eye className="w-4 h-4 text-emerald-400" />
+            <div className="text-2xl font-bold text-emerald-400" data-testid="text-followup-opened-count">{openedLeads.length}</div>
+          </div>
+          <div className="text-xs text-muted-foreground">Opened</div>
+          <div className="text-[10px] text-emerald-400/70 mt-0.5">{totalOpens} total opens</div>
+        </Card>
+        <Card className="p-3 text-center cursor-pointer hover-elevate" onClick={() => setSubTab("not_opened")} data-testid="card-followup-not-opened">
+          <div className="flex items-center justify-center gap-1.5">
+            <Mail className="w-4 h-4 text-muted-foreground" />
+            <div className="text-2xl font-bold text-muted-foreground" data-testid="text-followup-not-opened-count">{notOpenedLeads.length}</div>
+          </div>
+          <div className="text-xs text-muted-foreground">Not Opened</div>
+          <div className="text-[10px] text-muted-foreground/70 mt-0.5">no engagement yet</div>
+        </Card>
+        <Card className="p-3 text-center" data-testid="card-followup-clicks">
+          <div className="flex items-center justify-center gap-1.5">
+            <MousePointerClick className="w-4 h-4 text-sky-400" />
+            <div className="text-2xl font-bold text-sky-400" data-testid="text-followup-total-clicks">{totalClicks}</div>
+          </div>
+          <div className="text-xs text-muted-foreground">Total Clicks</div>
+          <div className="text-[10px] text-sky-400/70 mt-0.5">{allFollowUps.filter((l: any) => (l.emailClicks || 0) > 0).length} leads clicked</div>
+        </Card>
+        <Card className="p-3 text-center" data-testid="card-followup-open-rate">
+          <div className="flex items-center justify-center gap-1.5">
+            <TrendingUp className="w-4 h-4 text-purple-400" />
+            <div className="text-2xl font-bold text-purple-400" data-testid="text-followup-open-rate">{openRate}%</div>
+          </div>
+          <div className="text-xs text-muted-foreground">Open Rate</div>
+          <div className="text-[10px] text-purple-400/70 mt-0.5">{openedLeads.length} of {allFollowUps.length} leads</div>
+        </Card>
+      </div>
+
       <Card className="p-4">
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <h3 className="text-sm font-semibold capitalize" data-testid="text-followup-subtab-title">
-            {subTab === "active" ? "Active Sequences" : subTab === "overdue" ? "Overdue Follow-Ups" : subTab === "upcoming" ? "Upcoming Follow-Ups" : subTab === "completed" ? "Completed Sequences" : "Paused Sequences"}
+          <h3 className="text-sm font-semibold" data-testid="text-followup-subtab-title">
+            {subTabTitle[subTab]}
           </h3>
           <Badge variant="secondary" className="text-xs">{currentList.length}</Badge>
         </div>
@@ -1079,7 +1129,7 @@ function FollowUpTracker({ data, isLoading, pauseFollowUpMutation, resumeFollowU
         ) : currentList.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <CalendarClock className="w-10 h-10 mx-auto mb-3 opacity-50" />
-            <p className="font-medium">No {subTab} follow-ups</p>
+            <p className="font-medium">No {subTabTitle[subTab].toLowerCase()}</p>
             <p className="text-sm">Follow-ups are automatically created when you send outreach emails</p>
           </div>
         ) : (
@@ -1110,13 +1160,22 @@ function FollowUpTracker({ data, isLoading, pauseFollowUpMutation, resumeFollowU
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className={`flex items-center gap-0.5 ${lead.emailOpens > 0 ? "text-emerald-400" : "text-muted-foreground/50"}`} data-testid={`text-opens-${lead.id}`}>
+                      <Eye className="w-3.5 h-3.5" />
+                      {lead.emailOpens || 0}
+                    </span>
+                    <span className={`flex items-center gap-0.5 ${lead.emailClicks > 0 ? "text-sky-400" : "text-muted-foreground/50"}`} data-testid={`text-clicks-${lead.id}`}>
+                      <MousePointerClick className="w-3.5 h-3.5" />
+                      {lead.emailClicks || 0}
+                    </span>
+                  </div>
                   {lead.engagementLevel && lead.engagementLevel !== "none" && (
                     <Badge variant="outline" className={`text-[10px] ${
                       lead.engagementLevel === "hot" ? "bg-red-500/10 text-red-400 border-red-500/20" :
                       lead.engagementLevel === "warm" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
                       "bg-sky-500/10 text-sky-400 border-sky-500/20"
                     }`}>
-                      {lead.emailOpens > 0 && <Eye className="w-3 h-3 mr-1" />}
                       {lead.engagementLevel.toUpperCase()}
                     </Badge>
                   )}
