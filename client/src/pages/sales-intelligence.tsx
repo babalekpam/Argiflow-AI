@@ -169,11 +169,11 @@ function PeopleSearchTab() {
 
       {hasSearched && !searchMutation.isPending && (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">{results.length} contacts found</p>
+          <p className="text-sm text-muted-foreground">{results.length} contacts found via AI-powered web search</p>
           {results.length === 0 ? (
             <Card className="p-8 text-center">
               <Users className="w-8 h-8 mx-auto mb-3 text-muted-foreground/40" />
-              <p className="text-muted-foreground">No contacts match your criteria. Try broadening your search.</p>
+              <p className="text-muted-foreground">No contacts found. Try different search terms or broaden your criteria.</p>
             </Card>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
@@ -181,20 +181,28 @@ function PeopleSearchTab() {
                 <Card key={contact.id || i} className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate" data-testid={`text-contact-name-${i}`}>{contact.firstName} {contact.lastName}</p>
+                      <p className="font-medium truncate" data-testid={`text-contact-name-${i}`}>{contact.fullName || `${contact.firstName} ${contact.lastName}`}</p>
                       <p className="text-sm text-muted-foreground truncate">{contact.jobTitle}</p>
                       <p className="text-xs text-muted-foreground/70 truncate flex items-center gap-1 mt-1">
                         <Building2 className="w-3 h-3" /> {contact.companyName}
                       </p>
-                      {contact.location && (
+                      {(contact.city || contact.state) && (
                         <p className="text-xs text-muted-foreground/70 truncate flex items-center gap-1">
-                          <MapPin className="w-3 h-3" /> {contact.location}
+                          <MapPin className="w-3 h-3" /> {[contact.city, contact.state].filter(Boolean).join(", ")}
                         </p>
+                      )}
+                      {contact.summary && (
+                        <p className="text-xs text-muted-foreground/60 mt-1 line-clamp-2">{contact.summary}</p>
                       )}
                     </div>
                     <div className="flex flex-col gap-1">
-                      {contact.email && <Badge variant="outline" className="text-[10px]"><Mail className="w-3 h-3 mr-1" />{contact.email}</Badge>}
-                      {contact.phone && <Badge variant="outline" className="text-[10px]"><Phone className="w-3 h-3 mr-1" />{contact.phone}</Badge>}
+                      {(contact.workEmail || contact.email) && <Badge variant="outline" className="text-[10px]"><Mail className="w-3 h-3 mr-1" />{contact.workEmail || contact.email}</Badge>}
+                      {(contact.directPhone || contact.phone) && <Badge variant="outline" className="text-[10px]"><Phone className="w-3 h-3 mr-1" />{contact.directPhone || contact.phone}</Badge>}
+                      {contact.linkedinUrl && (
+                        <a href={contact.linkedinUrl} target="_blank" rel="noreferrer">
+                          <Badge variant="outline" className="text-[10px]"><ExternalLink className="w-3 h-3 mr-1" />LinkedIn</Badge>
+                        </a>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -271,11 +279,11 @@ function CompanySearchTab() {
 
       {hasSearched && !searchMutation.isPending && (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">{results.length} companies found</p>
+          <p className="text-sm text-muted-foreground">{results.length} companies found via AI-powered web search</p>
           {results.length === 0 ? (
             <Card className="p-8 text-center">
               <Building2 className="w-8 h-8 mx-auto mb-3 text-muted-foreground/40" />
-              <p className="text-muted-foreground">No companies match your criteria.</p>
+              <p className="text-muted-foreground">No companies found. Try different search terms.</p>
             </Card>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
@@ -284,12 +292,16 @@ function CompanySearchTab() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate" data-testid={`text-company-name-${i}`}>{co.name}</p>
-                      <p className="text-sm text-muted-foreground truncate">{co.industry}</p>
+                      <p className="text-sm text-muted-foreground truncate">{co.industry}{co.subIndustry ? ` - ${co.subIndustry}` : ""}</p>
+                      {co.description && <p className="text-xs text-muted-foreground/60 mt-1 line-clamp-2">{co.description}</p>}
                       {co.location && <p className="text-xs text-muted-foreground/70 flex items-center gap-1 mt-1"><MapPin className="w-3 h-3" />{co.location}</p>}
-                      {co.employeeCount && <p className="text-xs text-muted-foreground/70 flex items-center gap-1"><Users className="w-3 h-3" />{co.employeeCount} employees</p>}
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {(co.employeeCount || co.employeeRange) && <Badge variant="outline" className="text-[10px]"><Users className="w-3 h-3 mr-1" />{co.employeeCount || co.employeeRange}</Badge>}
+                        {co.phone && <Badge variant="outline" className="text-[10px]"><Phone className="w-3 h-3 mr-1" />{co.phone}</Badge>}
+                      </div>
                     </div>
-                    {co.website && (
-                      <a href={co.website} target="_blank" rel="noreferrer" data-testid={`link-company-website-${i}`}>
+                    {(co.website || co.domain) && (
+                      <a href={co.website || `https://${co.domain}`} target="_blank" rel="noreferrer" data-testid={`link-company-website-${i}`}>
                         <Button size="icon" variant="ghost" data-testid={`button-open-website-${i}`}><ExternalLink className="w-4 h-4" /></Button>
                       </a>
                     )}
@@ -677,16 +689,16 @@ function TechnographicsTab() {
 
 function OrgChartTab() {
   const { toast } = useToast();
-  const [companyId, setCompanyId] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [chart, setChart] = useState<any[]>([]);
 
   const buildMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await apiRequest("POST", `/api/intelligence/org-chart/${id}/build`, {});
+    mutationFn: async (name: string) => {
+      const res = await apiRequest("POST", `/api/intelligence/org-chart/${encodeURIComponent(name)}/build`, {});
       return res.json();
     },
     onSuccess: (data: any) => {
-      setChart(data.entries || []);
+      setChart(data.entries || data || []);
       toast({ title: "Org chart built" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -699,29 +711,36 @@ function OrgChartTab() {
           <GitBranch className="w-4 h-4 text-primary" />
           Organization Chart Builder
         </h3>
-        <p className="text-sm text-muted-foreground mb-4">Build org charts for target companies. Identifies decision makers, budget holders, and influencers.</p>
+        <p className="text-sm text-muted-foreground mb-4">Build org charts for target companies. AI searches the web to find real leadership teams, decision makers, and key contacts.</p>
         <div className="flex gap-3">
-          <Input placeholder="Enter Company Profile ID" value={companyId}
-            onChange={(e) => setCompanyId(e.target.value)} className="flex-1" data-testid="input-org-company-id" />
-          <Button onClick={() => buildMutation.mutate(companyId)} disabled={buildMutation.isPending || !companyId} data-testid="button-build-org">
+          <Input placeholder="Enter company name (e.g. Microsoft, Salesforce)" value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)} className="flex-1" data-testid="input-org-company-name" />
+          <Button onClick={() => buildMutation.mutate(companyName)} disabled={buildMutation.isPending || !companyName} data-testid="button-build-org">
             {buildMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <GitBranch className="w-4 h-4 mr-2" />}
             Build Chart
           </Button>
         </div>
       </Card>
 
-      {chart.length > 0 && (
+      {buildMutation.isPending && <LoadingCards count={4} />}
+
+      {chart.length > 0 && !buildMutation.isPending && (
         <div className="space-y-2">
           {chart.map((entry: any, i: number) => (
             <Card key={i} className="p-3 flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <p className="text-sm font-medium" data-testid={`text-org-person-${i}`}>{entry.personName}</p>
-                <p className="text-xs text-muted-foreground">{entry.title} - Level {entry.hierarchyLevel}</p>
+                <p className="text-sm font-medium" data-testid={`text-org-person-${i}`}>{entry.name || entry.personName}</p>
+                <p className="text-xs text-muted-foreground">{entry.title} {entry.department ? `- ${entry.department}` : ""}</p>
               </div>
               <div className="flex gap-1">
                 {entry.isDecisionMaker && <Badge className="text-[10px]">Decision Maker</Badge>}
                 {entry.isBudgetHolder && <Badge variant="outline" className="text-[10px]">Budget Holder</Badge>}
                 {entry.isInfluencer && <Badge variant="outline" className="text-[10px]">Influencer</Badge>}
+                {entry.linkedinUrl && (
+                  <a href={entry.linkedinUrl} target="_blank" rel="noreferrer">
+                    <Badge variant="outline" className="text-[10px]"><ExternalLink className="w-3 h-3 mr-1" />LinkedIn</Badge>
+                  </a>
+                )}
               </div>
             </Card>
           ))}
@@ -772,12 +791,13 @@ function NewsEventsTab() {
 function AIResearchTab() {
   const { toast } = useToast();
   const [researchType, setResearchType] = useState<"company" | "contact">("company");
-  const [targetId, setTargetId] = useState("");
+  const [companyDomain, setCompanyDomain] = useState("");
+  const [contactForm, setContactForm] = useState({ name: "", company: "", title: "" });
   const [result, setResult] = useState<any>(null);
 
   const researchMutation = useMutation({
-    mutationFn: async (data: { type: string; id: string }) => {
-      const res = await apiRequest("POST", `/api/intelligence/research/${data.type}/${data.id}`, {});
+    mutationFn: async (data: { type: string; target: string; body?: any }) => {
+      const res = await apiRequest("POST", `/api/intelligence/research/${data.type}/${encodeURIComponent(data.target)}`, data.body || {});
       return res.json();
     },
     onSuccess: (data: any) => {
@@ -787,6 +807,16 @@ function AIResearchTab() {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const handleResearch = () => {
+    if (researchType === "company") {
+      if (!companyDomain) return;
+      researchMutation.mutate({ type: "company", target: companyDomain });
+    } else {
+      if (!contactForm.name) return;
+      researchMutation.mutate({ type: "contact", target: contactForm.name, body: { company: contactForm.company, title: contactForm.title } });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-5">
@@ -795,28 +825,70 @@ function AIResearchTab() {
           AI-Powered Deep Research
         </h3>
         <p className="text-sm text-muted-foreground mb-4">
-          AI analyzes companies and contacts to find pain points, competitors, best approach angles, buyer personas, and icebreakers.
+          AI searches the web and analyzes companies and contacts to find pain points, competitors, best approach angles, buyer personas, and icebreakers.
         </p>
         <div className="flex gap-2 mb-4">
           <Button size="sm" variant={researchType === "company" ? "default" : "outline"} onClick={() => setResearchType("company")} data-testid="button-research-company">Company</Button>
           <Button size="sm" variant={researchType === "contact" ? "default" : "outline"} onClick={() => setResearchType("contact")} data-testid="button-research-contact">Contact</Button>
         </div>
-        <div className="flex gap-3">
-          <Input placeholder={`Enter ${researchType} profile ID`} value={targetId}
-            onChange={(e) => setTargetId(e.target.value)} className="flex-1" data-testid="input-research-id" />
-          <Button onClick={() => researchMutation.mutate({ type: researchType, id: targetId })} disabled={researchMutation.isPending || !targetId} data-testid="button-research-run">
-            {researchMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Brain className="w-4 h-4 mr-2" />}
-            Research
-          </Button>
-        </div>
+        {researchType === "company" ? (
+          <div className="flex gap-3">
+            <Input placeholder="Enter company domain (e.g. acme.com)" value={companyDomain}
+              onChange={(e) => setCompanyDomain(e.target.value)} className="flex-1" data-testid="input-research-domain" />
+            <Button onClick={handleResearch} disabled={researchMutation.isPending || !companyDomain} data-testid="button-research-run">
+              {researchMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Brain className="w-4 h-4 mr-2" />}
+              Research Company
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Full Name</Label>
+                <Input placeholder="e.g. John Smith" value={contactForm.name}
+                  onChange={(e) => setContactForm(f => ({ ...f, name: e.target.value }))} data-testid="input-research-name" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Company</Label>
+                <Input placeholder="e.g. Acme Corp" value={contactForm.company}
+                  onChange={(e) => setContactForm(f => ({ ...f, company: e.target.value }))} data-testid="input-research-company" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Title</Label>
+                <Input placeholder="e.g. VP of Sales" value={contactForm.title}
+                  onChange={(e) => setContactForm(f => ({ ...f, title: e.target.value }))} data-testid="input-research-title" />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={handleResearch} disabled={researchMutation.isPending || !contactForm.name} data-testid="button-research-run">
+                {researchMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Brain className="w-4 h-4 mr-2" />}
+                Research Contact
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
-      {result && (
+      {researchMutation.isPending && <LoadingCards count={2} />}
+
+      {result && !researchMutation.isPending && (
         <Card className="p-5">
           <h4 className="text-sm font-medium mb-3">Research Results</h4>
-          <pre className="text-xs text-muted-foreground whitespace-pre-wrap bg-muted/50 rounded-md p-3 overflow-auto max-h-96" data-testid="text-research-results">
-            {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
-          </pre>
+          {result.error ? (
+            <p className="text-sm text-destructive">{result.error}</p>
+          ) : (
+            <div className="space-y-4">
+              {result.name && <div><p className="text-sm font-medium">{result.name}</p><p className="text-xs text-muted-foreground">{result.description}</p></div>}
+              {result.industry && <div><Label className="text-xs text-muted-foreground">Industry</Label><p className="text-sm">{result.industry}{result.subIndustry ? ` / ${result.subIndustry}` : ""}</p></div>}
+              {result.keyProducts?.length > 0 && <div><Label className="text-xs text-muted-foreground">Key Products</Label><div className="flex flex-wrap gap-1 mt-1">{result.keyProducts.map((p: string, i: number) => <Badge key={i} variant="outline" className="text-xs">{p}</Badge>)}</div></div>}
+              {result.competitors?.length > 0 && <div><Label className="text-xs text-muted-foreground">Competitors</Label><div className="flex flex-wrap gap-1 mt-1">{result.competitors.map((c: string, i: number) => <Badge key={i} variant="outline" className="text-xs">{c}</Badge>)}</div></div>}
+              {result.painPoints?.length > 0 && <div><Label className="text-xs text-muted-foreground">Pain Points</Label><ul className="text-sm text-muted-foreground mt-1 list-disc pl-4">{result.painPoints.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>}
+              {result.bestApproachAngle && <div><Label className="text-xs text-muted-foreground">Best Approach</Label><p className="text-sm mt-1">{result.bestApproachAngle}</p></div>}
+              {result.talkingPoints?.length > 0 && <div><Label className="text-xs text-muted-foreground">Talking Points</Label><ul className="text-sm text-muted-foreground mt-1 list-disc pl-4">{result.talkingPoints.map((p: string, i: number) => <li key={i}>{p}</li>)}</ul></div>}
+              {result.icebreaker && <div><Label className="text-xs text-muted-foreground">Icebreaker</Label><p className="text-sm italic mt-1">"{result.icebreaker}"</p></div>}
+              {result.sources?.length > 0 && <div><Label className="text-xs text-muted-foreground">Sources</Label><div className="flex flex-col gap-1 mt-1">{result.sources.map((s: string, i: number) => <a key={i} href={s} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate">{s}</a>)}</div></div>}
+            </div>
+          )}
         </Card>
       )}
     </div>
@@ -969,7 +1041,7 @@ export default function SalesIntelligencePage() {
             <Search className="w-5 h-5 text-primary" />
             B2B Sales Intelligence
           </h1>
-          <p className="text-sm text-muted-foreground">Apollo.io-style prospecting, enrichment, and intent data</p>
+          <p className="text-sm text-muted-foreground">AI-powered prospecting with real web search, enrichment, and intent data</p>
         </div>
         <CreditsPanel />
       </div>

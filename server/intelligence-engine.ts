@@ -1,25 +1,6 @@
-// ============================================================
-// ARGILETTE B2B SALES INTELLIGENCE ENGINE
-// Drop this into: server/intelligence-engine.ts
-// Core logic: search, enrich, intent detection, tech scanning
-// ============================================================
+import OpenAI from "openai";
 
-import Anthropic from "@anthropic-ai/sdk";
-
-// ============================================================
-// INDUSTRY & TECHNOLOGY DATABASES
-// ============================================================
-
-const INDUSTRY_MAP: Record<string, string[]> = {
-  "Healthcare": ["Medical Billing", "Revenue Cycle Management", "Practice Management", "Telehealth", "EHR/EMR", "Dental", "Mental Health", "Physical Therapy", "Pharmacy", "Home Health"],
-  "Technology": ["SaaS", "Cloud", "AI/ML", "Cybersecurity", "DevOps", "Fintech", "EdTech", "HealthTech", "MarTech", "E-commerce"],
-  "Finance": ["Banking", "Insurance", "Investment", "Accounting", "Wealth Management", "Mortgage", "Credit Union"],
-  "Real Estate": ["Commercial", "Residential", "Property Management", "Construction", "Architecture"],
-  "Manufacturing": ["Automotive", "Aerospace", "Food & Beverage", "Pharmaceutical", "Electronics"],
-  "Professional Services": ["Legal", "Consulting", "Marketing Agency", "Staffing", "IT Services"],
-  "Education": ["K-12", "Higher Education", "EdTech", "Training", "E-Learning"],
-  "Retail": ["E-commerce", "Brick & Mortar", "Fashion", "Consumer Goods", "Grocery"],
-};
+const OPENAI_MODEL = "gpt-4o-mini";
 
 const TECH_DATABASE: Record<string, { category: string; competitors: string[] }> = {
   "Salesforce": { category: "CRM", competitors: ["HubSpot", "Zoho CRM", "Pipedrive"] },
@@ -77,370 +58,722 @@ const JOB_TITLE_DEPARTMENTS: Record<string, string> = {
   "medical director": "executive", "physician": "operations", "nurse": "operations",
 };
 
-// ============================================================
-// INTELLIGENCE ENGINE CLASS
-// ============================================================
+async function tavilySearchRaw(query: string): Promise<any> {
+  const apiKey = process.env.TAVILY_API_KEY;
+  if (!apiKey) throw new Error("Tavily API key not configured");
+  const response = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: apiKey,
+      query,
+      search_depth: "advanced",
+      max_results: 10,
+      include_answer: true,
+    }),
+  });
+  if (!response.ok) throw new Error(`Tavily search failed: ${response.status}`);
+  return response.json();
+}
+
+function getOpenAI(): OpenAI | null {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return null;
+  return new OpenAI({ apiKey: key });
+}
+
+async function aiExtract(systemPrompt: string, userPrompt: string): Promise<any> {
+  const openai = getOpenAI();
+  if (!openai) throw new Error("OpenAI API key not configured");
+  const response = await openai.chat.completions.create({
+    model: OPENAI_MODEL,
+    max_tokens: 4096,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    response_format: { type: "json_object" },
+  });
+  const text = response.choices[0]?.message?.content || "{}";
+  return JSON.parse(text);
+}
 
 export class IntelligenceEngine {
 
-  // ── PEOPLE SEARCH ─────────────────────────────────────────
-
-  searchPeople(filters: {
-    jobTitle?: string;
-    seniorityLevel?: string[];
-    department?: string[];
-    companyName?: string;
-    industry?: string;
-    employeeRange?: string[];
-    revenueRange?: string[];
-    location?: { city?: string; state?: string; country?: string };
-    technologies?: string[];
-    keywords?: string;
-    hasEmail?: boolean;
-    hasPhone?: boolean;
-    page?: number;
-    limit?: number;
-  }): { results: any[]; total: number; page: number; pages: number; filters: any } {
-    // In production: query contactProfiles + companyProfiles with full-text search
-    // For now: AI-powered generation based on filters
-
-    const limit = filters.limit || 25;
+  async searchPeople(filters: {
+    jobTitle?: string; seniority?: string; department?: string;
+    company?: string; industry?: string; location?: string;
+    limit?: number; page?: number;
+  }): Promise<{ results: any[]; total: number; page: number; pages: number; source: string }> {
+    const limit = filters.limit || 10;
     const page = filters.page || 1;
 
-    // Generate realistic results based on filters
-    const results = this.generatePeopleResults(filters, limit);
+    const parts: string[] = [];
+    if (filters.jobTitle) parts.push(filters.jobTitle);
+    if (filters.seniority) parts.push(`${filters.seniority} level`);
+    if (filters.department) parts.push(`${filters.department} department`);
+    if (filters.company) parts.push(`at ${filters.company}`);
+    if (filters.industry) parts.push(`in ${filters.industry} industry`);
+    if (filters.location) parts.push(`located in ${filters.location}`);
 
-    return {
-      results,
-      total: 150 + Math.floor(Math.random() * 500), // Simulated total
-      page,
-      pages: Math.ceil(650 / limit),
-      filters,
-    };
+    if (parts.length === 0) {
+      return { results: [], total: 0, page, pages: 0, source: "none" };
+    }
+
+    const searchQuery = `Find business professionals: ${parts.join(", ")}. LinkedIn profiles, company websites, team pages.`;
+
+    try {
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
+      ].join("\n\n");
+
+      const result = await aiExtract(
+        `You are a B2B sales intelligence data extractor. Extract real professional contacts from web search results. Return ONLY real people with real information found in the search results. Do NOT fabricate any data. If you cannot find real people, return an empty array. Never use example.com, fake phone numbers, or made-up names.`,
+        `From these web search results, extract real business contacts matching: ${parts.join(", ")}.
+
+Search Results:
+${searchContent}
+
+Return JSON:
+{
+  "contacts": [
+    {
+      "firstName": "real first name",
+      "lastName": "real last name",
+      "fullName": "full name",
+      "jobTitle": "their actual job title",
+      "companyName": "real company name",
+      "companyDomain": "company website domain",
+      "location": "city, state if available",
+      "industry": "their industry",
+      "linkedinUrl": "linkedin URL if found",
+      "email": "email if publicly available, otherwise null",
+      "phone": "phone if publicly available, otherwise null",
+      "source": "where this info was found",
+      "summary": "1-2 sentence summary of this person"
+    }
+  ],
+  "totalEstimated": number of total possible matches
+}
+
+CRITICAL: Only include people you actually found in the search results. Real names, real companies. If the search returned no relevant people, return {"contacts": [], "totalEstimated": 0}.`
+      );
+
+      const contacts = (result.contacts || []).map((c: any, i: number) => ({
+        id: `si_${Date.now()}_${i}`,
+        firstName: c.firstName || "",
+        lastName: c.lastName || "",
+        fullName: c.fullName || `${c.firstName} ${c.lastName}`,
+        jobTitle: c.jobTitle || "",
+        seniorityLevel: this.classifySeniority(c.jobTitle || ""),
+        department: this.classifyDepartment(c.jobTitle || ""),
+        companyName: c.companyName || "",
+        companyDomain: c.companyDomain || "",
+        workEmail: c.email || null,
+        directPhone: c.phone || null,
+        linkedinUrl: c.linkedinUrl || null,
+        city: c.location?.split(",")[0]?.trim() || "",
+        state: c.location?.split(",")[1]?.trim() || "",
+        country: "US",
+        industry: c.industry || filters.industry || "",
+        summary: c.summary || "",
+        source: c.source || "web search",
+        dataQualityScore: c.email ? 85 : 65,
+      }));
+
+      return {
+        results: contacts.slice(0, limit),
+        total: result.totalEstimated || contacts.length,
+        page,
+        pages: Math.ceil((result.totalEstimated || contacts.length) / limit),
+        source: "ai_web_search",
+      };
+    } catch (err: any) {
+      console.error("[Intelligence] People search error:", err.message);
+      return { results: [], total: 0, page, pages: 0, source: "error" };
+    }
   }
 
-  // ── COMPANY SEARCH ────────────────────────────────────────
-
-  searchCompanies(filters: {
-    name?: string;
-    industry?: string;
-    subIndustry?: string;
-    employeeRange?: string[];
-    revenueRange?: string[];
-    location?: { city?: string; state?: string; country?: string };
-    technologies?: string[];
-    fundingStage?: string[];
-    companyType?: string[];
-    keywords?: string;
-    hasIntent?: boolean;
-    page?: number;
-    limit?: number;
-  }): { results: any[]; total: number; page: number; pages: number } {
-    const limit = filters.limit || 25;
+  async searchCompanies(filters: {
+    name?: string; industry?: string; location?: string;
+    minEmployees?: string; maxEmployees?: string;
+    limit?: number; page?: number;
+  }): Promise<{ results: any[]; total: number; page: number; pages: number; source: string }> {
+    const limit = filters.limit || 10;
     const page = filters.page || 1;
 
-    const results = this.generateCompanyResults(filters, limit);
-
-    return {
-      results,
-      total: 80 + Math.floor(Math.random() * 300),
-      page,
-      pages: Math.ceil(380 / limit),
-    };
-  }
-
-  // ── CONTACT ENRICHMENT ────────────────────────────────────
-
-  enrichContact(data: { email?: string; name?: string; company?: string; linkedinUrl?: string }): any {
-    // In production: call Apollo/Clearbit/Lusha/RocketReach APIs in waterfall
-    const domain = data.email?.split("@")[1] || data.company?.toLowerCase().replace(/\s+/g, "") + ".com";
-    const firstName = data.name?.split(" ")[0] || "Unknown";
-    const lastName = data.name?.split(" ").slice(1).join(" ") || "";
-
-    return {
-      firstName, lastName, fullName: data.name || `${firstName} ${lastName}`,
-      workEmail: data.email || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${domain}`,
-      emailVerified: Math.random() < 0.85,
-      emailConfidence: 75 + Math.floor(Math.random() * 25),
-      directPhone: Math.random() < 0.6 ? `+1${Math.floor(2000000000 + Math.random() * 8000000000)}` : null,
-      mobilePhone: Math.random() < 0.4 ? `+1${Math.floor(2000000000 + Math.random() * 8000000000)}` : null,
-      jobTitle: this.inferJobTitle(data),
-      seniorityLevel: "manager",
-      department: "operations",
-      companyName: data.company || domain?.split(".")[0] || "Unknown",
-      companyDomain: domain,
-      linkedinUrl: data.linkedinUrl || `https://linkedin.com/in/${firstName.toLowerCase()}-${lastName.toLowerCase()}`,
-      city: "New York", state: "NY", country: "US",
-      bio: `Experienced professional at ${data.company || "their organization"}.`,
-      skills: ["Operations", "Team Management", "Process Improvement"],
-      dataQualityScore: 65 + Math.floor(Math.random() * 30),
-      dataSource: "enrichment",
-    };
-  }
-
-  // ── COMPANY ENRICHMENT ────────────────────────────────────
-
-  enrichCompany(data: { domain?: string; name?: string }): any {
-    // In production: call Clearbit Company API / Apollo / ZoomInfo
-    const domain = data.domain || data.name?.toLowerCase().replace(/\s+/g, "") + ".com";
-    const name = data.name || domain?.split(".")[0] || "Unknown";
-
-    const industries = Object.keys(INDUSTRY_MAP);
-    const industry = industries[Math.floor(Math.random() * industries.length)];
-    const subIndustries = INDUSTRY_MAP[industry];
-
-    return {
-      name, domain, description: `${name} is a leading ${industry.toLowerCase()} company.`,
-      industry, subIndustry: subIndustries[Math.floor(Math.random() * subIndustries.length)],
-      employeeCount: 10 + Math.floor(Math.random() * 500),
-      employeeRange: "51-200",
-      annualRevenue: 1000000 + Math.floor(Math.random() * 50000000),
-      revenueRange: "1-10M",
-      foundedYear: 2000 + Math.floor(Math.random() * 23),
-      companyType: "private",
-      headquarters: "New York, NY",
-      hqCity: "New York", hqState: "NY", hqCountry: "US",
-      linkedinUrl: `https://linkedin.com/company/${domain?.split(".")[0]}`,
-      websiteUrl: `https://${domain}`,
-      mainPhone: `+1${Math.floor(2000000000 + Math.random() * 8000000000)}`,
-      techStack: this.detectTechStack(domain || ""),
-      employeeGrowth6m: -5 + Math.floor(Math.random() * 30),
-      dataSource: "enrichment",
-    };
-  }
-
-  // ── EMAIL FINDER ──────────────────────────────────────────
-
-  findEmail(firstName: string, lastName: string, domain: string): {
-    email: string; confidence: number; pattern: string; alternatives: { email: string; confidence: number }[];
-  } {
-    // In production: Hunter.io / Apollo / Snov.io waterfall
-    const patterns = [
-      { pattern: "first.last", email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${domain}`, confidence: 92 },
-      { pattern: "firstlast", email: `${firstName.toLowerCase()}${lastName.toLowerCase()}@${domain}`, confidence: 78 },
-      { pattern: "first_last", email: `${firstName.toLowerCase()}_${lastName.toLowerCase()}@${domain}`, confidence: 65 },
-      { pattern: "flast", email: `${firstName[0].toLowerCase()}${lastName.toLowerCase()}@${domain}`, confidence: 60 },
-      { pattern: "first", email: `${firstName.toLowerCase()}@${domain}`, confidence: 45 },
-    ];
-
-    const best = patterns[0];
-    return {
-      email: best.email,
-      confidence: best.confidence,
-      pattern: best.pattern,
-      alternatives: patterns.slice(1).map(p => ({ email: p.email, confidence: p.confidence })),
-    };
-  }
-
-  // ── PHONE FINDER ──────────────────────────────────────────
-
-  findPhone(contactId: string, name: string, company: string): {
-    directPhone: string | null; mobilePhone: string | null; companyPhone: string | null; confidence: number;
-  } {
-    // In production: ZoomInfo / Lusha / Cognism waterfall
-    const hasDirect = Math.random() < 0.5;
-    const hasMobile = Math.random() < 0.35;
-
-    return {
-      directPhone: hasDirect ? `+1${Math.floor(2000000000 + Math.random() * 8000000000)}` : null,
-      mobilePhone: hasMobile ? `+1${Math.floor(2000000000 + Math.random() * 8000000000)}` : null,
-      companyPhone: `+1${Math.floor(2000000000 + Math.random() * 8000000000)}`,
-      confidence: hasDirect ? 85 : hasMobile ? 70 : 50,
-    };
-  }
-
-  // ── INTENT DATA DETECTION ─────────────────────────────────
-
-  detectIntent(companyDomain: string, topics: string[]): any[] {
-    // In production: Bombora / G2 / TrustRadius intent data APIs
-    const signals: any[] = [];
-    const signalTypes = ["content_consumption", "job_posting", "tech_install", "hiring_surge", "expansion"];
-    const sources = ["g2", "capterra", "linkedin", "indeed", "web", "technews"];
-
-    for (const topic of topics) {
-      if (Math.random() < 0.6) { // 60% chance of signal per topic
-        signals.push({
-          companyDomain,
-          topicCategory: topic,
-          signalType: signalTypes[Math.floor(Math.random() * signalTypes.length)],
-          signalStrength: Math.random() < 0.3 ? "high" : Math.random() < 0.6 ? "medium" : "low",
-          score: 30 + Math.floor(Math.random() * 70),
-          source: sources[Math.floor(Math.random() * sources.length)],
-          evidence: `${companyDomain} showing strong ${topic} research activity`,
-          detectedAt: new Date(),
-          expiresAt: new Date(Date.now() + 30 * 86400000), // 30 day decay
-        });
-      }
+    const parts: string[] = [];
+    if (filters.name) parts.push(`company name "${filters.name}"`);
+    if (filters.industry) parts.push(`in ${filters.industry} industry`);
+    if (filters.location) parts.push(`located in ${filters.location}`);
+    if (filters.minEmployees || filters.maxEmployees) {
+      parts.push(`with ${filters.minEmployees || "1"}-${filters.maxEmployees || "10000"} employees`);
     }
 
-    return signals;
-  }
-
-  // ── TECHNOGRAPHIC SCANNING ────────────────────────────────
-
-  detectTechStack(domain: string): string[] {
-    // In production: BuiltWith / Wappalyzer / HG Insights APIs
-    const allTechs = Object.keys(TECH_DATABASE);
-    const count = 3 + Math.floor(Math.random() * 8);
-    const stack: string[] = [];
-
-    for (let i = 0; i < count; i++) {
-      const tech = allTechs[Math.floor(Math.random() * allTechs.length)];
-      if (!stack.includes(tech)) stack.push(tech);
+    if (parts.length === 0) {
+      return { results: [], total: 0, page, pages: 0, source: "none" };
     }
 
-    return stack;
+    const searchQuery = `Find real businesses and companies: ${parts.join(", ")}. Company websites, business directories, LinkedIn company pages.`;
+
+    try {
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
+      ].join("\n\n");
+
+      const result = await aiExtract(
+        `You are a B2B company intelligence extractor. Extract real company information from web search results. Return ONLY real companies with verified information. Do NOT fabricate any data.`,
+        `From these search results, extract real companies matching: ${parts.join(", ")}.
+
+Search Results:
+${searchContent}
+
+Return JSON:
+{
+  "companies": [
+    {
+      "name": "real company name",
+      "domain": "company website domain",
+      "description": "what the company does",
+      "industry": "primary industry",
+      "subIndustry": "specific niche",
+      "location": "headquarters location",
+      "employeeCount": estimated number or null,
+      "employeeRange": "range like 11-50",
+      "website": "full website URL",
+      "phone": "company phone if found",
+      "yearFounded": year or null,
+      "source": "where info was found"
+    }
+  ],
+  "totalEstimated": number
+}
+
+CRITICAL: Only include companies you actually found. Real names, real websites. No fabricated data.`
+      );
+
+      const companies = (result.companies || []).map((c: any, i: number) => ({
+        id: `co_${Date.now()}_${i}`,
+        name: c.name || "",
+        domain: c.domain || "",
+        description: c.description || "",
+        industry: c.industry || filters.industry || "",
+        subIndustry: c.subIndustry || "",
+        location: c.location || "",
+        employeeCount: c.employeeCount || null,
+        employeeRange: c.employeeRange || "",
+        website: c.website || (c.domain ? `https://${c.domain}` : ""),
+        phone: c.phone || null,
+        foundedYear: c.yearFounded || null,
+        companyType: "private",
+        source: c.source || "web search",
+      }));
+
+      return {
+        results: companies.slice(0, limit),
+        total: result.totalEstimated || companies.length,
+        page,
+        pages: Math.ceil((result.totalEstimated || companies.length) / limit),
+        source: "ai_web_search",
+      };
+    } catch (err: any) {
+      console.error("[Intelligence] Company search error:", err.message);
+      return { results: [], total: 0, page, pages: 0, source: "error" };
+    }
+  }
+
+  async enrichContact(data: { email?: string; name?: string; company?: string; linkedinUrl?: string }): Promise<any> {
+    const searchQuery = `${data.name || ""} ${data.company || ""} ${data.email || ""} professional profile LinkedIn`;
+
+    try {
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `${r.title}: ${r.content || ""} (${r.url})`)
+      ].join("\n\n");
+
+      const result = await aiExtract(
+        `You are a contact enrichment specialist. Extract real professional information from search results. Only return verified data found in the results.`,
+        `Enrich this contact using the search results below:
+Name: ${data.name || "Unknown"}
+Email: ${data.email || "Unknown"}
+Company: ${data.company || "Unknown"}
+
+Search Results:
+${searchContent}
+
+Return JSON with only data you can verify from the search:
+{
+  "firstName": "", "lastName": "", "fullName": "",
+  "jobTitle": "actual title found or best guess",
+  "seniorityLevel": "c_suite|vp|director|manager|senior|individual",
+  "department": "department name",
+  "companyName": "", "companyDomain": "",
+  "workEmail": "verified email or null",
+  "directPhone": "phone if found or null",
+  "linkedinUrl": "LinkedIn URL if found or null",
+  "city": "", "state": "", "country": "",
+  "bio": "short professional summary",
+  "skills": ["skill1", "skill2"],
+  "dataSource": "web_search_enrichment",
+  "dataQualityScore": 0-100 based on how much real data was found
+}`
+      );
+
+      return {
+        firstName: result.firstName || data.name?.split(" ")[0] || "",
+        lastName: result.lastName || data.name?.split(" ").slice(1).join(" ") || "",
+        fullName: result.fullName || data.name || "",
+        workEmail: result.workEmail || data.email || null,
+        emailVerified: !!result.workEmail,
+        emailConfidence: result.workEmail ? 80 : 0,
+        directPhone: result.directPhone || null,
+        mobilePhone: null,
+        jobTitle: result.jobTitle || "Professional",
+        seniorityLevel: result.seniorityLevel || "individual",
+        department: result.department || "operations",
+        companyName: result.companyName || data.company || "",
+        companyDomain: result.companyDomain || "",
+        linkedinUrl: result.linkedinUrl || data.linkedinUrl || null,
+        city: result.city || "",
+        state: result.state || "",
+        country: result.country || "US",
+        bio: result.bio || "",
+        skills: result.skills || [],
+        dataQualityScore: result.dataQualityScore || 50,
+        dataSource: "web_search_enrichment",
+        lastEnrichedAt: new Date(),
+      };
+    } catch (err: any) {
+      console.error("[Intelligence] Enrich contact error:", err.message);
+      const domain = data.email?.split("@")[1] || "";
+      return {
+        firstName: data.name?.split(" ")[0] || "", lastName: data.name?.split(" ").slice(1).join(" ") || "",
+        fullName: data.name || "", workEmail: data.email || null, emailVerified: false, emailConfidence: 0,
+        directPhone: null, mobilePhone: null, jobTitle: "Professional", seniorityLevel: "individual",
+        department: "operations", companyName: data.company || "", companyDomain: domain,
+        linkedinUrl: null, city: "", state: "", country: "US", bio: "", skills: [],
+        dataQualityScore: 20, dataSource: "fallback", lastEnrichedAt: new Date(),
+      };
+    }
+  }
+
+  async enrichCompany(data: { domain?: string; name?: string }): Promise<any> {
+    const searchQuery = `"${data.name || data.domain}" company profile employees industry revenue`;
+
+    try {
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `${r.title}: ${r.content || ""} (${r.url})`)
+      ].join("\n\n");
+
+      const result = await aiExtract(
+        `You are a company intelligence analyst. Extract real company data from search results. Only include verified information.`,
+        `Research this company using the search results:
+Name: ${data.name || "Unknown"}
+Domain: ${data.domain || "Unknown"}
+
+Search Results:
+${searchContent}
+
+Return JSON:
+{
+  "name": "", "domain": "", "description": "what the company does",
+  "industry": "", "subIndustry": "",
+  "employeeCount": number or null, "employeeRange": "",
+  "annualRevenue": number or null, "revenueRange": "",
+  "foundedYear": number or null, "companyType": "private|public",
+  "headquarters": "city, state", "hqCity": "", "hqState": "", "hqCountry": "",
+  "linkedinUrl": "", "websiteUrl": "", "mainPhone": "",
+  "techStack": ["technologies they use"],
+  "dataSource": "web_search_enrichment"
+}`
+      );
+
+      return {
+        name: result.name || data.name || "", domain: result.domain || data.domain || "",
+        description: result.description || "", industry: result.industry || "",
+        subIndustry: result.subIndustry || "", employeeCount: result.employeeCount || null,
+        employeeRange: result.employeeRange || "", annualRevenue: result.annualRevenue || null,
+        revenueRange: result.revenueRange || "", foundedYear: result.foundedYear || null,
+        companyType: result.companyType || "private", headquarters: result.headquarters || "",
+        hqCity: result.hqCity || "", hqState: result.hqState || "", hqCountry: result.hqCountry || "US",
+        linkedinUrl: result.linkedinUrl || "", websiteUrl: result.websiteUrl || `https://${data.domain || ""}`,
+        mainPhone: result.mainPhone || "", techStack: result.techStack || [],
+        dataSource: "web_search_enrichment", lastEnrichedAt: new Date(),
+      };
+    } catch (err: any) {
+      console.error("[Intelligence] Enrich company error:", err.message);
+      return {
+        name: data.name || "", domain: data.domain || "", description: "",
+        industry: "", subIndustry: "", employeeCount: null, employeeRange: "",
+        annualRevenue: null, revenueRange: "", foundedYear: null, companyType: "private",
+        headquarters: "", hqCity: "", hqState: "", hqCountry: "US",
+        linkedinUrl: "", websiteUrl: `https://${data.domain || ""}`, mainPhone: "",
+        techStack: [], dataSource: "fallback", lastEnrichedAt: new Date(),
+      };
+    }
+  }
+
+  async findEmail(firstName: string, lastName: string, domain: string): Promise<any> {
+    const searchQuery = `"${firstName} ${lastName}" "${domain}" email contact`;
+
+    try {
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `${r.title}: ${r.content || ""} (${r.url})`)
+      ].join("\n\n");
+
+      const result = await aiExtract(
+        `You are an email finder specialist. Find real email addresses from search results and determine the most likely email pattern for the company domain.`,
+        `Find the email address for ${firstName} ${lastName} at ${domain}.
+
+Search Results:
+${searchContent}
+
+Analyze the company's email pattern and return JSON:
+{
+  "email": "most likely real email address",
+  "confidence": 0-100,
+  "pattern": "pattern used (e.g. first.last, flast, firstl)",
+  "foundInSearch": true if email was directly found in results,
+  "alternatives": [
+    {"email": "alternative@domain.com", "confidence": 0-100}
+  ],
+  "source": "where the email or pattern was found"
+}
+
+Generate likely patterns: first.last@domain, firstlast@domain, flast@domain, first_last@domain, first@domain. Rank by what's most common for this company/industry.`
+      );
+
+      return {
+        email: result.email || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${domain}`,
+        confidence: result.confidence || (result.foundInSearch ? 95 : 70),
+        pattern: result.pattern || "first.last",
+        alternatives: result.alternatives || [],
+        source: result.source || "ai_pattern_analysis",
+      };
+    } catch (err: any) {
+      const patterns = [
+        { pattern: "first.last", email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${domain}`, confidence: 75 },
+        { pattern: "flast", email: `${firstName[0]?.toLowerCase() || ""}${lastName.toLowerCase()}@${domain}`, confidence: 60 },
+        { pattern: "first_last", email: `${firstName.toLowerCase()}_${lastName.toLowerCase()}@${domain}`, confidence: 50 },
+      ];
+      return {
+        email: patterns[0].email, confidence: patterns[0].confidence,
+        pattern: patterns[0].pattern, alternatives: patterns.slice(1),
+        source: "pattern_generation",
+      };
+    }
+  }
+
+  async findPhone(name: string, company: string): Promise<any> {
+    const searchQuery = `"${name}" "${company}" phone number contact`;
+
+    try {
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `${r.title}: ${r.content || ""} (${r.url})`)
+      ].join("\n\n");
+
+      const result = await aiExtract(
+        `You are a phone number finder. Extract real phone numbers from search results. Only return numbers you actually found.`,
+        `Find phone numbers for ${name} at ${company}.
+
+Search Results:
+${searchContent}
+
+Return JSON:
+{
+  "phones": [
+    {"number": "+1XXXXXXXXXX", "type": "direct|mobile|office|main", "confidence": 0-100, "source": "where found"}
+  ]
+}
+
+CRITICAL: Only include phone numbers actually found in the search results. Do not fabricate numbers.`
+      );
+
+      return {
+        phones: result.phones || [],
+        source: "web_search",
+      };
+    } catch (err: any) {
+      return { phones: [], source: "error" };
+    }
+  }
+
+  async detectIntent(companyDomain: string, topics: string[]): Promise<any[]> {
+    const searchQuery = `"${companyDomain}" ${topics.join(" ")} hiring expansion product launch news`;
+
+    try {
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `${r.title}: ${r.content || ""} (${r.url})`)
+      ].join("\n\n");
+
+      const result = await aiExtract(
+        `You are a buying intent analyst. Detect real buying signals from web search results about a company.`,
+        `Analyze buying intent signals for ${companyDomain} related to topics: ${topics.join(", ")}.
+
+Search Results:
+${searchContent}
+
+Return JSON:
+{
+  "signals": [
+    {
+      "companyDomain": "${companyDomain}",
+      "companyName": "company name from results",
+      "topicCategory": "which topic this relates to",
+      "signalType": "hiring|expansion|tech_evaluation|content_consumption|event_attendance",
+      "signalStrength": "high|medium|low",
+      "score": 0-100,
+      "source": "where signal was found",
+      "evidence": "specific evidence text from search results",
+      "detectedAt": "current date ISO string"
+    }
+  ]
+}
+
+CRITICAL: Only report signals actually evidenced in search results.`
+      );
+
+      return (result.signals || []).map((s: any) => ({
+        ...s,
+        companyDomain,
+        detectedAt: new Date(),
+        expiresAt: new Date(Date.now() + 30 * 86400000),
+      }));
+    } catch (err: any) {
+      console.error("[Intelligence] Intent detection error:", err.message);
+      return [];
+    }
+  }
+
+  async detectTechStack(domain: string): Promise<string[]> {
+    const searchQuery = `"${domain}" technology stack tools software platform`;
+
+    try {
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `${r.title}: ${r.content || ""} (${r.url})`)
+      ].join("\n\n");
+
+      const result = await aiExtract(
+        `You are a technographics analyst. Identify real technologies used by a company from search results.`,
+        `What technologies, tools, and platforms does ${domain} use?
+
+Search Results:
+${searchContent}
+
+Return JSON:
+{
+  "technologies": ["tech1", "tech2", "tech3"]
+}
+
+Only list technologies you can confirm from the search results.`
+      );
+
+      return result.technologies || [];
+    } catch (err: any) {
+      return [];
+    }
   }
 
   getTechDetails(technology: string): { category: string; competitors: string[] } | null {
     return TECH_DATABASE[technology] || null;
   }
 
-  // ── ORG CHART BUILDING ────────────────────────────────────
+  async buildOrgChart(companyName: string, companyId: string): Promise<any[]> {
+    const searchQuery = `"${companyName}" leadership team executives management LinkedIn`;
 
-  buildOrgChart(companyName: string, companyId: string): any[] {
-    // In production: ZoomInfo / Apollo org chart API
-    const departments = ["Executive", "Sales", "Marketing", "Operations", "Finance", "Engineering"];
-    const chart: any[] = [];
-
-    // CEO
-    chart.push({
-      companyId, name: `CEO of ${companyName}`, title: "Chief Executive Officer",
-      department: "Executive", seniorityLevel: "c_suite", level: 0,
-      isDecisionMaker: true, isBudgetHolder: true, isInfluencer: true,
-      email: `ceo@${companyName.toLowerCase().replace(/\s+/g, "")}.com`,
-    });
-
-    // C-Suite
-    const cSuite = [
-      { title: "Chief Financial Officer", dept: "Finance" },
-      { title: "Chief Operating Officer", dept: "Operations" },
-      { title: "Chief Technology Officer", dept: "Engineering" },
-    ];
-    for (const exec of cSuite) {
-      chart.push({
-        companyId, name: `${exec.dept} Lead`, title: exec.title,
-        department: exec.dept, seniorityLevel: "c_suite", level: 1,
-        reportsToId: chart[0].id, isDecisionMaker: true, isBudgetHolder: true, isInfluencer: true,
-      });
-    }
-
-    // Directors
-    for (const dept of departments.slice(1)) {
-      chart.push({
-        companyId, name: `${dept} Director`, title: `Director of ${dept}`,
-        department: dept, seniorityLevel: "director", level: 2,
-        isDecisionMaker: true, isBudgetHolder: false, isInfluencer: true,
-      });
-    }
-
-    return chart;
-  }
-
-  // ── COMPANY NEWS & EVENTS ─────────────────────────────────
-
-  getCompanyEvents(companyDomain: string): any[] {
-    // In production: Google News API / Crunchbase / PitchBook
-    const eventTypes = ["funding", "expansion", "leadership_change", "product_launch", "partnership", "hiring_surge"];
-    const events: any[] = [];
-
-    const count = 1 + Math.floor(Math.random() * 4);
-    for (let i = 0; i < count; i++) {
-      const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-      const daysAgo = Math.floor(Math.random() * 90);
-      events.push({
-        companyDomain,
-        eventType,
-        title: this.generateEventTitle(companyDomain, eventType),
-        summary: `Recent ${eventType.replace("_", " ")} activity detected for ${companyDomain}.`,
-        eventDate: new Date(Date.now() - daysAgo * 86400000),
-        relevanceScore: 40 + Math.floor(Math.random() * 60),
-      });
-    }
-
-    return events.sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime());
-  }
-
-  // ── AI-POWERED PROSPECT RESEARCH ──────────────────────────
-
-  async aiResearchCompany(domain: string, anthropicKey: string): Promise<any> {
     try {
-      const client = new Anthropic({ apiKey: anthropicKey });
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `${r.title}: ${r.content || ""} (${r.url})`)
+      ].join("\n\n");
 
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1500,
-        system: "You are a B2B sales intelligence researcher. Return ONLY valid JSON.",
-        messages: [{
-          role: "user",
-          content: `Research the company at ${domain}. Return JSON with:
+      const result = await aiExtract(
+        `You are an organizational structure analyst. Extract real leadership and team structure from search results.`,
+        `Find the leadership team and org structure for ${companyName}.
+
+Search Results:
+${searchContent}
+
+Return JSON:
+{
+  "entries": [
+    {
+      "name": "real person name",
+      "title": "their job title",
+      "department": "their department",
+      "seniorityLevel": "c_suite|vp|director|manager|senior",
+      "level": 0 for CEO, 1 for C-suite, 2 for VPs, 3 for directors,
+      "isDecisionMaker": true/false,
+      "isBudgetHolder": true/false,
+      "isInfluencer": true/false,
+      "linkedinUrl": "LinkedIn URL if found"
+    }
+  ]
+}
+
+CRITICAL: Only include real people found in search results.`
+      );
+
+      return (result.entries || []).map((e: any) => ({
+        companyId,
+        name: e.name || "",
+        title: e.title || "",
+        department: e.department || "",
+        seniorityLevel: e.seniorityLevel || "individual",
+        level: e.level ?? 3,
+        isDecisionMaker: e.isDecisionMaker || false,
+        isBudgetHolder: e.isBudgetHolder || false,
+        isInfluencer: e.isInfluencer || false,
+        linkedinUrl: e.linkedinUrl || null,
+      }));
+    } catch (err: any) {
+      console.error("[Intelligence] Org chart error:", err.message);
+      return [];
+    }
+  }
+
+  async getCompanyEvents(companyDomain: string): Promise<any[]> {
+    const searchQuery = `"${companyDomain}" recent news funding expansion partnership announcement`;
+
+    try {
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `${r.title}: ${r.content || ""} (${r.url})`)
+      ].join("\n\n");
+
+      const result = await aiExtract(
+        `You are a company events analyst. Extract real recent events and news about a company from search results.`,
+        `Find recent news and events for the company at ${companyDomain}.
+
+Search Results:
+${searchContent}
+
+Return JSON:
+{
+  "events": [
+    {
+      "eventType": "funding|expansion|leadership_change|product_launch|partnership|hiring_surge|acquisition|award",
+      "title": "event headline",
+      "summary": "2-3 sentence summary",
+      "eventDate": "ISO date string if known",
+      "sourceUrl": "source URL",
+      "relevanceScore": 0-100
+    }
+  ]
+}
+
+CRITICAL: Only include events actually found in search results.`
+      );
+
+      return (result.events || []).map((e: any) => ({
+        companyDomain,
+        eventType: e.eventType || "news",
+        title: e.title || "",
+        summary: e.summary || "",
+        eventDate: e.eventDate ? new Date(e.eventDate) : new Date(),
+        sourceUrl: e.sourceUrl || "",
+        relevanceScore: e.relevanceScore || 50,
+      }));
+    } catch (err: any) {
+      console.error("[Intelligence] Events error:", err.message);
+      return [];
+    }
+  }
+
+  async aiResearchCompany(domain: string): Promise<any> {
+    const searchQuery = `"${domain}" company profile products services competitors target market`;
+
+    try {
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `Source: ${r.url}\n${r.title}: ${r.content || ""}`)
+      ].join("\n\n");
+
+      return await aiExtract(
+        `You are an expert B2B sales intelligence researcher. Provide deep, actionable research about companies to help sales teams. Base your analysis on the search results provided.`,
+        `Deep research the company at ${domain} for B2B sales approach.
+
+Search Results:
+${searchContent}
+
+Return comprehensive JSON:
 {
   "name": "Company Name",
-  "description": "What they do in 1-2 sentences",
+  "description": "What they do in 2-3 sentences",
   "industry": "Primary industry",
   "subIndustry": "Specific niche",
-  "estimatedEmployees": "employee range like 51-200",
-  "estimatedRevenue": "revenue range like 10-50M",
+  "estimatedEmployees": "range like 51-200",
+  "estimatedRevenue": "range like 10-50M",
   "keyProducts": ["product1", "product2"],
   "targetMarket": "Who they sell to",
   "competitors": ["competitor1", "competitor2"],
-  "recentNews": "Any notable recent activity",
+  "recentNews": "Notable recent activity",
   "painPoints": ["potential pain point 1", "potential pain point 2"],
-  "decisionMakers": [{"title": "CEO", "department": "Executive"}, {"title": "VP of Operations", "department": "Operations"}],
-  "bestApproachAngle": "How to position your pitch to this company"
-}
-Only return the JSON, nothing else.`
-        }],
-      });
-
-      const text = response.content[0].type === "text" ? response.content[0].text : "{}";
-      return JSON.parse(text.replace(/```json?|```/g, "").trim());
+  "decisionMakers": [{"title": "title", "department": "dept"}],
+  "bestApproachAngle": "How to position your pitch",
+  "sources": ["url1", "url2"]
+}`
+      );
     } catch (err: any) {
-      console.error(`[Intelligence] AI research error:`, err.message);
-      return null;
+      console.error("[Intelligence] AI company research error:", err.message);
+      return { error: "Research failed: " + err.message };
     }
   }
 
-  async aiResearchContact(name: string, company: string, title: string, anthropicKey: string): Promise<any> {
+  async aiResearchContact(name: string, company: string, title: string): Promise<any> {
+    const searchQuery = `"${name}" "${company}" ${title} professional profile`;
+
     try {
-      const client = new Anthropic({ apiKey: anthropicKey });
+      const searchData = await tavilySearchRaw(searchQuery);
+      const searchContent = [
+        searchData.answer || "",
+        ...(searchData.results || []).map((r: any) => `Source: ${r.url}\n${r.title}: ${r.content || ""}`)
+      ].join("\n\n");
 
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system: "You are a B2B sales intelligence researcher. Return ONLY valid JSON.",
-        messages: [{
-          role: "user",
-          content: `Research this person for a sales approach:
-Name: ${name}
-Company: ${company}
-Title: ${title}
+      return await aiExtract(
+        `You are a B2B sales intelligence researcher specializing in prospect analysis. Provide actionable sales insights based on search results.`,
+        `Research this prospect for a sales approach:
+Name: ${name}, Company: ${company}, Title: ${title}
 
-Return JSON with:
+Search Results:
+${searchContent}
+
+Return JSON:
 {
-  "likelyResponsibilities": ["responsibility1", "responsibility2"],
-  "decisionMakingPower": "high | medium | low",
+  "likelyResponsibilities": ["resp1", "resp2"],
+  "decisionMakingPower": "high|medium|low",
   "likelyChallenges": ["challenge1", "challenge2"],
-  "personalInterests": ["interest1", "interest2"],
-  "bestOutreachChannel": "email | linkedin | phone",
-  "bestTimeToContact": "Suggested day/time",
-  "icebreaker": "A personalized opening line",
+  "bestOutreachChannel": "email|linkedin|phone",
+  "bestTimeToContact": "suggestion",
+  "icebreaker": "personalized opening line based on research",
   "talkingPoints": ["point1", "point2", "point3"],
   "objections": ["likely objection 1", "likely objection 2"],
-  "buyerPersonaType": "analytical | driver | amiable | expressive"
-}
-Only return the JSON.`
-        }],
-      });
-
-      const text = response.content[0].type === "text" ? response.content[0].text : "{}";
-      return JSON.parse(text.replace(/```json?|```/g, "").trim());
+  "buyerPersonaType": "analytical|driver|amiable|expressive",
+  "sources": ["url1"]
+}`
+      );
     } catch (err: any) {
-      return null;
+      return { error: "Research failed: " + err.message };
     }
   }
-
-  // ── HELPERS ───────────────────────────────────────────────
 
   classifySeniority(title: string): string {
     const lower = title.toLowerCase();
@@ -456,109 +789,6 @@ Only return the JSON.`
       if (lower.includes(keyword)) return dept;
     }
     return "operations";
-  }
-
-  private inferJobTitle(data: any): string {
-    if (data.email?.includes("ceo") || data.email?.includes("chief")) return "CEO";
-    if (data.email?.includes("admin") || data.email?.includes("office")) return "Office Manager";
-    return "Practice Administrator";
-  }
-
-  private generateEventTitle(domain: string, eventType: string): string {
-    const company = domain.split(".")[0];
-    const titles: Record<string, string[]> = {
-      funding: [`${company} raises new funding round`, `${company} secures growth capital`],
-      expansion: [`${company} opens new office`, `${company} expands into new market`],
-      leadership_change: [`${company} appoints new executive`, `New leadership at ${company}`],
-      product_launch: [`${company} launches new product`, `${company} announces new platform feature`],
-      partnership: [`${company} announces strategic partnership`, `${company} partners with industry leader`],
-      hiring_surge: [`${company} on hiring spree`, `${company} expanding team rapidly`],
-    };
-    const options = titles[eventType] || [`${company} — recent activity`];
-    return options[Math.floor(Math.random() * options.length)];
-  }
-
-  private generatePeopleResults(filters: any, limit: number): any[] {
-    const results: any[] = [];
-    const firstNames = ["Sarah", "Michael", "Jennifer", "David", "Lisa", "Robert", "Emily", "James", "Amanda", "William", "Jessica", "Daniel", "Ashley", "Christopher", "Nicole"];
-    const lastNames = ["Johnson", "Williams", "Brown", "Davis", "Miller", "Wilson", "Moore", "Taylor", "Anderson", "Thomas", "Martinez", "Robinson", "Clark", "Lewis", "Hall"];
-    const companies = [
-      { name: "Premier Medical Group", domain: "premiermedical.com", industry: "Healthcare", size: "51-200" },
-      { name: "Valley Health Partners", domain: "valleyhealth.org", industry: "Healthcare", size: "11-50" },
-      { name: "Sunrise Family Practice", domain: "sunrisefp.com", industry: "Healthcare", size: "1-10" },
-      { name: "Metro Physicians Network", domain: "metrophy.com", industry: "Healthcare", size: "201-500" },
-      { name: "Coastal Care Clinic", domain: "coastalcare.com", industry: "Healthcare", size: "11-50" },
-      { name: "Pinnacle Health Systems", domain: "pinnaclehs.com", industry: "Healthcare", size: "501-1000" },
-      { name: "Riverside Medical Center", domain: "riversidemc.org", industry: "Healthcare", size: "201-500" },
-      { name: "Summit Health Associates", domain: "summithealth.com", industry: "Healthcare", size: "51-200" },
-    ];
-    const titles = filters.jobTitle
-      ? [filters.jobTitle]
-      : ["Practice Administrator", "Office Manager", "Billing Manager", "Medical Director", "VP of Operations", "Revenue Cycle Director", "CFO", "CEO", "Operations Manager"];
-
-    for (let i = 0; i < limit; i++) {
-      const first = firstNames[i % firstNames.length];
-      const last = lastNames[(i + 3) % lastNames.length];
-      const company = companies[i % companies.length];
-      const title = titles[i % titles.length];
-
-      results.push({
-        id: `cp_${Date.now()}_${i}`,
-        firstName: first, lastName: last, fullName: `${first} ${last}`,
-        jobTitle: title,
-        seniorityLevel: this.classifySeniority(title),
-        department: this.classifyDepartment(title),
-        companyName: company.name, companyDomain: company.domain,
-        workEmail: `${first.toLowerCase()}.${last.toLowerCase()}@${company.domain}`,
-        emailVerified: Math.random() < 0.8,
-        emailConfidence: 70 + Math.floor(Math.random() * 30),
-        directPhone: Math.random() < 0.5 ? `+1${Math.floor(2000000000 + Math.random() * 8000000000)}` : null,
-        linkedinUrl: `https://linkedin.com/in/${first.toLowerCase()}-${last.toLowerCase()}`,
-        city: ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix"][i % 5],
-        state: ["NY", "CA", "IL", "TX", "AZ"][i % 5],
-        country: "US",
-        industry: company.industry,
-        employeeRange: company.size,
-        dataQualityScore: 60 + Math.floor(Math.random() * 35),
-      });
-    }
-
-    return results;
-  }
-
-  private generateCompanyResults(filters: any, limit: number): any[] {
-    const results: any[] = [];
-    const companyData = [
-      { name: "Premier Medical Group", domain: "premiermedical.com", industry: "Healthcare", sub: "Medical Billing", employees: 120, revenue: 15000000 },
-      { name: "Valley Health Partners", domain: "valleyhealth.org", industry: "Healthcare", sub: "Practice Management", employees: 35, revenue: 4500000 },
-      { name: "Sunrise Family Practice", domain: "sunrisefp.com", industry: "Healthcare", sub: "Family Medicine", employees: 8, revenue: 1200000 },
-      { name: "Metro Physicians Network", domain: "metrophy.com", industry: "Healthcare", sub: "Multi-Specialty", employees: 350, revenue: 45000000 },
-      { name: "Coastal Care Clinic", domain: "coastalcare.com", industry: "Healthcare", sub: "Urgent Care", employees: 25, revenue: 3200000 },
-      { name: "Pinnacle Health Systems", domain: "pinnaclehs.com", industry: "Healthcare", sub: "Hospital System", employees: 800, revenue: 120000000 },
-      { name: "TechFlow Solutions", domain: "techflow.io", industry: "Technology", sub: "SaaS", employees: 60, revenue: 8000000 },
-      { name: "GrowthLabs Agency", domain: "growthlabs.co", industry: "Professional Services", sub: "Marketing Agency", employees: 15, revenue: 2000000 },
-    ];
-
-    for (let i = 0; i < Math.min(limit, companyData.length); i++) {
-      const c = companyData[i];
-      results.push({
-        id: `co_${Date.now()}_${i}`,
-        name: c.name, domain: c.domain, description: `${c.name} is a ${c.sub} company.`,
-        industry: c.industry, subIndustry: c.sub,
-        employeeCount: c.employees,
-        employeeRange: c.employees < 11 ? "1-10" : c.employees < 51 ? "11-50" : c.employees < 201 ? "51-200" : c.employees < 501 ? "201-500" : "501-1000",
-        annualRevenue: c.revenue,
-        revenueRange: c.revenue < 1000000 ? "<1M" : c.revenue < 10000000 ? "1-10M" : c.revenue < 50000000 ? "10-50M" : "50-100M",
-        companyType: "private", headquarters: "New York, NY",
-        linkedinUrl: `https://linkedin.com/company/${c.domain.split(".")[0]}`,
-        websiteUrl: `https://${c.domain}`,
-        techStack: this.detectTechStack(c.domain),
-        employeeGrowth6m: -2 + Math.floor(Math.random() * 20),
-        intentScore: Math.floor(Math.random() * 100),
-      });
-    }
-
-    return results;
   }
 }
 
