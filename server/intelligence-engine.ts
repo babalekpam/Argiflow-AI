@@ -332,12 +332,13 @@ ${useAiOnly
       const searchContent = allContent.join("\n\n---\n\n");
 
       const useAiOnly = !searchContent.trim();
+      console.log(`[Intelligence] Company search: useAiOnly=${useAiOnly}, searchContent length=${searchContent.length}, parts=${parts.join(", ")}`);
 
-      const systemPrompt = useAiOnly
-        ? `You are a B2B company intelligence analyst. Based on your training knowledge, provide information about real companies. Return ONLY real, well-known companies you are confident exist. Include whatever details you know. Do NOT fabricate companies or contact details you are unsure about.`
-        : `You are a B2B company intelligence analyst combining Apollo.io and ZoomInfo-style data extraction. Extract comprehensive company profiles from web search results with maximum detail. Return ONLY real companies with verified information. Do NOT fabricate any data.`;
+      const systemPrompt = `You are a B2B company intelligence analyst. ${useAiOnly 
+        ? "Based on your training knowledge, provide information about real companies. You MUST return at least 1-3 companies that match the query. Include whatever details you know — partial information is fine. Do NOT return an empty list."
+        : "Extract comprehensive company profiles from web search results with maximum detail. Return ONLY real companies with verified information. Do NOT fabricate any data."}`;
       const userPrompt = useAiOnly
-        ? `Provide information about real companies matching: ${parts.join(", ")}. Use your knowledge to provide accurate company profiles.`
+        ? `I need you to find real companies matching: ${parts.join(", ")}. Use your training knowledge to provide company profiles. YOU MUST return at least 1 company. If searching by name, return that specific company. If searching by industry/location, return well-known companies in that space.`
         : `From these search results, extract real companies matching: ${parts.join(", ")}.\n\nSearch Results:\n${searchContent}`;
 
       const result = await aiExtract(
@@ -390,6 +391,8 @@ ${useAiOnly
 - Cross-reference information across multiple search results for accuracy
 - Include key contacts (decision makers) found in the results`}`
       );
+
+      console.log(`[Intelligence] AI returned ${(result.companies || []).length} companies, keys: ${Object.keys(result).join(",")}`);
 
       const companies = (result.companies || []).map((c: any, i: number) => ({
         id: `co_${Date.now()}_${i}`,
