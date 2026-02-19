@@ -1371,7 +1371,8 @@ CONTACT VERIFICATION RULES (MANDATORY — LEADS WITH FAKE DATA WILL BE AUTO-REJE
 - Phone numbers MUST be FULL US numbers with area code (10 digits). Example: (615) 482-6768 or 615-482-6768. NEVER submit partial or truncated phone numbers.
 - If a search result shows a phone number, copy the COMPLETE number including area code.
 - Each lead MUST have at least one real, verified contact method (phone or email) found from an actual webpage.
-- The system has a STRICT FILTER that auto-rejects fake data. If your leads get rejected, you MUST search more specifically for each business's real contact details.
+- DO NOT include leads in your response or in the generate_leads tool if they don't have at least a real phone number OR real email. A lead without any contact info is WORTHLESS — skip it entirely and find a different one that has contact details.
+- The system has a STRICT FILTER that auto-rejects leads without real contact info. If your leads get rejected, you MUST search more specifically for each business's real contact details.
 
 PHONE NUMBER HUNTING (CRITICAL — DO NOT SKIP):
 - For EVERY potential lead, you MUST do a DEDICATED phone number search BEFORE saving them.
@@ -7298,6 +7299,7 @@ async function backfillDentalLeads() {
       { name: "Dr. Hunter Fleenor", email: "FairviewFamilyDentistryTN@gmail.com", phone: "(615) 266-2645", company: "Fairview Family Dentistry", source: "fairviewfamilydentistrytn.com", status: "contacted", score: 78, intentSignal: "Looking for billing solutions", notes: "Owner, interested in improving billing efficiency.", outreach: "Email sent to discuss potential collaboration." },
       { name: "Dr. Timothy Pfountz", email: "pending@smilelebanon.com", phone: "(615) 453-9937", company: "Smile Solutions of Lebanon", source: "smilelebanon.com", status: "new", score: 75, intentSignal: "Looking for efficient billing solutions", notes: "Owner of the practice; needs to improve billing processes. Email not yet found - requires follow-up search.", outreach: "Need to gather email for outreach." },
       { name: "Dr. Steven Brock", email: "contact@mydentalimage.com", phone: "865-531-1715", company: "Dental Images", source: "mydentalimage.com", status: "new", score: 80, intentSignal: "Seeking external billing support", notes: "Co-Owner, looking for billing assistance. Email needs verification.", outreach: "Ready to engage on billing services." },
+      { name: "HealthPoint Family Care", email: "pending-search@healthpointky.com", phone: "(859) 488-0304", company: "HealthPoint Family Care", source: "healthpointky.com", status: "new", score: 82, intentSignal: "Hiring Dental Billing Specialist - actively enhancing billing processes", notes: "Florence, KY. Currently hiring for Dental Billing Specialist; looking to improve billing efficiency. Email needs to be found.", outreach: "Ready for outreach on billing services." },
     ];
     let inserted = 0;
     for (const lead of dentalLeads) {
