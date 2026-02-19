@@ -424,6 +424,24 @@ export default function SalesFunnelsPage() {
     },
   });
 
+  const syncPipelineMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/leads/sync-funnel-stages");
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+      if (selectedFunnelId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/funnels", selectedFunnelId, "deals"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/funnels", selectedFunnelId, "stages"] });
+      }
+      toast({ title: "Pipeline Synced", description: data.message });
+    },
+    onError: () => {
+      toast({ title: "Sync Failed", variant: "destructive" });
+    },
+  });
+
   const selectedFunnel = userFunnels.find((f) => f.id === selectedFunnelId);
 
   if (isLoading) {
@@ -584,20 +602,36 @@ export default function SalesFunnelsPage() {
                     <p className="text-xs text-muted-foreground">{selectedFunnel.description}</p>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => {
-                    if (confirm(t("salesFunnels.confirmDeleteFunnel"))) {
-                      deleteFunnelMutation.mutate(selectedFunnel.id);
-                    }
-                  }}
-                  data-testid="button-delete-funnel"
-                >
-                  <Trash2 className="w-4 h-4 mr-1.5" />
-                  {t("common.delete")}
-                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => syncPipelineMutation.mutate()}
+                    disabled={syncPipelineMutation.isPending}
+                    data-testid="button-sync-pipeline"
+                  >
+                    {syncPipelineMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <Zap className="w-4 h-4 mr-1.5" />
+                    )}
+                    Sync Pipeline
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => {
+                      if (confirm(t("salesFunnels.confirmDeleteFunnel"))) {
+                        deleteFunnelMutation.mutate(selectedFunnel.id);
+                      }
+                    }}
+                    data-testid="button-delete-funnel"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    {t("common.delete")}
+                  </Button>
+                </div>
               </div>
               <PipelineView funnel={selectedFunnel} />
             </div>

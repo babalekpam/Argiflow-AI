@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, sql, desc } from "drizzle-orm";
-import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns } from "@shared/schema";
+import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
@@ -502,7 +502,7 @@ async function addLeadsToAgentFunnel(userId: string, agentType: string, leadsToA
   return dealsCreated > 0 ? ` Also added ${dealsCreated} deals to "${funnelConfig?.name}" pipeline.` : "";
 }
 
-async function autoAddToFunnelDirect(userId: string, agentType: string, savedLeads: { name: string; email?: string; value?: number }[]): Promise<string> {
+export async function autoAddToFunnelDirect(userId: string, agentType: string, savedLeads: { name: string; email?: string; value?: number }[]): Promise<string> {
   if (savedLeads.length === 0) return "";
   try {
     return await addLeadsToAgentFunnel(userId, agentType, savedLeads);
@@ -3355,6 +3355,78 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
     } catch (error) {
       console.error("Error backfilling funnel:", error);
       res.status(500).json({ message: "Failed to backfill funnel" });
+    }
+  });
+
+  app.post("/api/leads/sync-funnel-stages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const funnelInfo = await findOrCreateAgentFunnel(userId, "medical-billing");
+      if (!funnelInfo) {
+        return res.status(500).json({ message: "No Track-Med pipeline found" });
+      }
+
+      const stages = await storage.getFunnelStages(funnelInfo.funnelId);
+      const stageMap: Record<string, string> = {};
+      for (const s of stages) {
+        stageMap[s.name.toLowerCase().replace(/\s+/g, "")] = s.id;
+      }
+      const contactedStageId = stageMap["contacted"] || stages[1]?.id;
+      const qualifiedStageId = stageMap["qualified"] || stages[2]?.id;
+      const newLeadStageId = stageMap["newlead"] || stageMap["newleads"] || stages[0]?.id;
+
+      if (!contactedStageId) {
+        return res.status(500).json({ message: "No 'Contacted' stage found in pipeline" });
+      }
+
+      const allLeads = await storage.getLeadsByUser(userId);
+      const contactedLeads = allLeads.filter(l => l.outreachSentAt);
+      const hotLeads = allLeads.filter(l => l.status === "hot" && l.outreachSentAt);
+
+      const existingDeals = await storage.getFunnelDeals(funnelInfo.funnelId);
+      const existingEmails = new Set(existingDeals.map(d => (d.contactEmail || "").toLowerCase().trim()).filter(Boolean));
+
+      let added = 0;
+      let moved = 0;
+
+      for (const deal of existingDeals) {
+        const email = (deal.contactEmail || "").toLowerCase().trim();
+        const matchingLead = contactedLeads.find(l => (l.email || "").toLowerCase().trim() === email);
+        if (matchingLead && deal.stageId === newLeadStageId) {
+          const targetStage = matchingLead.status === "hot" ? qualifiedStageId : contactedStageId;
+          await db.update(funnelDeals).set({ stageId: targetStage }).where(eq(funnelDeals.id, deal.id));
+          moved++;
+        }
+      }
+
+      for (const lead of contactedLeads) {
+        const emailLC = (lead.email || "").toLowerCase().trim();
+        if (!emailLC || existingEmails.has(emailLC)) continue;
+
+        const targetStage = lead.status === "hot" ? qualifiedStageId : contactedStageId;
+        await storage.createFunnelDeal({
+          funnelId: funnelInfo.funnelId,
+          stageId: targetStage,
+          userId,
+          contactName: lead.name || "",
+          contactEmail: lead.email || "",
+          value: 0,
+          status: "open",
+        });
+        existingEmails.add(emailLC);
+        added++;
+      }
+
+      res.json({
+        message: `Synced pipeline: ${added} new deals added, ${moved} deals moved to correct stage`,
+        added,
+        moved,
+        totalContactedLeads: contactedLeads.length,
+        totalHotLeads: hotLeads.length,
+      });
+    } catch (error) {
+      console.error("Error syncing funnel stages:", error);
+      res.status(500).json({ message: "Failed to sync funnel stages" });
     }
   });
 

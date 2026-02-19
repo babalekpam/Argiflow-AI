@@ -294,6 +294,7 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
       });
 
       let added = 0;
+      const savedLeadNames: { name: string; email?: string }[] = [];
       for (const prospect of newProspects) {
         const existing = await db.select().from(leads)
           .where(and(eq(leads.userId, userId), eq(leads.email, prospect.email)));
@@ -313,11 +314,19 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
             outreach: prospect.outreach || null,
             engagementLevel: "warm",
           });
+          savedLeadNames.push({ name: prospect.name, email: prospect.email });
           added++;
         }
       }
 
       if (added > 0) {
+        try {
+          const { autoAddToFunnelDirect } = await import("./routes");
+          await autoAddToFunnelDirect(userId, "medical-billing", savedLeadNames);
+        } catch (fErr: any) {
+          console.warn(`[OutreachAgent] Failed to add to funnel: ${fErr.message}`);
+        }
+
         await this.notify(userId, "Prospects Found", `AI Outreach Agent discovered ${added} new prospects and prepared outreach emails`);
         await this.logAgentTask(userId, "discovery", `Found ${added} new prospects with outreach drafts from: ${queries.join(", ")}`);
         console.log(`[OutreachAgent] Added ${added} real prospects for user ${userId}`);
