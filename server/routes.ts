@@ -2618,6 +2618,112 @@ export async function registerRoutes(
     }
   });
 
+  // ---- AI KPI DASHBOARD ----
+
+  app.get("/api/ai-kpi", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const allLeads = await storage.getLeadsByUser(userId);
+      const allAppts = await storage.getAppointmentsByUser(userId);
+      const chatMessages = await storage.getChatMessages(userId);
+      const agents = await storage.getAiAgentsByUser(userId);
+
+      const aiSources = ["ai", "chat", "web research", "dataseo", "dataforseo", "outreach"];
+      const aiLeads = allLeads.filter(l =>
+        aiSources.some(s => (l.source || "").toLowerCase().includes(s))
+      );
+      const manualLeads = allLeads.filter(l =>
+        !aiSources.some(s => (l.source || "").toLowerCase().includes(s))
+      );
+
+      const userMessages = chatMessages.filter(m => m.role === "user");
+      const assistantMessages = chatMessages.filter(m => m.role === "assistant");
+
+      const statusBreakdown: Record<string, number> = {};
+      allLeads.forEach(l => {
+        statusBreakdown[l.status] = (statusBreakdown[l.status] || 0) + 1;
+      });
+
+      const sourceBreakdown: Record<string, number> = {};
+      allLeads.forEach(l => {
+        const src = l.source || "Unknown";
+        sourceBreakdown[src] = (sourceBreakdown[src] || 0) + 1;
+      });
+
+      const outreachedLeads = allLeads.filter(l => l.outreach && l.outreach.length > 0);
+      const engagedLeads = allLeads.filter(l =>
+        (l.engagementLevel && l.engagementLevel !== "none") ||
+        (l.emailOpens && l.emailOpens > 0) ||
+        (l.emailClicks && l.emailClicks > 0)
+      );
+      const totalOpens = allLeads.reduce((sum, l) => sum + (l.emailOpens || 0), 0);
+      const totalClicks = allLeads.reduce((sum, l) => sum + (l.emailClicks || 0), 0);
+      const openRate = outreachedLeads.length > 0 ? Math.round((totalOpens / outreachedLeads.length) * 100) : 0;
+      const clickRate = outreachedLeads.length > 0 ? Math.round((totalClicks / outreachedLeads.length) * 100) : 0;
+      const responseRate = outreachedLeads.length > 0
+        ? Math.round((engagedLeads.length / outreachedLeads.length) * 100) : 0;
+
+      const qualifiedLeads = allLeads.filter(l => l.status === "qualified" || l.status === "warm" || l.status === "hot" || l.status === "contacted");
+      const conversionRate = allLeads.length > 0 ? Math.round((qualifiedLeads.length / allLeads.length) * 100) : 0;
+
+      const now = new Date();
+      const leadsTrend: { date: string; count: number }[] = [];
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split("T")[0];
+        const count = allLeads.filter(l => {
+          const ld = l.createdAt ? new Date(l.createdAt).toISOString().split("T")[0] : "";
+          return ld === dateStr;
+        }).length;
+        leadsTrend.push({ date: dateStr, count });
+      }
+
+      const activeAgents = agents.filter(a => a.status === "active");
+      const agentsByType: Record<string, number> = {};
+      agents.forEach(a => {
+        agentsByType[a.type] = (agentsByType[a.type] || 0) + 1;
+      });
+
+      const followUpLeads = allLeads.filter(l => l.followUpStatus && l.followUpStatus !== "none");
+
+      res.json({
+        overview: {
+          totalLeads: allLeads.length,
+          aiGeneratedLeads: aiLeads.length,
+          manualLeads: manualLeads.length,
+          totalConversations: userMessages.length,
+          totalAiResponses: assistantMessages.length,
+          totalAppointments: allAppts.length,
+          conversionRate,
+        },
+        outreach: {
+          totalOutreached: outreachedLeads.length,
+          totalEngaged: engagedLeads.length,
+          totalOpens,
+          totalClicks,
+          openRate,
+          clickRate,
+          responseRate,
+          followUpsActive: followUpLeads.length,
+        },
+        agents: {
+          total: agents.length,
+          active: activeAgents.length,
+          byType: agentsByType,
+        },
+        breakdown: {
+          byStatus: statusBreakdown,
+          bySource: sourceBreakdown,
+        },
+        leadsTrend,
+      });
+    } catch (error) {
+      console.error("Error fetching AI KPI:", error);
+      res.status(500).json({ message: "Failed to fetch AI KPI data" });
+    }
+  });
+
   // ---- DASHBOARD STATS ----
 
   app.get("/api/stats", isAuthenticated, async (req, res) => {

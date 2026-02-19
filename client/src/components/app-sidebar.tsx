@@ -39,6 +39,7 @@ import {
   Megaphone,
   Search,
   Target,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -54,6 +55,7 @@ export function AppSidebar() {
     { title: t("sidebar.leadsCrm"), icon: Users, url: "/dashboard/leads" },
     { title: t("sidebar.salesFunnels"), icon: Filter, url: "/dashboard/funnels" },
     { title: t("sidebar.appointments"), icon: Calendar, url: "/dashboard/appointments" },
+    { title: "AI Performance", icon: BarChart3, url: "/dashboard/ai-kpi", badge: t("common.new") },
   ];
 
   const automationNav = [
