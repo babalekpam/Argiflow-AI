@@ -516,6 +516,96 @@ SCORING GUIDE:
     }
   }
 
+  async findDecisionMaker(data: { company: string; currentName?: string; currentEmail?: string; currentPhone?: string }): Promise<{
+    name: string | null;
+    title: string | null;
+    email: string | null;
+    phone: string | null;
+    linkedinUrl: string | null;
+    confidence: string;
+    notes: string;
+    source: string;
+  }> {
+    try {
+      const company = data.company;
+      if (!company) return { name: null, title: null, email: null, phone: null, linkedinUrl: null, confidence: "low", notes: "No company provided", source: "" };
+
+      const searches: Promise<any>[] = [
+        tavilySearchRaw(`"${company}" owner OR CEO OR founder OR physician OR "managing partner" OR director contact`).catch(() => null),
+        tavilySearchRaw(`"${company}" practice owner dentist doctor chiropractor email phone`).catch(() => null),
+        tavilySearchRaw(`"${company}" team leadership about us staff`).catch(() => null),
+      ];
+
+      const searchResults = await Promise.all(searches);
+      const allContent: string[] = [];
+      const allSources: string[] = [];
+      for (const sr of searchResults) {
+        if (!sr) continue;
+        if (sr.answer) allContent.push(sr.answer);
+        for (const r of (sr.results || [])) {
+          allContent.push(`Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`);
+          allSources.push(r.url);
+        }
+      }
+
+      if (allContent.length === 0) {
+        return { name: null, title: null, email: null, phone: null, linkedinUrl: null, confidence: "low", notes: "No web results found", source: "" };
+      }
+
+      const searchContent = allContent.join("\n\n---\n\n");
+
+      const result = await aiExtract(
+        `You are a B2B sales intelligence expert specializing in finding practice owners and decision makers at healthcare practices (dental offices, medical practices, chiropractic clinics, optometry, etc). Your job is to identify the person who makes purchasing/vendor decisions.`,
+        `Find the DECISION MAKER at this company using the web search results below.
+
+Company: ${company}
+Current Contact Name: ${data.currentName || "Unknown/Generic"}
+Current Email: ${data.currentEmail || "None"}
+Current Phone: ${data.currentPhone || "None"}
+
+Web Search Results (${allSources.length} sources):
+${searchContent}
+
+INSTRUCTIONS:
+1. Find the PRACTICE OWNER, CEO, FOUNDER, or LEAD PHYSICIAN — the person who decides which billing/software vendors to use
+2. For dental practices: Find the lead dentist (usually DDS/DMD), or practice owner
+3. For medical practices: Find the managing physician, medical director, or practice owner
+4. For chiropractic offices: Find the lead chiropractor (DC)
+5. Extract their REAL email and phone from search results — NEVER fabricate
+6. If you can find a personal/direct email (like firstname@domain.com), prefer that over info@ or contact@ emails
+7. If the current contact IS already the decision maker, confirm and enhance their info
+
+Return JSON:
+{
+  "name": "Full Name with title (e.g., Dr. John Smith, DDS)",
+  "title": "Their title (Owner, CEO, Lead Dentist, Medical Director, etc.)",
+  "email": "their email from search results, or null if not found",
+  "phone": "their phone from search results, or null if not found",
+  "linkedinUrl": "LinkedIn URL if found, or null",
+  "confidence": "high (found in multiple sources) | medium (found in one source) | low (inferred/uncertain)",
+  "notes": "How you identified this person as the decision maker",
+  "source": "Primary URL where found"
+}
+
+CRITICAL: Only return data you actually found in the search results. Use null for anything you cannot verify. Never return phone numbers with 555. Never fabricate emails.`
+      );
+
+      return {
+        name: result.name || null,
+        title: result.title || null,
+        email: result.email && result.email !== "null" ? result.email : null,
+        phone: result.phone && result.phone !== "null" ? result.phone : null,
+        linkedinUrl: result.linkedinUrl && result.linkedinUrl !== "null" ? result.linkedinUrl : null,
+        confidence: result.confidence || "low",
+        notes: result.notes || "",
+        source: result.source || allSources[0] || "",
+      };
+    } catch (err: any) {
+      console.error("[Intelligence] Find decision maker error:", err.message);
+      return { name: null, title: null, email: null, phone: null, linkedinUrl: null, confidence: "low", notes: `Error: ${err.message}`, source: "" };
+    }
+  }
+
   async enrichCompany(data: { domain?: string; name?: string }): Promise<any> {
     try {
       const companyName = data.name || "";

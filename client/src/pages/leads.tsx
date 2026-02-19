@@ -67,6 +67,7 @@ import {
   Reply,
   Microscope,
   Zap,
+  UserSearch,
 } from "lucide-react";
 import type { Lead, Business, EmailReply } from "@shared/schema";
 import { useState, useEffect, useMemo } from "react";
@@ -288,6 +289,7 @@ function LeadCard({
   onSmsClick,
   researchCompanyMutation,
   researchingLeadId,
+  findDMForLeadMutation,
 }: {
   lead: Lead;
   isExpanded: boolean;
@@ -305,6 +307,7 @@ function LeadCard({
   onSmsClick: (lead: Lead) => void;
   researchCompanyMutation: any;
   researchingLeadId: string | null;
+  findDMForLeadMutation: any;
 }) {
   const { t } = useTranslation();
   const isSent = !!lead.outreachSentAt;
@@ -555,6 +558,24 @@ function LeadCard({
                     <><RefreshCw className="w-3 h-3 mr-1" /> {t("leads.companyResearch.refresh")}</>
                   ) : (
                     <><Zap className="w-3 h-3 mr-1" /> {t("leads.companyResearch.research")}</>
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (lead.company) {
+                      findDMForLeadMutation.mutate(lead.id);
+                    }
+                  }}
+                  disabled={findDMForLeadMutation.isPending || !lead.company}
+                  data-testid={`button-find-owner-${lead.id}`}
+                >
+                  {findDMForLeadMutation.isPending ? (
+                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Finding owner...</>
+                  ) : (
+                    <><UserSearch className="w-3 h-3 mr-1" /> Find Owner</>
                   )}
                 </Button>
               </div>
@@ -1510,6 +1531,62 @@ export default function LeadsPage() {
     },
   });
 
+  const [enrichmentActivePage, setEnrichmentActivePage] = useState(false);
+  const { data: enrichStatusPage } = useQuery<{ enriched: number; failed: number; total: number; status: string }>({
+    queryKey: ["/api/leads/enrich-status"],
+    refetchInterval: enrichmentActivePage ? 5000 : false,
+  });
+
+  useEffect(() => {
+    if (enrichStatusPage?.status === "processing") {
+      setEnrichmentActivePage(true);
+    } else if (enrichStatusPage?.status === "complete" && enrichmentActivePage) {
+      setEnrichmentActivePage(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      if (enrichStatusPage.enriched > 0) {
+        toast({ title: `Decision maker search complete: ${enrichStatusPage.enriched} leads updated` });
+      }
+    }
+  }, [enrichStatusPage?.status]);
+
+  const enrichAllMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/leads/enrich-all");
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.enriching > 0 || data.status === "processing") {
+        setEnrichmentActivePage(true);
+        toast({
+          title: `Finding decision makers for ${data.enriching || data.total} leads`,
+          description: "Searching the web for practice owners and key contacts...",
+        });
+      } else {
+        toast({ title: data.message });
+      }
+    },
+    onError: () => {
+      toast({ title: "Failed to start decision maker search", variant: "destructive" });
+    },
+  });
+
+  const findDMForLeadMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      const res = await apiRequest("POST", `/api/leads/${leadId}/find-decision-maker`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({
+        title: data.updated ? "Decision maker found!" : "Search complete",
+        description: data.message,
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to find decision maker", variant: "destructive" });
+    },
+  });
+
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkSendProgress, setBulkSendProgress] = useState("");
 
@@ -1940,6 +2017,20 @@ export default function LeadsPage() {
               <RefreshCw className="w-4 h-4 mr-2" />{t("leads.regenerateNewOutreach", { defaultValue: "Regenerate New Leads Outreach" })}
             </Button>
           )}
+          {activeTab === "new" && (
+            <Button
+              variant="outline"
+              onClick={() => enrichAllMutation.mutate()}
+              disabled={enrichAllMutation.isPending || enrichmentActivePage}
+              data-testid="button-find-decision-makers"
+            >
+              {enrichAllMutation.isPending || enrichmentActivePage ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Finding owners... {enrichStatusPage ? `(${enrichStatusPage.enriched + enrichStatusPage.failed}/${enrichStatusPage.total})` : ""}</>
+              ) : (
+                <><UserSearch className="w-4 h-4 mr-2" />Find Practice Owners</>
+              )}
+            </Button>
+          )}
           {activeTab === "new" && (unsentCount > 0 || bulkSending) && (
             <Button
               onClick={() => sendAllOutreachMutation.mutate()}
@@ -2008,6 +2099,7 @@ export default function LeadsPage() {
                 onSmsClick={(lead) => { setSmsLead(lead); setSmsBody(""); }}
                 researchCompanyMutation={researchCompanyMutation}
                 researchingLeadId={researchingLeadId}
+                findDMForLeadMutation={findDMForLeadMutation}
               />
             ))}
           </div>
