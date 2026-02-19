@@ -58,22 +58,52 @@ const JOB_TITLE_DEPARTMENTS: Record<string, string> = {
   "medical director": "executive", "physician": "operations", "nurse": "operations",
 };
 
+async function youSearchRaw(query: string): Promise<any> {
+  const apiKey = process.env.YOU_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const response = await fetch(`https://api.ydc-index.io/search?query=${encodeURIComponent(query)}`, {
+      headers: { "X-API-Key": apiKey },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return {
+      results: (data.hits || []).map((h: any) => ({
+        title: h.title || "",
+        url: h.url || "",
+        content: (h.snippets || [h.description]).join("\n"),
+      })),
+    };
+  } catch { return null; }
+}
+
 async function tavilySearchRaw(query: string): Promise<any> {
   const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) throw new Error("Tavily API key not configured");
-  const response = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: apiKey,
-      query,
-      search_depth: "advanced",
-      max_results: 10,
-      include_answer: true,
-    }),
-  });
-  if (!response.ok) throw new Error(`Tavily search failed: ${response.status}`);
-  return response.json();
+  if (!apiKey) {
+    console.warn("[Intelligence] Tavily API key not configured, trying You.com fallback");
+    return youSearchRaw(query);
+  }
+  try {
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query,
+        search_depth: "advanced",
+        max_results: 10,
+        include_answer: true,
+      }),
+    });
+    if (!response.ok) {
+      console.warn(`[Intelligence] Tavily search failed (${response.status}), trying You.com fallback`);
+      return youSearchRaw(query);
+    }
+    return response.json();
+  } catch (e: any) {
+    console.warn(`[Intelligence] Tavily error: ${e.message}, trying You.com fallback`);
+    return youSearchRaw(query);
+  }
 }
 
 function getOpenAI(): OpenAI | null {
@@ -146,13 +176,18 @@ export class IntelligenceEngine {
         }
       }
       const searchContent = allContent.join("\n\n---\n\n");
+      const useAiOnly = !searchContent.trim();
+
+      const sysPrompt = useAiOnly
+        ? `You are a B2B sales intelligence analyst. Based on your training knowledge, provide information about real professionals. Return ONLY real people you are confident exist at real companies. Do NOT fabricate contact details.`
+        : `You are an expert B2B sales intelligence data extractor performing DEEP research. Extract real professional contacts with maximum detail from web search results. Cross-reference data across sources. Return ONLY real people with real information. Do NOT fabricate any data.`;
+      const usrPrompt = useAiOnly
+        ? `Provide information about real business professionals matching: ${parts.join(", ")}. Use your knowledge to provide accurate profiles.`
+        : `From these web search results, extract real business contacts matching: ${parts.join(", ")}.\n\nSearch Results:\n${searchContent}`;
 
       const result = await aiExtract(
-        `You are an expert B2B sales intelligence data extractor performing DEEP research. Extract real professional contacts with maximum detail from web search results. Cross-reference data across sources. Return ONLY real people with real information. Do NOT fabricate any data.`,
-        `From these web search results, extract real business contacts matching: ${parts.join(", ")}.
-
-Search Results:
-${searchContent}
+        sysPrompt,
+        `${usrPrompt}
 
 Return JSON with DEEPLY enriched profiles:
 {
@@ -294,16 +329,18 @@ CRITICAL: Only include people you actually found in the search results. Real nam
       }
       const searchContent = allContent.join("\n\n---\n\n");
 
-      if (!searchContent.trim()) {
-        return { results: [], total: 0, page, pages: 0, source: "no_results" };
-      }
+      const useAiOnly = !searchContent.trim();
+
+      const systemPrompt = useAiOnly
+        ? `You are a B2B company intelligence analyst. Based on your training knowledge, provide information about real companies. Return ONLY real, well-known companies you are confident exist. Include whatever details you know. Do NOT fabricate companies or contact details you are unsure about.`
+        : `You are a B2B company intelligence analyst combining Apollo.io and ZoomInfo-style data extraction. Extract comprehensive company profiles from web search results with maximum detail. Return ONLY real companies with verified information. Do NOT fabricate any data.`;
+      const userPrompt = useAiOnly
+        ? `Provide information about real companies matching: ${parts.join(", ")}. Use your knowledge to provide accurate company profiles.`
+        : `From these search results, extract real companies matching: ${parts.join(", ")}.\n\nSearch Results:\n${searchContent}`;
 
       const result = await aiExtract(
-        `You are a B2B company intelligence analyst combining Apollo.io and ZoomInfo-style data extraction. Extract comprehensive company profiles from web search results with maximum detail. Return ONLY real companies with verified information. Do NOT fabricate any data.`,
-        `From these search results, extract real companies matching: ${parts.join(", ")}.
-
-Search Results:
-${searchContent}
+        systemPrompt,
+        `${userPrompt}
 
 Return JSON with comprehensive company profiles:
 {
@@ -370,7 +407,7 @@ CRITICAL RULES:
         technologies: c.technologies || [],
         socialMedia: c.socialMedia || {},
         companyType: "private",
-        source: c.source || "web search",
+        source: c.source || (useAiOnly ? "ai_knowledge" : "web search"),
       }));
 
       return {
@@ -378,7 +415,7 @@ CRITICAL RULES:
         total: result.totalEstimated || companies.length,
         page,
         pages: Math.ceil((result.totalEstimated || companies.length) / limit),
-        source: "ai_web_search",
+        source: useAiOnly ? "ai_knowledge" : "ai_web_search",
       };
     } catch (err: any) {
       console.error("[Intelligence] Company search error:", err.message);
