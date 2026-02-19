@@ -5641,6 +5641,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   await ensureOwnerPassword();
   await ensureAllUsersProLifetime();
   await cleanupFakeLeads();
+  await backfillDentalLeads();
   await backfillMedBillingFunnel();
 
   app.post("/api/admin/login", async (req, res) => {
@@ -7286,6 +7287,50 @@ async function cleanupFakeLeads() {
     }
   } catch (error) {
     console.error("[Startup Cleanup] Error:", error);
+  }
+}
+
+async function backfillDentalLeads() {
+  try {
+    const owner = await storage.getUserByEmail("abel@argilette.com");
+    if (!owner) return;
+    const dentalLeads = [
+      { name: "Dr. Hunter Fleenor", email: "FairviewFamilyDentistryTN@gmail.com", phone: "(615) 266-2645", company: "Fairview Family Dentistry", source: "fairviewfamilydentistrytn.com", status: "contacted", score: 78, intentSignal: "Looking for billing solutions", notes: "Owner, interested in improving billing efficiency.", outreach: "Email sent to discuss potential collaboration." },
+      { name: "Dr. Timothy Pfountz", email: "pending@smilelebanon.com", phone: "(615) 453-9937", company: "Smile Solutions of Lebanon", source: "smilelebanon.com", status: "new", score: 75, intentSignal: "Looking for efficient billing solutions", notes: "Owner of the practice; needs to improve billing processes. Email not yet found - requires follow-up search.", outreach: "Need to gather email for outreach." },
+      { name: "Dr. Steven Brock", email: "contact@mydentalimage.com", phone: "865-531-1715", company: "Dental Images", source: "mydentalimage.com", status: "new", score: 80, intentSignal: "Seeking external billing support", notes: "Co-Owner, looking for billing assistance. Email needs verification.", outreach: "Ready to engage on billing services." },
+    ];
+    let inserted = 0;
+    for (const lead of dentalLeads) {
+      const existing = await db.execute(sql`SELECT id FROM leads WHERE user_id = ${owner.id} AND (email = ${lead.email} OR (company = ${lead.company} AND name = ${lead.name})) LIMIT 1`);
+      const rows = (existing as any).rows || existing;
+      if (rows && rows.length > 0) continue;
+      await storage.createLead({ userId: owner.id, ...lead });
+      inserted++;
+    }
+    if (inserted > 0) {
+      console.log(`[Backfill] Inserted ${inserted} dental practice leads for owner`);
+      const funnels = await storage.getFunnelsByUser(owner.id);
+      const trackMedFunnel = funnels.find((f: any) => f.name.includes("Track-Med"));
+      if (trackMedFunnel) {
+        const stages = await storage.getFunnelStages(trackMedFunnel.id);
+        const newLeadsStage = stages.find((s: any) => s.name === "New Leads");
+        const contactedStage = stages.find((s: any) => s.name === "Contacted");
+        if (newLeadsStage || contactedStage) {
+          for (const lead of dentalLeads) {
+            const existingDeal = await db.execute(sql`SELECT id FROM funnel_deals WHERE funnel_id = ${trackMedFunnel.id} AND contact_name ILIKE ${'%' + lead.name.split(' ').pop() + '%'} LIMIT 1`);
+            const dealRows = (existingDeal as any).rows || existingDeal;
+            if (dealRows && dealRows.length > 0) continue;
+            const stageId = lead.status === "contacted" && contactedStage ? contactedStage.id : (newLeadsStage?.id || stages[0]?.id);
+            if (stageId) {
+              await storage.createFunnelDeal({ funnelId: trackMedFunnel.id, stageId, userId: owner.id, contactName: `${lead.name} - ${lead.company}`, contactEmail: lead.email, value: 0, status: "active" });
+            }
+          }
+          console.log(`[Backfill] Added dental leads to Track-Med Pipeline`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[Backfill Dental] Error:", error);
   }
 }
 
