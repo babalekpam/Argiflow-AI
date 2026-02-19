@@ -61,7 +61,21 @@ router.post("/run-cycle", async (req, res) => {
   try {
     const userId = getUserId(req);
     await outreachAgent.runFullCycle(userId);
-    res.json({ success: true, message: "Full cycle completed: discover → enroll → send → monitor" });
+
+    const recentTasks = await db.select().from(agentTasks)
+      .where(and(eq(agentTasks.userId, userId), eq(agentTasks.agentType, "outreach_agent")))
+      .orderBy(desc(agentTasks.createdAt))
+      .limit(10);
+
+    const discovered = recentTasks.filter(t => t.taskType === "discovery").length;
+    const sent = recentTasks.filter(t => t.taskType === "send_batch" || t.taskType === "send_email").length;
+    const replies = recentTasks.filter(t => t.taskType === "reply_received" || t.taskType === "reply_handled").length;
+
+    res.json({
+      success: true,
+      message: "Full cycle completed: discover > enroll > send > monitor",
+      results: { discovered, sent, replies },
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -75,35 +89,26 @@ router.get("/config", async (req, res) => {
     const [config] = await db.select().from(agentConfigs)
       .where(and(eq(agentConfigs.userId, userId), eq(agentConfigs.agentType, "outreach_agent")));
 
-    if (!config) {
-      // Create default config
-      const defaultSettings = {
-        userId,
-        discoveryEnabled: true,
-        discoveryQueries: ["solo medical practice needs billing help", "healthcare practice looking for RCM"],
-        discoverySource: "web",
-        dailyProspectLimit: 10,
-        autoCampaignId: null,
-        autoEnrollEnabled: false,
-        autoReplyEnabled: true,
-        aiPersonality: "professional",
-        autoBookEnabled: true,
-        calendarLink: "",
-        meetingDuration: 15,
-        availableSlots: JSON.stringify({
-          monday: { start: "09:00", end: "17:00" },
-          tuesday: { start: "09:00", end: "17:00" },
-          wednesday: { start: "09:00", end: "17:00" },
-          thursday: { start: "09:00", end: "17:00" },
-          friday: { start: "09:00", end: "17:00" },
-        }),
-        timezone: "America/Chicago",
-        maxEmailsPerDay: 50,
-        maxFollowUps: 3,
-        blacklistDomains: [],
-        pauseOnNegative: true,
-      };
+    const defaultSettings: any = {
+      discoveryEnabled: true,
+      discoveryQueries: ["solo medical practice needs billing help", "healthcare practice looking for RCM"],
+      discoverySource: "web",
+      dailyProspectLimit: 10,
+      autoCampaignId: null,
+      autoEnrollEnabled: false,
+      autoReplyEnabled: true,
+      aiPersonality: "professional",
+      autoBookEnabled: false,
+      calendarLink: "",
+      meetingDuration: 15,
+      timezone: "America/Chicago",
+      maxEmailsPerDay: 50,
+      maxFollowUps: 3,
+      blacklistDomains: [],
+      pauseOnNegative: true,
+    };
 
+    if (!config) {
       const [created] = await db.insert(agentConfigs).values({
         userId,
         agentType: "outreach_agent",
@@ -112,13 +117,13 @@ router.get("/config", async (req, res) => {
         runFrequency: "continuous",
       }).returning();
 
-      return res.json({ ...created, parsedSettings: defaultSettings });
+      return res.json(defaultSettings);
     }
 
-    let parsedSettings = {};
+    let parsedSettings: any = {};
     try { parsedSettings = JSON.parse(config.agentSettings || "{}"); } catch {}
 
-    res.json({ ...config, parsedSettings });
+    res.json({ ...defaultSettings, ...parsedSettings });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -165,7 +170,16 @@ router.get("/activity", async (req, res) => {
       .orderBy(desc(agentTasks.createdAt))
       .limit(parseInt(limit as string));
 
-    res.json(tasks);
+    const mapped = tasks.map(t => ({
+      id: t.id,
+      type: t.taskType,
+      message: t.description || t.taskType,
+      details: t.result || null,
+      status: t.status,
+      timestamp: t.createdAt,
+    }));
+
+    res.json(mapped);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -179,40 +193,47 @@ router.get("/status", async (req, res) => {
     const [config] = await db.select().from(agentConfigs)
       .where(and(eq(agentConfigs.userId, userId), eq(agentConfigs.agentType, "outreach_agent")));
 
-    // Recent activity summary
-    const recentTasks = await db.select().from(agentTasks)
+    const allTasks = await db.select().from(agentTasks)
       .where(and(eq(agentTasks.userId, userId), eq(agentTasks.agentType, "outreach_agent")))
       .orderBy(desc(agentTasks.createdAt))
-      .limit(10);
+      .limit(200);
 
-    // Count by task type
-    const taskCounts: Record<string, number> = {};
-    for (const task of recentTasks) {
-      taskCounts[task.taskType] = (taskCounts[task.taskType] || 0) + 1;
-    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekAgo = new Date(Date.now() - 7 * 86400000);
 
-    // Active campaigns
-    const activeCampaigns = await db.select().from(campaigns)
-      .where(and(eq(campaigns.userId, userId), eq(campaigns.status, "active")));
+    const todayTasks = allTasks.filter(t => t.createdAt && new Date(t.createdAt) >= today);
 
-    // Connected accounts
-    const activeAccounts = await db.select().from(emailAccounts)
-      .where(and(eq(emailAccounts.userId, userId), eq(emailAccounts.isActive, true)));
+    const totalDiscovered = allTasks.filter(t => t.taskType === "discovery").length;
+    const discoveredToday = todayTasks.filter(t => t.taskType === "discovery").length;
+    const totalSent = allTasks.filter(t => t.taskType === "send_batch" || t.taskType === "send_email").length;
+    const sentToday = todayTasks.filter(t => t.taskType === "send_batch" || t.taskType === "send_email").length;
+    const totalReplies = allTasks.filter(t => t.taskType === "reply_received" || t.taskType === "reply_handled" || t.taskType === "interested_reply").length;
+    const interested = allTasks.filter(t => t.taskType === "interested_reply" || t.taskType === "meeting_detected").length;
+    const meetingsBooked = allTasks.filter(t => t.taskType === "meeting_booked" || t.taskType === "meeting_detected").length;
+    const bookedThisWeek = allTasks.filter(t => (t.taskType === "meeting_booked" || t.taskType === "meeting_detected") && t.createdAt && new Date(t.createdAt) >= weekAgo).length;
 
     let parsedSettings: any = {};
     try { parsedSettings = JSON.parse(config?.agentSettings || "{}"); } catch {}
 
+    const pipelineStep = config?.isRunning ? 0 : -1;
+
     res.json({
       isRunning: config?.isRunning || false,
       lastRun: config?.lastRun,
-      healthScore: config?.healthScore || 100,
-      totalLeadsFound: config?.totalLeadsFound || 0,
-      totalDealsCompleted: config?.totalDealsCompleted || 0,
+      stats: {
+        totalDiscovered,
+        discoveredToday,
+        totalSent,
+        sentToday,
+        totalReplies,
+        interested,
+        meetingsBooked,
+        bookedThisWeek,
+      },
+      pipeline: config?.isRunning ? { currentStep: pipelineStep } : null,
       settings: parsedSettings,
-      activeCampaigns: activeCampaigns.length,
-      connectedAccounts: activeAccounts.length,
-      recentActivity: recentTasks,
-      activitySummary: taskCounts,
+      recentActivity: allTasks.slice(0, 10),
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

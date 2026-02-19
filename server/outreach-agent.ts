@@ -25,7 +25,7 @@ import {
 } from "../shared/schema";
 import { instantlyEngine } from "./instantly-engine";
 import nodemailer from "nodemailer";
-import Anthropic from "@anthropic-ai/sdk";
+import { getAnthropicForUser } from "./routes";
 
 // ============================================================
 // TYPES
@@ -139,18 +139,14 @@ export class OutreachAgent {
     const config = await this.getAgentConfig(userId);
     if (!config.discoveryEnabled) return;
 
-    const settings = await this.getUserSettings(userId);
-    const anthropicKey = settings?.anthropicApiKey;
-
     try {
-      // Use AI to generate prospect profiles based on ICP
       let newProspects: any[] = [];
 
-      if (anthropicKey) {
-        const client = new Anthropic({ apiKey: anthropicKey });
+      try {
+        const ai = await getAnthropicForUser(userId);
 
-        const response = await client.messages.create({
-          model: "claude-sonnet-4-20250514",
+        const response = await ai.client.messages.create({
+          model: ai.model,
           max_tokens: 1500,
           system: `You are a B2B sales research assistant. Generate realistic prospect data for cold outreach. Return ONLY valid JSON array.`,
           messages: [{
@@ -165,12 +161,12 @@ Make emails realistic with real company domain patterns. Only return the JSON ar
           }],
         });
 
-        const text = response.content[0].type === "text" ? response.content[0].text : "";
+        const text = response.content?.filter((b: any) => b.type === "text")?.map((b: any) => b.text)?.join("") || "";
         try {
           newProspects = JSON.parse(text.replace(/```json?|```/g, "").trim());
         } catch { newProspects = []; }
-      } else {
-        // Fallback: use template-based discovery (no API key)
+      } catch (aiErr: any) {
+        console.warn(`[OutreachAgent] AI not available for discovery: ${aiErr.message}, using templates`);
         newProspects = this.generateTemplateProspects(config.discoveryQueries, config.dailyProspectLimit);
       }
 
@@ -744,16 +740,8 @@ Make emails realistic with real company domain patterns. Only return the JSON ar
   // ── AI REPLY GENERATION ───────────────────────────────────
 
   private async generateAiReply(userId: string, context: ReplyContext): Promise<string | null> {
-    const settings = await this.getUserSettings(userId);
-    const anthropicKey = settings?.anthropicApiKey;
-
-    if (!anthropicKey) {
-      // Fallback: template-based replies
-      return this.generateTemplateReply(context);
-    }
-
     try {
-      const client = new Anthropic({ apiKey: anthropicKey });
+      const ai = await getAnthropicForUser(userId);
 
       const systemPrompt = `You are an AI sales assistant. You write email replies on behalf of a business.
 
@@ -781,14 +769,15 @@ CLASSIFICATION: ${context.replyLabel} (${context.replySentiment})
 
 Write ONLY the email body — no subject line, no "Subject:", just the reply text.`;
 
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
+      const response = await ai.client.messages.create({
+        model: ai.model,
         max_tokens: 500,
         system: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
       });
 
-      return response.content[0].type === "text" ? response.content[0].text : null;
+      const text = response.content?.filter((b: any) => b.type === "text")?.map((b: any) => b.text)?.join("") || null;
+      return text;
     } catch (err: any) {
       console.error(`[OutreachAgent] AI reply error:`, err.message);
       return this.generateTemplateReply(context);
