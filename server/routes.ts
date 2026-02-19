@@ -1115,7 +1115,7 @@ function injectTrackingPixel(html: string, leadId: string, baseUrl: string): str
   return html + pixel;
 }
 
-async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string }> {
+export async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string }> {
   if (!lead.email || !lead.outreach) {
     return { success: false, error: "Lead has no email or outreach draft" };
   }
@@ -1124,7 +1124,7 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
     return { success: false, error: "Company identity required. Go to Settings > Company Profile and enter your company name before sending outreach." };
   }
 
-  if (!userSettings?.senderEmail) {
+  if (!userSettings?.senderEmail && !process.env.SMTP_USERNAME) {
     return { success: false, error: "Sender email required. Go to Settings > Integrations and set your verified sender email." };
   }
 
@@ -1156,7 +1156,7 @@ async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promi
   }
   console.log(`[EMAIL] Sending via: ${emailProvider} to ${lead.email}`);
 
-  const senderEmail = userSettings.senderEmail;
+  const senderEmail = userSettings.senderEmail || process.env.SMTP_USERNAME;
   const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
 
   const subjectLine = lead.company
@@ -2976,7 +2976,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return res.status(400).json({ message: "Company identity required. Go to Settings > Company Profile and enter your company name before sending outreach." });
       }
 
-      if (!settings?.senderEmail) {
+      if (!settings?.senderEmail && !process.env.SMTP_USERNAME) {
         return res.status(400).json({ message: "Sender email required. Go to Settings > Integrations > Email Identity and set your sender email before sending outreach." });
       }
 

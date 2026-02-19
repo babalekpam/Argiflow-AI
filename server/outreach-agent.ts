@@ -25,7 +25,7 @@ import {
 } from "../shared/schema";
 import { instantlyEngine } from "./instantly-engine";
 import nodemailer from "nodemailer";
-import { getAnthropicForUser } from "./routes";
+import { storage } from "./storage";
 
 // ============================================================
 // TYPES
@@ -143,6 +143,7 @@ export class OutreachAgent {
       let newProspects: any[] = [];
 
       try {
+        const { getAnthropicForUser } = await import("./routes");
         const ai = await getAnthropicForUser(userId);
 
         const response = await ai.client.messages.create({
@@ -391,7 +392,62 @@ Make emails realistic with real company domain patterns. Only return the JSON ar
         }
       }
     } catch (err: any) {
-      console.error(`[OutreachAgent] Send queue error:`, err.message);
+      console.error(`[OutreachAgent] Campaign send error:`, err.message);
+    }
+
+    // ── DIRECT SEND: Send unsent outreach drafts via platform SMTP/SendGrid ──
+    try {
+      const unsentLeads = await db.select().from(leads)
+        .where(and(
+          eq(leads.userId, userId),
+          sql`${leads.outreach} IS NOT NULL AND ${leads.outreach} != ''`,
+          isNull(leads.outreachSentAt),
+          sql`${leads.email} IS NOT NULL AND ${leads.email} != ''`,
+        ))
+        .limit(config.maxEmailsPerDay || 50);
+
+      if (unsentLeads.length > 0) {
+        const user = await storage.getUserById(userId);
+        const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+
+        if (user) {
+          const { sendOutreachEmail } = await import("./routes");
+          let directSent = 0;
+          let directFailed = 0;
+
+          for (const lead of unsentLeads) {
+            try {
+              const result = await sendOutreachEmail(lead, settings || {}, user);
+              if (result.success) {
+                directSent++;
+                const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+                await db.update(leads).set({
+                  outreachSentAt: new Date(),
+                  status: "warm",
+                  followUpStep: 0,
+                  followUpStatus: "active",
+                  followUpNextAt,
+                }).where(eq(leads.id, lead.id));
+              } else {
+                directFailed++;
+                console.warn(`[OutreachAgent] Direct send failed for ${lead.email}: ${result.error}`);
+              }
+            } catch (sendErr: any) {
+              directFailed++;
+              console.error(`[OutreachAgent] Direct send error for ${lead.email}: ${sendErr.message}`);
+            }
+
+            // Small delay between sends to avoid rate limits
+            await new Promise(r => setTimeout(r, 1500));
+          }
+
+          if (directSent > 0) {
+            await this.logAgentTask(userId, "send_email", `Directly sent ${directSent} outreach emails (${directFailed} failed)`);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error(`[OutreachAgent] Direct send error:`, err.message);
     }
   }
 
@@ -741,6 +797,7 @@ Make emails realistic with real company domain patterns. Only return the JSON ar
 
   private async generateAiReply(userId: string, context: ReplyContext): Promise<string | null> {
     try {
+      const { getAnthropicForUser } = await import("./routes");
       const ai = await getAnthropicForUser(userId);
 
       const systemPrompt = `You are an AI sales assistant. You write email replies on behalf of a business.

@@ -102,6 +102,19 @@ function AgentStatusPanel() {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const sendPendingMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/leads/send-all-outreach", {});
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/outreach-agent/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/outreach-agent/activity"] });
+      toast({ title: "Sending outreach", description: data.message || `Sending ${data.total || 0} emails in background...` });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   if (isLoading) return <LoadingCards count={4} />;
 
   const isRunning = status?.isRunning;
@@ -129,6 +142,10 @@ function AgentStatusPanel() {
           <Button variant="outline" onClick={() => cycleMutation.mutate()} disabled={cycleMutation.isPending} data-testid="button-run-cycle">
             {cycleMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Run Cycle
+          </Button>
+          <Button variant="outline" onClick={() => sendPendingMutation.mutate()} disabled={sendPendingMutation.isPending} data-testid="button-send-pending">
+            {sendPendingMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+            Send Pending
           </Button>
         </div>
       </div>
