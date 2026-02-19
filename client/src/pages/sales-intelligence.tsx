@@ -48,6 +48,7 @@ import {
   ChevronRight,
   UserPlus,
   Crown,
+  AlertTriangle,
 } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 
@@ -261,6 +262,7 @@ function CompanySearchTab() {
   const { toast } = useToast();
   const [filters, setFilters] = useState({ name: "", industry: "", location: "", minEmployees: "", maxEmployees: "" });
   const [results, setResults] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<string>("");
   const [hasSearched, setHasSearched] = useState(false);
 
   const searchMutation = useMutation({
@@ -270,6 +272,7 @@ function CompanySearchTab() {
     },
     onSuccess: (data: any) => {
       setResults(data.results || []);
+      setDataSource(data.source || "");
       setHasSearched(true);
     },
     onError: (e: any) => toast({ title: "Search failed", description: e.message, variant: "destructive" }),
@@ -356,6 +359,15 @@ function CompanySearchTab() {
 
       {hasSearched && !searchMutation.isPending && (
         <div className="space-y-3">
+          {dataSource === "ai_web_search" && results.some((r: any) => r.confidence === "low") && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-sm" data-testid="warning-ai-knowledge">
+              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-amber-500">Results from AI Knowledge</p>
+                <p className="text-muted-foreground text-xs mt-0.5">Web search is temporarily unavailable. Results may be less accurate for smaller or newer companies. Use the "Enrich" feature for more detailed, AI-researched data on specific companies.</p>
+              </div>
+            </div>
+          )}
           <p className="text-sm text-muted-foreground">{results.length} companies found via B2B Intelligence Engine</p>
           {results.length === 0 ? (
             <Card className="p-8 text-center">
@@ -387,6 +399,7 @@ function CompanySearchTab() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    {co.confidence === "low" && <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-500 border-amber-500/20"><AlertTriangle className="w-3 h-3 mr-1" />AI Estimate</Badge>}
                     {co.location && <Badge variant="outline" className="text-[10px]"><MapPin className="w-3 h-3 mr-1" />{co.location}</Badge>}
                     {(co.employeeCount || co.employeeRange) && <Badge variant="outline" className="text-[10px]"><Users className="w-3 h-3 mr-1" />{co.employeeCount || co.employeeRange}</Badge>}
                     {co.phone && <Badge variant="outline" className="text-[10px]"><Phone className="w-3 h-3 mr-1" />{co.phone}</Badge>}

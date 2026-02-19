@@ -179,10 +179,10 @@ export class IntelligenceEngine {
       const useAiOnly = !searchContent.trim();
 
       const sysPrompt = useAiOnly
-        ? `You are a B2B sales intelligence analyst. Based on your training knowledge, provide information about real professionals. Return ONLY real people you are confident exist at real companies. Do NOT fabricate contact details.`
+        ? `You are a B2B sales intelligence analyst. You are answering from training knowledge ONLY (no live web data). ACCURACY IS CRITICAL. For well-known executives at major companies, provide details. For unknown people or small companies, set uncertain fields to null. NEVER fabricate names, emails, phone numbers, or LinkedIn URLs. It is better to return sparse but accurate data than detailed but wrong data.`
         : `You are an expert B2B sales intelligence data extractor performing DEEP research. Extract real professional contacts with maximum detail from web search results. Cross-reference data across sources. Return ONLY real people with real information. Do NOT fabricate any data.`;
       const usrPrompt = useAiOnly
-        ? `Provide information about real business professionals matching: ${parts.join(", ")}. Use your knowledge to provide accurate profiles.`
+        ? `Find real business professionals matching: ${parts.join(", ")}. You have NO web access. Only provide info you are CONFIDENT is accurate. For people you aren't sure about, return just their name/title and set everything else to null. Do NOT fabricate email addresses or phone numbers.`
         : `From these web search results, extract real business contacts matching: ${parts.join(", ")}.\n\nSearch Results:\n${searchContent}`;
 
       const result = await aiExtract(
@@ -229,7 +229,14 @@ Return JSON with DEEPLY enriched profiles:
 }
 
 ${useAiOnly
-  ? `CRITICAL: Return real professionals you know from your training data that match the search criteria. Include whatever details you are confident about (name, title, company, location). It is OK to return partial info — leave unknown fields as null. Return at least 3-5 people if you can identify them. Do NOT fabricate names or contact details you are unsure about.`
+  ? `CRITICAL ACCURACY RULES:
+- Only return people you are GENUINELY confident exist (e.g., well-known CEOs, public figures)
+- For well-known executives (Tim Cook, Satya Nadella, etc.): provide full details
+- For lesser-known people: return name and title only, set email/phone/LinkedIn to null
+- NEVER fabricate email addresses, phone numbers, or LinkedIn URLs
+- NEVER guess someone's company or title — if unsure, set to null
+- Set dataQualityScore to 30-50 for AI-knowledge-only results
+- It is better to return 1 accurate result than 5 inaccurate ones`
   : `CRITICAL: Only include people you actually found in the search results. Real names, real companies. Cross-reference across sources. If the search returned no relevant people, return {"contacts": [], "totalEstimated": 0}.`}`
       );
 
@@ -335,10 +342,10 @@ ${useAiOnly
       console.log(`[Intelligence] Company search: useAiOnly=${useAiOnly}, searchContent length=${searchContent.length}, parts=${parts.join(", ")}`);
 
       const systemPrompt = `You are a B2B company intelligence analyst. ${useAiOnly 
-        ? "Based on your training knowledge, provide information about real companies. You MUST return at least 1-3 companies that match the query. Include whatever details you know — partial information is fine. Do NOT return an empty list."
+        ? "You are answering from your training knowledge ONLY (no live web data available). ACCURACY IS CRITICAL. For well-known public companies (Fortune 500, major brands), provide full details. For small/medium/unknown companies, ONLY include facts you are genuinely confident about. Set any field you are NOT sure about to null. NEVER guess or fabricate industry, description, location, contacts, or any other details. It is far better to return partial/sparse data than wrong data. If you truly don't know a company, still return it with just the name and all other fields as null."
         : "Extract comprehensive company profiles from web search results with maximum detail. Return ONLY real companies with verified information. Do NOT fabricate any data."}`;
       const userPrompt = useAiOnly
-        ? `I need you to find real companies matching: ${parts.join(", ")}. Use your training knowledge to provide company profiles. YOU MUST return at least 1 company. If searching by name, return that specific company. If searching by industry/location, return well-known companies in that space.`
+        ? `Find real companies matching: ${parts.join(", ")}. IMPORTANT: You have NO web access right now. Only provide information you are CONFIDENT is accurate from your training data. For companies you don't recognize or aren't sure about, return the company with just the name and set everything else to null. Do NOT guess the industry, description, or contacts — leave them null if unsure. Return at least 1 result.`
         : `From these search results, extract real companies matching: ${parts.join(", ")}.\n\nSearch Results:\n${searchContent}`;
 
       const result = await aiExtract(
@@ -380,11 +387,14 @@ Return JSON with comprehensive company profiles:
 
 CRITICAL RULES:
 ${useAiOnly
-  ? `- Return real companies you know from your training data that match the search criteria
-- Include whatever contact details, website URLs, and leadership info you are confident about
-- It is OK to return partial information — include what you know and leave unknown fields as null
-- Return at least 3-5 companies if you can identify them
-- Do NOT make up fake company names or fabricate contact info you are unsure about`
+  ? `- ACCURACY OVER COMPLETENESS: Only fill in fields you are genuinely confident about
+- For well-known companies (Apple, Google, AT&T, etc.): provide full details
+- For lesser-known or small companies: return the name but set uncertain fields to null
+- NEVER guess the industry based on the company name alone — if unsure, set industry to null
+- NEVER fabricate descriptions, phone numbers, emails, addresses, or contacts
+- Set any uncertain field to null rather than guessing
+- Return at least 1 company matching the name, even if most fields are null
+- Add a "confidence" field: "high" for well-known companies, "low" for companies you're not sure about`
   : `- Only include companies you actually found in the search results
 - Extract ALL contact details visible in search results (phone, email, addresses)
 - Always try to identify the owner/founder/CEO from leadership searches
@@ -418,7 +428,8 @@ ${useAiOnly
         technologies: c.technologies || [],
         socialMedia: c.socialMedia || {},
         companyType: "private",
-        source: c.source || (useAiOnly ? "ai_knowledge" : "web search"),
+        confidence: useAiOnly ? (c.confidence || "low") : "high",
+        source: c.source || (useAiOnly ? "AI Knowledge (no web data available)" : "web search"),
       }));
 
       return {
