@@ -228,7 +228,9 @@ Return JSON with DEEPLY enriched profiles:
   "totalEstimated": number of total possible matches
 }
 
-CRITICAL: Only include people you actually found in the search results. Real names, real companies. Cross-reference across sources. If the search returned no relevant people, return {"contacts": [], "totalEstimated": 0}.`
+${useAiOnly
+  ? `CRITICAL: Return real professionals you know from your training data that match the search criteria. Include whatever details you are confident about (name, title, company, location). It is OK to return partial info — leave unknown fields as null. Return at least 3-5 people if you can identify them. Do NOT fabricate names or contact details you are unsure about.`
+  : `CRITICAL: Only include people you actually found in the search results. Real names, real companies. Cross-reference across sources. If the search returned no relevant people, return {"contacts": [], "totalEstimated": 0}.`}`
       );
 
       const contacts = (result.contacts || []).map((c: any, i: number) => ({
@@ -376,11 +378,17 @@ Return JSON with comprehensive company profiles:
 }
 
 CRITICAL RULES:
-- Only include companies you actually found in the search results
+${useAiOnly
+  ? `- Return real companies you know from your training data that match the search criteria
+- Include whatever contact details, website URLs, and leadership info you are confident about
+- It is OK to return partial information — include what you know and leave unknown fields as null
+- Return at least 3-5 companies if you can identify them
+- Do NOT make up fake company names or fabricate contact info you are unsure about`
+  : `- Only include companies you actually found in the search results
 - Extract ALL contact details visible in search results (phone, email, addresses)
 - Always try to identify the owner/founder/CEO from leadership searches
 - Cross-reference information across multiple search results for accuracy
-- Include key contacts (decision makers) found in the results`
+- Include key contacts (decision makers) found in the results`}`
       );
 
       const companies = (result.companies || []).map((c: any, i: number) => ({
