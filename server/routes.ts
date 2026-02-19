@@ -643,9 +643,10 @@ async function executeAction(userId: string, action: string, params: any): Promi
         }
         const hasRealEmail = lead.email && lead.email.trim().length > 3 && lead.email.includes("@") && lead.email.includes(".");
         const hasRealPhone = lead.phone && lead.phone.replace(/\D/g, '').length >= 10;
-        if (!hasRealEmail && !hasRealPhone) {
-          skipped.push(lead.name || "unnamed");
-          console.warn(`[Lead Filter] Rejected lead with no verified contact: name="${lead.name}", email="${lead.email}", phone="${lead.phone}"`);
+        if (!hasRealEmail || !hasRealPhone) {
+          const missing = !hasRealEmail && !hasRealPhone ? "phone AND email" : !hasRealEmail ? "email" : "phone";
+          skipped.push(`${lead.name || "unnamed"} (missing ${missing})`);
+          console.warn(`[Lead Filter] Rejected lead missing ${missing}: name="${lead.name}", email="${lead.email}", phone="${lead.phone}"`);
           continue;
         }
 
@@ -694,7 +695,9 @@ async function executeAction(userId: string, action: string, params: any): Promi
       if (created.length === 0 && skipped.length > 0) {
         const hasGatekeepers = skipped.some(s => s.includes("gatekeeper"));
         const gatekeeperMsg = hasGatekeepers ? "\n- GATEKEEPER contacts (info@, contact@, office@, receptionists, assistants, coordinators) are AUTO-REJECTED. Find the DECISION MAKER: the practice owner, physician, CEO, medical director, or managing partner." : "";
-        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info or were gatekeeper contacts.${gatekeeperMsg}\nYou MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] owner" or "[business name] physician" to find the DECISION MAKER\n3. Search "[decision maker name] email" or "[business name] phone number" for REAL contact details\n4. ONLY use emails and phone numbers you see in actual search results\n5. Phone numbers must NOT contain "555" — those are fictional\n6. Emails must NOT be generic (info@, contact@, office@) — find the owner's PERSONAL email\n7. Emails must be from REAL domains you found in search results\nTry again with REAL decision-maker contacts from actual web pages.`;
+        const hasMissing = skipped.some(s => s.includes("missing"));
+        const missingMsg = hasMissing ? "\n- Leads MUST have BOTH a real phone number AND a real email. Leads with only one or neither are AUTO-REJECTED." : "";
+        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info, missing phone/email, or were gatekeeper contacts.${gatekeeperMsg}${missingMsg}\nYou MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] owner" or "[business name] physician" to find the DECISION MAKER\n3. Search "[decision maker name] email" AND "[business name] phone number" for REAL contact details — you need BOTH\n4. ONLY use emails and phone numbers you see in actual search results\n5. Phone numbers must NOT contain "555" — those are fictional\n6. Emails must NOT be generic (info@, contact@, office@) — find the owner's PERSONAL email\n7. Emails must be from REAL domains you found in search results\n8. Every lead MUST have BOTH a real phone AND real email — skip any lead where you can't find both\nTry again with REAL decision-maker contacts (BOTH phone AND email) from actual web pages.`;
       }
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);
@@ -1370,9 +1373,9 @@ CONTACT VERIFICATION RULES (MANDATORY — LEADS WITH FAKE DATA WILL BE AUTO-REJE
 - NEVER guess email formats like firstname.lastname@companyname.com — only use emails you SAW in search results.
 - Phone numbers MUST be FULL US numbers with area code (10 digits). Example: (615) 482-6768 or 615-482-6768. NEVER submit partial or truncated phone numbers.
 - If a search result shows a phone number, copy the COMPLETE number including area code.
-- Each lead MUST have at least one real, verified contact method (phone or email) found from an actual webpage.
-- DO NOT include leads in your response or in the generate_leads tool if they don't have at least a real phone number OR real email. A lead without any contact info is WORTHLESS — skip it entirely and find a different one that has contact details.
-- The system has a STRICT FILTER that auto-rejects leads without real contact info. If your leads get rejected, you MUST search more specifically for each business's real contact details.
+- Each lead MUST have BOTH a real phone number AND a real email address found from actual webpages. Leads with only one or neither are REJECTED by the system.
+- DO NOT include leads in your response or in the generate_leads tool unless they have BOTH a real phone number AND a real email. A lead missing either one is WORTHLESS — skip it entirely and find a different one that has BOTH.
+- The system has a STRICT FILTER that auto-rejects leads missing phone or email. If your leads get rejected, you MUST search more specifically for each business's real contact details.
 
 PHONE NUMBER HUNTING (CRITICAL — DO NOT SKIP):
 - For EVERY potential lead, you MUST do a DEDICATED phone number search BEFORE saving them.
@@ -1384,9 +1387,9 @@ PHONE NUMBER HUNTING (CRITICAL — DO NOT SKIP):
   5. Search "[business name] [city] [state]" — Google often shows phone numbers in the Knowledge Panel
 - Most businesses have a phone number listed publicly — you just need to search for it specifically.
 - If a business has a website, search for their Contact page or footer — phone numbers are almost always there.
-- A lead with BOTH email AND phone is 3x more valuable than one with just email. Make the extra search effort.
-- NEVER submit a lead without a phone number unless you have exhausted at least 3 different phone search queries for that business.
-- Include the phone number source in the lead notes (e.g., "Phone found on practice website contact page").
+- A lead MUST have BOTH email AND phone to be accepted. The system REJECTS leads missing either one. Make the extra search effort for BOTH.
+- NEVER submit a lead without BOTH a phone number AND email. If you cannot find both after exhausting searches, SKIP that lead entirely.
+- Include the contact info sources in the lead notes (e.g., "Phone found on practice website contact page, email from Google Maps listing").
 
 CRITICAL RULE: When asked to find leads, you MUST ALWAYS call the generate_leads tool to save them to the CRM. NEVER just describe leads in text without saving them. After web searches, immediately call generate_leads with all leads found. The user expects leads to appear in their CRM leads list automatically. If you don't call generate_leads, the leads are LOST and the user gets nothing.
 
@@ -4231,7 +4234,7 @@ CONTACT INFO RULES (MANDATORY):
 - NEVER use 555-xxx-xxxx phone numbers — those are fictional
 - Phone numbers MUST be FULL US numbers with area code (10 digits)
 - If you find a practice website, their phone number is usually in the header, footer, or contact page
-- Each lead MUST have at least a real phone number OR real email from an actual webpage
+- Each lead MUST have BOTH a real phone number AND a real email from actual webpages — leads missing either are REJECTED
 
 SCORING:
 - Healthcare practice actively hiring billing staff: score 85+
