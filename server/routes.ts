@@ -7278,7 +7278,6 @@ async function cleanupFakeLeads() {
       DELETE FROM leads WHERE 
         phone LIKE '%555%'
         OR email ~* '@(familypractice|orthoclinic|urgentcare|familymed|internalmed|dentistry|dermatology|pediatrics|cardiology|oncology|neurology|gastro|pulmonology|rheumatology|endocrinology|nephrology|urology|geriatrics|sleepmedic|pathology|brownfamily|browngastro|brownallergy|brownorthopedics|brownpediatrics|browneye|atlantaurology|gastroenterologystl|geriatricsstl|oncologystl)\.(com|org|net)$'
-        OR email ~* '^(info|contact|office|admin|hello|support|reception|frontdesk|appointments?|scheduling|billing|general|team|staff|help|enquir|inquir|mail)@'
       RETURNING id
     `);
     const count = (result as any).rowCount || (result as any).length || 0;
