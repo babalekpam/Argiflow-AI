@@ -1540,21 +1540,51 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
     const isLeadRequest = (lowerMsg.includes("lead") || lowerMsg.includes("find") || lowerMsg.includes("search") || lowerMsg.includes("prospect")) && 
                           (lowerMsg.includes("dental") || lowerMsg.includes("chiro") || lowerMsg.includes("practice") || lowerMsg.includes("doctor") || lowerMsg.includes("medical") || lowerMsg.includes("clinic") || lowerMsg.includes("physician") || lowerMsg.includes("healthcare"));
     let preSearchContext = "";
-    if (isLeadRequest && process.env.TAVILY_API_KEY) {
+    if (isLeadRequest) {
       try {
         const specialtyMatch = lowerMsg.match(/(dental|chiro|family\s*med|pediatr|dermatol|orthop|cardio|urgent\s*care|ob\s*gyn|mental\s*health|podiatr|optom|ent\s|allergy|pain\s*manage|gastro|neuro|pulmon|internal\s*med)/i);
         const specialty = specialtyMatch ? specialtyMatch[1] : "healthcare";
         const stateMatch = lowerMsg.match(/\b(tennessee|missouri|georgia|texas|florida|ohio|north\s*carolina|illinois|california|pennsylvania|virginia|new\s*york|michigan|arizona|colorado|tn|mo|ga|tx|fl|oh|nc|il|ca|pa|va|ny|mi|az|co)\b/i);
         const region = stateMatch ? stateMatch[1] : "";
         const searchQuery = `${specialty} practice ${region} owner doctor phone email contact`;
-        const tRes = await fetch("https://api.tavily.com/search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ api_key: process.env.TAVILY_API_KEY, query: searchQuery, search_depth: "advanced", max_results: 15, include_answer: true }),
-        });
-        if (tRes.ok) {
-          const tData = await tRes.json();
-          preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real practice contacts — DO NOT search for billing companies, only use results showing actual healthcare PRACTICES):\n${tData.answer || ""}\n${(tData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`).join("\n\n")}`;
+        let preSearchResults: any[] = [];
+
+        if (process.env.TAVILY_API_KEY) {
+          const tRes = await fetch("https://api.tavily.com/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ api_key: process.env.TAVILY_API_KEY, query: searchQuery, search_depth: "advanced", max_results: 15, include_answer: true }),
+          });
+          const tData = await tRes.json() as any;
+          if (tRes.ok && !tData.detail) {
+            preSearchResults = tData.results || [];
+            if (preSearchResults.length > 0) {
+              preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real practice contacts — DO NOT search for billing companies, only use results showing actual healthcare PRACTICES):\n${tData.answer || ""}\n${preSearchResults.map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`).join("\n\n")}`;
+            }
+          } else {
+            console.warn("[Pre-search] Tavily error:", JSON.stringify(tData.detail || tData).slice(0, 200));
+          }
+        }
+
+        if (preSearchResults.length === 0 && process.env.YOU_API_KEY) {
+          console.log("[Pre-search] Trying You.com as fallback...");
+          const youRes = await fetch(`https://api.ydc-index.io/search?query=${encodeURIComponent(searchQuery)}`, {
+            headers: { "X-API-Key": process.env.YOU_API_KEY, "Accept": "application/json" },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (youRes.ok) {
+            const youData = await youRes.json() as any;
+            const hits = youData.hits || youData.results || [];
+            if (hits.length > 0) {
+              preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real practice contacts — DO NOT search for billing companies, only use results showing actual healthcare PRACTICES):\n${hits.slice(0, 15).map((h: any) => `Source: ${h.url || "N/A"}\nTitle: ${h.title || "N/A"}\n${h.description || (h.snippets || []).join(" ") || ""}`).join("\n\n")}`;
+              console.log(`[Pre-search] You.com returned ${hits.length} results`);
+            }
+          }
+        }
+
+        if (!preSearchContext && (process.env.TAVILY_API_KEY || process.env.YOU_API_KEY)) {
+          console.warn("[Pre-search] All search providers returned 0 results — AI will use knowledge base");
+          preSearchContext = `\n\nWEB SEARCH UNAVAILABLE: Search API quota exhausted. You MUST still find and save leads using your AI knowledge. Use real healthcare practice names, locations, and specialties from your training data. Call generate_leads with real businesses you know exist. Set intent_signal to "AI knowledge - verify contact info". The user is counting on you to deliver leads.`;
         }
       } catch (e: any) {
         console.log("[Pre-search] Error:", e.message);
@@ -1595,29 +1625,67 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
           console.log(`[AI Tool] web_search: "${query}"`);
           try {
             const tavilyKey = process.env.TAVILY_API_KEY;
-            if (!tavilyKey) {
-              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: "Web search not configured (no TAVILY_API_KEY)" });
+            const youApiKey = process.env.YOU_API_KEY;
+            let searchResults: string[] = [];
+
+            if (tavilyKey) {
+              const searchRes = await fetch("https://api.tavily.com/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  api_key: tavilyKey,
+                  query,
+                  search_depth: "advanced",
+                  max_results: 10,
+                  include_raw_content: false,
+                }),
+              });
+              const searchData = await searchRes.json() as any;
+              if (!searchRes.ok || searchData.detail) {
+                console.error(`[AI Tool] Tavily API error (${searchRes.status}):`, JSON.stringify(searchData.detail || searchData).slice(0, 300));
+              } else {
+                searchResults = (searchData.results || []).map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nSnippet: ${r.content?.slice(0, 500)}`);
+              }
+            }
+
+            if (searchResults.length === 0 && youApiKey) {
+              console.log(`[AI Tool] Tavily failed/empty, trying You.com search...`);
+              try {
+                const youRes = await fetch(`https://api.ydc-index.io/search?query=${encodeURIComponent(query)}`, {
+                  headers: { "X-API-Key": youApiKey, "Accept": "application/json" },
+                  signal: AbortSignal.timeout(10000),
+                });
+                if (youRes.ok) {
+                  const youData = await youRes.json() as any;
+                  const hits = youData.hits || youData.results || [];
+                  searchResults = hits.slice(0, 10).map((h: any) => {
+                    const snippets = (h.snippets || []).join(" ").slice(0, 500);
+                    return `Title: ${h.title || "N/A"}\nURL: ${h.url || "N/A"}\nSnippet: ${h.description || snippets || "N/A"}`;
+                  });
+                  console.log(`[AI Tool] You.com search returned ${searchResults.length} results`);
+                }
+              } catch (youErr: any) {
+                console.error(`[AI Tool] You.com search error:`, youErr?.message);
+              }
+            }
+
+            if (searchResults.length === 0 && !tavilyKey && !youApiKey) {
+              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: "Web search not configured (no search API keys available). Use your AI knowledge to find real businesses based on publicly known information. Call generate_leads with businesses you know exist from your training data — include real company names, locations, and specialties. Note in the lead that contact info should be verified." });
               continue;
             }
-            const searchRes = await fetch("https://api.tavily.com/search", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                api_key: tavilyKey,
-                query,
-                search_depth: "advanced",
-                max_results: 10,
-                include_raw_content: false,
-              }),
-            });
-            const searchData = await searchRes.json() as any;
-            const results = (searchData.results || []).map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nSnippet: ${r.content?.slice(0, 500)}`).join("\n\n---\n\n");
-            const searchSummary = results || "No results found.";
-            console.log(`[AI Tool] web_search returned ${(searchData.results || []).length} results`);
+
+            if (searchResults.length === 0) {
+              console.warn(`[AI Tool] All search providers returned 0 results for: "${query}"`);
+              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `Web search returned no results for "${query}". The search API quota may be exhausted. Use your AI knowledge to find real businesses you know exist based on your training data. Call generate_leads with real businesses — use real company names and locations you know. Set intent_signal to "AI knowledge - verify contact info". If you cannot find verified contact details, note that in the lead for manual verification.` });
+              continue;
+            }
+
+            const searchSummary = searchResults.join("\n\n---\n\n");
+            console.log(`[AI Tool] web_search returned ${searchResults.length} results`);
             toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: searchSummary.slice(0, 15000) });
           } catch (searchErr: any) {
             console.error(`[AI Tool] web_search ERROR:`, searchErr?.message);
-            toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `Search error: ${searchErr?.message}`, is_error: true });
+            toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `Search error: ${searchErr?.message}. Use your AI knowledge instead — find real businesses you know exist and call generate_leads with them.`, is_error: true });
           }
           continue;
         }
@@ -1665,7 +1733,17 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
 
     const finalText = textBlocks.map(b => b.text).join("\n").trim();
 
-    return finalText || "Done! I've completed the actions. Check your dashboard to see the updates.";
+    if (!finalText) {
+      const toolsUsed = response.content.filter((block: any) => block.type === "tool_use").map((b: any) => b.name);
+      if (toolsUsed.includes("generate_leads")) {
+        return "Done! I've saved new leads to your CRM. Check your Leads page to see them.";
+      } else if (loopCount >= maxLoops) {
+        return "I ran into some issues while searching for leads — the search service may be temporarily unavailable. Please try again in a few minutes, or try a more specific request like 'find dental practices in Nashville that need billing help'.";
+      } else {
+        return "I wasn't able to find and save any leads this time. The web search service may be temporarily unavailable. Please try again shortly, or try a more specific request with a location and specialty.";
+      }
+    }
+    return finalText;
   } catch (error: any) {
     console.error("AI API error details:", {
       message: error?.message,
