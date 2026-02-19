@@ -33,19 +33,37 @@ function normalizeContact(c: any): any {
     firstName: c.firstName || "",
     lastName: c.lastName || "",
     jobTitle: c.jobTitle || c.title || "Professional",
+    previousTitle: c.previousTitle || "",
     companyName: c.companyName || c.company || "",
     companyDomain: c.companyDomain || c.domain || "",
+    companyIndustry: c.companyIndustry || "",
+    companySize: c.companySize || "",
     workEmail: c.workEmail || c.email || c.personalEmail || "",
     email: c.workEmail || c.email || c.personalEmail || "",
     directPhone: c.directPhone || c.phone || c.mobilePhone || "",
     phone: c.directPhone || c.phone || c.mobilePhone || "",
+    mobilePhone: c.mobilePhone || "",
     city: c.city || "",
     state: c.state || "",
+    timezone: c.timezone || "",
     location: c.location || [c.city, c.state, c.country].filter(Boolean).join(", ") || "",
     linkedinUrl: c.linkedinUrl || "",
-    summary: c.summary || "",
+    twitterUrl: c.twitterUrl || "",
+    summary: c.summary || c.bio || "",
+    bio: c.bio || c.summary || "",
     seniority: c.seniority || c.seniorityLevel || "",
     department: c.department || "",
+    education: c.education || "",
+    certifications: c.certifications || [],
+    skills: c.skills || [],
+    yearsExperience: c.yearsExperience || null,
+    recentActivity: c.recentActivity || "",
+    isDecisionMaker: c.isDecisionMaker || false,
+    buyingRole: c.buyingRole || "",
+    bestOutreachChannel: c.bestOutreachChannel || "",
+    painPoints: c.painPoints || [],
+    icebreaker: c.icebreaker || "",
+    source: c.source || "",
     dataQualityScore: c.dataQualityScore || 0,
   };
 }
@@ -161,13 +179,70 @@ router.post("/contacts/enrich", async (req, res) => {
 
     const enriched = await intelligenceEngine.enrichContact({ email, name, company, linkedinUrl });
 
-    const [saved] = await db.insert(contactProfiles).values({
-      ...enriched,
+    const dbRecord: any = {
+      firstName: enriched.firstName || null,
+      lastName: enriched.lastName || null,
+      fullName: enriched.fullName || null,
+      jobTitle: enriched.jobTitle || null,
+      seniorityLevel: enriched.seniorityLevel || null,
+      department: enriched.department || null,
+      companyName: enriched.companyName || null,
+      companyDomain: enriched.companyDomain || null,
+      workEmail: enriched.workEmail || null,
+      personalEmail: enriched.personalEmail || null,
+      emailVerified: enriched.emailVerified || false,
+      emailConfidence: enriched.emailConfidence || 0,
+      directPhone: enriched.directPhone || null,
+      mobilePhone: enriched.mobilePhone || null,
+      companyPhone: enriched.officePhone || null,
+      linkedinUrl: enriched.linkedinUrl || null,
+      twitterUrl: enriched.twitterUrl || null,
+      city: enriched.city || null,
+      state: enriched.state || null,
+      country: enriched.country || "US",
+      timezone: enriched.timezone || null,
+      bio: enriched.bio || null,
       skills: JSON.stringify(enriched.skills || []),
-    }).returning();
+      education: JSON.stringify(enriched.education || []),
+      previousCompanies: JSON.stringify(enriched.workHistory || []),
+      yearsExperience: enriched.yearsInRole || null,
+      dataSource: enriched.dataSource || "deep_web_enrichment",
+      lastEnrichedAt: new Date(),
+      dataQualityScore: enriched.dataQualityScore || 50,
+    };
+
+    const [saved] = await db.insert(contactProfiles).values(dbRecord).returning();
+
+    const deepData = {
+      ...saved,
+      previousTitles: enriched.previousTitles || [],
+      certifications: enriched.certifications || [],
+      specialties: enriched.specialties || [],
+      publications: enriched.publications || [],
+      awards: enriched.awards || [],
+      interests: enriched.interests || [],
+      languages: enriched.languages || [],
+      otherSocialUrls: enriched.otherSocialUrls || [],
+      isDecisionMaker: enriched.isDecisionMaker || false,
+      isBudgetHolder: enriched.isBudgetHolder || false,
+      buyingRole: enriched.buyingRole || "end_user",
+      bestOutreachChannel: enriched.bestOutreachChannel || "email",
+      bestContactTime: enriched.bestContactTime || null,
+      personalityType: enriched.personalityType || null,
+      communicationStyle: enriched.communicationStyle || null,
+      painPoints: enriched.painPoints || [],
+      talkingPoints: enriched.talkingPoints || [],
+      icebreaker: enriched.icebreaker || "",
+      mutualConnections: enriched.mutualConnections || "",
+      recentActivity: enriched.recentActivity || "",
+      verificationNotes: enriched.verificationNotes || "",
+      sourcesUsed: enriched.sourcesUsed || [],
+      companyIndustry: enriched.companyIndustry || "",
+      companySize: enriched.companySize || "",
+    };
 
     await useCredits(userId, "enrichment", saved.id, "contact");
-    res.json(saved);
+    res.json(deepData);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -180,13 +255,76 @@ router.post("/companies/enrich", async (req, res) => {
 
     const enriched = await intelligenceEngine.enrichCompany({ domain, name });
 
-    const [saved] = await db.insert(companyProfiles).values({
-      ...enriched,
+    const dbRecord: any = {
+      name: enriched.name || name || "Unknown",
+      domain: enriched.domain || domain || null,
+      description: enriched.description || null,
+      industry: enriched.industry || null,
+      subIndustry: enriched.subIndustry || null,
+      sicCode: enriched.sicCode || null,
+      naicsCode: enriched.naicsCode || null,
+      employeeCount: enriched.employeeCount || null,
+      employeeRange: enriched.employeeRange || null,
+      annualRevenue: enriched.annualRevenue || null,
+      revenueRange: enriched.revenueRange || null,
+      foundedYear: enriched.foundedYear || null,
+      companyType: enriched.companyType || "private",
+      stockTicker: enriched.stockTicker || null,
+      headquarters: enriched.headquarters || null,
+      hqCity: enriched.hqCity || null,
+      hqState: enriched.hqState || null,
+      hqCountry: enriched.hqCountry || "US",
+      officeLocations: JSON.stringify(enriched.otherLocations || []),
       techStack: JSON.stringify(enriched.techStack || []),
-    }).returning();
+      investors: JSON.stringify(enriched.investors || []),
+      linkedinUrl: enriched.linkedinUrl || null,
+      twitterUrl: enriched.twitterUrl || null,
+      facebookUrl: enriched.facebookUrl || null,
+      websiteUrl: enriched.website || enriched.websiteUrl || (domain ? `https://${domain}` : null),
+      mainPhone: enriched.mainPhone || null,
+      mainEmail: enriched.generalEmail || null,
+      dataSource: enriched.dataSource || "deep_web_enrichment",
+      lastEnrichedAt: new Date(),
+    };
+
+    const [saved] = await db.insert(companyProfiles).values(dbRecord).returning();
+
+    const deepData = {
+      ...saved,
+      tagline: enriched.tagline || "",
+      ceo: enriched.ceo || "",
+      ceoLinkedin: enriched.ceoLinkedin || "",
+      founderNames: enriched.founderNames || [],
+      keyExecutives: enriched.keyExecutives || [],
+      boardMembers: enriched.boardMembers || [],
+      keyProducts: enriched.keyProducts || [],
+      keyClients: enriched.keyClients || [],
+      targetMarket: enriched.targetMarket || "",
+      valueProposition: enriched.valueProposition || "",
+      competitors: enriched.competitors || [],
+      competitiveAdvantage: enriched.competitiveAdvantage || "",
+      fundingTotal: enriched.fundingTotal || "",
+      fundingRounds: enriched.fundingRounds || [],
+      acquisitions: enriched.acquisitions || [],
+      partnerships: enriched.partnerships || [],
+      awards: enriched.awards || [],
+      certifications: enriched.certifications || [],
+      recentNews: enriched.recentNews || [],
+      hiringSignals: enriched.hiringSignals || [],
+      growthIndicators: enriched.growthIndicators || [],
+      painPoints: enriched.painPoints || [],
+      glassdoorRating: enriched.glassdoorRating || null,
+      bbbRating: enriched.bbbRating || null,
+      customerReviewSentiment: enriched.customerReviewSentiment || "unknown",
+      instagramUrl: enriched.instagramUrl || "",
+      youtubeUrl: enriched.youtubeUrl || "",
+      dataQualityScore: enriched.dataQualityScore || 50,
+      verificationNotes: enriched.verificationNotes || "",
+      sourcesUsed: enriched.sourcesUsed || [],
+    };
 
     await useCredits(userId, "enrichment", saved.id, "company");
-    res.json(saved);
+    res.json(deepData);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -226,8 +364,35 @@ router.post("/enrichment/bulk-from-leads", async (req, res) => {
         });
 
         await db.insert(contactProfiles).values({
-          ...data,
+          firstName: data.firstName || null,
+          lastName: data.lastName || null,
+          fullName: data.fullName || null,
+          jobTitle: data.jobTitle || null,
+          seniorityLevel: data.seniorityLevel || null,
+          department: data.department || null,
+          companyName: data.companyName || null,
+          companyDomain: data.companyDomain || null,
+          workEmail: data.workEmail || null,
+          personalEmail: data.personalEmail || null,
+          emailVerified: data.emailVerified || false,
+          emailConfidence: data.emailConfidence || 0,
+          directPhone: data.directPhone || null,
+          mobilePhone: data.mobilePhone || null,
+          companyPhone: data.officePhone || null,
+          linkedinUrl: data.linkedinUrl || null,
+          twitterUrl: data.twitterUrl || null,
+          city: data.city || null,
+          state: data.state || null,
+          country: data.country || "US",
+          timezone: data.timezone || null,
+          bio: data.bio || null,
           skills: JSON.stringify(data.skills || []),
+          education: JSON.stringify(data.education || []),
+          previousCompanies: JSON.stringify(data.workHistory || []),
+          yearsExperience: data.yearsInRole || null,
+          dataSource: data.dataSource || "deep_web_enrichment",
+          lastEnrichedAt: new Date(),
+          dataQualityScore: data.dataQualityScore || 50,
         });
 
         if (data.directPhone || data.jobTitle !== "Professional") {
