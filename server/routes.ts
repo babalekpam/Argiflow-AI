@@ -568,6 +568,29 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return false;
       };
 
+      const isBillingCompetitor = (company: string, notes: string) => {
+        const text = `${company || ""} ${notes || ""}`.toLowerCase();
+        const competitorPatterns = [
+          /\bbilling\s*(company|service|solution|firm|agency|group|partner|pro|specialist|expert|center|associate)/i,
+          /\brcm\s*(company|service|solution|firm|agency|group|partner)/i,
+          /\brevenue\s*cycle\s*(management|service|solution|company|firm|partner|group)/i,
+          /\bcoding\s*(company|service|solution|firm|agency)/i,
+          /\bclearinghouse/i,
+          /\bmedical\s*billing\s*(and|&)\s*(coding|collection)/i,
+          /\bbilling\s*outsourc/i,
+          /\behr\s*(vendor|company|provider|solution)/i,
+          /\bemr\s*(vendor|company|provider|solution)/i,
+          /\bpractice\s*management\s*software/i,
+        ];
+        for (const pattern of competitorPatterns) {
+          if (pattern.test(text)) return true;
+        }
+        const companyLC = (company || "").toLowerCase().trim();
+        if (/billing\s*(solution|service|company|group|partner|pro|specialist|firm|expert|associate|center)/i.test(companyLC)) return true;
+        if (/\brcm\b/i.test(companyLC) && !/clinic|practice|medical\s*center|hospital/i.test(companyLC)) return true;
+        return false;
+      };
+
       const agentType = params.agent_type;
       const agentCatalogEntry = agentType ? getAgentByType(agentType) : null;
       const standardSource = agentCatalogEntry ? `${agentCatalogEntry.name} Agent` : null;
@@ -605,6 +628,11 @@ async function executeAction(userId: string, action: string, params: any): Promi
         if (isGatekeeper(lead.name, lead.email)) {
           skipped.push(`${lead.name || "unnamed"} (gatekeeper)`);
           console.warn(`[Lead Filter] Rejected gatekeeper: name="${lead.name}", email="${lead.email}" — we only want decision makers`);
+          continue;
+        }
+        if (isBillingCompetitor(lead.company, lead.notes)) {
+          skipped.push(`${lead.name || "unnamed"} (competitor — billing company)`);
+          console.warn(`[Lead Filter] Rejected COMPETITOR billing company: "${lead.company}" — we only want healthcare practices that NEED billing help, not other billing companies`);
           continue;
         }
         const hasRealEmail = lead.email && lead.email.trim().length > 3 && lead.email.includes("@") && lead.email.includes(".");
@@ -1270,15 +1298,32 @@ DECISION-MAKER TARGETING (MANDATORY — GATEKEEPERS ARE AUTO-REJECTED BY THE SYS
 - In the lead's "notes" field, ALWAYS include the person's title/role to confirm they are a decision maker.
 
 MEDICAL BILLING LEAD HUNTER (Track-Med Billing Solutions — PRIMARY AGENT):
-You are the AI lead hunter for Track-Med Billing Solutions. Use these multi-source strategies to find high-quality medical billing leads:
+You are the AI lead hunter for Track-Med Billing Solutions. Your TARGET is HEALTHCARE PRACTICES (doctors' offices, dental offices, chiropractors, clinics) that NEED billing help — NOT other billing companies or RCM firms (those are competitors, NEVER add them as leads).
+
+CRITICAL EXCLUSION RULE: NEVER add these as leads — they are COMPETITORS, not prospects:
+- Medical billing companies, RCM companies, revenue cycle management firms, billing service providers, coding companies, clearinghouses, billing software companies, EHR/EMR companies, health IT companies. If a company's primary business is providing billing or RCM services to others, it is a COMPETITOR and must NEVER be saved as a lead.
+- Look at the company's website/description — if they SELL billing services, they are a competitor. If they ARE a medical/dental/chiro practice that NEEDS billing services, they are a prospect.
+
+TARGET PROSPECTS (these are who we sell to):
+- Medical practices (family medicine, internal medicine, pediatrics, OB/GYN, cardiology, gastroenterology, pulmonology, nephrology, endocrinology, neurology, rheumatology, allergy/immunology, oncology, urology, geriatrics, ophthalmology, ENT, pain management, physical therapy, mental health/psychiatry, urgent care, concierge medicine)
+- Dental offices (general dentistry, orthodontics, oral surgery, periodontics, endodontics, pediatric dentistry, prosthodontics, cosmetic dentistry)
+- Chiropractic offices and clinics
+- Orthopedic practices and sports medicine
+- Dermatology practices
+- Podiatry practices
+- Optometry and ophthalmology offices
+- Surgery centers and ambulatory surgical centers
+- Multi-specialty group practices and clinics
+- Rehabilitation and physical therapy centers
+- Solo practitioners and small practices (1-10 providers) — these are Track-Med's IDEAL clients
 
 SEARCH STRATEGIES (use multiple in each run):
-1. SEARCH INTENT MONITORING: Search for practices actively looking for billing help. Use queries like: "medical billing services near me", "outsource medical billing", "revenue cycle management companies", "medical billing company for small practice", "RCM services for solo practitioners", "medical billing problems", "need new billing service", "switching billing companies".
-2. JOB POSTING SIGNALS: Search for practices hiring billing managers, practice managers, office managers, RCM directors — hiring for these roles = they need billing help. Search: "hiring medical billing manager [city]", "practice manager job posting [state]". This is a HIGH intent signal.
-3. NEW PRACTICE DISCOVERY: Search for newly opened medical practices, new physician offices, recently licensed providers — new practices ALWAYS need billing services. Search: "new medical practice opening [city]", "new physician office [state] 2025", NPI registry new registrations.
-4. PAIN POINT IDENTIFICATION: Search forums, Reddit (r/medicalbilling), MGMA, medical practice forums for complaints about billing, denied claims, cash flow issues, switching billing companies. These are the HOTTEST leads. Search: "medical billing complaints", "denied claims piling up", "billing company terrible", "need new billing service".
-5. COMPETITOR DISSATISFACTION: Search for negative reviews of competitor billing companies — practices unhappy with current service are ready to switch.
-6. SPECIALTY TARGETING: Focus on solo practitioners and small practices (1-5 providers) in family medicine, internal medicine, pediatrics, urgent care, dermatology, orthopedics — these are Track-Med's ideal clients.
+1. PRACTICE DIRECTORY SEARCH: Search for actual healthcare practices by specialty and location. Use queries like: "[specialty] practice [city] [state]", "[specialty] doctor accepting patients [city]", "dentist office [city]", "chiropractor [city] [state]", "family medicine clinic [city]". This finds REAL practices.
+2. JOB POSTING SIGNALS: Search for practices hiring billing staff — this means they have billing problems. Use: "hiring medical biller [city]", "[specialty] practice hiring billing manager [state]", "dental office hiring front desk billing [city]", "practice manager position healthcare [state]". This is a HIGH intent signal — they're struggling with billing.
+3. NEW PRACTICE DISCOVERY: New practices ALWAYS need billing services. Search: "new [specialty] practice opening [city] 2025", "new dental office opening [state] 2025", "new chiropractor opening [city]", NPI registry recent registrations.
+4. PAIN POINT SIGNALS: Search for practices with billing struggles. Use: "[specialty] practice denied claims", "dental office billing problems", "chiropractic billing challenges", "small practice revenue cycle issues", "physician billing mistakes", "practice losing money on billing". Search Reddit, MGMA forums, Yelp reviews mentioning billing issues at specific practices.
+5. PRACTICE LISTING SITES: Search Healthgrades, Vitals, Zocdoc, Google Maps, Yelp to find REAL practices with real contact info. These are actual healthcare providers, not billing companies.
+6. CREDENTIAL/LICENSE SEARCHES: Search state medical board, dental board, and chiropractic board new license databases to find newly credentialed providers who are opening practices.
 
 REAL ESTATE & TAX LIEN TARGETING:
 - Search public records, auction listings, and county assessor sites for specific properties.
@@ -1287,17 +1332,24 @@ REAL ESTATE & TAX LIEN TARGETING:
 - If data is missing, use search tools to find "Owner of [Address]" or "[Name] contact info [City]".
 
 LEAD SCORING (use this scoring model):
-- Hiring for billing/RCM position: +30 points
-- New practice (< 6 months): +25 points
-- Complained about current billing: +35 points
-- Practice owner/physician found: +25 points
+- Practice is hiring for billing/RCM position: +30 points (they clearly need billing help)
+- New practice (< 6 months old): +25 points (new practices always need billing setup)
+- Practice complained about billing/denials: +35 points (actively frustrated)
+- Practice owner/physician (decision maker): +25 points
 - Practice manager found: +15 points
-- Solo/small practice (1-5 providers): +20 points
+- Solo/small practice (1-10 providers): +20 points (Track-Med's ideal client size)
 - Has direct email: +10 points
 - Has direct phone: +10 points
+- Dental/chiro practice (underserved market): +15 points
 - Score 70+ = HOT, 50-69 = WARM, below 50 = COLD
 
-OUTREACH PERSONALIZATION: Reference their specific pain point or situation. If hiring for billing = mention your full-service solution. If new practice = mention your startup billing packages. If complaining about current service = mention your 98%+ clean claim rate and dedicated account manager.
+SELF-CHECK BEFORE SAVING EACH LEAD:
+1. Is this a HEALTHCARE PRACTICE (doctor, dentist, chiropractor, clinic)? If NO → DO NOT SAVE.
+2. Does this company PROVIDE billing/RCM services to other practices? If YES → DO NOT SAVE (it's a competitor).
+3. Does this company's name or description contain "billing company", "billing solutions", "RCM services", "revenue cycle management", "coding services"? If YES → DO NOT SAVE.
+4. Is this a real practice with a physical office that treats patients? If YES → SAVE IT.
+
+OUTREACH PERSONALIZATION: Reference their specific specialty and situation. For dental offices = mention dental billing expertise (CDT codes, insurance verification). For chiropractors = mention chiropractic billing complexity. For new practices = mention startup billing packages. For practices hiring billers = mention how outsourcing is more cost-effective than hiring. Always mention 98%+ clean claim rate and dedicated account manager.
 
 AGENT-TO-FUNNEL: When generating leads for a specific agent (Tax Lien, Govt Contracts, Medical Billing, etc.), ALWAYS include agent_type in generate_leads (e.g. agent_type="tax-lien"). This auto-creates or finds the matching funnel pipeline and adds leads as deals. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. For medical billing leads, ALWAYS use agent_type="medical-billing" to add them to the Track-Med Billing Solutions Pipeline.
 
@@ -4038,18 +4090,22 @@ Return ONLY the email reply text, no subject line, no markdown.`
   const AUTO_LEAD_GEN_BATCH_SIZE = 30;
 
   const MEDICAL_BILLING_SEARCH_ROTATIONS = [
-    { region: "Tennessee", focus: "solo practices hiring billing managers" },
-    { region: "Missouri", focus: "new medical practices needing RCM services" },
-    { region: "Georgia", focus: "practices complaining about billing issues" },
-    { region: "Texas", focus: "family medicine practices outsourcing billing" },
-    { region: "Florida", focus: "urgent care clinics seeking billing help" },
-    { region: "Ohio", focus: "pediatric practices with denied claims" },
-    { region: "North Carolina", focus: "dermatology practices needing billing" },
-    { region: "Illinois", focus: "internal medicine billing outsourcing" },
-    { region: "California", focus: "orthopedic practices switching billing companies" },
-    { region: "Pennsylvania", focus: "small medical practices needing RCM" },
-    { region: "Virginia", focus: "multi-specialty clinics billing pain points" },
-    { region: "New York", focus: "solo practitioners medical billing services" },
+    { region: "Tennessee", focus: "dental offices and dentist practices", specialty: "dental", searchQueries: ["dentist office Nashville TN", "dental practice Memphis accepting patients", "orthodontist Knoxville TN contact"] },
+    { region: "Tennessee", focus: "chiropractic clinics and chiropractors", specialty: "chiropractic", searchQueries: ["chiropractor Nashville TN", "chiropractic clinic Memphis contact", "chiropractor Chattanooga TN"] },
+    { region: "Missouri", focus: "family medicine and internal medicine practices", specialty: "family medicine", searchQueries: ["family medicine practice St Louis MO", "internal medicine doctor Kansas City MO", "family doctor office Springfield MO"] },
+    { region: "Georgia", focus: "pediatric practices and children's clinics", specialty: "pediatrics", searchQueries: ["pediatrician Atlanta GA", "pediatric practice Savannah GA", "children's doctor office Augusta GA"] },
+    { region: "Texas", focus: "dental offices and oral surgery practices", specialty: "dental", searchQueries: ["dental office Houston TX", "dentist Dallas TX accepting patients", "oral surgeon San Antonio TX contact"] },
+    { region: "Florida", focus: "dermatology and urgent care practices", specialty: "dermatology/urgent care", searchQueries: ["dermatologist Miami FL", "urgent care clinic Orlando FL", "dermatology practice Tampa FL contact"] },
+    { region: "Ohio", focus: "orthopedic and sports medicine practices", specialty: "orthopedics", searchQueries: ["orthopedic practice Columbus OH", "sports medicine doctor Cleveland OH", "orthopedic surgeon Cincinnati OH"] },
+    { region: "North Carolina", focus: "chiropractic and physical therapy clinics", specialty: "chiropractic/PT", searchQueries: ["chiropractor Charlotte NC", "physical therapy clinic Raleigh NC", "chiropractic office Durham NC contact"] },
+    { region: "Illinois", focus: "OB/GYN and women's health practices", specialty: "OB/GYN", searchQueries: ["OB GYN practice Chicago IL", "women's health clinic Springfield IL", "gynecologist Naperville IL contact"] },
+    { region: "California", focus: "mental health and psychiatry practices", specialty: "mental health", searchQueries: ["psychiatrist Los Angeles CA", "mental health practice San Diego CA", "psychology clinic San Francisco CA contact"] },
+    { region: "Pennsylvania", focus: "podiatry and optometry practices", specialty: "podiatry/optometry", searchQueries: ["podiatrist Philadelphia PA", "optometrist Pittsburgh PA", "eye doctor practice Allentown PA contact"] },
+    { region: "New York", focus: "cardiology and gastroenterology practices", specialty: "cardiology/GI", searchQueries: ["cardiologist New York NY", "gastroenterologist Buffalo NY", "cardiology practice Rochester NY contact"] },
+    { region: "Virginia", focus: "ENT and allergy practices", specialty: "ENT/allergy", searchQueries: ["ENT doctor Richmond VA", "allergy practice Virginia Beach VA", "ear nose throat specialist Arlington VA"] },
+    { region: "Michigan", focus: "dental offices and cosmetic dentistry", specialty: "dental", searchQueries: ["dentist Detroit MI", "cosmetic dentist Grand Rapids MI", "dental office Ann Arbor MI contact"] },
+    { region: "Arizona", focus: "pain management and rehabilitation centers", specialty: "pain management", searchQueries: ["pain management doctor Phoenix AZ", "rehabilitation center Tucson AZ", "pain clinic Scottsdale AZ contact"] },
+    { region: "Colorado", focus: "chiropractic and wellness clinics", specialty: "chiropractic", searchQueries: ["chiropractor Denver CO", "wellness clinic Colorado Springs CO", "chiropractic office Boulder CO contact"] },
   ];
 
   let autoLeadGenRotationIndex = 0;
@@ -4104,39 +4160,52 @@ Return ONLY the email reply text, no subject line, no markdown.`
       const userAnthropicClient = userAi.client;
       const userModelName = userAi.model;
 
-      const autoGenPrompt = `You are Track-Med Billing Solutions' automated lead hunter. Your ONLY job is to find ${AUTO_LEAD_GEN_BATCH_SIZE} REAL medical billing leads and save them.
+      const autoGenPrompt = `You are Track-Med Billing Solutions' automated lead hunter. Your ONLY job is to find ${AUTO_LEAD_GEN_BATCH_SIZE} REAL healthcare practices that could benefit from professional medical billing services.
 
-TASK: Find ${AUTO_LEAD_GEN_BATCH_SIZE} medical billing leads in ${rotation.region}, focused on: ${rotation.focus}
+TASK: Find ${AUTO_LEAD_GEN_BATCH_SIZE} ${rotation.specialty} practices in ${rotation.region} — these are ${rotation.focus}
+
+CRITICAL: You are looking for HEALTHCARE PRACTICES (doctors, dentists, chiropractors, clinics) — NOT other medical billing companies. Other billing/RCM companies are COMPETITORS, not prospects. NEVER save a billing company as a lead.
+
+BEFORE SAVING ANY LEAD, ASK YOURSELF:
+- Does this business TREAT PATIENTS (medical practice, dental office, chiro clinic)? → YES = save it
+- Does this business PROVIDE BILLING SERVICES to other practices? → YES = DO NOT SAVE (competitor!)
+- Is the company name something like "XYZ Billing Solutions" or "ABC Revenue Cycle"? → DO NOT SAVE
 
 SEARCH STRATEGY:
-1. Use web_search to find real medical practices, physicians, and clinics in ${rotation.region}
-2. Look for practices that show intent signals: hiring billing staff, new practice openings, complaints about billing, switching RCM companies
-3. Find decision makers: practice owners, physicians (MD/DO), practice administrators, medical directors, CFOs
-4. Extract real names, emails, phone numbers, company names from search results
-5. Do MULTIPLE web searches to find verified contact information for each lead
+1. Use web_search with these specific queries to find REAL ${rotation.specialty} practices:
+${rotation.searchQueries.map((q: string, i: number) => `   ${i + 1}a. "${q}"`).join("\n")}
+2. For each practice found, do follow-up searches to find the OWNER/PHYSICIAN (decision maker):
+   - "[practice name] owner" or "[practice name] physician" or "[doctor name] MD"
+3. Then search for their real contact info:
+   - "[practice name] phone number" and "[practice name] contact email"
+   - Check Google Maps, Yelp, Healthgrades, practice website contact page
+4. ONLY save practices where you found REAL, verified contact information
+
+DECISION MAKER TARGETING:
+- For medical practices: Practice Owner, Physician (MD/DO), Medical Director, Practice Administrator
+- For dental offices: Dentist/Owner (DDS/DMD), Office Manager, Practice Owner
+- For chiropractic: Chiropractor/Owner (DC), Clinic Director
+- NEVER target receptionists, front desk staff, or assistants
 
 CONTACT INFO RULES (MANDATORY):
-- ONLY include email addresses you found on an actual website, directory listing, or contact page. NEVER fabricate or guess emails.
-- NEVER use patterns like firstname@company.com unless you found that exact email on a real webpage.
-- NEVER use @example.com, @test.com, or any placeholder domain.
-- NEVER use 555-xxx-xxxx phone numbers — those are fictional.
-- Phone numbers MUST be FULL US numbers with area code — all 10 digits. Example: (615) 482-6768. NEVER submit partial, truncated, or incomplete phone numbers.
-- If a search result shows a phone number, copy the COMPLETE number including area code. If truncated, do a follow-up search for "[practice name] phone number" to get the full number.
-- Phone numbers MUST come from real listings (Google Maps, Yelp, practice websites, directories).
-- If you cannot find a real email for a practice, use the practice's publicly listed email (info@, contact@, office@) that you found on their actual website.
-- If you genuinely cannot find ANY real contact info for a lead, DO NOT include that lead. Quality over quantity.
-- Each lead MUST have at least a real phone number OR a real email that you found on an actual webpage.
+- ONLY include contact info you actually found on a real website, directory, or contact page
+- NEVER fabricate or guess emails — only use what you SAW in search results
+- NEVER use @example.com, @test.com, or placeholder domains
+- NEVER use 555-xxx-xxxx phone numbers — those are fictional
+- Phone numbers MUST be FULL US numbers with area code (10 digits)
+- If you find a practice website, their phone number is usually in the header, footer, or contact page
+- Each lead MUST have at least a real phone number OR real email from an actual webpage
 
 SCORING:
-- Hiring for billing position: score 80+
-- New practice (< 6 months): score 75+
-- Complaining about billing: score 85+
-- Practice owner/physician: +25 to score
-- Solo/small practice: +20 to score
+- Healthcare practice actively hiring billing staff: score 85+
+- New practice (< 1 year old): score 75+
+- Small/solo practice (1-5 providers): score 70+
+- Practice owner/physician found as contact: +25
+- Dental or chiro practice (underserved market): +15
 
-For EACH lead provide: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score (40-95), intent_signal, notes (title + why they're a good prospect + WHERE you found their contact info), outreach (personalized 3-5 sentence email ending with: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246)
+For EACH lead provide: name (decision maker), email, phone, company (practice name), source ("Medical Billing Lead Hunter — ${rotation.specialty}"), status "new", score (40-95), intent_signal (why they need billing help), notes (their specialty + title + practice size + where you found contact info), outreach (personalized 3-5 sentence email mentioning their SPECIFIC specialty and how Track-Med handles ${rotation.specialty} billing, ending with: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246)
 
-CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} leads in a single call. Use agent_type="medical-billing". Do NOT just talk about leads — you MUST use the generate_leads tool to save them. Every lead MUST have real, verifiable contact details.`;
+CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agent_type="medical-billing". Do NOT just describe leads — SAVE them with the tool.`;
 
       const tavilyKey2 = process.env.TAVILY_API_KEY;
       let autoGenSearchResults = "";
@@ -4147,7 +4216,7 @@ CRITICAL: You MUST call generate_leads with ALL ${AUTO_LEAD_GEN_BATCH_SIZE} lead
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               api_key: tavilyKey2,
-              query: `medical billing leads ${rotation.region} ${rotation.focus}`,
+              query: `${rotation.searchQueries[0]} ${rotation.specialty} practice owner contact phone email`,
               search_depth: "advanced",
               max_results: 10,
               include_answer: true,
