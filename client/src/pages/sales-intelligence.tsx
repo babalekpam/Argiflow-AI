@@ -46,7 +46,10 @@ import {
   Target,
   Zap,
   ChevronRight,
+  UserPlus,
+  Crown,
 } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
 
 type Tab = "people" | "companies" | "enrichment" | "email_finder" | "phone_finder" | "intent" | "technographics" | "org_chart" | "news" | "research" | "lists" | "searches";
 
@@ -97,6 +100,40 @@ function PeopleSearchTab() {
       setHasSearched(true);
     },
     onError: (e: any) => toast({ title: "Search failed", description: e.message, variant: "destructive" }),
+  });
+
+  const saveToCrmMutation = useMutation({
+    mutationFn: async (contact: any) => {
+      const email = contact.workEmail || contact.email || "";
+      const phone = contact.directPhone || contact.phone || contact.mobilePhone || "";
+      if (!email && !phone) {
+        throw new Error("No email or phone found for this contact. Cannot save without contact info.");
+      }
+      const leadData: any = {
+        businessName: contact.companyName || "",
+        contactName: contact.fullName || `${contact.firstName} ${contact.lastName}`,
+        email,
+        phone,
+        website: contact.companyDomain ? `https://${contact.companyDomain}` : "",
+        industry: contact.industry || contact.companyIndustry || "",
+        location: [contact.city, contact.state].filter(Boolean).join(", "),
+        source: "sales_intelligence",
+        status: "new",
+        notes: [
+          contact.summary || contact.bio || "",
+          contact.jobTitle ? `Title: ${contact.jobTitle}` : "",
+          contact.linkedinUrl ? `LinkedIn: ${contact.linkedinUrl}` : "",
+          contact.icebreaker ? `Icebreaker: ${contact.icebreaker}` : "",
+        ].filter(Boolean).join("\n"),
+      };
+      const res = await apiRequest("POST", "/api/leads", leadData);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: "Saved to CRM", description: "Contact added as a new lead" });
+    },
+    onError: (e: any) => toast({ title: "Save failed", description: e.message, variant: "destructive" }),
   });
 
   return (
@@ -195,7 +232,12 @@ function PeopleSearchTab() {
                         <p className="text-xs text-muted-foreground/60 mt-1 line-clamp-2">{contact.summary}</p>
                       )}
                     </div>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col items-end gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => saveToCrmMutation.mutate(contact)}
+                        disabled={saveToCrmMutation.isPending} data-testid={`button-save-contact-crm-${i}`}
+                        title="Save to CRM">
+                        <UserPlus className="w-4 h-4" />
+                      </Button>
                       {(contact.workEmail || contact.email) && <Badge variant="outline" className="text-[10px]"><Mail className="w-3 h-3 mr-1" />{contact.workEmail || contact.email}</Badge>}
                       {(contact.directPhone || contact.phone) && <Badge variant="outline" className="text-[10px]"><Phone className="w-3 h-3 mr-1" />{contact.directPhone || contact.phone}</Badge>}
                       {contact.linkedinUrl && (
@@ -231,6 +273,41 @@ function CompanySearchTab() {
       setHasSearched(true);
     },
     onError: (e: any) => toast({ title: "Search failed", description: e.message, variant: "destructive" }),
+  });
+
+  const saveToCrmMutation = useMutation({
+    mutationFn: async (company: any) => {
+      const email = company.ownerEmail || company.email || "";
+      const phone = company.ownerPhone || company.phone || "";
+      if (!email && !phone) {
+        throw new Error("No email or phone found for this company. Cannot save without contact info.");
+      }
+      const leadData: any = {
+        businessName: company.name,
+        contactName: company.ownerName || "",
+        email,
+        phone,
+        website: company.website || (company.domain ? `https://${company.domain}` : ""),
+        industry: company.industry || "",
+        location: company.location || "",
+        source: "sales_intelligence",
+        status: "new",
+        notes: [
+          company.description,
+          company.ownerName ? `Owner/CEO: ${company.ownerName} (${company.ownerTitle || "Owner"})` : "",
+          company.employeeRange ? `Employees: ${company.employeeRange}` : "",
+          company.revenue ? `Revenue: ${company.revenue}` : "",
+          (company.keyContacts || []).length > 0 ? `Key Contacts: ${company.keyContacts.map((c: any) => `${c.name} - ${c.title}`).join("; ")}` : "",
+        ].filter(Boolean).join("\n"),
+      };
+      const res = await apiRequest("POST", "/api/leads", leadData);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: "Saved to CRM", description: "Company added as a new lead" });
+    },
+    onError: (e: any) => toast({ title: "Save failed", description: e.message, variant: "destructive" }),
   });
 
   return (
@@ -279,7 +356,7 @@ function CompanySearchTab() {
 
       {hasSearched && !searchMutation.isPending && (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">{results.length} companies found via AI-powered web search</p>
+          <p className="text-sm text-muted-foreground">{results.length} companies found via B2B Intelligence Engine</p>
           {results.length === 0 ? (
             <Card className="p-8 text-center">
               <Building2 className="w-8 h-8 mx-auto mb-3 text-muted-foreground/40" />
@@ -288,24 +365,65 @@ function CompanySearchTab() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {results.map((co: any, i: number) => (
-                <Card key={co.id || i} className="p-4">
+                <Card key={co.id || i} className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate" data-testid={`text-company-name-${i}`}>{co.name}</p>
                       <p className="text-sm text-muted-foreground truncate">{co.industry}{co.subIndustry ? ` - ${co.subIndustry}` : ""}</p>
                       {co.description && <p className="text-xs text-muted-foreground/60 mt-1 line-clamp-2">{co.description}</p>}
-                      {co.location && <p className="text-xs text-muted-foreground/70 flex items-center gap-1 mt-1"><MapPin className="w-3 h-3" />{co.location}</p>}
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {(co.employeeCount || co.employeeRange) && <Badge variant="outline" className="text-[10px]"><Users className="w-3 h-3 mr-1" />{co.employeeCount || co.employeeRange}</Badge>}
-                        {co.phone && <Badge variant="outline" className="text-[10px]"><Phone className="w-3 h-3 mr-1" />{co.phone}</Badge>}
+                    </div>
+                    <div className="flex gap-1">
+                      {(co.website || co.domain) && (
+                        <a href={co.website || `https://${co.domain}`} target="_blank" rel="noreferrer" data-testid={`link-company-website-${i}`}>
+                          <Button size="icon" variant="ghost" data-testid={`button-open-website-${i}`}><ExternalLink className="w-4 h-4" /></Button>
+                        </a>
+                      )}
+                      <Button size="icon" variant="ghost" onClick={() => saveToCrmMutation.mutate(co)}
+                        disabled={saveToCrmMutation.isPending} data-testid={`button-save-crm-${i}`}
+                        title="Save to CRM">
+                        <UserPlus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {co.location && <Badge variant="outline" className="text-[10px]"><MapPin className="w-3 h-3 mr-1" />{co.location}</Badge>}
+                    {(co.employeeCount || co.employeeRange) && <Badge variant="outline" className="text-[10px]"><Users className="w-3 h-3 mr-1" />{co.employeeCount || co.employeeRange}</Badge>}
+                    {co.phone && <Badge variant="outline" className="text-[10px]"><Phone className="w-3 h-3 mr-1" />{co.phone}</Badge>}
+                    {co.email && <Badge variant="outline" className="text-[10px]"><Mail className="w-3 h-3 mr-1" />{co.email}</Badge>}
+                    {co.revenue && <Badge variant="outline" className="text-[10px]"><BarChart3 className="w-3 h-3 mr-1" />{co.revenue}</Badge>}
+                  </div>
+
+                  {co.ownerName && (
+                    <div className="border-t pt-2">
+                      <p className="text-xs font-medium flex items-center gap-1 mb-1">
+                        <Crown className="w-3 h-3 text-amber-500" />
+                        {co.ownerName} {co.ownerTitle ? `- ${co.ownerTitle}` : ""}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {co.ownerEmail && <Badge variant="outline" className="text-[10px]"><Mail className="w-3 h-3 mr-1" />{co.ownerEmail}</Badge>}
+                        {co.ownerPhone && <Badge variant="outline" className="text-[10px]"><Phone className="w-3 h-3 mr-1" />{co.ownerPhone}</Badge>}
+                        {co.ownerLinkedin && (
+                          <a href={co.ownerLinkedin} target="_blank" rel="noreferrer">
+                            <Badge variant="outline" className="text-[10px]"><ExternalLink className="w-3 h-3 mr-1" />LinkedIn</Badge>
+                          </a>
+                        )}
                       </div>
                     </div>
-                    {(co.website || co.domain) && (
-                      <a href={co.website || `https://${co.domain}`} target="_blank" rel="noreferrer" data-testid={`link-company-website-${i}`}>
-                        <Button size="icon" variant="ghost" data-testid={`button-open-website-${i}`}><ExternalLink className="w-4 h-4" /></Button>
-                      </a>
-                    )}
-                  </div>
+                  )}
+
+                  {(co.keyContacts || []).length > 0 && (
+                    <div className="border-t pt-2">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Key Contacts</p>
+                      {co.keyContacts.slice(0, 3).map((kc: any, ki: number) => (
+                        <div key={ki} className="text-xs text-muted-foreground/80 flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          <span>{kc.name} - {kc.title}</span>
+                          {kc.email && <span className="text-muted-foreground/60">({kc.email})</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>

@@ -267,44 +267,83 @@ CRITICAL: Only include people you actually found in the search results. Real nam
       return { results: [], total: 0, page, pages: 0, source: "none" };
     }
 
-    const searchQuery = `Find real businesses and companies: ${parts.join(", ")}. Company websites, business directories, LinkedIn company pages.`;
-
     try {
-      const searchData = await tavilySearchRaw(searchQuery);
-      const searchContent = [
-        searchData.answer || "",
-        ...(searchData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
-      ].join("\n\n");
+      const searches: Promise<any>[] = [];
+
+      if (filters.name) {
+        searches.push(tavilySearchRaw(`"${filters.name}" company website about phone email contact address`).catch(() => null));
+        searches.push(tavilySearchRaw(`"${filters.name}" owner founder CEO leadership team management`).catch(() => null));
+        if (filters.location) {
+          searches.push(tavilySearchRaw(`"${filters.name}" ${filters.location} business phone email website`).catch(() => null));
+        }
+      } else {
+        searches.push(tavilySearchRaw(`Find businesses: ${parts.join(", ")}. Company websites, business directories.`).catch(() => null));
+        if (filters.industry && filters.location) {
+          searches.push(tavilySearchRaw(`${filters.industry} companies ${filters.location} directory list phone email`).catch(() => null));
+        }
+      }
+
+      const searchResults = await Promise.all(searches);
+      const allContent: string[] = [];
+      for (const sr of searchResults) {
+        if (!sr) continue;
+        if (sr.answer) allContent.push(sr.answer);
+        for (const r of (sr.results || [])) {
+          allContent.push(`Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`);
+        }
+      }
+      const searchContent = allContent.join("\n\n---\n\n");
+
+      if (!searchContent.trim()) {
+        return { results: [], total: 0, page, pages: 0, source: "no_results" };
+      }
 
       const result = await aiExtract(
-        `You are a B2B company intelligence extractor. Extract real company information from web search results. Return ONLY real companies with verified information. Do NOT fabricate any data.`,
+        `You are a B2B company intelligence analyst combining Apollo.io and ZoomInfo-style data extraction. Extract comprehensive company profiles from web search results with maximum detail. Return ONLY real companies with verified information. Do NOT fabricate any data.`,
         `From these search results, extract real companies matching: ${parts.join(", ")}.
 
 Search Results:
 ${searchContent}
 
-Return JSON:
+Return JSON with comprehensive company profiles:
 {
   "companies": [
     {
       "name": "real company name",
-      "domain": "company website domain",
-      "description": "what the company does",
-      "industry": "primary industry",
-      "subIndustry": "specific niche",
-      "location": "headquarters location",
-      "employeeCount": estimated number or null,
-      "employeeRange": "range like 11-50",
+      "domain": "company website domain (e.g. acme.com)",
       "website": "full website URL",
-      "phone": "company phone if found",
+      "description": "detailed description of what the company does (2-3 sentences)",
+      "industry": "primary industry",
+      "subIndustry": "specific niche/specialty",
+      "location": "headquarters city, state",
+      "employeeCount": estimated number or null,
+      "employeeRange": "range like 1-10, 11-50, 51-200, 201-500, 501-1000, 1000+",
+      "phone": "main company phone if found",
+      "email": "main company email if found",
       "yearFounded": year or null,
-      "source": "where info was found"
+      "revenue": "estimated annual revenue range if found",
+      "ownerName": "owner/founder/CEO name if found",
+      "ownerTitle": "their title",
+      "ownerEmail": "owner's email if found",
+      "ownerPhone": "owner's direct phone if found",
+      "ownerLinkedin": "owner's LinkedIn URL if found",
+      "keyContacts": [
+        {"name": "contact name", "title": "their title", "email": "email if found", "phone": "phone if found"}
+      ],
+      "technologies": ["known technologies/software used"],
+      "socialMedia": {"linkedin": "url", "facebook": "url", "twitter": "url"},
+      "source": "primary source URL"
     }
   ],
   "totalEstimated": number
 }
 
-CRITICAL: Only include companies you actually found. Real names, real websites. No fabricated data.`
+CRITICAL RULES:
+- Only include companies you actually found in the search results
+- Extract ALL contact details visible in search results (phone, email, addresses)
+- Always try to identify the owner/founder/CEO from leadership searches
+- Cross-reference information across multiple search results for accuracy
+- Include key contacts (decision makers) found in the results`
       );
 
       const companies = (result.companies || []).map((c: any, i: number) => ({
@@ -319,7 +358,17 @@ CRITICAL: Only include companies you actually found. Real names, real websites. 
         employeeRange: c.employeeRange || "",
         website: c.website || (c.domain ? `https://${c.domain}` : ""),
         phone: c.phone || null,
+        email: c.email || null,
         foundedYear: c.yearFounded || null,
+        revenue: c.revenue || null,
+        ownerName: c.ownerName || null,
+        ownerTitle: c.ownerTitle || null,
+        ownerEmail: c.ownerEmail || null,
+        ownerPhone: c.ownerPhone || null,
+        ownerLinkedin: c.ownerLinkedin || null,
+        keyContacts: c.keyContacts || [],
+        technologies: c.technologies || [],
+        socialMedia: c.socialMedia || {},
         companyType: "private",
         source: c.source || "web search",
       }));

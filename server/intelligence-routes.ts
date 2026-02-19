@@ -81,7 +81,17 @@ function normalizeCompany(c: any): any {
     employeeCount: c.employeeCount || c.employeeRange || "",
     employeeRange: c.employeeRange || c.employeeCount || "",
     phone: c.phone || "",
+    email: c.email || "",
     revenue: c.revenue || c.annualRevenue || "",
+    ownerName: c.ownerName || null,
+    ownerTitle: c.ownerTitle || null,
+    ownerEmail: c.ownerEmail || null,
+    ownerPhone: c.ownerPhone || null,
+    ownerLinkedin: c.ownerLinkedin || null,
+    keyContacts: c.keyContacts || [],
+    technologies: c.technologies || [],
+    socialMedia: c.socialMedia || {},
+    source: c.source || "",
   };
 }
 
@@ -93,9 +103,8 @@ router.post("/people/search", async (req, res) => {
     let conditions: any[] = [];
     if (filters.jobTitle) conditions.push(ilike(contactProfiles.jobTitle, `%${filters.jobTitle}%`));
     if (filters.company) conditions.push(ilike(contactProfiles.companyName, `%${filters.company}%`));
-    if (filters.seniority) conditions.push(eq(contactProfiles.seniority, filters.seniority));
+    if (filters.seniority) conditions.push(eq(contactProfiles.seniorityLevel, filters.seniority));
     if (filters.department) conditions.push(eq(contactProfiles.department, filters.department));
-    if (filters.industry) conditions.push(ilike(contactProfiles.industry, `%${filters.industry}%`));
 
     let dbResults: any[] = [];
     if (conditions.length > 0) {
