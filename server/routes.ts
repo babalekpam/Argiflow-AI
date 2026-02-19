@@ -235,8 +235,10 @@ if (openaiKey) {
 
 export async function getAnthropicForUser(userId: string): Promise<{ client: any; model: string }> {
   const settings = await storage.getSettingsByUser(userId);
+  const sub = await storage.getSubscriptionByUser(userId);
+  const hasActiveSubscription = sub && (sub.status === "active" || sub.status === "trial");
 
-  if (platformOpenAI && !platformOpenAI.quotaExhausted) {
+  if (platformOpenAI && !platformOpenAI.quotaExhausted && hasActiveSubscription) {
     return { client: platformOpenAI, model: OPENAI_MODEL };
   }
 
@@ -252,8 +254,12 @@ export async function getAnthropicForUser(userId: string): Promise<{ client: any
     };
   }
 
-  if (anthropicConfig.apiKey) {
+  if (anthropicConfig.apiKey && hasActiveSubscription) {
     return { client: anthropic, model: CLAUDE_MODEL };
+  }
+
+  if (!hasActiveSubscription) {
+    throw new Error("AI_SUBSCRIPTION_REQUIRED");
   }
 
   throw new Error("AI_NOT_CONFIGURED");
@@ -5073,7 +5079,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (!settings) {
         settings = await storage.upsertSettings({ userId, emailNotifications: true, smsNotifications: false, aiAutoRespond: true, leadScoring: true, appointmentReminders: true, weeklyReport: true, darkMode: true, twoFactorAuth: false });
       }
-      const result = { ...settings };
+      const result: any = { ...settings };
       if (result.anthropicApiKey) {
         const key = result.anthropicApiKey;
         result.anthropicApiKey = key.length > 8 ? key.slice(0, 7) + "..." + key.slice(-4) : "****";
@@ -5082,6 +5088,14 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         const key = result.youApiKey;
         result.youApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
       }
+      if (result.sendgridApiKey) {
+        const key = result.sendgridApiKey;
+        result.sendgridApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
+      }
+      const sub = await storage.getSubscriptionByUser(userId);
+      const hasActiveSub = sub && (sub.status === "active" || sub.status === "trial");
+      result.platformAiEnabled = !!(platformOpenAI && hasActiveSub);
+      result.hasActiveSubscription = !!hasActiveSub;
       res.json(result);
     } catch (error) {
       console.error("Error fetching settings:", error);
@@ -5164,6 +5178,11 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (error?.message === "AI_TIMEOUT") {
         const timeoutMsg = "The AI took too long to respond. This usually happens with complex requests like lead generation with web search. Please try again — simpler requests will be faster.";
         const aiMessage = await storage.createChatMessage({ userId: req.session.userId!, role: "assistant", content: timeoutMsg });
+        return res.json({ userMessage: { userId: req.session.userId!, role: "user", content }, aiMessage });
+      }
+      if (error?.message === "AI_SUBSCRIPTION_REQUIRED") {
+        const subMsg = "AI features require an active subscription. Please upgrade to a Pro or Enterprise plan to access AI-powered lead generation, chat, and automation features.";
+        const aiMessage = await storage.createChatMessage({ userId: req.session.userId!, role: "assistant", content: subMsg });
         return res.json({ userMessage: { userId: req.session.userId!, role: "user", content }, aiMessage });
       }
       res.status(500).json({ message: "Failed to send message" });
