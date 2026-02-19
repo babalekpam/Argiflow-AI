@@ -49,6 +49,7 @@ import {
   UserPlus,
   Crown,
   AlertTriangle,
+  Database,
 } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 
@@ -359,7 +360,7 @@ function CompanySearchTab() {
 
       {hasSearched && !searchMutation.isPending && (
         <div className="space-y-3">
-          {dataSource === "ai_web_search" && results.some((r: any) => r.confidence === "low") && (
+          {dataSource === "ai_knowledge" && results.some((r: any) => r.confidence === "low") && (
             <div className="flex items-start gap-2 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-sm" data-testid="warning-ai-knowledge">
               <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
               <div>
@@ -368,7 +369,16 @@ function CompanySearchTab() {
               </div>
             </div>
           )}
-          <p className="text-sm text-muted-foreground">{results.length} companies found via B2B Intelligence Engine</p>
+          {dataSource.startsWith("multi_source") && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-sm" data-testid="info-multi-source">
+              <Database className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-emerald-500">Multi-Source Intelligence (GPT-4o)</p>
+                <p className="text-muted-foreground text-xs mt-0.5">Results cross-referenced from {dataSource.match(/\d+/)?.[0] || "multiple"} data sources: Government registries, SEC filings, Wikidata, GitHub, WHOIS, and web search.</p>
+              </div>
+            </div>
+          )}
+          <p className="text-sm text-muted-foreground">{results.length} companies found via B2B Intelligence Engine {dataSource.startsWith("multi_source") ? `(${dataSource.match(/\d+/)?.[0] || ""} sources)` : ""}</p>
           {results.length === 0 ? (
             <Card className="p-8 text-center">
               <Building2 className="w-8 h-8 mx-auto mb-3 text-muted-foreground/40" />
@@ -400,6 +410,7 @@ function CompanySearchTab() {
 
                   <div className="flex flex-wrap gap-2">
                     {co.confidence === "low" && <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-500 border-amber-500/20"><AlertTriangle className="w-3 h-3 mr-1" />AI Estimate</Badge>}
+                    {co.confidence === "high" && (co.dataSources || []).length > 1 && <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20"><Database className="w-3 h-3 mr-1" />{(co.dataSources || []).length} Sources Verified</Badge>}
                     {co.location && <Badge variant="outline" className="text-[10px]"><MapPin className="w-3 h-3 mr-1" />{co.location}</Badge>}
                     {(co.employeeCount || co.employeeRange) && <Badge variant="outline" className="text-[10px]"><Users className="w-3 h-3 mr-1" />{co.employeeCount || co.employeeRange}</Badge>}
                     {co.phone && <Badge variant="outline" className="text-[10px]"><Phone className="w-3 h-3 mr-1" />{co.phone}</Badge>}

@@ -15,7 +15,8 @@ Do not make changes to the file `Y`.
 **Backend**: Express.js with TypeScript.
 **Database**: PostgreSQL with Drizzle ORM.
 **Authentication**: Email/password with session-based authentication using scrypt hashing, including email verification and password reset.
-**AI Integration**: OpenAI GPT-4o-mini as primary AI provider (cost-effective). Anthropic Claude available as optional override via per-user API keys. OpenAI-to-Anthropic compatibility wrapper ensures seamless provider switching.
+**AI Integration**: OpenAI GPT-4o as primary AI provider for B2B Intelligence Engine (strong reasoning). GPT-4o-mini used for general chat and lightweight tasks. Anthropic Claude available as optional override via per-user API keys. OpenAI-to-Anthropic compatibility wrapper ensures seamless provider switching.
+**B2B Intelligence Data Pipeline**: Multi-source data aggregation from 7+ databases: OpenCorporates (government registries), SEC EDGAR (public company filings), Wikidata/Wikipedia (knowledge base), GitHub API (developer/tech companies), RDAP/WHOIS (domain registration), DuckDuckGo Instant Answers (knowledge graph), plus Tavily/You.com web search. GPT-4o cross-references all sources for comprehensive, ZoomInfo/Apollo-level company and people intelligence.
 **UI/UX Design**: Dark theme with sky blue gradient accents and Inter font.
 **Core Features**:
 - **User Management**: Standard authentication and account management.

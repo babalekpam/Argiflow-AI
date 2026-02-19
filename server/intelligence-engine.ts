@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 
-const OPENAI_MODEL = "gpt-4o-mini";
+const OPENAI_MODEL = "gpt-4o";
+const OPENAI_MODEL_FAST = "gpt-4o-mini";
 
 const TECH_DATABASE: Record<string, { category: string; competitors: string[] }> = {
   "Salesforce": { category: "CRM", competitors: ["HubSpot", "Zoho CRM", "Pipedrive"] },
@@ -106,17 +107,349 @@ async function tavilySearchRaw(query: string): Promise<any> {
   }
 }
 
+async function openCorporatesSearch(companyName: string, jurisdiction?: string): Promise<any> {
+  try {
+    const params = new URLSearchParams({ q: companyName });
+    if (jurisdiction) params.append("jurisdiction_code", jurisdiction);
+    const url = `https://api.opencorporates.com/v0.4/companies/search?${params.toString()}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const companies = (data?.results?.companies || []).map((c: any) => ({
+      name: c.company?.name,
+      jurisdiction: c.company?.jurisdiction_code,
+      companyNumber: c.company?.company_number,
+      status: c.company?.current_status,
+      incorporationDate: c.company?.incorporation_date,
+      companyType: c.company?.company_type,
+      registeredAddress: c.company?.registered_address_in_full,
+      opencorporatesUrl: c.company?.opencorporates_url,
+      source: "opencorporates",
+    }));
+    console.log(`[DataSource:OpenCorporates] Found ${companies.length} results for "${companyName}"`);
+    return companies;
+  } catch (e: any) {
+    console.warn(`[DataSource:OpenCorporates] Error: ${e.message}`);
+    return null;
+  }
+}
+
+async function secEdgarSearch(companyName: string): Promise<any> {
+  try {
+    const url = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22&dateRange=custom&startdt=2020-01-01&forms=10-K,10-Q,8-K&hits.hits.total=true&hits.hits._source=file_date,display_names,form_type,file_num`;
+    const searchUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22&forms=10-K,10-Q,8-K`;
+    const fullTextUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22`;
+    const companySearchUrl = `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(companyName)}&forms=10-K`;
+
+    const entityUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22&dateRange=custom&startdt=2023-01-01`;
+    const response = await fetch(`https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22`, {
+      headers: { "User-Agent": "ArgiletteBot/1.0 info@argilette.com", "Accept": "application/json" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) {
+      const altResponse = await fetch(`https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(companyName)}`, {
+        headers: { "User-Agent": "ArgiletteBot/1.0 info@argilette.com" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!altResponse.ok) return null;
+      const altData = await altResponse.json();
+      return altData?.hits?.hits?.map((h: any) => ({
+        filingType: h?._source?.form_type,
+        filingDate: h?._source?.file_date,
+        company: h?._source?.display_names?.[0],
+        source: "sec_edgar",
+      })).slice(0, 5) || null;
+    }
+    const data = await response.json();
+    const filings = (data?.hits?.hits || []).map((h: any) => ({
+      filingType: h?._source?.form_type,
+      filingDate: h?._source?.file_date,
+      company: h?._source?.display_names?.[0],
+      source: "sec_edgar",
+    })).slice(0, 5);
+    console.log(`[DataSource:SEC-EDGAR] Found ${filings.length} filings for "${companyName}"`);
+    return filings.length > 0 ? filings : null;
+  } catch (e: any) {
+    console.warn(`[DataSource:SEC-EDGAR] Error: ${e.message}`);
+    return null;
+  }
+}
+
+async function wikidataSearch(companyName: string): Promise<any> {
+  try {
+    const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(companyName)}&language=en&limit=3&format=json`;
+    const response = await fetch(searchUrl, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const entities = (data?.search || []).map((e: any) => ({
+      id: e.id,
+      label: e.label,
+      description: e.description,
+      wikidataUrl: `https://www.wikidata.org/wiki/${e.id}`,
+      source: "wikidata",
+    }));
+
+    if (entities.length > 0 && entities[0].id) {
+      try {
+        const entityUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${entities[0].id}&format=json&props=claims|labels|descriptions`;
+        const entityResp = await fetch(entityUrl, { signal: AbortSignal.timeout(8000) });
+        if (entityResp.ok) {
+          const entityData = await entityResp.json();
+          const entity = entityData?.entities?.[entities[0].id];
+          if (entity?.claims) {
+            const claims = entity.claims;
+            const getClaimValue = (propId: string) => {
+              const claim = claims[propId]?.[0]?.mainsnak?.datavalue?.value;
+              return claim?.text || claim?.id || claim?.amount || claim?.time || claim || null;
+            };
+            entities[0].enriched = {
+              officialWebsite: getClaimValue("P856"),
+              inception: getClaimValue("P571"),
+              headquarters: getClaimValue("P159"),
+              industry: getClaimValue("P452"),
+              ceo: getClaimValue("P169"),
+              employees: getClaimValue("P1128"),
+              revenue: getClaimValue("P2139"),
+              country: getClaimValue("P17"),
+              legalForm: getClaimValue("P1454"),
+              stockExchange: getClaimValue("P414"),
+              isin: getClaimValue("P946"),
+            };
+          }
+        }
+      } catch {}
+    }
+
+    console.log(`[DataSource:Wikidata] Found ${entities.length} entities for "${companyName}"`);
+    return entities.length > 0 ? entities : null;
+  } catch (e: any) {
+    console.warn(`[DataSource:Wikidata] Error: ${e.message}`);
+    return null;
+  }
+}
+
+async function githubSearch(companyName: string): Promise<any> {
+  try {
+    const url = `https://api.github.com/search/users?q=${encodeURIComponent(companyName)}+type:org&per_page=3`;
+    const response = await fetch(url, {
+      headers: { "Accept": "application/vnd.github+json", "User-Agent": "ArgiletteBot/1.0" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const orgs = [];
+    for (const item of (data?.items || []).slice(0, 2)) {
+      try {
+        const orgResp = await fetch(`https://api.github.com/orgs/${item.login}`, {
+          headers: { "Accept": "application/vnd.github+json", "User-Agent": "ArgiletteBot/1.0" },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (orgResp.ok) {
+          const org = await orgResp.json();
+          orgs.push({
+            name: org.name || org.login,
+            login: org.login,
+            description: org.description,
+            blog: org.blog,
+            location: org.location,
+            email: org.email,
+            twitterUsername: org.twitter_username,
+            publicRepos: org.public_repos,
+            followers: org.followers,
+            avatarUrl: org.avatar_url,
+            githubUrl: org.html_url,
+            source: "github",
+          });
+        }
+      } catch {}
+    }
+    console.log(`[DataSource:GitHub] Found ${orgs.length} orgs for "${companyName}"`);
+    return orgs.length > 0 ? orgs : null;
+  } catch (e: any) {
+    console.warn(`[DataSource:GitHub] Error: ${e.message}`);
+    return null;
+  }
+}
+
+async function fetchDomainWhois(domain: string): Promise<any> {
+  try {
+    const url = `https://rdap.org/domain/${domain}`;
+    const response = await fetch(url, {
+      headers: { "Accept": "application/rdap+json" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const registrant = data?.entities?.find((e: any) => e.roles?.includes("registrant"));
+    const result = {
+      domainName: data?.ldhName || domain,
+      status: data?.status,
+      registrationDate: data?.events?.find((e: any) => e.eventAction === "registration")?.eventDate,
+      expirationDate: data?.events?.find((e: any) => e.eventAction === "expiration")?.eventDate,
+      registrar: data?.entities?.find((e: any) => e.roles?.includes("registrar"))?.vcardArray?.[1]?.find((v: any) => v[0] === "fn")?.[3],
+      registrantOrg: registrant?.vcardArray?.[1]?.find((v: any) => v[0] === "org")?.[3],
+      registrantCountry: registrant?.vcardArray?.[1]?.find((v: any) => v[0] === "adr")?.[3]?.country,
+      nameservers: data?.nameservers?.map((ns: any) => ns.ldhName) || [],
+      source: "rdap_whois",
+    };
+    console.log(`[DataSource:RDAP/WHOIS] Got domain info for "${domain}"`);
+    return result;
+  } catch (e: any) {
+    console.warn(`[DataSource:RDAP/WHOIS] Error: ${e.message}`);
+    return null;
+  }
+}
+
+async function duckDuckGoInstantAnswer(query: string): Promise<any> {
+  try {
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!data.Abstract && !data.AbstractText && !data.RelatedTopics?.length) return null;
+    const result = {
+      abstract: data.AbstractText || data.Abstract,
+      abstractSource: data.AbstractSource,
+      abstractUrl: data.AbstractURL,
+      heading: data.Heading,
+      image: data.Image,
+      infobox: data.Infobox?.content?.map((c: any) => ({ label: c.label, value: c.value })) || [],
+      relatedTopics: (data.RelatedTopics || []).slice(0, 5).map((t: any) => ({
+        text: t.Text,
+        url: t.FirstURL,
+      })),
+      officialWebsite: data.Results?.[0]?.FirstURL || null,
+      source: "duckduckgo",
+    };
+    console.log(`[DataSource:DuckDuckGo] Got instant answer for "${query}"`);
+    return result;
+  } catch (e: any) {
+    console.warn(`[DataSource:DuckDuckGo] Error: ${e.message}`);
+    return null;
+  }
+}
+
+async function multiSourceCompanyData(companyName: string, domain?: string): Promise<{ sources: Record<string, any>; rawText: string }> {
+  const sources: Record<string, any> = {};
+  const textParts: string[] = [];
+
+  const promises: Promise<void>[] = [];
+
+  promises.push(openCorporatesSearch(companyName).then(r => {
+    if (r && r.length > 0) { sources.opencorporates = r; textParts.push(`[OpenCorporates Registry Data]\n${r.map((c: any) => `Company: ${c.name}, Jurisdiction: ${c.jurisdiction}, Status: ${c.status}, Type: ${c.companyType}, Incorporated: ${c.incorporationDate}, Address: ${c.registeredAddress}`).join("\n")}`); }
+  }));
+
+  promises.push(wikidataSearch(companyName).then(r => {
+    if (r && r.length > 0) { sources.wikidata = r; textParts.push(`[Wikidata/Wikipedia Knowledge Base]\n${r.map((e: any) => `Entity: ${e.label} - ${e.description}${e.enriched ? `\nWebsite: ${e.enriched.officialWebsite || 'N/A'}, Founded: ${e.enriched.inception || 'N/A'}, CEO: ${e.enriched.ceo || 'N/A'}, Employees: ${e.enriched.employees || 'N/A'}` : ''}`).join("\n")}`); }
+  }));
+
+  promises.push(secEdgarSearch(companyName).then(r => {
+    if (r && r.length > 0) { sources.secEdgar = r; textParts.push(`[SEC EDGAR Filings]\n${r.map((f: any) => `Filing: ${f.filingType} on ${f.filingDate} by ${f.company}`).join("\n")}`); }
+  }));
+
+  promises.push(githubSearch(companyName).then(r => {
+    if (r && r.length > 0) { sources.github = r; textParts.push(`[GitHub Organization]\n${r.map((o: any) => `Org: ${o.name} (@${o.login}) - ${o.description || 'N/A'}\nLocation: ${o.location || 'N/A'}, Website: ${o.blog || 'N/A'}, Email: ${o.email || 'N/A'}, Repos: ${o.publicRepos}, Twitter: ${o.twitterUsername || 'N/A'}`).join("\n")}`); }
+  }));
+
+  promises.push(duckDuckGoInstantAnswer(companyName + " company").then(r => {
+    if (r) { sources.duckduckgo = r; textParts.push(`[DuckDuckGo Knowledge Graph]\nHeading: ${r.heading}\nAbstract: ${r.abstract || 'N/A'}\nSource: ${r.abstractSource} (${r.abstractUrl})\nOfficial Website: ${r.officialWebsite || 'N/A'}${r.infobox?.length ? `\nInfobox: ${r.infobox.map((i: any) => `${i.label}: ${i.value}`).join(", ")}` : ''}`); }
+  }));
+
+  if (domain) {
+    promises.push(fetchDomainWhois(domain).then(r => {
+      if (r) { sources.whois = r; textParts.push(`[RDAP/WHOIS Domain Data]\nDomain: ${r.domainName}, Registered: ${r.registrationDate || 'N/A'}, Expires: ${r.expirationDate || 'N/A'}, Registrar: ${r.registrar || 'N/A'}, Registrant Org: ${r.registrantOrg || 'N/A'}, Nameservers: ${(r.nameservers || []).join(", ")}`); }
+    }));
+  }
+
+  const webSearchPromises: Promise<any>[] = [];
+  webSearchPromises.push(tavilySearchRaw(`"${companyName}" company about profile revenue employees headquarters`).catch(() => null));
+  if (companyName) webSearchPromises.push(tavilySearchRaw(`"${companyName}" CEO founder owner leadership team executive`).catch(() => null));
+  if (domain) webSearchPromises.push(tavilySearchRaw(`site:${domain} about team contact`).catch(() => null));
+  webSearchPromises.push(tavilySearchRaw(`"${companyName}" news funding partnership acquisition recent`).catch(() => null));
+
+  promises.push(Promise.all(webSearchPromises).then(results => {
+    const webContent: string[] = [];
+    for (const sr of results) {
+      if (!sr) continue;
+      if (sr.answer) webContent.push(sr.answer);
+      for (const r of (sr.results || [])) {
+        webContent.push(`Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`);
+      }
+    }
+    if (webContent.length > 0) {
+      sources.webSearch = { resultCount: webContent.length };
+      textParts.push(`[Web Search Results]\n${webContent.join("\n\n---\n\n")}`);
+    }
+  }));
+
+  await Promise.allSettled(promises);
+
+  const sourceCount = Object.keys(sources).length;
+  console.log(`[MultiSource] Aggregated ${sourceCount} data sources for "${companyName}": ${Object.keys(sources).join(", ")}`);
+
+  return { sources, rawText: textParts.join("\n\n========================================\n\n") };
+}
+
+async function multiSourcePeopleData(name: string, company?: string, title?: string, location?: string): Promise<{ sources: Record<string, any>; rawText: string }> {
+  const sources: Record<string, any> = {};
+  const textParts: string[] = [];
+  const promises: Promise<void>[] = [];
+
+  const webSearches: Promise<any>[] = [];
+  webSearches.push(tavilySearchRaw(`"${name}" ${company ? `"${company}"` : ''} ${title || ''} professional LinkedIn profile`).catch(() => null));
+  if (company) webSearches.push(tavilySearchRaw(`"${name}" "${company}" email phone contact`).catch(() => null));
+  if (company) webSearches.push(tavilySearchRaw(`"${company}" team leadership staff directory about us`).catch(() => null));
+  if (location) webSearches.push(tavilySearchRaw(`"${name}" ${title || 'professional'} ${location} business`).catch(() => null));
+  webSearches.push(tavilySearchRaw(`"${name}" ${title || ''} career education certifications awards speaking`).catch(() => null));
+
+  promises.push(Promise.all(webSearches).then(results => {
+    const webContent: string[] = [];
+    for (const sr of results) {
+      if (!sr) continue;
+      if (sr.answer) webContent.push(sr.answer);
+      for (const r of (sr.results || [])) {
+        webContent.push(`Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`);
+      }
+    }
+    if (webContent.length > 0) {
+      sources.webSearch = { resultCount: webContent.length };
+      textParts.push(`[Web Search Results]\n${webContent.join("\n\n---\n\n")}`);
+    }
+  }));
+
+  if (company) {
+    promises.push(duckDuckGoInstantAnswer(`${name} ${company}`).then(r => {
+      if (r && r.abstract) {
+        sources.duckduckgo = r;
+        textParts.push(`[DuckDuckGo Knowledge]\n${r.abstract}`);
+      }
+    }));
+
+    promises.push(githubSearch(company).then(r => {
+      if (r && r.length > 0) {
+        sources.github = r;
+        textParts.push(`[GitHub - Company Context]\n${r.map((o: any) => `Org: ${o.name}, Repos: ${o.publicRepos}, Desc: ${o.description || 'N/A'}`).join("\n")}`);
+      }
+    }));
+  }
+
+  await Promise.allSettled(promises);
+  console.log(`[MultiSource:People] Aggregated ${Object.keys(sources).length} sources for "${name}": ${Object.keys(sources).join(", ")}`);
+  return { sources, rawText: textParts.join("\n\n========================================\n\n") };
+}
+
 function getOpenAI(): OpenAI | null {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return null;
   return new OpenAI({ apiKey: key });
 }
 
-async function aiExtract(systemPrompt: string, userPrompt: string): Promise<any> {
+async function aiExtract(systemPrompt: string, userPrompt: string, useFastModel: boolean = false): Promise<any> {
   const openai = getOpenAI();
   if (!openai) throw new Error("OpenAI API key not configured");
+  const model = useFastModel ? OPENAI_MODEL_FAST : OPENAI_MODEL;
   const response = await openai.chat.completions.create({
-    model: OPENAI_MODEL,
+    model,
     max_tokens: 8192,
     messages: [
       { role: "system", content: systemPrompt },
@@ -160,30 +493,31 @@ export class IntelligenceEngine {
       return { results: [], total: 0, page, pages: 0, source: "none" };
     }
 
-    const searches: Promise<any>[] = [];
-    searches.push(tavilySearchRaw(`Find business professionals: ${parts.join(", ")}. LinkedIn profiles, company websites, team pages.`).catch(() => null));
-    if (filters.company) searches.push(tavilySearchRaw(`"${filters.company}" team leadership staff directory email phone contact`).catch(() => null));
-    if (filters.industry && filters.location) searches.push(tavilySearchRaw(`${filters.jobTitle || "professional"} ${filters.industry} ${filters.location} email phone LinkedIn`).catch(() => null));
-
     try {
-      const searchResults = await Promise.all(searches);
-      const allContent: string[] = [];
-      for (const sr of searchResults) {
-        if (!sr) continue;
-        if (sr.answer) allContent.push(sr.answer);
-        for (const r of (sr.results || [])) {
-          allContent.push(`Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`);
-        }
-      }
-      const searchContent = allContent.join("\n\n---\n\n");
-      const useAiOnly = !searchContent.trim();
+      const { sources, rawText } = await multiSourcePeopleData(
+        filters.jobTitle ? `${filters.jobTitle} ${filters.company || ''}` : (filters.company || filters.industry || ''),
+        filters.company,
+        filters.jobTitle,
+        filters.location
+      );
+
+      const sourceCount = Object.keys(sources).length;
+      const hasWebData = rawText.trim().length > 0;
+      const useAiOnly = !hasWebData;
+      const dataSources = Object.keys(sources).join(", ");
+
+      console.log(`[Intelligence] People search: ${sourceCount} data sources, rawText=${rawText.length} chars`);
 
       const sysPrompt = useAiOnly
-        ? `You are a B2B sales intelligence analyst. You are answering from training knowledge ONLY (no live web data). ACCURACY IS CRITICAL. For well-known executives at major companies, provide details. For unknown people or small companies, set uncertain fields to null. NEVER fabricate names, emails, phone numbers, or LinkedIn URLs. It is better to return sparse but accurate data than detailed but wrong data.`
-        : `You are an expert B2B sales intelligence data extractor performing DEEP research. Extract real professional contacts with maximum detail from web search results. Cross-reference data across sources. Return ONLY real people with real information. Do NOT fabricate any data.`;
+        ? `You are an elite B2B sales intelligence analyst (GPT-4o powered). You are answering from training knowledge ONLY (no live web data). ACCURACY IS CRITICAL. For well-known executives at major companies, provide details. For unknown people or small companies, set uncertain fields to null. NEVER fabricate names, emails, phone numbers, or LinkedIn URLs.`
+        : `You are an elite B2B sales intelligence analyst powered by a multi-source data pipeline (${dataSources}). Extract real professional contacts with maximum detail. Cross-reference data across ALL sources. Return ONLY real people with verified information. Do NOT fabricate any data.`;
+
       const usrPrompt = useAiOnly
-        ? `Find real business professionals matching: ${parts.join(", ")}. You have NO web access. Only provide info you are CONFIDENT is accurate. For people you aren't sure about, return just their name/title and set everything else to null. Do NOT fabricate email addresses or phone numbers.`
-        : `From these web search results, extract real business contacts matching: ${parts.join(", ")}.\n\nSearch Results:\n${searchContent}`;
+        ? `Find real business professionals matching: ${parts.join(", ")}. You have NO web access. Only provide info you are CONFIDENT is accurate.`
+        : `Using data from ${sourceCount} intelligence sources (${dataSources}), find business professionals matching: ${parts.join(", ")}.
+
+MULTI-SOURCE INTELLIGENCE DATA:
+${rawText}`;
 
       const result = await aiExtract(
         sysPrompt,
@@ -221,6 +555,7 @@ Return JSON with DEEPLY enriched profiles:
       "bestOutreachChannel": "email|linkedin|phone",
       "painPoints": ["likely professional pain points based on role"],
       "icebreaker": "personalized opening line",
+      "dataSources": ["which sources provided data for this person"],
       "source": "primary source URL where found",
       "dataQualityScore": 0-100 based on verified data
     }
@@ -230,14 +565,10 @@ Return JSON with DEEPLY enriched profiles:
 
 ${useAiOnly
   ? `CRITICAL ACCURACY RULES:
-- Only return people you are GENUINELY confident exist (e.g., well-known CEOs, public figures)
-- For well-known executives (Tim Cook, Satya Nadella, etc.): provide full details
-- For lesser-known people: return name and title only, set email/phone/LinkedIn to null
+- Only return people you are GENUINELY confident exist
 - NEVER fabricate email addresses, phone numbers, or LinkedIn URLs
-- NEVER guess someone's company or title — if unsure, set to null
-- Set dataQualityScore to 30-50 for AI-knowledge-only results
-- It is better to return 1 accurate result than 5 inaccurate ones`
-  : `CRITICAL: Only include people you actually found in the search results. Real names, real companies. Cross-reference across sources. If the search returned no relevant people, return {"contacts": [], "totalEstimated": 0}.`}`
+- Set dataQualityScore to 30-50 for AI-knowledge-only results`
+  : `CRITICAL: Cross-reference people data across ALL sources. Extract verified contact details. Real names, real companies only.`}`
       );
 
       const contacts = (result.contacts || []).map((c: any, i: number) => ({
@@ -274,7 +605,8 @@ ${useAiOnly
         bestOutreachChannel: c.bestOutreachChannel || "email",
         painPoints: c.painPoints || [],
         icebreaker: c.icebreaker || "",
-        source: c.source || "web search",
+        dataSources: c.dataSources || Object.keys(sources),
+        source: c.source || `Multi-source (${dataSources})`,
         dataQualityScore: c.dataQualityScore || (c.email && c.phone ? 90 : c.email ? 75 : 55),
       }));
 
@@ -283,7 +615,7 @@ ${useAiOnly
         total: result.totalEstimated || contacts.length,
         page,
         pages: Math.ceil((result.totalEstimated || contacts.length) / limit),
-        source: "ai_web_search",
+        source: useAiOnly ? "ai_knowledge" : `multi_source_${sourceCount}_databases`,
       };
     } catch (err: any) {
       console.error("[Intelligence] People search error:", err.message);
@@ -312,97 +644,79 @@ ${useAiOnly
     }
 
     try {
-      const searches: Promise<any>[] = [];
+      const { sources, rawText } = await multiSourceCompanyData(
+        filters.name || filters.industry || "",
+        undefined
+      );
 
-      if (filters.name) {
-        searches.push(tavilySearchRaw(`"${filters.name}" company website about phone email contact address`).catch(() => null));
-        searches.push(tavilySearchRaw(`"${filters.name}" owner founder CEO leadership team management`).catch(() => null));
-        if (filters.location) {
-          searches.push(tavilySearchRaw(`"${filters.name}" ${filters.location} business phone email website`).catch(() => null));
-        }
-      } else {
-        searches.push(tavilySearchRaw(`Find businesses: ${parts.join(", ")}. Company websites, business directories.`).catch(() => null));
-        if (filters.industry && filters.location) {
-          searches.push(tavilySearchRaw(`${filters.industry} companies ${filters.location} directory list phone email`).catch(() => null));
-        }
-      }
+      const sourceCount = Object.keys(sources).length;
+      const hasWebData = rawText.trim().length > 0;
+      const useAiOnly = !hasWebData;
 
-      const searchResults = await Promise.all(searches);
-      const allContent: string[] = [];
-      for (const sr of searchResults) {
-        if (!sr) continue;
-        if (sr.answer) allContent.push(sr.answer);
-        for (const r of (sr.results || [])) {
-          allContent.push(`Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`);
-        }
-      }
-      const searchContent = allContent.join("\n\n---\n\n");
+      console.log(`[Intelligence] Company search: ${sourceCount} data sources active, rawText=${rawText.length} chars, parts=${parts.join(", ")}`);
 
-      const useAiOnly = !searchContent.trim();
-      console.log(`[Intelligence] Company search: useAiOnly=${useAiOnly}, searchContent length=${searchContent.length}, parts=${parts.join(", ")}`);
+      const dataSources = Object.keys(sources).join(", ");
 
-      const systemPrompt = `You are a B2B company intelligence analyst. ${useAiOnly 
-        ? "You are answering from your training knowledge ONLY (no live web data available). ACCURACY IS CRITICAL. For well-known public companies (Fortune 500, major brands), provide full details. For small/medium/unknown companies, ONLY include facts you are genuinely confident about. Set any field you are NOT sure about to null. NEVER guess or fabricate industry, description, location, contacts, or any other details. It is far better to return partial/sparse data than wrong data. If you truly don't know a company, still return it with just the name and all other fields as null."
-        : "Extract comprehensive company profiles from web search results with maximum detail. Return ONLY real companies with verified information. Do NOT fabricate any data."}`;
+      const systemPrompt = `You are an elite B2B company intelligence analyst powered by a multi-source data pipeline similar to ZoomInfo and Apollo.io. You have access to data from: ${dataSources || "your training knowledge"}. ${useAiOnly 
+        ? "You are answering from your training knowledge ONLY (no live data available). ACCURACY IS CRITICAL. For well-known public companies (Fortune 500, major brands), provide full details. For small/medium/unknown companies, ONLY include facts you are genuinely confident about. Set any field you are NOT sure about to null. NEVER guess or fabricate. It is far better to return partial/sparse data than wrong data."
+        : "You have REAL-TIME data from multiple authoritative sources: government registries (OpenCorporates), SEC filings (EDGAR), knowledge bases (Wikidata/Wikipedia), developer platforms (GitHub), domain registration (WHOIS/RDAP), and web search. Cross-reference ALL sources to build the most comprehensive and accurate company profiles possible. Extract EVERY detail found in the data."}`;
+
       const userPrompt = useAiOnly
-        ? `Find real companies matching: ${parts.join(", ")}. IMPORTANT: You have NO web access right now. Only provide information you are CONFIDENT is accurate from your training data. For companies you don't recognize or aren't sure about, return the company with just the name and set everything else to null. Do NOT guess the industry, description, or contacts — leave them null if unsure. Return at least 1 result.`
-        : `From these search results, extract real companies matching: ${parts.join(", ")}.\n\nSearch Results:\n${searchContent}`;
+        ? `Find real companies matching: ${parts.join(", ")}. You have NO web access. Only provide information you are CONFIDENT is accurate. Return at least 1 result.`
+        : `Using data from ${sourceCount} authoritative sources (${dataSources}), build comprehensive profiles for companies matching: ${parts.join(", ")}.
+
+MULTI-SOURCE INTELLIGENCE DATA:
+${rawText}`;
 
       const result = await aiExtract(
         systemPrompt,
         `${userPrompt}
 
-Return JSON with comprehensive company profiles:
+Return JSON with comprehensive company profiles enriched from ALL available data sources:
 {
   "companies": [
     {
       "name": "real company name",
-      "domain": "company website domain (e.g. acme.com)",
+      "domain": "company website domain",
       "website": "full website URL",
-      "description": "detailed description of what the company does (2-3 sentences)",
+      "description": "detailed description (2-3 sentences)",
       "industry": "primary industry",
-      "subIndustry": "specific niche/specialty",
+      "subIndustry": "specific niche",
       "location": "headquarters city, state",
-      "employeeCount": estimated number or null,
-      "employeeRange": "range like 1-10, 11-50, 51-200, 201-500, 501-1000, 1000+",
-      "phone": "main company phone if found",
-      "email": "main company email if found",
+      "employeeCount": number or null,
+      "employeeRange": "range",
+      "phone": "main phone if found",
+      "email": "main email if found",
       "yearFounded": year or null,
-      "revenue": "estimated annual revenue range if found",
-      "ownerName": "owner/founder/CEO name if found",
+      "revenue": "estimated revenue range",
+      "companyStatus": "active/inactive from registry data",
+      "incorporationDate": "from registry if found",
+      "registeredJurisdiction": "from registry",
+      "registeredAddress": "from registry",
+      "ownerName": "owner/CEO name",
       "ownerTitle": "their title",
-      "ownerEmail": "owner's email if found",
-      "ownerPhone": "owner's direct phone if found",
-      "ownerLinkedin": "owner's LinkedIn URL if found",
-      "keyContacts": [
-        {"name": "contact name", "title": "their title", "email": "email if found", "phone": "phone if found"}
-      ],
-      "technologies": ["known technologies/software used"],
-      "socialMedia": {"linkedin": "url", "facebook": "url", "twitter": "url"},
+      "ownerEmail": "email if found",
+      "ownerPhone": "phone if found",
+      "ownerLinkedin": "LinkedIn URL if found",
+      "keyContacts": [{"name": "", "title": "", "email": "", "phone": ""}],
+      "technologies": ["known tech stack"],
+      "githubPresence": {"orgName": "", "repos": 0, "description": ""},
+      "secFilings": [{"type": "", "date": ""}],
+      "socialMedia": {"linkedin": "", "facebook": "", "twitter": ""},
+      "domainAge": "years since domain registration",
+      "dataSources": ["which sources provided data for this company"],
+      "confidence": "high|medium|low",
       "source": "primary source URL"
     }
   ],
-  "totalEstimated": number
+  "totalEstimated": number,
+  "sourcesUsed": ["list of data sources that contributed"]
 }
 
-CRITICAL RULES:
-${useAiOnly
-  ? `- ACCURACY OVER COMPLETENESS: Only fill in fields you are genuinely confident about
-- For well-known companies (Apple, Google, AT&T, etc.): provide full details
-- For lesser-known or small companies: return the name but set uncertain fields to null
-- NEVER guess the industry based on the company name alone — if unsure, set industry to null
-- NEVER fabricate descriptions, phone numbers, emails, addresses, or contacts
-- Set any uncertain field to null rather than guessing
-- Return at least 1 company matching the name, even if most fields are null
-- Add a "confidence" field: "high" for well-known companies, "low" for companies you're not sure about`
-  : `- Only include companies you actually found in the search results
-- Extract ALL contact details visible in search results (phone, email, addresses)
-- Always try to identify the owner/founder/CEO from leadership searches
-- Cross-reference information across multiple search results for accuracy
-- Include key contacts (decision makers) found in the results`}`
+CRITICAL: Cross-reference data across ALL sources. Registry data confirms existence. SEC filings confirm public status. GitHub confirms tech orientation. WHOIS confirms domain ownership. Web search provides details. Synthesize the BEST profile from ALL available data.`
       );
 
-      console.log(`[Intelligence] AI returned ${(result.companies || []).length} companies, keys: ${Object.keys(result).join(",")}`);
+      console.log(`[Intelligence] AI returned ${(result.companies || []).length} companies from ${sourceCount} sources`);
 
       const companies = (result.companies || []).map((c: any, i: number) => ({
         id: `co_${Date.now()}_${i}`,
@@ -419,6 +733,9 @@ ${useAiOnly
         email: c.email || null,
         foundedYear: c.yearFounded || null,
         revenue: c.revenue || null,
+        companyStatus: c.companyStatus || "active",
+        incorporationDate: c.incorporationDate || null,
+        registeredJurisdiction: c.registeredJurisdiction || null,
         ownerName: c.ownerName || null,
         ownerTitle: c.ownerTitle || null,
         ownerEmail: c.ownerEmail || null,
@@ -426,10 +743,13 @@ ${useAiOnly
         ownerLinkedin: c.ownerLinkedin || null,
         keyContacts: c.keyContacts || [],
         technologies: c.technologies || [],
+        githubPresence: c.githubPresence || null,
+        secFilings: c.secFilings || [],
         socialMedia: c.socialMedia || {},
-        companyType: "private",
-        confidence: useAiOnly ? (c.confidence || "low") : "high",
-        source: c.source || (useAiOnly ? "AI Knowledge (no web data available)" : "web search"),
+        companyType: c.secFilings?.length > 0 ? "public" : "private",
+        confidence: c.confidence || (useAiOnly ? "low" : "high"),
+        dataSources: c.dataSources || Object.keys(sources),
+        source: c.source || (useAiOnly ? "AI Knowledge" : `Multi-source (${dataSources})`),
       }));
 
       return {
@@ -437,7 +757,7 @@ ${useAiOnly
         total: result.totalEstimated || companies.length,
         page,
         pages: Math.ceil((result.totalEstimated || companies.length) / limit),
-        source: useAiOnly ? "ai_knowledge" : "ai_web_search",
+        source: useAiOnly ? "ai_knowledge" : `multi_source_${sourceCount}_databases`,
       };
     } catch (err: any) {
       console.error("[Intelligence] Company search error:", err.message);
@@ -718,36 +1038,34 @@ CRITICAL: Only return data you actually found in the search results. Use null fo
     try {
       const companyName = data.name || "";
       const domain = data.domain || "";
-      const searches: Promise<any>[] = [];
 
-      searches.push(tavilySearchRaw(`"${companyName || domain}" company profile employees industry revenue headquarters founded`).catch(() => null));
-      if (domain) searches.push(tavilySearchRaw(`site:${domain} about us company team leadership contact`).catch(() => null));
-      searches.push(tavilySearchRaw(`"${companyName || domain}" funding investors valuation acquisition partnership news`).catch(() => null));
-      searches.push(tavilySearchRaw(`"${companyName || domain}" reviews Glassdoor BBB clients customers testimonials`).catch(() => null));
-
-      const searchResults = await Promise.all(searches);
-      const allContent: string[] = [];
+      const { sources, rawText } = await multiSourceCompanyData(companyName || domain, domain || undefined);
+      const sourceCount = Object.keys(sources).length;
+      const dataSources = Object.keys(sources).join(", ");
       const allSources: string[] = [];
-      for (const sr of searchResults) {
-        if (!sr) continue;
-        if (sr.answer) allContent.push(sr.answer);
-        for (const r of (sr.results || [])) {
-          allContent.push(`Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`);
-          allSources.push(r.url);
-        }
+
+      if (sources.webSearch) {
+        allSources.push("Web Search");
       }
-      const searchContent = allContent.join("\n\n---\n\n");
+      if (sources.opencorporates) allSources.push("OpenCorporates Registry");
+      if (sources.wikidata) allSources.push("Wikidata/Wikipedia");
+      if (sources.secEdgar) allSources.push("SEC EDGAR");
+      if (sources.github) allSources.push("GitHub");
+      if (sources.whois) allSources.push("RDAP/WHOIS");
+      if (sources.duckduckgo) allSources.push("DuckDuckGo Knowledge Graph");
+
+      console.log(`[Intelligence] Company enrichment: ${sourceCount} sources for "${companyName || domain}": ${dataSources}`);
 
       const result = await aiExtract(
-        `You are an expert B2B company intelligence analyst performing DEEP research. Extract every verifiable data point. Cross-reference multiple sources for accuracy. Be thorough and comprehensive.`,
-        `Perform DEEP enrichment on this company using ALL search results below. Cross-reference data across sources.
+        `You are an expert B2B company intelligence analyst powered by a multi-source data pipeline (${dataSources}). You have access to government registries, SEC filings, knowledge bases, domain data, and web search results. Cross-reference ALL sources to extract every verifiable data point. Be thorough and comprehensive.`,
+        `Perform DEEP enrichment on this company using data from ${sourceCount} authoritative intelligence sources.
 
 Target Company:
 - Name: ${companyName || "Unknown"}
 - Domain: ${domain || "Unknown"}
 
-Search Results (from ${allSources.length} sources):
-${searchContent}
+MULTI-SOURCE INTELLIGENCE DATA (from ${allSources.join(", ")}):
+${rawText}
 
 Return comprehensive JSON with ALL data you can verify:
 {
@@ -1170,30 +1488,20 @@ CRITICAL: Only include events actually found in search results.`
 
   async aiResearchCompany(domain: string): Promise<any> {
     try {
-      const searches = await Promise.all([
-        tavilySearchRaw(`"${domain}" company profile products services competitors target market`).catch(() => null),
-        tavilySearchRaw(`"${domain}" hiring jobs openings team growth expansion news`).catch(() => null),
-        tavilySearchRaw(`"${domain}" reviews testimonials clients case studies partnerships`).catch(() => null),
-      ]);
+      const companyName = domain.replace(/\.(com|io|co|net|org|ai)$/i, "");
+      const { sources, rawText } = await multiSourceCompanyData(companyName, domain);
+      const sourceCount = Object.keys(sources).length;
+      const dataSources = Object.keys(sources).join(", ");
+      const allSources = Object.keys(sources);
 
-      const allContent: string[] = [];
-      const allSources: string[] = [];
-      for (const sr of searches) {
-        if (!sr) continue;
-        if (sr.answer) allContent.push(sr.answer);
-        for (const r of (sr.results || [])) {
-          allContent.push(`Source: ${r.url}\n${r.title}: ${r.content || ""}`);
-          allSources.push(r.url);
-        }
-      }
-      const searchContent = allContent.join("\n\n---\n\n");
+      console.log(`[Intelligence] Deep research: ${sourceCount} sources for "${domain}": ${dataSources}`);
 
       return await aiExtract(
-        `You are an expert B2B sales intelligence researcher providing DEEP, actionable company research. Cross-reference multiple sources. Be thorough and specific.`,
-        `Deep research the company at ${domain} for B2B sales approach. Use ALL search results below.
+        `You are an expert B2B sales intelligence researcher powered by a multi-source data pipeline (${dataSources}). You have access to government registries, SEC filings, knowledge bases, GitHub, domain data, and web search. Provide DEEP, actionable research. Cross-reference ALL sources.`,
+        `Deep research the company at ${domain} for B2B sales approach. Use ALL intelligence data from ${sourceCount} sources below.
 
-Search Results (${allSources.length} sources):
-${searchContent}
+MULTI-SOURCE INTELLIGENCE DATA (${dataSources}):
+${rawText}
 
 Return comprehensive JSON:
 {
@@ -1224,7 +1532,8 @@ Return comprehensive JSON:
   "keyClients": ["notable clients or partners if found"],
   "awards": ["awards or recognitions"],
   "socialPresence": {"linkedin": "url", "twitter": "url", "facebook": "url"},
-  "sources": ${JSON.stringify(allSources.slice(0, 10))}
+  "dataSources": ${JSON.stringify(allSources)},
+  "sources": ["URLs from the data"]
 }`
       );
     } catch (err: any) {
@@ -1235,31 +1544,20 @@ Return comprehensive JSON:
 
   async aiResearchContact(name: string, company: string, title: string): Promise<any> {
     try {
-      const searches = await Promise.all([
-        tavilySearchRaw(`"${name}" "${company}" ${title} professional profile LinkedIn`).catch(() => null),
-        tavilySearchRaw(`"${name}" ${company} speaking events publications awards interviews`).catch(() => null),
-        tavilySearchRaw(`"${name}" ${title} insights articles posts thought leadership`).catch(() => null),
-      ]);
+      const { sources, rawText } = await multiSourcePeopleData(name, company, title);
+      const sourceCount = Object.keys(sources).length;
+      const dataSources = Object.keys(sources).join(", ");
+      const allSources = Object.keys(sources);
 
-      const allContent: string[] = [];
-      const allSources: string[] = [];
-      for (const sr of searches) {
-        if (!sr) continue;
-        if (sr.answer) allContent.push(sr.answer);
-        for (const r of (sr.results || [])) {
-          allContent.push(`Source: ${r.url}\n${r.title}: ${r.content || ""}`);
-          allSources.push(r.url);
-        }
-      }
-      const searchContent = allContent.join("\n\n---\n\n");
+      console.log(`[Intelligence] Deep contact research: ${sourceCount} sources for "${name}" at "${company}"`);
 
       return await aiExtract(
-        `You are an expert B2B sales intelligence researcher specializing in DEEP prospect analysis. Provide comprehensive, actionable sales insights. Cross-reference multiple sources.`,
-        `Deep research this prospect for a sales approach using ALL search results:
+        `You are an expert B2B sales intelligence researcher powered by a multi-source pipeline (${dataSources}). Provide comprehensive, actionable sales insights. Cross-reference ALL sources.`,
+        `Deep research this prospect for a sales approach using ALL intelligence data from ${sourceCount} sources:
 Name: ${name}, Company: ${company}, Title: ${title}
 
-Search Results (${allSources.length} sources):
-${searchContent}
+MULTI-SOURCE INTELLIGENCE DATA (${dataSources}):
+${rawText}
 
 Return comprehensive JSON:
 {
@@ -1292,7 +1590,8 @@ Return comprehensive JSON:
   "triggerEvents": ["events that would make them more receptive"],
   "mutualConnections": "any notable affiliations or shared connections",
   "socialProfiles": {"linkedin": "", "twitter": ""},
-  "sources": ${JSON.stringify(allSources.slice(0, 10))}
+  "dataSources": ${JSON.stringify(allSources)},
+  "sources": ["URLs from the data"]
 }`
       );
     } catch (err: any) {
