@@ -532,6 +532,8 @@ async function executeAction(userId: string, action: string, params: any): Promi
         const emailLower = (email || "").toLowerCase().trim();
         const gatekeeperTitles = /(receptionist|front\s*desk|assistant|secretary|coordinator|scheduler|intake\s*specialist|office\s*staff|billing\s*clerk|medical\s*assistant|nurse(?!\s*practitioner)|ma\b|rn\b|lpn\b|cna\b)/i;
         if (gatekeeperTitles.test(lower)) return true;
+        const isDecisionMaker = /\b(dr\.?|doctor|dds|dmd|md|do|dc|od|phd|owner|founder|ceo|president|managing\s*partner|principal|director|physician|dentist|chiropract|optometrist|surgeon|practitioner)\b/i.test(lower);
+        if (isDecisionMaker) return false;
         const gatekeeperEmails = /^(info|contact|office|admin|hello|support|reception|frontdesk|appointments?|scheduling|billing|general|team|staff|help|enquir|inquir|mail)@/i;
         if (gatekeeperEmails.test(emailLower)) return true;
         return false;
@@ -554,9 +556,8 @@ async function executeAction(userId: string, action: string, params: any): Promi
         if (/prospect-[a-z0-9]+\.com/i.test(lower)) return true;
         if (/@(example|test|fake|placeholder|dummy|sample|mailinator|tempmail|guerrillamail)\./i.test(lower)) return true;
         if (/^(test|fake|dummy|placeholder|sample|noreply|no-reply)@/i.test(lower)) return true;
-        if (/^(prospect|lead|contact|debug|fresh|alpha)[\d_@]/i.test(lower)) return true;
-        if (/\+1555|555-\d{3}-\d{4}|5550{4}/i.test(lower)) return true;
-        if (/@(familypractice|orthoclinic|urgentcare|familymed|internalmed|dentistry|dermatology|pediatrics|cardiology|oncology|neurology|gastro|pulmonology|rheumatology|endocrinology|nephrology|urology)\.(com|org|net)$/i.test(lower)) return true;
+        if (/^(prospect|lead|debug|fresh|alpha)[\d_@]/i.test(lower)) return true;
+        if (/\+1555|5550{4}/i.test(lower)) return true;
         const namePart = lower.split("@")[0];
         const domainPart = lower.split("@")[1] || "";
         if (/^(dr|doctor|john|jane|robert|jessica|amanda|henry|maria|kevin|brian|sarah|steven|nick|jake|tina|laura|karen)[\._]/.test(namePart) && /^[a-z]+(practice|clinic|care|med|medical|health|surgery)\.(com|org|net)$/.test(domainPart)) return true;
@@ -566,11 +567,11 @@ async function executeAction(userId: string, action: string, params: any): Promi
         if (!phone) return false;
         const digits = phone.replace(/\D/g, '');
         if (digits.length === 0) return false;
-        if (/555/.test(digits)) return true;
+        const last10 = digits.slice(-10);
+        if (last10.length >= 10 && /^.{3}555/.test(last10)) return true;
         if (/^(\d)\1{6,}$/.test(digits)) return true;
         if (/^(1234|0000|9999)/.test(digits)) return true;
         if (digits.length < 10) return true;
-        if (/^1?(\d{3})\1/.test(digits)) return true;
         return false;
       };
 
@@ -626,9 +627,14 @@ async function executeAction(userId: string, action: string, params: any): Promi
           console.warn(`[Lead Filter] Rejected fake name: "${lead.name}"`);
           continue;
         }
-        if (isFakeEmail(lead.email) || isFakePhone(lead.phone)) {
-          skipped.push(lead.name || "unnamed");
-          console.warn(`[Lead Filter] Rejected fake contact: email="${lead.email}", phone="${lead.phone}"`);
+        if (isFakeEmail(lead.email)) {
+          skipped.push(`${lead.name || "unnamed"} (fake email)`);
+          console.warn(`[Lead Filter] Rejected fake email: name="${lead.name}", email="${lead.email}"`);
+          continue;
+        }
+        if (isFakePhone(lead.phone)) {
+          skipped.push(`${lead.name || "unnamed"} (fake phone)`);
+          console.warn(`[Lead Filter] Rejected fake phone: name="${lead.name}", phone="${lead.phone}"`);
           continue;
         }
         if (isGatekeeper(lead.name, lead.email)) {
