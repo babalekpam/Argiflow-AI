@@ -113,7 +113,10 @@ async function openCorporatesSearch(companyName: string, jurisdiction?: string):
     if (jurisdiction) params.append("jurisdiction_code", jurisdiction);
     const url = `https://api.opencorporates.com/v0.4/companies/search?${params.toString()}`;
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn(`[DataSource:OpenCorporates] HTTP ${response.status} for "${companyName}"`);
+      return null;
+    }
     const data = await response.json();
     const companies = (data?.results?.companies || []).map((c: any) => ({
       name: c.company?.name,
@@ -136,29 +139,25 @@ async function openCorporatesSearch(companyName: string, jurisdiction?: string):
 
 async function secEdgarSearch(companyName: string): Promise<any> {
   try {
-    const url = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22&dateRange=custom&startdt=2020-01-01&forms=10-K,10-Q,8-K&hits.hits.total=true&hits.hits._source=file_date,display_names,form_type,file_num`;
-    const searchUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22&forms=10-K,10-Q,8-K`;
-    const fullTextUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22`;
-    const companySearchUrl = `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(companyName)}&forms=10-K`;
-
-    const entityUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22&dateRange=custom&startdt=2023-01-01`;
-    const response = await fetch(`https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22`, {
+    const response = await fetch(`https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(companyName)}%22&forms=10-K,10-Q,8-K`, {
       headers: { "User-Agent": "ArgiletteBot/1.0 info@argilette.com", "Accept": "application/json" },
       signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) {
       const altResponse = await fetch(`https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(companyName)}`, {
-        headers: { "User-Agent": "ArgiletteBot/1.0 info@argilette.com" },
+        headers: { "User-Agent": "ArgiletteBot/1.0 info@argilette.com", "Accept": "application/json" },
         signal: AbortSignal.timeout(8000),
       });
       if (!altResponse.ok) return null;
       const altData = await altResponse.json();
-      return altData?.hits?.hits?.map((h: any) => ({
+      const altFilings = (altData?.hits?.hits || []).map((h: any) => ({
         filingType: h?._source?.form_type,
         filingDate: h?._source?.file_date,
         company: h?._source?.display_names?.[0],
         source: "sec_edgar",
-      })).slice(0, 5) || null;
+      })).slice(0, 5);
+      console.log(`[DataSource:SEC-EDGAR] Found ${altFilings.length} filings (alt query) for "${companyName}"`);
+      return altFilings.length > 0 ? altFilings : null;
     }
     const data = await response.json();
     const filings = (data?.hits?.hits || []).map((h: any) => ({
@@ -337,28 +336,28 @@ async function multiSourceCompanyData(companyName: string, domain?: string): Pro
 
   promises.push(openCorporatesSearch(companyName).then(r => {
     if (r && r.length > 0) { sources.opencorporates = r; textParts.push(`[OpenCorporates Registry Data]\n${r.map((c: any) => `Company: ${c.name}, Jurisdiction: ${c.jurisdiction}, Status: ${c.status}, Type: ${c.companyType}, Incorporated: ${c.incorporationDate}, Address: ${c.registeredAddress}`).join("\n")}`); }
-  }));
+  }).catch(e => console.warn(`[MultiSource:OpenCorporates] ${e.message}`)));
 
   promises.push(wikidataSearch(companyName).then(r => {
     if (r && r.length > 0) { sources.wikidata = r; textParts.push(`[Wikidata/Wikipedia Knowledge Base]\n${r.map((e: any) => `Entity: ${e.label} - ${e.description}${e.enriched ? `\nWebsite: ${e.enriched.officialWebsite || 'N/A'}, Founded: ${e.enriched.inception || 'N/A'}, CEO: ${e.enriched.ceo || 'N/A'}, Employees: ${e.enriched.employees || 'N/A'}` : ''}`).join("\n")}`); }
-  }));
+  }).catch(e => console.warn(`[MultiSource:Wikidata] ${e.message}`)));
 
   promises.push(secEdgarSearch(companyName).then(r => {
     if (r && r.length > 0) { sources.secEdgar = r; textParts.push(`[SEC EDGAR Filings]\n${r.map((f: any) => `Filing: ${f.filingType} on ${f.filingDate} by ${f.company}`).join("\n")}`); }
-  }));
+  }).catch(e => console.warn(`[MultiSource:SEC-EDGAR] ${e.message}`)));
 
   promises.push(githubSearch(companyName).then(r => {
     if (r && r.length > 0) { sources.github = r; textParts.push(`[GitHub Organization]\n${r.map((o: any) => `Org: ${o.name} (@${o.login}) - ${o.description || 'N/A'}\nLocation: ${o.location || 'N/A'}, Website: ${o.blog || 'N/A'}, Email: ${o.email || 'N/A'}, Repos: ${o.publicRepos}, Twitter: ${o.twitterUsername || 'N/A'}`).join("\n")}`); }
-  }));
+  }).catch(e => console.warn(`[MultiSource:GitHub] ${e.message}`)));
 
   promises.push(duckDuckGoInstantAnswer(companyName + " company").then(r => {
     if (r) { sources.duckduckgo = r; textParts.push(`[DuckDuckGo Knowledge Graph]\nHeading: ${r.heading}\nAbstract: ${r.abstract || 'N/A'}\nSource: ${r.abstractSource} (${r.abstractUrl})\nOfficial Website: ${r.officialWebsite || 'N/A'}${r.infobox?.length ? `\nInfobox: ${r.infobox.map((i: any) => `${i.label}: ${i.value}`).join(", ")}` : ''}`); }
-  }));
+  }).catch(e => console.warn(`[MultiSource:DuckDuckGo] ${e.message}`)));
 
   if (domain) {
     promises.push(fetchDomainWhois(domain).then(r => {
       if (r) { sources.whois = r; textParts.push(`[RDAP/WHOIS Domain Data]\nDomain: ${r.domainName}, Registered: ${r.registrationDate || 'N/A'}, Expires: ${r.expirationDate || 'N/A'}, Registrar: ${r.registrar || 'N/A'}, Registrant Org: ${r.registrantOrg || 'N/A'}, Nameservers: ${(r.nameservers || []).join(", ")}`); }
-    }));
+    }).catch(e => console.warn(`[MultiSource:WHOIS] ${e.message}`)));
   }
 
   const webSearchPromises: Promise<any>[] = [];
@@ -380,7 +379,7 @@ async function multiSourceCompanyData(companyName: string, domain?: string): Pro
       sources.webSearch = { resultCount: webContent.length };
       textParts.push(`[Web Search Results]\n${webContent.join("\n\n---\n\n")}`);
     }
-  }));
+  }).catch(e => console.warn(`[MultiSource:WebSearch] ${e.message}`)));
 
   await Promise.allSettled(promises);
 
@@ -415,7 +414,7 @@ async function multiSourcePeopleData(name: string, company?: string, title?: str
       sources.webSearch = { resultCount: webContent.length };
       textParts.push(`[Web Search Results]\n${webContent.join("\n\n---\n\n")}`);
     }
-  }));
+  }).catch(e => console.warn(`[MultiSource:People:WebSearch] ${e.message}`)));
 
   if (company) {
     promises.push(duckDuckGoInstantAnswer(`${name} ${company}`).then(r => {
@@ -423,14 +422,14 @@ async function multiSourcePeopleData(name: string, company?: string, title?: str
         sources.duckduckgo = r;
         textParts.push(`[DuckDuckGo Knowledge]\n${r.abstract}`);
       }
-    }));
+    }).catch(e => console.warn(`[MultiSource:People:DuckDuckGo] ${e.message}`)));
 
     promises.push(githubSearch(company).then(r => {
       if (r && r.length > 0) {
         sources.github = r;
         textParts.push(`[GitHub - Company Context]\n${r.map((o: any) => `Org: ${o.name}, Repos: ${o.publicRepos}, Desc: ${o.description || 'N/A'}`).join("\n")}`);
       }
-    }));
+    }).catch(e => console.warn(`[MultiSource:People:GitHub] ${e.message}`)));
   }
 
   await Promise.allSettled(promises);
@@ -509,11 +508,11 @@ export class IntelligenceEngine {
       console.log(`[Intelligence] People search: ${sourceCount} data sources, rawText=${rawText.length} chars`);
 
       const sysPrompt = useAiOnly
-        ? `You are an elite B2B sales intelligence analyst (GPT-4o powered). You are answering from training knowledge ONLY (no live web data). ACCURACY IS CRITICAL. For well-known executives at major companies, provide details. For unknown people or small companies, set uncertain fields to null. NEVER fabricate names, emails, phone numbers, or LinkedIn URLs.`
+        ? `You are an elite B2B sales intelligence analyst (GPT-4o powered). You are answering from training knowledge ONLY (no live web data). You MUST return at least 1-3 results for any people search query. For well-known executives at major companies, provide full details. For lesser-known professionals, provide what you know (name, title, company) and set uncertain fields (email, phone, LinkedIn) to null. NEVER fabricate emails, phone numbers, or LinkedIn URLs. But DO return people with whatever information you have. It is MANDATORY to return results.`
         : `You are an elite B2B sales intelligence analyst powered by a multi-source data pipeline (${dataSources}). Extract real professional contacts with maximum detail. Cross-reference data across ALL sources. Return ONLY real people with verified information. Do NOT fabricate any data.`;
 
       const usrPrompt = useAiOnly
-        ? `Find real business professionals matching: ${parts.join(", ")}. You have NO web access. Only provide info you are CONFIDENT is accurate.`
+        ? `Find real business professionals matching: ${parts.join(", ")}. You have NO web access. Return at least 1 result. Provide what you know confidently, set unknown fields to null.`
         : `Using data from ${sourceCount} intelligence sources (${dataSources}), find business professionals matching: ${parts.join(", ")}.
 
 MULTI-SOURCE INTELLIGENCE DATA:
@@ -571,7 +570,8 @@ ${useAiOnly
   : `CRITICAL: Cross-reference people data across ALL sources. Extract verified contact details. Real names, real companies only.`}`
       );
 
-      const contacts = (result.contacts || []).map((c: any, i: number) => ({
+      const aiContacts = result.contacts || [];
+      let contacts = aiContacts.map((c: any, i: number) => ({
         id: `si_${Date.now()}_${i}`,
         firstName: c.firstName || "",
         lastName: c.lastName || "",
@@ -609,6 +609,48 @@ ${useAiOnly
         source: c.source || `Multi-source (${dataSources})`,
         dataQualityScore: c.dataQualityScore || (c.email && c.phone ? 90 : c.email ? 75 : 55),
       }));
+
+      if (contacts.length === 0 && (filters.jobTitle || filters.company)) {
+        console.log(`[Intelligence] AI returned 0 people results, creating minimal fallback`);
+        contacts = [{
+          id: `si_${Date.now()}_fallback`,
+          firstName: "",
+          lastName: "",
+          fullName: filters.jobTitle ? `${filters.jobTitle} Professional` : "Unknown Professional",
+          jobTitle: filters.jobTitle || "Professional",
+          previousTitle: "",
+          seniorityLevel: this.classifySeniority(filters.jobTitle || ""),
+          department: this.classifyDepartment(filters.jobTitle || ""),
+          companyName: filters.company || "",
+          companyDomain: "",
+          companyIndustry: filters.industry || "",
+          companySize: "",
+          workEmail: null,
+          directPhone: null,
+          mobilePhone: null,
+          linkedinUrl: null,
+          twitterUrl: null,
+          city: "",
+          state: "",
+          country: "US",
+          timezone: "",
+          industry: filters.industry || "",
+          education: "",
+          certifications: [],
+          skills: [],
+          yearsExperience: null,
+          summary: `Search for ${filters.jobTitle || "professionals"} ${filters.company ? `at ${filters.company}` : ""} - limited data available. Try refining your search or using enrichment tools.`,
+          recentActivity: "",
+          isDecisionMaker: false,
+          buyingRole: "end_user",
+          bestOutreachChannel: "email",
+          painPoints: [],
+          icebreaker: "",
+          dataSources: ["AI Knowledge (limited data)"],
+          source: "AI Knowledge",
+          dataQualityScore: 10,
+        }];
+      }
 
       return {
         results: contacts.slice(0, limit),
@@ -658,7 +700,7 @@ ${useAiOnly
       const dataSources = Object.keys(sources).join(", ");
 
       const systemPrompt = `You are an elite B2B company intelligence analyst powered by a multi-source data pipeline similar to ZoomInfo and Apollo.io. You have access to data from: ${dataSources || "your training knowledge"}. ${useAiOnly 
-        ? "You are answering from your training knowledge ONLY (no live data available). ACCURACY IS CRITICAL. For well-known public companies (Fortune 500, major brands), provide full details. For small/medium/unknown companies, ONLY include facts you are genuinely confident about. Set any field you are NOT sure about to null. NEVER guess or fabricate. It is far better to return partial/sparse data than wrong data."
+        ? "You are answering from your training knowledge ONLY (no live data available). You MUST return at least 1 result for any company search query. For well-known companies provide full details. For lesser-known companies, provide what you know and set uncertain fields to null. NEVER fabricate email addresses or phone numbers - set those to null if unknown. But DO return the company with whatever information you have (name, industry, general location, description). It is MANDATORY to return results."
         : "You have REAL-TIME data from multiple authoritative sources: government registries (OpenCorporates), SEC filings (EDGAR), knowledge bases (Wikidata/Wikipedia), developer platforms (GitHub), domain registration (WHOIS/RDAP), and web search. Cross-reference ALL sources to build the most comprehensive and accurate company profiles possible. Extract EVERY detail found in the data."}`;
 
       const userPrompt = useAiOnly
@@ -716,9 +758,10 @@ Return JSON with comprehensive company profiles enriched from ALL available data
 CRITICAL: Cross-reference data across ALL sources. Registry data confirms existence. SEC filings confirm public status. GitHub confirms tech orientation. WHOIS confirms domain ownership. Web search provides details. Synthesize the BEST profile from ALL available data.`
       );
 
-      console.log(`[Intelligence] AI returned ${(result.companies || []).length} companies from ${sourceCount} sources`);
+      const aiCompanies = result.companies || [];
+      console.log(`[Intelligence] AI returned ${aiCompanies.length} companies from ${sourceCount} sources`);
 
-      const companies = (result.companies || []).map((c: any, i: number) => ({
+      let companies = aiCompanies.map((c: any, i: number) => ({
         id: `co_${Date.now()}_${i}`,
         name: c.name || "",
         domain: c.domain || "",
@@ -751,6 +794,44 @@ CRITICAL: Cross-reference data across ALL sources. Registry data confirms existe
         dataSources: c.dataSources || Object.keys(sources),
         source: c.source || (useAiOnly ? "AI Knowledge" : `Multi-source (${dataSources})`),
       }));
+
+      if (companies.length === 0 && (filters.name || filters.industry || filters.location)) {
+        const searchLabel = filters.name || `${filters.industry || ""} ${filters.location || ""}`.trim();
+        console.log(`[Intelligence] AI returned 0 results, creating minimal fallback for "${searchLabel}"`);
+        companies = [{
+          id: `co_${Date.now()}_fallback`,
+          name: filters.name || `${filters.industry || "Business"} Company`,
+          domain: "",
+          description: `Company matching search: ${searchLabel}. Limited data available - try refining your search or using enrichment tools.`,
+          industry: filters.industry || "Unknown",
+          subIndustry: "",
+          location: filters.location || "",
+          employeeCount: null,
+          employeeRange: "",
+          website: "",
+          phone: null,
+          email: null,
+          foundedYear: null,
+          revenue: null,
+          companyStatus: "unknown",
+          incorporationDate: null,
+          registeredJurisdiction: null,
+          ownerName: null,
+          ownerTitle: null,
+          ownerEmail: null,
+          ownerPhone: null,
+          ownerLinkedin: null,
+          keyContacts: [],
+          technologies: [],
+          githubPresence: null,
+          secFilings: [],
+          socialMedia: {},
+          companyType: "private",
+          confidence: "low",
+          dataSources: ["AI Knowledge (limited data)"],
+          source: "AI Knowledge",
+        }];
+      }
 
       return {
         results: companies.slice(0, limit),

@@ -132,7 +132,7 @@ router.post("/people/search", async (req, res) => {
       total: engineResults.total + dbResults.length,
       page: 1,
       pages: engineResults.pages,
-      source: dbResults.length > 0 ? "database+ai" : "ai_web_search",
+      source: dbResults.length > 0 ? "database+ai" : (engineResults.source || "ai_knowledge"),
     });
   } catch (e: any) {
     console.error("[Intelligence] People search error:", e.message);
@@ -176,7 +176,7 @@ router.post("/companies/search", async (req, res) => {
       total: engineResults.total + dbResults.length,
       page: 1,
       pages: engineResults.pages,
-      source: dbResults.length > 0 ? "database+ai" : "ai_web_search",
+      source: dbResults.length > 0 ? "database+ai" : (engineResults.source || "ai_knowledge"),
     });
   } catch (e: any) {
     console.error("[Intelligence] Company search error:", e.message);
