@@ -33,6 +33,12 @@ import { storage } from "./storage";
 
 interface AgentConfig {
   userId: string;
+  // Business Profile (makes the agent work for ANY business type)
+  businessType: string;             // e.g. "medical_billing", "marketing_agency", "real_estate", "saas", "consulting", "custom"
+  businessDescription: string;      // What the user's business does
+  targetAudience: string;           // Who they want to reach (e.g. "dental offices", "restaurants", "ecommerce stores")
+  valueProposition: string;         // What value they offer prospects
+  competitorKeywords: string[];     // Keywords to filter out competitors
   // Discovery
   discoveryEnabled: boolean;
   discoveryQueries: string[];       // Search queries for finding prospects
@@ -147,23 +153,27 @@ export class OutreachAgent {
 
     try {
       const user = await storage.getUserById(userId);
-      const companyName = user?.companyName || "Track-Med Billing Solutions";
-      const senderName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Clara Motena";
+      const companyName = user?.companyName || "Your Company";
+      const senderName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Team";
       const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
       const calLink = (settings as any)?.calendarLink || "";
-      const senderPhone = (settings as any)?.grasshopperNumber || (settings as any)?.twilioPhoneNumber || "+1(615)482-6768";
-      const senderTitle = (user as any)?.jobTitle || "Client Acquisition Director";
-      const senderWebsite = user?.website || "https://www.track-med.com";
+      const senderPhone = (settings as any)?.grasshopperNumber || (settings as any)?.twilioPhoneNumber || "";
+      const senderTitle = (user as any)?.jobTitle || "";
+      const senderWebsite = user?.website || "";
+
+      const businessDesc = config.businessDescription || user?.companyDescription || "";
+      const targetAudience = config.targetAudience || "";
+      const valueProp = config.valueProposition || "";
 
       const queries = config.discoveryQueries?.length > 0
         ? config.discoveryQueries
-        : ["dental practice billing issues", "chiropractor practice needs billing help", "medical practice hiring billing staff"];
+        : this.generateDefaultQueries(config, targetAudience, businessDesc);
 
       let allSearchResults = "";
 
       for (const query of queries.slice(0, 3)) {
         try {
-          const searchQuery = `${query} owner doctor phone email contact site:.com`;
+          const searchQuery = `${query} owner phone email contact site:.com`;
           console.log(`[OutreachAgent] Tavily search: "${searchQuery}"`);
           const tRes = await fetch("https://api.tavily.com/search", {
             method: "POST",
@@ -197,44 +207,54 @@ export class OutreachAgent {
       const { getAnthropicForUser } = await import("./routes");
       const ai = await getAnthropicForUser(userId);
 
-      const extractionPrompt = `You are a B2B lead extraction specialist for ${companyName}, a medical billing company.
+      const competitorFilter = (config.competitorKeywords || []).length > 0
+        ? `- NEVER include companies matching these competitor keywords: ${config.competitorKeywords.join(", ")} — they are competitors, not prospects`
+        : "- Avoid extracting companies that are in the SAME business as the sender (they are competitors, not prospects)";
+
+      const targetDesc = targetAudience
+        ? `Extract REAL businesses matching this target audience: ${targetAudience}`
+        : "Extract REAL businesses and decision makers from the search results";
+
+      const valueDesc = valueProp
+        ? `Mention how ${companyName} can help them: ${valueProp}`
+        : `Mention how ${companyName} can help their business`;
+
+      const signatureParts = [senderName, senderTitle, companyName, senderPhone, senderWebsite, calLink].filter(Boolean);
+
+      const extractionPrompt = `You are a B2B lead extraction specialist for ${companyName}${businessDesc ? `, ${businessDesc}` : ""}.
 
 SEARCH RESULTS:
 ${allSearchResults}
 
-TASK: Extract REAL healthcare practices (dental offices, chiropractors, medical practices) from these search results that could benefit from billing services. These are our PROSPECTS — practices that TREAT patients.
+TASK: ${targetDesc}. These are our PROSPECTS — businesses that could benefit from our services.
 
 CRITICAL RULES:
-- ONLY extract healthcare PRACTICES (doctors, dentists, chiropractors) — NEVER billing/RCM companies (those are competitors)
+${competitorFilter}
 - ONLY include leads where you found REAL contact info in the search results
 - NEVER fabricate emails — only use what you actually see in the results
 - NEVER use @example.com, @test.com, or 555-xxx-xxxx phone numbers
 - Each lead MUST have at minimum: name (decision maker), email, company name
 - Phone numbers should be real US numbers (10 digits with area code) if found
-- Target decision makers: practice owners, physicians (MD/DO/DDS/DMD/DC), office managers
+- Target decision makers: owners, founders, CEOs, directors, managers
 
 For EACH valid lead, generate a personalized outreach email (3-5 sentences) that:
-1. References their specific practice/situation
-2. Mentions how ${companyName} can help with their billing
+1. References their specific business/situation
+2. ${valueDesc}
 3. Includes a clear call to action
 4. Ends with this signature:
 
 Best regards,
-${senderName}
-${senderTitle}
-${companyName}
-${senderPhone}
-${senderWebsite}${calLink ? `\n${calLink}` : ""}
+${signatureParts.join("\n")}
 
 Return ONLY a valid JSON array:
 [{
-  "name": "Dr. Full Name",
+  "name": "Full Name",
   "email": "real@email.com",
   "phone": "+1XXXXXXXXXX",
-  "company": "Practice Name",
+  "company": "Business Name",
   "score": 70,
-  "intent_signal": "Why they need billing help",
-  "notes": "Specialty, title, practice size, source URL",
+  "intent_signal": "Why they need our service",
+  "notes": "Title, business type, size, source URL",
   "outreach": "Full personalized email with signature"
 }]
 
@@ -275,11 +295,14 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
         if (/^(\d)\1{6,}$/.test(digits)) return true;
         return false;
       };
-      const isBillingCompetitor = (company: string, notes: string) => {
+      const isCompetitor = (company: string, notes: string) => {
         const text = `${company || ""} ${notes || ""}`.toLowerCase();
-        if (/\bbilling\s*(company|service|solution|firm|agency|group|partner|pro|specialist)/i.test(text)) return true;
-        if (/\brcm\s*(company|service|solution|firm)/i.test(text)) return true;
-        if (/\brevenue\s*cycle\s*(management|service|solution|company)/i.test(text)) return true;
+        const competitorKws = config.competitorKeywords || [];
+        if (competitorKws.length > 0) {
+          for (const kw of competitorKws) {
+            if (kw && text.includes(kw.toLowerCase())) return true;
+          }
+        }
         return false;
       };
 
@@ -287,7 +310,7 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
         if (!p.name || !p.email || !p.company) return false;
         if (isFakeEmail(p.email)) return false;
         if (p.phone && isFakePhone(p.phone)) p.phone = null;
-        if (isBillingCompetitor(p.company, p.notes || "")) return false;
+        if (isCompetitor(p.company, p.notes || "")) return false;
         const domain = p.email?.split("@")[1]?.toLowerCase();
         if (domain && blacklist.includes(domain)) return false;
         return true;
@@ -310,7 +333,7 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
             status: "new",
             score: prospect.score || 65,
             notes: prospect.notes || "",
-            intentSignal: prospect.intent_signal || "Healthcare practice — potential billing needs",
+            intentSignal: prospect.intent_signal || "Potential prospect — needs our services",
             outreach: prospect.outreach || null,
             engagementLevel: "warm",
           });
@@ -322,7 +345,8 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
       if (added > 0) {
         try {
           const { autoAddToFunnelDirect } = await import("./routes");
-          await autoAddToFunnelDirect(userId, "medical-billing", savedLeadNames);
+          const funnelSlug = config.businessType || "outreach";
+          await autoAddToFunnelDirect(userId, funnelSlug, savedLeadNames);
         } catch (fErr: any) {
           console.warn(`[OutreachAgent] Failed to add to funnel: ${fErr.message}`);
         }
@@ -1054,19 +1078,36 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
 
   // ── HELPER METHODS ────────────────────────────────────────
 
-  private async getAgentConfig(userId: string): Promise<AgentConfig> {
-    const [config] = await db.select().from(agentConfigs)
-      .where(and(eq(agentConfigs.userId, userId), eq(agentConfigs.agentType, "outreach_agent")));
-
-    if (config?.agentSettings) {
-      try { return JSON.parse(config.agentSettings); } catch {}
+  private generateDefaultQueries(config: AgentConfig, targetAudience: string, businessDesc: string): string[] {
+    if (targetAudience) {
+      return [
+        `${targetAudience} looking for help`,
+        `${targetAudience} owner manager contact`,
+        `${targetAudience} near me directory`,
+      ];
     }
+    if (businessDesc) {
+      return [
+        `businesses that need ${businessDesc}`,
+        `companies looking for ${businessDesc} services`,
+      ];
+    }
+    return [
+      "small business owner needs help growing",
+      "business looking for services partner",
+    ];
+  }
 
-    // Default config
-    return {
+  private async getAgentConfig(userId: string): Promise<AgentConfig> {
+    const defaults: AgentConfig = {
       userId,
+      businessType: "medical_billing",
+      businessDescription: "medical billing and revenue cycle management",
+      targetAudience: "dental offices, chiropractors, medical practices, clinics",
+      valueProposition: "streamline their billing operations, reduce claim denials, and increase revenue collection",
+      competitorKeywords: ["billing company", "billing service", "RCM company", "revenue cycle management"],
       discoveryEnabled: true,
-      discoveryQueries: ["solo medical practice needs billing help"],
+      discoveryQueries: ["dental practice billing issues", "chiropractor practice needs billing help", "medical practice hiring billing staff"],
       discoverySource: "web",
       dailyProspectLimit: 10,
       autoCampaignId: null,
@@ -1083,6 +1124,18 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
       blacklistDomains: [],
       pauseOnNegative: true,
     };
+
+    const [config] = await db.select().from(agentConfigs)
+      .where(and(eq(agentConfigs.userId, userId), eq(agentConfigs.agentType, "outreach_agent")));
+
+    if (config?.agentSettings) {
+      try {
+        const saved = JSON.parse(config.agentSettings);
+        return { ...defaults, ...saved };
+      } catch {}
+    }
+
+    return defaults;
   }
 
   private async getUserSettings(userId: string): Promise<any> {

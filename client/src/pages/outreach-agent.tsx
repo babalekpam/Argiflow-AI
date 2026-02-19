@@ -237,12 +237,82 @@ function AgentConfigPanel() {
 
   const cfg = localConfig || config || {};
 
+  const BUSINESS_PRESETS: { value: string; label: string; desc: string; audience: string; valueProp: string; queries: string[]; competitors: string[] }[] = [
+    { value: "medical_billing", label: "Medical Billing", desc: "medical billing and revenue cycle management", audience: "dental offices, chiropractors, medical practices, clinics", valueProp: "streamline their billing operations, reduce claim denials, and increase revenue collection", queries: ["dental practice billing issues", "chiropractor practice needs billing help", "medical practice hiring billing staff"], competitors: ["billing company", "billing service", "RCM company", "revenue cycle management"] },
+    { value: "marketing_agency", label: "Marketing Agency", desc: "digital marketing and advertising services", audience: "small businesses, local shops, restaurants, service companies needing marketing", valueProp: "grow their business with targeted digital marketing, SEO, and social media campaigns", queries: ["small business needs marketing help", "local business looking for advertising", "restaurant needs more customers online"], competitors: ["marketing agency", "advertising firm", "digital marketing company"] },
+    { value: "web_design", label: "Web Design / Dev", desc: "website design and development", audience: "businesses without websites, companies with outdated websites", valueProp: "build a professional website that converts visitors into customers", queries: ["business needs new website", "company looking for web designer", "small business website redesign"], competitors: ["web design agency", "web development company", "website design firm"] },
+    { value: "insurance", label: "Insurance", desc: "insurance brokerage services", audience: "businesses needing commercial insurance, homeowners, auto owners", valueProp: "find the best coverage at competitive rates with personalized service", queries: ["business needs insurance quote", "company looking for commercial insurance", "small business insurance options"], competitors: ["insurance broker", "insurance agency", "insurance company"] },
+    { value: "real_estate", label: "Real Estate", desc: "real estate services", audience: "home sellers, property investors, commercial landlords", valueProp: "sell their property faster and at the best price with expert market knowledge", queries: ["property owner looking to sell", "real estate investment opportunities", "commercial property for sale"], competitors: ["real estate brokerage", "real estate agency", "realtor firm"] },
+    { value: "accounting", label: "Accounting / Tax", desc: "accounting and tax preparation services", audience: "small businesses needing bookkeeping, individuals needing tax prep, startups", valueProp: "save money on taxes, stay compliant, and gain clarity on their financial health", queries: ["small business needs accountant", "company looking for bookkeeping", "business tax preparation help"], competitors: ["accounting firm", "CPA firm", "tax preparation service"] },
+    { value: "consulting", label: "Business Consulting", desc: "business consulting and advisory services", audience: "growing businesses, startups needing guidance, companies facing operational challenges", valueProp: "overcome growth challenges, optimize operations, and scale profitably", queries: ["business looking for consultant", "company needs operational improvement", "startup needs business advisor"], competitors: ["consulting firm", "management consulting", "advisory firm"] },
+    { value: "cleaning", label: "Cleaning Services", desc: "commercial and residential cleaning services", audience: "offices, medical facilities, restaurants, property managers", valueProp: "maintain a spotless, healthy environment with reliable professional cleaning", queries: ["office needs cleaning service", "business looking for janitorial service", "commercial cleaning company needed"], competitors: ["cleaning company", "janitorial service", "commercial cleaning firm"] },
+    { value: "legal", label: "Legal Services", desc: "legal services and representation", audience: "businesses needing legal counsel, individuals with legal needs, startups needing incorporation", valueProp: "protect their business and rights with experienced legal counsel", queries: ["business needs attorney", "company looking for legal help", "startup needs lawyer"], competitors: ["law firm", "legal practice", "attorney group"] },
+    { value: "fitness", label: "Fitness / Wellness", desc: "fitness training and wellness services", audience: "individuals wanting personal training, corporate wellness programs, gyms needing trainers", valueProp: "achieve their health goals with personalized coaching and proven programs", queries: ["personal training clients needed", "corporate wellness program", "gym looking for trainers"], competitors: ["fitness company", "personal training studio", "wellness center"] },
+    { value: "custom", label: "Custom Business", desc: "", audience: "", valueProp: "", queries: [], competitors: [] },
+  ];
+
+  const applyPreset = (presetValue: string) => {
+    const preset = BUSINESS_PRESETS.find(p => p.value === presetValue);
+    if (preset && preset.value !== "custom") {
+      setLocalConfig((prev: any) => ({
+        ...(prev || config || {}),
+        businessType: preset.value,
+        businessDescription: preset.desc,
+        targetAudience: preset.audience,
+        valueProposition: preset.valueProp,
+        discoveryQueries: preset.queries,
+        competitorKeywords: preset.competitors,
+      }));
+    } else {
+      updateField("businessType", presetValue);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-5">
         <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
+          <Target className="w-4 h-4 text-primary" />
+          Business Profile
+        </h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Tell the AI what your business does and who you want to reach. The agent will find leads matching your target audience.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs text-muted-foreground">Business Type</Label>
+            <Select value={cfg.businessType || "custom"} onValueChange={applyPreset}>
+              <SelectTrigger data-testid="select-business-type"><SelectValue placeholder="Select your business type" /></SelectTrigger>
+              <SelectContent>
+                {BUSINESS_PRESETS.map(p => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">What does your business do?</Label>
+            <Textarea placeholder="e.g. We provide digital marketing services for local restaurants and retail stores" value={cfg.businessDescription || ""} onChange={(e) => updateField("businessDescription", e.target.value)} className="min-h-[60px]" data-testid="input-business-desc" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Target Audience (who are your ideal customers?)</Label>
+            <Textarea placeholder="e.g. dental offices, chiropractors, small medical practices that need billing help" value={cfg.targetAudience || ""} onChange={(e) => updateField("targetAudience", e.target.value)} className="min-h-[60px]" data-testid="input-target-audience" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Your Value Proposition (why should they choose you?)</Label>
+            <Textarea placeholder="e.g. We help businesses increase revenue by 30% with targeted ad campaigns" value={cfg.valueProposition || ""} onChange={(e) => updateField("valueProposition", e.target.value)} className="min-h-[60px]" data-testid="input-value-prop" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Competitor Keywords (we will exclude these from results, one per line)</Label>
+            <Textarea placeholder="e.g. marketing agency&#10;advertising firm&#10;digital marketing company" value={(cfg.competitorKeywords || []).join("\n")} onChange={(e) => updateField("competitorKeywords", e.target.value.split("\n").filter(Boolean))} className="min-h-[60px]" data-testid="input-competitor-keywords" />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
           <Settings className="w-4 h-4 text-primary" />
-          Agent Configuration
+          Agent Settings
         </h3>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-4">
@@ -307,8 +377,8 @@ function AgentConfigPanel() {
             <Input placeholder="https://calendly.com/you/30min" value={cfg.calendarLink || ""} onChange={(e) => updateField("calendarLink", e.target.value)} data-testid="input-calendar-link" />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Discovery Queries (one per line)</Label>
-            <Textarea placeholder="medical billing managers Tennessee&#10;healthcare practice administrators Florida" value={(cfg.discoveryQueries || []).join("\n")} onChange={(e) => updateField("discoveryQueries", e.target.value.split("\n").filter(Boolean))} className="min-h-[80px]" data-testid="input-discovery-queries" />
+            <Label className="text-xs text-muted-foreground">Discovery Queries (one per line — leave blank for AI-generated queries based on your business profile)</Label>
+            <Textarea placeholder="e.g. dental offices in Nashville&#10;chiropractor needs billing help Tennessee&#10;Leave blank to auto-generate from your business profile" value={(cfg.discoveryQueries || []).join("\n")} onChange={(e) => updateField("discoveryQueries", e.target.value.split("\n").filter(Boolean))} className="min-h-[80px]" data-testid="input-discovery-queries" />
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">Blacklist Domains (one per line)</Label>
