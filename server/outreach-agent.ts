@@ -133,52 +133,166 @@ export class OutreachAgent {
     }
   }
 
-  // ── STEP 1: DISCOVER PROSPECTS ────────────────────────────
+  // ── STEP 1: DISCOVER PROSPECTS (Tavily Web Search + AI Extraction) ──
 
   async discoverProspects(userId: string): Promise<void> {
     const config = await this.getAgentConfig(userId);
     if (!config.discoveryEnabled) return;
 
+    const tavilyKey = process.env.TAVILY_API_KEY;
+    if (!tavilyKey) {
+      console.warn("[OutreachAgent] No TAVILY_API_KEY — skipping real web discovery");
+      return;
+    }
+
     try {
-      let newProspects: any[] = [];
+      const user = await storage.getUserById(userId);
+      const companyName = user?.companyName || "Track-Med Billing Solutions";
+      const senderName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Clara Motena";
+      const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+      const calLink = (settings as any)?.calendarLink || "";
+      const senderPhone = (settings as any)?.grasshopperNumber || (settings as any)?.twilioPhoneNumber || "+1(615)482-6768";
+      const senderTitle = (user as any)?.jobTitle || "Client Acquisition Director";
+      const senderWebsite = user?.website || "https://www.track-med.com";
 
-      try {
-        const { getAnthropicForUser } = await import("./routes");
-        const ai = await getAnthropicForUser(userId);
+      const queries = config.discoveryQueries?.length > 0
+        ? config.discoveryQueries
+        : ["dental practice billing issues", "chiropractor practice needs billing help", "medical practice hiring billing staff"];
 
-        const response = await ai.client.messages.create({
-          model: ai.model,
-          max_tokens: 1500,
-          system: `You are a B2B sales research assistant. Generate realistic prospect data for cold outreach. Return ONLY valid JSON array.`,
-          messages: [{
-            role: "user",
-            content: `Generate ${config.dailyProspectLimit} prospect profiles for this ICP:
-Search queries: ${config.discoveryQueries.join(", ")}
+      let allSearchResults = "";
 
-Return JSON array with objects containing: name, email, company, jobTitle, industry, phone (optional), notes.
-Example: [{"name":"Jane Smith","email":"jane@acme.com","company":"Acme Corp","jobTitle":"VP of Operations","industry":"Healthcare","notes":"Growing practice, likely needs RCM"}]
-
-Make emails realistic with real company domain patterns. Only return the JSON array, nothing else.`
-          }],
-        });
-
-        const text = response.content?.filter((b: any) => b.type === "text")?.map((b: any) => b.text)?.join("") || "";
+      for (const query of queries.slice(0, 3)) {
         try {
-          newProspects = JSON.parse(text.replace(/```json?|```/g, "").trim());
-        } catch { newProspects = []; }
-      } catch (aiErr: any) {
-        console.warn(`[OutreachAgent] AI not available for discovery: ${aiErr.message}, using templates`);
-        newProspects = this.generateTemplateProspects(config.discoveryQueries, config.dailyProspectLimit);
+          const searchQuery = `${query} owner doctor phone email contact site:.com`;
+          console.log(`[OutreachAgent] Tavily search: "${searchQuery}"`);
+          const tRes = await fetch("https://api.tavily.com/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              api_key: tavilyKey,
+              query: searchQuery,
+              search_depth: "advanced",
+              max_results: 10,
+              include_answer: true,
+            }),
+          });
+          if (tRes.ok) {
+            const tData = await tRes.json() as any;
+            const results = [
+              tData.answer || "",
+              ...(tData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
+            ].join("\n\n");
+            allSearchResults += `\n\n--- SEARCH: "${query}" ---\n${results}`;
+          }
+        } catch (e: any) {
+          console.error(`[OutreachAgent] Search error for "${query}": ${e.message}`);
+        }
       }
 
-      // Filter against blacklist
-      const blacklist = config.blacklistDomains || [];
-      newProspects = newProspects.filter(p => {
-        const domain = p.email?.split("@")[1]?.toLowerCase();
-        return domain && !blacklist.includes(domain);
+      if (!allSearchResults.trim()) {
+        console.warn("[OutreachAgent] No search results found");
+        return;
+      }
+
+      const { getAnthropicForUser } = await import("./routes");
+      const ai = await getAnthropicForUser(userId);
+
+      const extractionPrompt = `You are a B2B lead extraction specialist for ${companyName}, a medical billing company.
+
+SEARCH RESULTS:
+${allSearchResults}
+
+TASK: Extract REAL healthcare practices (dental offices, chiropractors, medical practices) from these search results that could benefit from billing services. These are our PROSPECTS — practices that TREAT patients.
+
+CRITICAL RULES:
+- ONLY extract healthcare PRACTICES (doctors, dentists, chiropractors) — NEVER billing/RCM companies (those are competitors)
+- ONLY include leads where you found REAL contact info in the search results
+- NEVER fabricate emails — only use what you actually see in the results
+- NEVER use @example.com, @test.com, or 555-xxx-xxxx phone numbers
+- Each lead MUST have at minimum: name (decision maker), email, company name
+- Phone numbers should be real US numbers (10 digits with area code) if found
+- Target decision makers: practice owners, physicians (MD/DO/DDS/DMD/DC), office managers
+
+For EACH valid lead, generate a personalized outreach email (3-5 sentences) that:
+1. References their specific practice/situation
+2. Mentions how ${companyName} can help with their billing
+3. Includes a clear call to action
+4. Ends with this signature:
+
+Best regards,
+${senderName}
+${senderTitle}
+${companyName}
+${senderPhone}
+${senderWebsite}${calLink ? `\n${calLink}` : ""}
+
+Return ONLY a valid JSON array:
+[{
+  "name": "Dr. Full Name",
+  "email": "real@email.com",
+  "phone": "+1XXXXXXXXXX",
+  "company": "Practice Name",
+  "score": 70,
+  "intent_signal": "Why they need billing help",
+  "notes": "Specialty, title, practice size, source URL",
+  "outreach": "Full personalized email with signature"
+}]
+
+Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found, return fewer. Return empty array [] if no valid leads found. NO markdown wrapping.`;
+
+      const response = await ai.client.messages.create({
+        model: ai.model,
+        max_tokens: 4000,
+        system: "Extract real business leads from web search results. Return only valid JSON arrays.",
+        messages: [{ role: "user", content: extractionPrompt }],
       });
 
-      // Check for duplicates and insert
+      const text = response.content?.filter((b: any) => b.type === "text")?.map((b: any) => b.text)?.join("") || "";
+      let newProspects: any[] = [];
+      try {
+        newProspects = JSON.parse(text.replace(/```json?|```/g, "").trim());
+        if (!Array.isArray(newProspects)) newProspects = [];
+      } catch {
+        console.error("[OutreachAgent] Failed to parse AI response as JSON");
+        newProspects = [];
+      }
+
+      const blacklist = config.blacklistDomains || [];
+      const isFakeEmail = (email: string) => {
+        if (!email) return true;
+        const lower = email.toLowerCase().trim();
+        if (/@(example|test|fake|placeholder|dummy|sample|mailinator|tempmail)\./i.test(lower)) return true;
+        if (/^(test|fake|dummy|placeholder|sample|noreply)@/i.test(lower)) return true;
+        if (!email.includes("@") || !email.includes(".")) return true;
+        return false;
+      };
+      const isFakePhone = (phone: string) => {
+        if (!phone) return false;
+        const digits = phone.replace(/\D/g, "");
+        if (digits.length < 10) return true;
+        const last10 = digits.slice(-10);
+        if (/^.{3}555/.test(last10)) return true;
+        if (/^(\d)\1{6,}$/.test(digits)) return true;
+        return false;
+      };
+      const isBillingCompetitor = (company: string, notes: string) => {
+        const text = `${company || ""} ${notes || ""}`.toLowerCase();
+        if (/\bbilling\s*(company|service|solution|firm|agency|group|partner|pro|specialist)/i.test(text)) return true;
+        if (/\brcm\s*(company|service|solution|firm)/i.test(text)) return true;
+        if (/\brevenue\s*cycle\s*(management|service|solution|company)/i.test(text)) return true;
+        return false;
+      };
+
+      newProspects = newProspects.filter(p => {
+        if (!p.name || !p.email || !p.company) return false;
+        if (isFakeEmail(p.email)) return false;
+        if (p.phone && isFakePhone(p.phone)) p.phone = null;
+        if (isBillingCompetitor(p.company, p.notes || "")) return false;
+        const domain = p.email?.split("@")[1]?.toLowerCase();
+        if (domain && blacklist.includes(domain)) return false;
+        return true;
+      });
+
       let added = 0;
       for (const prospect of newProspects) {
         const existing = await db.select().from(leads)
@@ -189,20 +303,26 @@ Make emails realistic with real company domain patterns. Only return the JSON ar
             userId,
             name: prospect.name,
             email: prospect.email,
+            phone: prospect.phone || null,
             company: prospect.company,
-            source: "ai_discovery",
+            source: "AI Outreach Agent",
             status: "new",
-            score: 50,
-            notes: `AI-discovered. Title: ${prospect.jobTitle || "N/A"}. ${prospect.notes || ""}`,
-            intentSignal: prospect.industry || "general",
+            score: prospect.score || 65,
+            notes: prospect.notes || "",
+            intentSignal: prospect.intent_signal || "Healthcare practice — potential billing needs",
+            outreach: prospect.outreach || null,
+            engagementLevel: "warm",
           });
           added++;
         }
       }
 
       if (added > 0) {
-        await this.notify(userId, "🔍 Prospects Found", `AI agent discovered ${added} new prospects`);
-        await this.logAgentTask(userId, "discovery", `Found ${added} new prospects from: ${config.discoveryQueries.join(", ")}`);
+        await this.notify(userId, "Prospects Found", `AI Outreach Agent discovered ${added} new prospects and prepared outreach emails`);
+        await this.logAgentTask(userId, "discovery", `Found ${added} new prospects with outreach drafts from: ${queries.join(", ")}`);
+        console.log(`[OutreachAgent] Added ${added} real prospects for user ${userId}`);
+      } else {
+        console.log(`[OutreachAgent] No new prospects found for queries: ${queries.join(", ")}`);
       }
     } catch (err: any) {
       console.error(`[OutreachAgent] Discovery error:`, err.message);
