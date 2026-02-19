@@ -1517,17 +1517,47 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
   ];
 
   try {
+    // Pre-search optimization: If user asks for leads, pre-fetch web results to reduce AI tool loops
+    const lowerMsg = userMessage.toLowerCase();
+    const isLeadRequest = (lowerMsg.includes("lead") || lowerMsg.includes("find") || lowerMsg.includes("search") || lowerMsg.includes("prospect")) && 
+                          (lowerMsg.includes("dental") || lowerMsg.includes("chiro") || lowerMsg.includes("practice") || lowerMsg.includes("doctor") || lowerMsg.includes("medical") || lowerMsg.includes("clinic") || lowerMsg.includes("physician") || lowerMsg.includes("healthcare"));
+    let preSearchContext = "";
+    if (isLeadRequest && process.env.TAVILY_API_KEY) {
+      try {
+        const specialtyMatch = lowerMsg.match(/(dental|chiro|family\s*med|pediatr|dermatol|orthop|cardio|urgent\s*care|ob\s*gyn|mental\s*health|podiatr|optom|ent\s|allergy|pain\s*manage|gastro|neuro|pulmon|internal\s*med)/i);
+        const specialty = specialtyMatch ? specialtyMatch[1] : "healthcare";
+        const stateMatch = lowerMsg.match(/\b(tennessee|missouri|georgia|texas|florida|ohio|north\s*carolina|illinois|california|pennsylvania|virginia|new\s*york|michigan|arizona|colorado|tn|mo|ga|tx|fl|oh|nc|il|ca|pa|va|ny|mi|az|co)\b/i);
+        const region = stateMatch ? stateMatch[1] : "";
+        const searchQuery = `${specialty} practice ${region} owner doctor phone email contact`;
+        const tRes = await fetch("https://api.tavily.com/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_key: process.env.TAVILY_API_KEY, query: searchQuery, search_depth: "advanced", max_results: 15, include_answer: true }),
+        });
+        if (tRes.ok) {
+          const tData = await tRes.json();
+          preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real practice contacts — DO NOT search for billing companies, only use results showing actual healthcare PRACTICES):\n${tData.answer || ""}\n${(tData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`).join("\n\n")}`;
+        }
+      } catch (e: any) {
+        console.log("[Pre-search] Error:", e.message);
+      }
+    }
+
+    const messagesForAI = preSearchContext 
+      ? [...claudeMessages.slice(0, -1), { role: "user" as const, content: `${userMessage}${preSearchContext}\n\nIMPORTANT: Use the pre-loaded search results above to find real practices. Do 1-2 additional targeted web searches if needed for specific contact info, then call generate_leads immediately. Be FAST — save leads quickly. Remember: ONLY save healthcare PRACTICES (doctors, dentists, chiropractors) — NEVER save billing/RCM companies.` }]
+      : claudeMessages;
+
     // First Claude call — may use tools (uses user's own API key)
     let response = await userAnthropicClient.messages.create({
       model: userModel,
       max_tokens: 8192,
       system: systemPrompt,
-      messages: claudeMessages,
+      messages: messagesForAI,
       tools,
     });
 
     let loopCount = 0;
-    const maxLoops = 12;
+    const maxLoops = 8;
     let currentMessages = [...claudeMessages];
 
     while (response.stop_reason === "tool_use" && loopCount < maxLoops) {
@@ -5118,7 +5148,8 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       const history = await storage.getChatMessages(userId);
       const chatHistory = history.slice(-10).map(m => ({ role: m.role, content: m.content }));
 
-      const timeoutMs = 90000;
+      const isLeadGenReq = /\b(lead|find|search|prospect|dental|chiro|practice|doctor|clinic)\b/i.test(content);
+      const timeoutMs = isLeadGenReq ? 120000 : 90000;
       const aiReply = await Promise.race([
         handleAiAction(userId, content, chatHistory),
         new Promise<string>((_, reject) => setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs)),
