@@ -34,6 +34,7 @@ import EmailInfrastructurePage from "./email-infrastructure";
 import SalesIntelligencePage from "./sales-intelligence";
 import OutreachAgentPage from "./outreach-agent";
 import AiKpiPage from "./ai-kpi";
+import LeadIntelligencePage from "./lead-intelligence";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -211,6 +212,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/sales-intelligence" component={SalesIntelligencePage} />
               <Route path="/dashboard/outreach-agent" component={OutreachAgentPage} />
               <Route path="/dashboard/ai-kpi" component={AiKpiPage} />
+              <Route path="/dashboard/lead-intelligence" component={LeadIntelligencePage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />

@@ -22,6 +22,7 @@ import instantlyRoutes, { handlePixelTrack } from "./instantly-routes";
 import intelligenceRoutes from "./intelligence-routes";
 import outreachAgentRoutes from "./outreach-agent-routes";
 import { intelligenceEngine } from "./intelligence-engine";
+import { registerFreeScraperRoutes } from "./free-scraper-routes";
 
 function normalizePhoneNumber(phone: string | undefined | null): string {
   if (!phone) return "";
@@ -2061,6 +2062,9 @@ export async function registerRoutes(
 
   // ---- AI OUTREACH AGENT ----
   app.use("/api/outreach-agent", outreachAgentRoutes);
+
+  // ---- FREE LEAD INTELLIGENCE SCRAPER ----
+  registerFreeScraperRoutes(app, isAuthenticated);
 
   // ---- AUTH ----
 
