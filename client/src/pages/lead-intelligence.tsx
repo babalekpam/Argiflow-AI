@@ -36,6 +36,11 @@ import {
   Server,
   Clock,
   Star,
+  Brain,
+  Sparkles,
+  Lightbulb,
+  Target,
+  TrendingUp,
 } from "lucide-react";
 import { SiLinkedin } from "react-icons/si";
 
@@ -233,12 +238,12 @@ export default function LeadIntelligencePage() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Lead Intelligence</h1>
-          <p className="text-sm text-muted-foreground mt-1">Find and enrich B2B leads from 12 free sources</p>
+          <p className="text-sm text-muted-foreground mt-1">AI-powered lead discovery, scoring, and enrichment from 12+ data sources</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" data-testid="badge-free-cost">
-            <Star className="w-3 h-3 mr-1" />
-            $0 / month
+          <Badge variant="default" data-testid="badge-ai-powered">
+            <Brain className="w-3 h-3 mr-1" />
+            AI-Powered
           </Badge>
           {saved.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setTab("saved")} data-testid="button-view-saved">
@@ -348,10 +353,18 @@ export default function LeadIntelligencePage() {
                   Export CSV
                 </Button>
               )}
-              <Badge variant="outline">
-                <Shield className="w-3 h-3 mr-1" />
-                Free - No API key needed
-              </Badge>
+              {searchMutation.data?.aiPowered !== false && (
+                <Badge variant="outline">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  GPT-4o AI Analysis
+                </Badge>
+              )}
+              {searchMutation.data?.aiPowered === false && (
+                <Badge variant="outline" className="text-muted-foreground">
+                  <Shield className="w-3 h-3 mr-1" />
+                  12 Data Sources
+                </Badge>
+              )}
             </div>
           </Card>
 
@@ -373,51 +386,99 @@ export default function LeadIntelligencePage() {
               </div>
               <div className="space-y-3">
                 {results.map((lead: any, i: number) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-md border border-border/50 hover-elevate" data-testid={`lead-row-${i}`}>
-                    <input
-                      type="checkbox"
-                      checked={selectedLeads.has(lead.domain)}
-                      onChange={() => setSelectedLeads((prev) => {
-                        const next = new Set(prev);
-                        next.has(lead.domain) ? next.delete(lead.domain) : next.add(lead.domain);
-                        return next;
-                      })}
-                      className="mt-1"
-                      data-testid={`checkbox-lead-${i}`}
-                    />
-                    <img
-                      src={`https://logo.clearbit.com/${lead.domain}`}
-                      alt=""
-                      className="w-8 h-8 rounded-md bg-secondary object-contain shrink-0"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm truncate" data-testid={`text-lead-name-${i}`}>{lead.name}</span>
-                        <SrcBadge src={lead.src} />
+                  <div key={i} className="p-3 rounded-md border border-border/50 hover-elevate" data-testid={`lead-row-${i}`}>
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedLeads.has(lead.domain)}
+                        onChange={() => setSelectedLeads((prev) => {
+                          const next = new Set(prev);
+                          next.has(lead.domain) ? next.delete(lead.domain) : next.add(lead.domain);
+                          return next;
+                        })}
+                        className="mt-1"
+                        data-testid={`checkbox-lead-${i}`}
+                      />
+                      <img
+                        src={`https://logo.clearbit.com/${lead.domain}`}
+                        alt=""
+                        className="w-8 h-8 rounded-md bg-secondary object-contain shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm truncate" data-testid={`text-lead-name-${i}`}>{lead.name}</span>
+                          <SrcBadge src={lead.src} />
+                          {lead.aiAnalysis && (
+                            <Badge variant="outline" className="text-chart-1 border-chart-1/30" data-testid={`badge-ai-scored-${i}`}>
+                              <Brain className="w-3 h-3 mr-1" />
+                              AI Scored
+                            </Badge>
+                          )}
+                          {lead.aiAnalysis?.buyerIntent && lead.aiAnalysis.buyerIntent !== "unknown" && (
+                            <Badge variant={lead.aiAnalysis.buyerIntent === "high" ? "default" : "secondary"} data-testid={`badge-intent-${i}`}>
+                              <Target className="w-3 h-3 mr-1" />
+                              {lead.aiAnalysis.buyerIntent} intent
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{lead.domain}</p>
+                        {lead.aiAnalysis?.reasoning
+                          ? <p className="text-xs text-muted-foreground mt-1">{lead.aiAnalysis.reasoning}</p>
+                          : lead.snippet && <p className="text-xs text-muted-foreground/70 mt-1 line-clamp-2">{lead.snippet}</p>
+                        }
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">{lead.domain}</p>
-                      {lead.snippet && <p className="text-xs text-muted-foreground/70 mt-1 line-clamp-2">{lead.snippet}</p>}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-sm font-bold ${scoreColor(lead.score)}`} data-testid={`text-lead-score-${i}`}>{lead.score}</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => { setEq({ domain: lead.domain }); setTab("enrich"); }}
+                          data-testid={`button-enrich-lead-${i}`}
+                        >
+                          <Microscope className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant={saved.find((s: any) => s.domain === lead.domain) ? "default" : "ghost"}
+                          onClick={() => saveLead(lead)}
+                          data-testid={`button-save-lead-${i}`}
+                        >
+                          <Bookmark className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-sm font-bold ${scoreColor(lead.score)}`} data-testid={`text-lead-score-${i}`}>{lead.score}</span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => { setEq({ domain: lead.domain }); setTab("enrich"); }}
-                        data-testid={`button-enrich-lead-${i}`}
-                      >
-                        <Microscope className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant={saved.find((s: any) => s.domain === lead.domain) ? "default" : "ghost"}
-                        onClick={() => saveLead(lead)}
-                        data-testid={`button-save-lead-${i}`}
-                      >
-                        <Bookmark className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    {lead.aiAnalysis && (
+                      <div className="mt-3 pt-3 border-t border-border/30 space-y-2" data-testid={`ai-analysis-${i}`}>
+                        <div className="grid sm:grid-cols-3 gap-2">
+                          {lead.aiAnalysis.industry && (
+                            <div className="text-xs">
+                              <span className="text-muted-foreground">Industry:</span>{" "}
+                              <span className="font-medium">{lead.aiAnalysis.industry}</span>
+                            </div>
+                          )}
+                          {lead.aiAnalysis.companySize && lead.aiAnalysis.companySize !== "unknown" && (
+                            <div className="text-xs">
+                              <span className="text-muted-foreground">Size:</span>{" "}
+                              <span className="font-medium">{lead.aiAnalysis.companySize}</span>
+                            </div>
+                          )}
+                          {lead.aiAnalysis.idealOutreach && (
+                            <div className="text-xs col-span-full">
+                              <span className="text-muted-foreground">Outreach:</span>{" "}
+                              <span>{lead.aiAnalysis.idealOutreach}</span>
+                            </div>
+                          )}
+                        </div>
+                        {lead.aiAnalysis.painPoints?.length > 0 && (
+                          <div className="flex gap-1.5 flex-wrap">
+                            {lead.aiAnalysis.painPoints.map((p: string, j: number) => (
+                              <Badge key={j} variant="secondary" className="text-xs">{p}</Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -542,11 +603,35 @@ export default function LeadIntelligencePage() {
             </Card>
           )}
 
+          {localResults?.aiInsights && (
+            <Card className="p-5" data-testid="card-local-ai-insights">
+              <div className="flex items-center gap-2 mb-3">
+                <Brain className="w-4 h-4 text-chart-1" />
+                <span className="font-semibold text-sm">AI Market Analysis</span>
+                <Badge variant="outline" className="text-chart-1 border-chart-1/30">GPT-4o</Badge>
+              </div>
+              {localResults.aiInsights.marketInsights && (
+                <p className="text-sm text-muted-foreground mb-3">{localResults.aiInsights.marketInsights}</p>
+              )}
+              {localResults.aiInsights.outreachTips && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground font-medium">Outreach Tips: </span>
+                  <span>{localResults.aiInsights.outreachTips}</span>
+                </div>
+              )}
+              {localResults.aiInsights.topProspects?.length > 0 && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Top prospects: #{localResults.aiInsights.topProspects.join(", #")}
+                </div>
+              )}
+            </Card>
+          )}
+
           {!loading && !localResults && (
             <Card className="p-12 text-center">
               <MapPin className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
               <h3 className="font-semibold mb-1">Local Business Finder</h3>
-              <p className="text-sm text-muted-foreground">Great for targeting medical practices, law firms, dentists — any local vertical</p>
+              <p className="text-sm text-muted-foreground">AI-powered analysis of local businesses — medical practices, law firms, dentists, and more</p>
             </Card>
           )}
         </div>
@@ -655,11 +740,122 @@ export default function LeadIntelligencePage() {
             </Card>
           )}
 
+          {enrichData?.aiInsights && (
+            <Card className="p-5" data-testid="card-enrich-ai-insights">
+              <div className="flex items-center gap-2 mb-4">
+                <Brain className="w-4 h-4 text-chart-1" />
+                <span className="font-semibold">AI Company Intelligence</span>
+                <Badge variant="outline" className="text-chart-1 border-chart-1/30">GPT-4o</Badge>
+              </div>
+              {enrichData.aiInsights.summary && (
+                <p className="text-sm text-muted-foreground mb-4">{enrichData.aiInsights.summary}</p>
+              )}
+              <div className="grid sm:grid-cols-2 gap-4">
+                {enrichData.aiInsights.businessModel && (
+                  <div>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Business Model</span>
+                    <p className="text-sm font-medium mt-1">{enrichData.aiInsights.businessModel}</p>
+                  </div>
+                )}
+                {enrichData.aiInsights.estimatedRevenue && (
+                  <div>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Est. Revenue</span>
+                    <p className="text-sm font-medium mt-1">{enrichData.aiInsights.estimatedRevenue}</p>
+                  </div>
+                )}
+                {enrichData.aiInsights.estimatedEmployees && (
+                  <div>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Est. Employees</span>
+                    <p className="text-sm font-medium mt-1">{enrichData.aiInsights.estimatedEmployees}</p>
+                  </div>
+                )}
+                {enrichData.aiInsights.industry && (
+                  <div>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Industry</span>
+                    <p className="text-sm font-medium mt-1">{enrichData.aiInsights.industry}</p>
+                  </div>
+                )}
+              </div>
+              {enrichData.aiInsights.keyProducts?.length > 0 && (
+                <div className="mt-4">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Key Products / Services</span>
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    {enrichData.aiInsights.keyProducts.map((p: string, i: number) => (
+                      <Badge key={i} variant="secondary">{p}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {enrichData.aiInsights.competitors?.length > 0 && (
+                <div className="mt-3">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Competitors</span>
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    {enrichData.aiInsights.competitors.map((c: string, i: number) => (
+                      <Badge key={i} variant="outline">{c}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {enrichData.aiInsights.technologyStack?.length > 0 && (
+                <div className="mt-3">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Technology Stack</span>
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    {enrichData.aiInsights.technologyStack.map((t: string, i: number) => (
+                      <Badge key={i} variant="secondary">{t}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {enrichData.aiInsights.decisionMakers?.length > 0 && (
+                <div className="mt-3">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Key Decision Makers</span>
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    {enrichData.aiInsights.decisionMakers.map((d: string, i: number) => (
+                      <Badge key={i} variant="outline">{d}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {enrichData.aiInsights.painPoints?.length > 0 && (
+                <div className="mt-3">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Pain Points</span>
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    {enrichData.aiInsights.painPoints.map((p: string, i: number) => (
+                      <Badge key={i} variant="secondary">{p}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {enrichData.aiInsights.outreachStrategy && (
+                <div className="mt-4 p-3 rounded-md bg-secondary/30">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Lightbulb className="w-3.5 h-3.5 text-chart-5" />
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Outreach Strategy</span>
+                  </div>
+                  <p className="text-sm">{enrichData.aiInsights.outreachStrategy}</p>
+                </div>
+              )}
+              {enrichData.aiInsights.opportunities?.length > 0 && (
+                <div className="mt-3">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Sales Opportunities</span>
+                  <div className="space-y-1 mt-2">
+                    {enrichData.aiInsights.opportunities.map((o: string, i: number) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <TrendingUp className="w-3.5 h-3.5 mt-0.5 text-chart-2 shrink-0" />
+                        <span>{o}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+
           {!loading && !enrichData && (
             <Card className="p-12 text-center">
               <Microscope className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
               <h3 className="font-semibold mb-1">Enrich any domain</h3>
-              <p className="text-sm text-muted-foreground">Get email, phone, address, social links, DNS, and WHOIS — all free</p>
+              <p className="text-sm text-muted-foreground">AI-powered company intelligence — get deep business insights, competitors, and outreach strategy</p>
             </Card>
           )}
         </div>
@@ -751,6 +947,81 @@ export default function LeadIntelligencePage() {
                   <p className="text-sm text-muted-foreground text-center py-4">No contact information found</p>
                 )}
               </Card>
+
+              {contactData.aiStrategy && (
+                <Card className="p-5" data-testid="card-contact-ai-strategy">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Brain className="w-4 h-4 text-chart-1" />
+                    <span className="font-semibold">AI Outreach Strategy</span>
+                    <Badge variant="outline" className="text-chart-1 border-chart-1/30">GPT-4o</Badge>
+                  </div>
+                  {contactData.aiStrategy.approachSummary && (
+                    <p className="text-sm text-muted-foreground mb-4">{contactData.aiStrategy.approachSummary}</p>
+                  )}
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {contactData.aiStrategy.bestChannel && (
+                      <div>
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Best Channel</span>
+                        <p className="text-sm font-medium mt-1">{contactData.aiStrategy.bestChannel}</p>
+                      </div>
+                    )}
+                    {contactData.aiStrategy.bestTimeToReach && (
+                      <div>
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Best Time</span>
+                        <p className="text-sm font-medium mt-1">{contactData.aiStrategy.bestTimeToReach}</p>
+                      </div>
+                    )}
+                    {contactData.aiStrategy.estimatedResponseRate && (
+                      <div>
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Est. Response Rate</span>
+                        <p className="text-sm font-medium mt-1">{contactData.aiStrategy.estimatedResponseRate}</p>
+                      </div>
+                    )}
+                    {contactData.aiStrategy.personaType && (
+                      <div>
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Persona Type</span>
+                        <p className="text-sm font-medium mt-1">{contactData.aiStrategy.personaType}</p>
+                      </div>
+                    )}
+                  </div>
+                  {contactData.aiStrategy.talkingPoints?.length > 0 && (
+                    <div className="mt-4">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Talking Points</span>
+                      <div className="space-y-1.5 mt-2">
+                        {contactData.aiStrategy.talkingPoints.map((p: string, i: number) => (
+                          <div key={i} className="flex items-start gap-2 text-sm">
+                            <Lightbulb className="w-3.5 h-3.5 mt-0.5 text-chart-5 shrink-0" />
+                            <span>{p}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {contactData.aiStrategy.subjectLineIdeas?.length > 0 && (
+                    <div className="mt-4">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Subject Line Ideas</span>
+                      <div className="space-y-1.5 mt-2">
+                        {contactData.aiStrategy.subjectLineIdeas.map((s: string, i: number) => (
+                          <div key={i} className="flex items-start gap-2 text-sm">
+                            <Mail className="w-3.5 h-3.5 mt-0.5 text-chart-2 shrink-0" />
+                            <span className="italic">{s}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {contactData.aiStrategy.avoidList?.length > 0 && (
+                    <div className="mt-4 p-3 rounded-md bg-destructive/5 border border-destructive/10">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Avoid</span>
+                      <div className="flex gap-1.5 flex-wrap mt-2">
+                        {contactData.aiStrategy.avoidList.map((a: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-destructive border-destructive/30">{a}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              )}
             </div>
           )}
 
@@ -758,7 +1029,7 @@ export default function LeadIntelligencePage() {
             <Card className="p-12 text-center">
               <UserSearch className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
               <h3 className="font-semibold mb-1">Find anyone's email</h3>
-              <p className="text-sm text-muted-foreground">Generate 12 email patterns and verify via MX records — $0 cost</p>
+              <p className="text-sm text-muted-foreground">AI-powered email discovery with outreach strategy recommendations</p>
             </Card>
           )}
         </div>

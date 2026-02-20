@@ -10,6 +10,10 @@ import {
   generateEmailPatterns,
   findVerifiedEmails,
   cleanDomain,
+  aiScoreLeads,
+  aiEnrichCompany,
+  aiContactStrategy,
+  aiLocalBusinessAnalysis,
 } from "./free-scraper";
 
 const cache = new NodeCache({ stdTTL: 3600, checkperiod: 300 });
@@ -19,26 +23,40 @@ const HUNTER_KEY = process.env.HUNTER_API_KEY || null;
 export function registerFreeScraperRoutes(app: Express, isAuthenticated: RequestHandler) {
 
   app.get("/api/free-leads/search", isAuthenticated, async (req, res) => {
-    const { q = "", industry = "", location = "", size = "", limit = "20" } = req.query as Record<string, string>;
+    const { q = "", industry = "", location = "", size = "", limit = "20", idealClient = "" } = req.query as Record<string, string>;
 
     if (!q && !industry && !location) {
       return res.status(400).json({ error: "Provide q, industry, or location" });
     }
 
-    const key = `fsearch:${q}:${industry}:${location}:${limit}`;
+    const key = `fsearch:${q}:${industry}:${location}:${limit}:ai`;
     const hit = cache.get(key);
     if (hit) return res.json({ ...(hit as any), cached: true });
 
     try {
-      const leads = await searchLeads({
+      const rawLeads = await searchLeads({
         q, industry, location, size,
         limit: Math.min(parseInt(limit) || 20, 50),
       });
+
+      let leads = rawLeads;
+      let aiPowered = false;
+      try {
+        leads = await aiScoreLeads(rawLeads, {
+          targetIndustry: industry,
+          targetLocation: location,
+          idealClient,
+        });
+        aiPowered = leads.some((l: any) => l.aiAnalysis?.aiPowered);
+      } catch (aiErr: any) {
+        console.warn("[free-leads/search] AI scoring unavailable:", aiErr.message);
+      }
 
       const result = {
         query: { q, industry, location, size },
         total: leads.length,
         leads,
+        aiPowered,
         timestamp: new Date().toISOString(),
       };
 
@@ -54,14 +72,22 @@ export function registerFreeScraperRoutes(app: Express, isAuthenticated: Request
     const { type, city, state = "", limit = "25" } = req.query as Record<string, string>;
     if (!type || !city) return res.status(400).json({ error: "type and city are required" });
 
-    const key = `flocal:${type}:${city}:${state}:${limit}`;
+    const key = `flocal:${type}:${city}:${state}:${limit}:ai`;
     const hit = cache.get(key);
     if (hit) return res.json({ ...(hit as any), cached: true });
 
     try {
       const result = await searchLocal(type, city, state, parseInt(limit) || 25);
-      cache.set(key, result, 3600);
-      res.json(result);
+      let aiInsights = null;
+      try {
+        const location = [city, state].filter(Boolean).join(", ");
+        aiInsights = await aiLocalBusinessAnalysis(result.businesses, type, location);
+      } catch (aiErr: any) {
+        console.warn("[free-leads/local] AI analysis unavailable:", aiErr.message);
+      }
+      const finalResult = { ...result, aiInsights, aiPowered: !!aiInsights };
+      cache.set(key, finalResult, 3600);
+      res.json(finalResult);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -72,14 +98,21 @@ export function registerFreeScraperRoutes(app: Express, isAuthenticated: Request
     if (!domain) return res.status(400).json({ error: "domain is required" });
 
     const clean = cleanDomain(domain);
-    const key = `fenrich:${clean}`;
+    const key = `fenrich:${clean}:ai`;
     const hit = cache.get(key);
     if (hit) return res.json({ ...(hit as any), cached: true });
 
     try {
       const data = await enrichCompany(clean, { hunterKey: HUNTER_KEY || undefined });
-      cache.set(key, data, 7200);
-      res.json(data);
+      let aiInsights = null;
+      try {
+        aiInsights = await aiEnrichCompany(data);
+      } catch (aiErr: any) {
+        console.warn("[free-leads/enrich] AI enrichment unavailable:", aiErr.message);
+      }
+      const finalData = { ...data, aiInsights, aiPowered: !!aiInsights };
+      cache.set(key, finalData, 7200);
+      res.json(finalData);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -92,7 +125,7 @@ export function registerFreeScraperRoutes(app: Express, isAuthenticated: Request
       return res.status(400).json({ error: "firstName, lastName, and domain are required" });
     }
 
-    const key = `fcontact:${firstName}:${lastName}:${cleanDomain(domain)}`;
+    const key = `fcontact:${firstName}:${lastName}:${cleanDomain(domain)}:ai`;
     const hit = cache.get(key);
     if (hit) return res.json({ ...(hit as any), cached: true });
 
@@ -100,8 +133,15 @@ export function registerFreeScraperRoutes(app: Express, isAuthenticated: Request
       const data = await findContact(firstName, lastName, domain, {
         company, title, hunterKey: HUNTER_KEY || undefined,
       });
-      cache.set(key, data, 7200);
-      res.json(data);
+      let aiStrategy = null;
+      try {
+        aiStrategy = await aiContactStrategy(data, { name: company, industry: title });
+      } catch (aiErr: any) {
+        console.warn("[free-leads/contact] AI strategy unavailable:", aiErr.message);
+      }
+      const finalData = { ...data, aiStrategy, aiPowered: !!aiStrategy };
+      cache.set(key, finalData, 7200);
+      res.json(finalData);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -220,9 +260,12 @@ export function registerFreeScraperRoutes(app: Express, isAuthenticated: Request
 
   app.get("/api/free-leads/stats", isAuthenticated, (_req, res) => {
     const keys = cache.keys();
+    const hasOpenAI = !!process.env.OPENAI_API_KEY;
     res.json({
       cacheSize: keys.length,
+      aiPowered: hasOpenAI,
       sources: {
+        openai_analysis: { free: false, keyRequired: true, hasKey: hasOpenAI, description: "AI lead scoring, company insights, contact strategy" },
         duckduckgo: { free: true, keyRequired: false },
         bing: { free: true, keyRequired: false },
         yellowpages: { free: true, keyRequired: false },

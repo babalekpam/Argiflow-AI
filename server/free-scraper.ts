@@ -1,6 +1,7 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import dns from "dns/promises";
+import OpenAI from "openai";
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -727,4 +728,259 @@ function scoreResult(result: SearchResult, filters: { industry?: string; locatio
   if (result.domain?.length < 20) score += 5;
 
   return Math.min(100, score);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  AI-POWERED ANALYSIS (OpenAI GPT-4o)
+// ═══════════════════════════════════════════════════════════
+
+let _openai: OpenAI | null = null;
+
+export function setOpenAIClient(client: OpenAI) {
+  _openai = client;
+}
+
+function getAI(): OpenAI | null {
+  if (_openai) return _openai;
+  const key = process.env.OPENAI_API_KEY;
+  if (key) {
+    _openai = new OpenAI({ apiKey: key });
+    return _openai;
+  }
+  return null;
+}
+
+async function aiComplete(systemPrompt: string, userPrompt: string, maxTokens = 1200): Promise<string | null> {
+  const ai = getAI();
+  if (!ai) return null;
+  try {
+    const res = await ai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.3,
+    });
+    return res.choices[0]?.message?.content || null;
+  } catch (e: any) {
+    console.warn("[AI-Scraper]", e.message);
+    return null;
+  }
+}
+
+export interface AILeadAnalysis {
+  score: number;
+  reasoning: string;
+  buyerIntent: "high" | "medium" | "low" | "unknown";
+  idealOutreach: string;
+  industry: string;
+  companySize: string;
+  painPoints: string[];
+  aiPowered: boolean;
+}
+
+export async function aiScoreLeads(
+  leads: LeadResult[],
+  context: { targetIndustry?: string; targetLocation?: string; idealClient?: string } = {}
+): Promise<(LeadResult & { aiAnalysis?: AILeadAnalysis })[]> {
+  const ai = getAI();
+  if (!ai || leads.length === 0) return leads;
+
+  const batch = leads.slice(0, 25);
+  const leadsText = batch.map((l, i) => `${i + 1}. ${l.name} | ${l.domain} | ${l.snippet?.slice(0, 120) || "N/A"}`).join("\n");
+
+  const result = await aiComplete(
+    `You are a B2B sales intelligence analyst. Score and analyze leads for sales outreach.
+Return ONLY valid JSON — an array of objects with these exact fields:
+- index (number, 1-based)
+- score (number 0-100, how likely they are a good prospect)
+- reasoning (string, 1-2 sentences why)
+- buyerIntent (string: "high", "medium", "low", or "unknown")
+- idealOutreach (string: suggested outreach approach in 1 sentence)
+- industry (string: detected industry)
+- companySize (string: estimated size like "small", "medium", "large", or "unknown")
+- painPoints (string array: 2-3 likely business pain points)`,
+    `Analyze these leads${context.targetIndustry ? ` for a company targeting ${context.targetIndustry}` : ""}${context.idealClient ? `. Ideal client profile: ${context.idealClient}` : ""}:\n\n${leadsText}`,
+    2000
+  );
+
+  if (!result) return leads;
+
+  try {
+    const jsonStr = result.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+    const analyses: any[] = JSON.parse(jsonStr);
+
+    return batch.map((lead, i) => {
+      const analysis = analyses.find((a: any) => a.index === i + 1);
+      if (!analysis) return lead;
+      return {
+        ...lead,
+        score: analysis.score || lead.score,
+        aiAnalysis: {
+          score: analysis.score,
+          reasoning: analysis.reasoning,
+          buyerIntent: analysis.buyerIntent,
+          idealOutreach: analysis.idealOutreach,
+          industry: analysis.industry || lead.industry,
+          companySize: analysis.companySize,
+          painPoints: analysis.painPoints || [],
+          aiPowered: true,
+        },
+      };
+    });
+  } catch {
+    return leads;
+  }
+}
+
+export interface AICompanyInsight {
+  summary: string;
+  industry: string;
+  businessModel: string;
+  estimatedRevenue: string;
+  estimatedEmployees: string;
+  keyProducts: string[];
+  competitors: string[];
+  technologyStack: string[];
+  decisionMakers: string[];
+  outreachStrategy: string;
+  painPoints: string[];
+  opportunities: string[];
+  aiPowered: boolean;
+}
+
+export async function aiEnrichCompany(enrichData: EnrichResult): Promise<AICompanyInsight | null> {
+  const ai = getAI();
+  if (!ai) return null;
+
+  const dataStr = [
+    `Domain: ${enrichData.domain}`,
+    enrichData.name && `Company: ${enrichData.name}`,
+    enrichData.description && `Description: ${enrichData.description}`,
+    enrichData.email && `Email: ${enrichData.email}`,
+    enrichData.phone && `Phone: ${enrichData.phone}`,
+    enrichData.address && `Address: ${enrichData.address}`,
+    enrichData.linkedin && `LinkedIn: ${enrichData.linkedin}`,
+    enrichData.employees && `Employees: ${enrichData.employees}`,
+    enrichData.founded && `Founded: ${enrichData.founded}`,
+    enrichData.domainCreated && `Domain created: ${enrichData.domainCreated}`,
+    enrichData.registrar && `Registrar: ${enrichData.registrar}`,
+    `MX active: ${enrichData.hasMX}`,
+  ].filter(Boolean).join("\n");
+
+  const result = await aiComplete(
+    `You are a B2B intelligence analyst. Analyze company data and provide deep business insights.
+Return ONLY valid JSON with these exact fields:
+- summary (string: 2-3 sentence company overview)
+- industry (string: specific industry/vertical)
+- businessModel (string: B2B, B2C, SaaS, Services, etc.)
+- estimatedRevenue (string: rough annual revenue range)
+- estimatedEmployees (string: employee count range)
+- keyProducts (string array: main products/services, 2-4 items)
+- competitors (string array: likely competitors, 2-4 items)
+- technologyStack (string array: likely technologies used, 3-5 items)
+- decisionMakers (string array: typical decision-maker titles, 2-3 items)
+- outreachStrategy (string: recommended approach in 2-3 sentences)
+- painPoints (string array: 3-4 likely business challenges)
+- opportunities (string array: 2-3 potential sales angles)`,
+    `Analyze this company:\n\n${dataStr}`,
+    1500
+  );
+
+  if (!result) return null;
+
+  try {
+    const jsonStr = result.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(jsonStr);
+    return { ...parsed, aiPowered: true };
+  } catch {
+    return null;
+  }
+}
+
+export interface AIContactStrategy {
+  bestEmailPattern: string;
+  confidence: string;
+  reasoning: string;
+  suggestedSubjectLine: string;
+  suggestedOpener: string;
+  bestTimeToReach: string;
+  communicationStyle: string;
+  aiPowered: boolean;
+}
+
+export async function aiContactStrategy(
+  contact: ContactResult,
+  companyInfo: { name?: string; industry?: string; description?: string } = {}
+): Promise<AIContactStrategy | null> {
+  const ai = getAI();
+  if (!ai) return null;
+
+  const emails = contact.emails.map((e) => e.email).join(", ");
+  const profiles = contact.linkedInProfiles.map((p) => `${p.name}: ${p.headline}`).join("; ");
+
+  const result = await aiComplete(
+    `You are a B2B outreach strategist. Given a contact's information, suggest the best outreach approach.
+Return ONLY valid JSON with these exact fields:
+- bestEmailPattern (string: most likely correct email address from the list, or best guess)
+- confidence (string: "high", "medium", or "low")
+- reasoning (string: why this email is most likely correct)
+- suggestedSubjectLine (string: compelling email subject line)
+- suggestedOpener (string: personalized first 2 sentences of an outreach email)
+- bestTimeToReach (string: recommended time/day to send)
+- communicationStyle (string: recommended tone - formal, casual, direct, consultative)`,
+    `Contact: ${contact.firstName} ${contact.lastName}
+Domain: ${contact.domain}
+${companyInfo.name ? `Company: ${companyInfo.name}` : ""}
+${companyInfo.industry ? `Industry: ${companyInfo.industry}` : ""}
+${companyInfo.description ? `About: ${companyInfo.description?.slice(0, 200)}` : ""}
+Possible emails: ${emails || "none found"}
+LinkedIn: ${profiles || "none found"}`,
+    800
+  );
+
+  if (!result) return null;
+
+  try {
+    const jsonStr = result.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(jsonStr);
+    return { ...parsed, aiPowered: true };
+  } catch {
+    return null;
+  }
+}
+
+export async function aiLocalBusinessAnalysis(
+  businesses: LocalBusiness[],
+  targetType: string,
+  location: string
+): Promise<{ marketInsights: string; topProspects: number[]; outreachTips: string; aiPowered: boolean } | null> {
+  const ai = getAI();
+  if (!ai || businesses.length === 0) return null;
+
+  const bizList = businesses.slice(0, 20).map((b, i) =>
+    `${i + 1}. ${b.name} | ${b.phone || "no phone"} | ${b.address || "no addr"} | ${b.website ? "has website" : "no website"} | Rating: ${b.rating || "N/A"}`
+  ).join("\n");
+
+  const result = await aiComplete(
+    `You are a local B2B market analyst. Analyze local businesses and provide insights.
+Return ONLY valid JSON:
+- marketInsights (string: 2-3 sentences about this market in this area)
+- topProspects (number array: indices of the 5 best prospects to target, 1-based)
+- outreachTips (string: 2-3 sentences on how to approach these businesses)`,
+    `Analyze ${targetType} businesses in ${location}:\n\n${bizList}`,
+    600
+  );
+
+  if (!result) return null;
+
+  try {
+    const jsonStr = result.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(jsonStr);
+    return { ...parsed, aiPowered: true };
+  } catch {
+    return null;
+  }
 }
