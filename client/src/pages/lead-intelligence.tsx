@@ -898,12 +898,44 @@ export default function LeadIntelligencePage() {
             <div className="space-y-4">
               <Card className="p-5">
                 <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-                  <h3 className="font-semibold" data-testid="text-contact-heading">
-                    {contactData.firstName} {contactData.lastName} — {contactData.domain}
-                  </h3>
-                  <Badge variant={contactData.confidence === "high" ? "default" : contactData.confidence === "medium" ? "secondary" : "outline"} data-testid="badge-confidence">
-                    Confidence: {contactData.confidence}
-                  </Badge>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold" data-testid="text-contact-heading">
+                      {contactData.firstName} {contactData.lastName} — {contactData.domain}
+                    </h3>
+                    <Badge variant={contactData.confidence === "high" ? "default" : contactData.confidence === "medium" ? "secondary" : "outline"} data-testid="badge-confidence">
+                      Confidence: {contactData.confidence}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      variant={saved.find((s: any) => s.domain === contactData.domain) ? "secondary" : "default"}
+                      onClick={() => saveLead({
+                        name: `${contactData.firstName} ${contactData.lastName}`,
+                        domain: contactData.domain,
+                        email: contactData.emails?.[0]?.email || "",
+                        phone: "",
+                        src: "contact",
+                        score: contactData.confidence === "high" ? 85 : contactData.confidence === "medium" ? 60 : 40,
+                        linkedin: contactData.linkedInProfiles?.[0]?.profileUrl || "",
+                        snippet: contactData.aiStrategy?.approachSummary || `${contactData.firstName} ${contactData.lastName} at ${contactData.domain}`,
+                        aiAnalysis: contactData.aiStrategy ? { aiPowered: true, reasoning: contactData.aiStrategy.approachSummary } : undefined,
+                      })}
+                      data-testid="button-save-contact"
+                    >
+                      <Bookmark className="w-4 h-4 mr-1" />
+                      {saved.find((s: any) => s.domain === contactData.domain) ? "Saved" : "Save Lead"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setEq({ domain: contactData.domain }); setTab("enrich"); }}
+                      data-testid="button-enrich-contact"
+                    >
+                      <Microscope className="w-4 h-4 mr-1" />
+                      Enrich
+                    </Button>
+                  </div>
                 </div>
 
                 {contactData.emails?.length > 0 && (
@@ -1065,6 +1097,12 @@ export default function LeadIntelligencePage() {
                       <p className="text-xs text-muted-foreground mt-0.5">{lead.domain}</p>
                       {lead.email && <p className="text-xs text-chart-1 mt-1">{lead.email}</p>}
                       {lead.phone && <p className="text-xs text-chart-5 mt-0.5">{lead.phone}</p>}
+                      {lead.linkedin && (
+                        <a href={lead.linkedin} target="_blank" rel="noreferrer" className="text-xs text-chart-1 mt-0.5 inline-flex items-center gap-1 hover:underline" data-testid={`link-saved-linkedin-${i}`}>
+                          <SiLinkedin className="w-3 h-3" /> LinkedIn
+                        </a>
+                      )}
+                      {lead.aiAnalysis?.reasoning && <p className="text-xs text-muted-foreground/70 mt-1">{lead.aiAnalysis.reasoning}</p>}
                       {lead.savedAt && <p className="text-xs text-muted-foreground/60 mt-1">Saved {new Date(lead.savedAt).toLocaleDateString()}</p>}
                     </div>
                     <div className="flex gap-1 shrink-0">
