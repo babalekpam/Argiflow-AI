@@ -43,6 +43,7 @@ Do not make changes to the file `Y`.
 - **Email Infrastructure Engine**: Comprehensive email management including account management, warmup, campaign builder, unified inbox (Unibox) with AI classification, website visitor identification, email verification, and inbox placement testing. Includes an AI Copilot for content generation.
 - **B2B Sales Intelligence Engine**: Provides Apollo.io/ZoomInfo-style capabilities for people and company search, contact/company enrichment, email/phone finding, intent data detection, technographic scanning, org chart building, news & events, AI-powered deep research, and prospect list management.
 - **AI Outreach Agent**: An autonomous agent that integrates email infrastructure, sales intelligence, and CRM for an 8-step outreach loop: discover, enroll, send, monitor, classify, respond, book, and repeat.
+- **Free Lead Intelligence Scraper**: Zero-cost lead discovery and enrichment engine using 12 free data sources (DuckDuckGo, Bing, YellowPages, Manta, LinkedIn dorks, website scraping, RDAP/WHOIS, DNS/MX verification, email pattern generation, Hunter.io free tier, SEC EDGAR, Clearbit logos). API at `/api/free-leads/*`, frontend at `/dashboard/lead-intelligence`. Features: lead search, local business finder, domain enrichment, contact/email finder, CSV export, saved leads.
 
 ## External Dependencies
 - **OpenAI**: Primary AI provider (GPT-4o-mini) for all AI features — chat, lead generation, content creation, research. Cost-effective at ~$0.15/$0.60 per 1M tokens.
