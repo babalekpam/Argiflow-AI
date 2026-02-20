@@ -91,10 +91,12 @@ function LoadingCards({ count = 3 }: { count?: number }) {
 function EmailAccountsTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [connectMode, setConnectMode] = useState<null | "select" | "smtp">(null);
+  const [connectMode, setConnectMode] = useState<null | "select" | "smtp" | "google" | "microsoft">(null);
   const [smtpForm, setSmtpForm] = useState({
     email: "", smtpHost: "", smtpPort: "587", imapHost: "", imapPort: "993", password: "", displayName: "", dailySendLimit: "50",
   });
+  const [googleForm, setGoogleForm] = useState({ email: "", appPassword: "", displayName: "", dailySendLimit: "50" });
+  const [microsoftForm, setMicrosoftForm] = useState({ email: "", password: "", displayName: "", dailySendLimit: "50" });
 
   const { data: accounts, isLoading } = useQuery<any[]>({ queryKey: ["/api/instantly/email-accounts"] });
 
@@ -108,6 +110,8 @@ function EmailAccountsTab() {
       toast({ title: "Email account connected" });
       setConnectMode(null);
       setSmtpForm({ email: "", smtpHost: "", smtpPort: "587", imapHost: "", imapPort: "993", password: "", displayName: "", dailySendLimit: "50" });
+      setGoogleForm({ email: "", appPassword: "", displayName: "", dailySendLimit: "50" });
+      setMicrosoftForm({ email: "", password: "", displayName: "", dailySendLimit: "50" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -163,28 +167,28 @@ function EmailAccountsTab() {
           <div className="space-y-3">
             <Card 
               className="p-4 cursor-pointer hover-elevate border border-border/50 transition-all"
-              onClick={() => toast({ title: "Google OAuth coming soon - use SMTP/IMAP" })}
+              onClick={() => setConnectMode("google")}
               data-testid="card-provider-google"
             >
               <div className="flex items-center gap-3">
                 <SiGoogle className="w-6 h-6" />
                 <div>
                   <p className="font-medium text-sm">Google</p>
-                  <p className="text-xs text-muted-foreground">Gmail / G-Suite</p>
+                  <p className="text-xs text-muted-foreground">Gmail / G-Suite (App Password)</p>
                 </div>
               </div>
             </Card>
 
             <Card 
               className="p-4 cursor-pointer hover-elevate border border-border/50 transition-all"
-              onClick={() => toast({ title: "Microsoft OAuth coming soon - use SMTP/IMAP" })}
+              onClick={() => setConnectMode("microsoft")}
               data-testid="card-provider-microsoft"
             >
               <div className="flex items-center gap-3">
                 <FaMicrosoft className="w-6 h-6" />
                 <div>
                   <p className="font-medium text-sm">Microsoft</p>
-                  <p className="text-xs text-muted-foreground">Office 365 / Outlook</p>
+                  <p className="text-xs text-muted-foreground">Outlook / Office 365</p>
                 </div>
               </div>
             </Card>
@@ -227,6 +231,131 @@ function EmailAccountsTab() {
           <div className="flex gap-2">
             <Button onClick={() => connectMutation.mutate({ ...smtpForm, smtpPort: parseInt(smtpForm.smtpPort), imapPort: parseInt(smtpForm.imapPort), dailySendLimit: parseInt(smtpForm.dailySendLimit) })} disabled={connectMutation.isPending || !smtpForm.email || !smtpForm.smtpHost} data-testid="button-submit-connect">
               {connectMutation.isPending ? "Connecting..." : "Connect"}
+            </Button>
+            <Button variant="outline" onClick={() => setConnectMode(null)}>Cancel</Button>
+          </div>
+        </Card>
+      )}
+
+      {connectMode === "google" && (
+        <Card className="p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <SiGoogle className="w-5 h-5" />
+              <h4 className="font-medium">Connect Gmail / G-Suite</h4>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => setConnectMode("select")}>Back</Button>
+          </div>
+
+          <Card className="p-4 bg-secondary/30 border-none">
+            <h5 className="text-sm font-medium mb-2">How to get your Google App Password:</h5>
+            <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+              <li>Go to your Google Account &gt; Security</li>
+              <li>Enable 2-Step Verification if not already enabled</li>
+              <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="text-chart-1 hover:underline">myaccount.google.com/apppasswords</a></li>
+              <li>Select "Mail" and your device, then click Generate</li>
+              <li>Copy the 16-character password and paste it below</li>
+            </ol>
+          </Card>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Gmail Address</Label>
+              <Input value={googleForm.email} onChange={(e) => setGoogleForm({ ...googleForm, email: e.target.value })} placeholder="you@gmail.com" data-testid="input-google-email" />
+            </div>
+            <div>
+              <Label>Display Name</Label>
+              <Input value={googleForm.displayName} onChange={(e) => setGoogleForm({ ...googleForm, displayName: e.target.value })} placeholder="John Doe" data-testid="input-google-display-name" />
+            </div>
+            <div>
+              <Label>App Password</Label>
+              <Input type="password" value={googleForm.appPassword} onChange={(e) => setGoogleForm({ ...googleForm, appPassword: e.target.value })} placeholder="xxxx xxxx xxxx xxxx" data-testid="input-google-app-password" />
+            </div>
+            <div>
+              <Label>Daily Send Limit</Label>
+              <Input type="number" value={googleForm.dailySendLimit} onChange={(e) => setGoogleForm({ ...googleForm, dailySendLimit: e.target.value })} data-testid="input-google-daily-limit" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => connectMutation.mutate({
+                email: googleForm.email,
+                displayName: googleForm.displayName || googleForm.email.split("@")[0],
+                password: googleForm.appPassword,
+                smtpHost: "smtp.gmail.com",
+                smtpPort: 587,
+                imapHost: "imap.gmail.com",
+                imapPort: 993,
+                dailySendLimit: parseInt(googleForm.dailySendLimit),
+              })}
+              disabled={connectMutation.isPending || !googleForm.email || !googleForm.appPassword}
+              data-testid="button-connect-google"
+            >
+              {connectMutation.isPending ? "Connecting..." : "Connect Gmail"}
+            </Button>
+            <Button variant="outline" onClick={() => setConnectMode(null)}>Cancel</Button>
+          </div>
+        </Card>
+      )}
+
+      {connectMode === "microsoft" && (
+        <Card className="p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FaMicrosoft className="w-5 h-5" />
+              <h4 className="font-medium">Connect Outlook / Office 365</h4>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => setConnectMode("select")}>Back</Button>
+          </div>
+
+          <Card className="p-4 bg-secondary/30 border-none">
+            <h5 className="text-sm font-medium mb-2">Connection options:</h5>
+            <div className="text-xs text-muted-foreground space-y-2">
+              <div>
+                <p className="font-medium">Outlook.com / Hotmail:</p>
+                <p>Use your regular password. If 2FA is enabled, create an App Password at <a href="https://account.live.com/proofs/AppPassword" target="_blank" rel="noreferrer" className="text-chart-1 hover:underline">account.live.com/proofs/AppPassword</a></p>
+              </div>
+              <div>
+                <p className="font-medium">Office 365 / Work Account:</p>
+                <p>Use your work email and password. Your admin may need to enable SMTP AUTH in the Microsoft 365 admin center.</p>
+              </div>
+            </div>
+          </Card>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Email Address</Label>
+              <Input value={microsoftForm.email} onChange={(e) => setMicrosoftForm({ ...microsoftForm, email: e.target.value })} placeholder="you@outlook.com" data-testid="input-microsoft-email" />
+            </div>
+            <div>
+              <Label>Display Name</Label>
+              <Input value={microsoftForm.displayName} onChange={(e) => setMicrosoftForm({ ...microsoftForm, displayName: e.target.value })} placeholder="John Doe" data-testid="input-microsoft-display-name" />
+            </div>
+            <div>
+              <Label>Password / App Password</Label>
+              <Input type="password" value={microsoftForm.password} onChange={(e) => setMicrosoftForm({ ...microsoftForm, password: e.target.value })} data-testid="input-microsoft-password" />
+            </div>
+            <div>
+              <Label>Daily Send Limit</Label>
+              <Input type="number" value={microsoftForm.dailySendLimit} onChange={(e) => setMicrosoftForm({ ...microsoftForm, dailySendLimit: e.target.value })} data-testid="input-microsoft-daily-limit" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => connectMutation.mutate({
+                email: microsoftForm.email,
+                displayName: microsoftForm.displayName || microsoftForm.email.split("@")[0],
+                password: microsoftForm.password,
+                smtpHost: "smtp.office365.com",
+                smtpPort: 587,
+                imapHost: "outlook.office365.com",
+                imapPort: 993,
+                dailySendLimit: parseInt(microsoftForm.dailySendLimit),
+              })}
+              disabled={connectMutation.isPending || !microsoftForm.email || !microsoftForm.password}
+              data-testid="button-connect-microsoft"
+            >
+              {connectMutation.isPending ? "Connecting..." : "Connect Outlook"}
             </Button>
             <Button variant="outline" onClick={() => setConnectMode(null)}>Cancel</Button>
           </div>
