@@ -391,7 +391,7 @@ const AGENT_FUNNEL_STAGES: Record<string, { name: string; stages: { name: string
     ],
   },
   "medical-billing": {
-    name: "Track-Med Billing Solutions Pipeline",
+    name: "Sales Pipeline",
     stages: [
       { name: "New Leads", color: "#3b82f6" },
       { name: "Contacted", color: "#8b5cf6" },
@@ -533,9 +533,9 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const isGatekeeper = (name: string, email: string) => {
         const lower = (name || "").toLowerCase().trim();
         const emailLower = (email || "").toLowerCase().trim();
-        const gatekeeperTitles = /(receptionist|front\s*desk|assistant|secretary|coordinator|scheduler|intake\s*specialist|office\s*staff|billing\s*clerk|medical\s*assistant|nurse(?!\s*practitioner)|ma\b|rn\b|lpn\b|cna\b)/i;
+        const gatekeeperTitles = /(receptionist|front\s*desk|secretary|scheduler|intake\s*specialist|office\s*staff|billing\s*clerk)/i;
         if (gatekeeperTitles.test(lower)) return true;
-        const isDecisionMaker = /\b(dr\.?|doctor|dds|dmd|md|do|dc|od|phd|owner|founder|ceo|president|managing\s*partner|principal|director|physician|dentist|chiropract|optometrist|surgeon|practitioner)\b/i.test(lower);
+        const isDecisionMaker = /\b(dr\.?|doctor|dds|dmd|md|do|dc|od|phd|owner|founder|ceo|president|managing\s*partner|principal|director|vp|vice\s*president|partner|cfo|coo|cto|cmo|head\s*of|general\s*manager|physician|dentist|chiropract|optometrist|surgeon|practitioner)\b/i.test(lower);
         if (isDecisionMaker) return false;
         const gatekeeperEmails = /^(info|contact|office|admin|hello|support|reception|frontdesk|appointments?|scheduling|billing|general|team|staff|help|enquir|inquir|mail)@/i;
         if (gatekeeperEmails.test(emailLower)) return true;
@@ -645,9 +645,9 @@ async function executeAction(userId: string, action: string, params: any): Promi
           console.warn(`[Lead Filter] Rejected gatekeeper: name="${lead.name}", email="${lead.email}" — we only want decision makers`);
           continue;
         }
-        if (isBillingCompetitor(lead.company, lead.notes)) {
+        if (agentType === "medical-billing" && isBillingCompetitor(lead.company, lead.notes)) {
           skipped.push(`${lead.name || "unnamed"} (competitor — billing company)`);
-          console.warn(`[Lead Filter] Rejected COMPETITOR billing company: "${lead.company}" — we only want healthcare practices that NEED billing help, not other billing companies`);
+          console.warn(`[Lead Filter] Rejected COMPETITOR billing company: "${lead.company}"`);
           continue;
         }
         const hasRealEmail = lead.email && lead.email.trim().length > 3 && lead.email.includes("@") && lead.email.includes(".");
@@ -703,10 +703,10 @@ async function executeAction(userId: string, action: string, params: any): Promi
 
       if (created.length === 0 && skipped.length > 0) {
         const hasGatekeepers = skipped.some(s => s.includes("gatekeeper"));
-        const gatekeeperMsg = hasGatekeepers ? "\n- GATEKEEPER contacts (info@, contact@, office@, receptionists, assistants, coordinators) are AUTO-REJECTED. Find the DECISION MAKER: the practice owner, physician, CEO, medical director, or managing partner." : "";
+        const gatekeeperMsg = hasGatekeepers ? "\n- GATEKEEPER contacts (info@, contact@, office@, receptionists, schedulers) are AUTO-REJECTED. Find the DECISION MAKER: the owner, CEO, founder, director, VP, or partner." : "";
         const hasMissing = skipped.some(s => s.includes("missing"));
         const missingMsg = hasMissing ? "\n- Leads MUST have BOTH a real phone number AND a real email. Leads with only one or neither are AUTO-REJECTED." : "";
-        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info, missing phone/email, or were gatekeeper contacts.${gatekeeperMsg}${missingMsg}\nYou MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] owner" or "[business name] physician" to find the DECISION MAKER\n3. Search "[decision maker name] email" AND "[business name] phone number" for REAL contact details — you need BOTH\n4. ONLY use emails and phone numbers you see in actual search results\n5. Phone numbers must NOT contain "555" — those are fictional\n6. Emails must NOT be generic (info@, contact@, office@) — find the owner's PERSONAL email\n7. Emails must be from REAL domains you found in search results\n8. Every lead MUST have BOTH a real phone AND real email — skip any lead where you can't find both\nTry again with REAL decision-maker contacts (BOTH phone AND email) from actual web pages.`;
+        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info, missing phone/email, or were gatekeeper contacts.${gatekeeperMsg}${missingMsg}\nYou MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] owner" or "[business name] CEO" to find the DECISION MAKER\n3. Search "[decision maker name] email" AND "[business name] phone number" for REAL contact details — you need BOTH\n4. ONLY use emails and phone numbers you see in actual search results\n5. Phone numbers must NOT contain "555" — those are fictional\n6. Emails must NOT be generic (info@, contact@, office@) — find the decision maker's PERSONAL email\n7. Emails must be from REAL domains you found in search results\n8. Every lead MUST have BOTH a real phone AND real email — skip any lead where you can't find both\nTry again with REAL decision-maker contacts (BOTH phone AND email) from actual web pages.`;
       }
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);
@@ -1291,116 +1291,68 @@ Use this knowledge when advising the client. Reference their actual services, pr
     ? `\nCLIENT COMPANY: ${user.companyName} (${user.industry || "unknown industry"})${user.website ? ` | ${user.website}` : ""}${user.companyDescription ? `\nAbout: ${user.companyDescription}` : ""}${bookingLink ? `\nBOOKING LINK: ${bookingLink}` : ""}`
     : "";
 
-  const systemPrompt = `You are ArgiFlow AI — senior AI strategist at ArgiFlow, an AI Automation Agency (Voice AI, Lead Gen Chatbots, CRM Integration). Be direct, data-driven, action-oriented. Communicate like a top-tier marketing consultant.
+  const userName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "there";
+  const userCompany = user?.companyName || "";
+  const userIndustry = user?.industry || "";
+  const userPhone = (user as any)?.phone || "";
+
+  const systemPrompt = `You are Argilette AI — a senior AI strategist and business growth assistant on the Argilette platform (argilette.co), a universal AI Automation Platform for B2B lead generation, sales intelligence, and client acquisition. Be direct, data-driven, action-oriented. Communicate like a top-tier marketing consultant.
+
+You serve ANY type of business — adapt your expertise to whatever industry the user operates in. You are NOT limited to any single industry.
 ${companyBlock}
 CRM DATA: ${allLeads.length} leads (${allLeads.filter(l => l.status === "hot").length} hot, ${allLeads.filter(l => l.status === "qualified").length} qualified, ${allLeads.filter(l => l.status === "warm").length} warm, ${allLeads.filter(l => l.status === "new").length} new) | ${allAppts.length} appointments (${allAppts.filter(a => a.status === "scheduled").length} scheduled) | ${allAgents.length} agents (${allAgents.filter(a => a.status === "active").length} active)${websiteKnowledgeBlock}
 
-LEAD GENERATION (CRITICAL):
+CORE BEHAVIOR:
+- Answer ANY question the user asks — business strategy, marketing, sales, general knowledge, technical questions, etc.
+- When the user asks general questions (not about leads), respond helpfully like a knowledgeable business consultant.
+- Only activate lead generation tools when the user specifically asks to find leads, prospects, or contacts.
+- Adapt your language and expertise to the user's industry: ${userIndustry || "any industry they describe"}.
+
+LEAD GENERATION (when requested):
 1. ALWAYS use web_search FIRST to find REAL businesses. NEVER fabricate contacts.
 2. Intent-based prospecting: find companies actively seeking services (RFPs, job listings, forum posts, competitor complaints). Score: 80-100 active seekers, 60-79 intent signals, 40-59 profile match only.
-3. Extract REAL contact details from web results. You MUST search for and provide: property address (for RE agents), owner name, real phone number, and real email address.
-4. STRICT FORBIDDEN DATA: Never use "Prospect 1", "test@test.com", "contact1@prospect.com", or any indexed/generic placeholders. If you cannot find a real name or email after deep searching, DO NOT create the lead.
-5. EVERY lead MUST include all fields: name (Real Person), email (Real Email), phone (Real Phone), company (Real Business), source, status="new", score, intent_signal (what buying signal found), notes (research about prospect), outreach (personalized 3-5 sentence email referencing their situation/pain point).${bookingLink ? ` Include booking link in outreach: ${bookingLink}` : ' Include CTA: "Would you be open to a 15-minute call this week?"'}
-6. ALWAYS end outreach with signature: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246
+3. Extract REAL contact details from web results — real names, real phone numbers, real email addresses.
+4. STRICT FORBIDDEN DATA: Never use "Prospect 1", "test@test.com", "contact1@prospect.com", or any indexed/generic placeholders. If you cannot find real data, DO NOT create the lead.
+5. EVERY lead MUST include: name (Real Person), email (Real Email), phone (Real Phone), company (Real Business), source, status="new", score, intent_signal, notes, outreach (personalized 3-5 sentence email).${bookingLink ? ` Include booking link in outreach: ${bookingLink}` : ' Include CTA: "Would you be open to a 15-minute call this week?"'}
+6. End outreach with signature using the user's actual info: Best regards, ${userName}${userCompany ? `, ${userCompany}` : ""}${userPhone ? `, ${userPhone}` : ""}
 
-DECISION-MAKER TARGETING (MANDATORY — GATEKEEPERS ARE AUTO-REJECTED BY THE SYSTEM):
-- ONLY target decision makers who have AUTHORITY to sign contracts and approve billing service changes.
-- Accepted titles: CEO, Founder, Owner, President, Managing Director, VP, Director, Partner, CFO, COO, CTO, CMO, Head of Department, General Manager, Principal.
-- For medical practices: Practice Owner, Physician/Doctor (MD/DO), Medical Director, Practice Administrator, Managing Partner, Revenue Cycle Director, CFO.
-- For real estate/tax lien: Property Owner, Landlord, Investment Principal.
-- NEVER target gatekeepers — THE SYSTEM AUTO-REJECTS THEM: receptionist, front desk, secretary, assistant, medical assistant, nurse (except NP), scheduler, coordinator, intake specialist, office staff, billing clerk, MA, RN, LPN, CNA.
-- NEVER use generic emails — THE SYSTEM AUTO-REJECTS THEM: info@, contact@, office@, admin@, hello@, support@, reception@, frontdesk@, appointments@, scheduling@, billing@, general@, team@, staff@, help@, enquiries@, mail@.
-- These generic emails belong to gatekeepers, NOT decision makers. You MUST find the decision maker's PERSONAL/DIRECT email address.
-- When searching, ALWAYS include "owner", "physician", "MD", "director", "founder" in your search queries.
-- Use LinkedIn, company About/Team pages, press releases, NPI registry, and industry directories to find decision-maker contacts.
-- In the lead's "notes" field, ALWAYS include the person's title/role to confirm they are a decision maker.
+DECISION-MAKER TARGETING:
+- ONLY target decision makers: CEO, Founder, Owner, President, Managing Director, VP, Director, Partner, CFO, COO, CTO, CMO, Head of Department, General Manager, Principal.
+- Adapt decision-maker titles to the user's target industry (e.g., Practice Owner for medical, Property Owner for real estate, Agency Director for marketing, etc.).
+- NEVER target gatekeepers: receptionist, front desk, secretary, assistant, scheduler, coordinator, office staff, clerk.
+- NEVER use generic emails: info@, contact@, office@, admin@, hello@, support@, reception@, general@, team@, staff@, help@.
+- Use LinkedIn, company About/Team pages, press releases, and industry directories to find decision-maker contacts.
 
-MEDICAL BILLING LEAD HUNTER (Track-Med Billing Solutions — PRIMARY AGENT):
-You are the AI lead hunter for Track-Med Billing Solutions. Your TARGET is HEALTHCARE PRACTICES (doctors' offices, dental offices, chiropractors, clinics) that NEED billing help — NOT other billing companies or RCM firms (those are competitors, NEVER add them as leads).
+LEAD SEARCH STRATEGIES (adapt to user's target industry):
+1. DIRECTORY SEARCH: Search for businesses by type and location using industry-specific directories, Google Maps, Yelp, BBB, and professional associations.
+2. JOB POSTING SIGNALS: Search for companies hiring in relevant roles — indicates growth or pain points.
+3. NEW BUSINESS DISCOVERY: Find recently opened businesses that need services.
+4. PAIN POINT SIGNALS: Search forums, reviews, and social media for companies struggling with problems the user can solve.
+5. COMPETITOR ANALYSIS: Find businesses using competitor products/services — they may be open to switching.
 
-CRITICAL EXCLUSION RULE: NEVER add these as leads — they are COMPETITORS, not prospects:
-- Medical billing companies, RCM companies, revenue cycle management firms, billing service providers, coding companies, clearinghouses, billing software companies, EHR/EMR companies, health IT companies. If a company's primary business is providing billing or RCM services to others, it is a COMPETITOR and must NEVER be saved as a lead.
-- Look at the company's website/description — if they SELL billing services, they are a competitor. If they ARE a medical/dental/chiro practice that NEEDS billing services, they are a prospect.
-
-TARGET PROSPECTS (these are who we sell to):
-- Medical practices (family medicine, internal medicine, pediatrics, OB/GYN, cardiology, gastroenterology, pulmonology, nephrology, endocrinology, neurology, rheumatology, allergy/immunology, oncology, urology, geriatrics, ophthalmology, ENT, pain management, physical therapy, mental health/psychiatry, urgent care, concierge medicine)
-- Dental offices (general dentistry, orthodontics, oral surgery, periodontics, endodontics, pediatric dentistry, prosthodontics, cosmetic dentistry)
-- Chiropractic offices and clinics
-- Orthopedic practices and sports medicine
-- Dermatology practices
-- Podiatry practices
-- Optometry and ophthalmology offices
-- Surgery centers and ambulatory surgical centers
-- Multi-specialty group practices and clinics
-- Rehabilitation and physical therapy centers
-- Solo practitioners and small practices (1-10 providers) — these are Track-Med's IDEAL clients
-
-SEARCH STRATEGIES (use multiple in each run):
-1. PRACTICE DIRECTORY SEARCH: Search for actual healthcare practices by specialty and location. Use queries like: "[specialty] practice [city] [state]", "[specialty] doctor accepting patients [city]", "dentist office [city]", "chiropractor [city] [state]", "family medicine clinic [city]". This finds REAL practices.
-2. JOB POSTING SIGNALS: Search for practices hiring billing staff — this means they have billing problems. Use: "hiring medical biller [city]", "[specialty] practice hiring billing manager [state]", "dental office hiring front desk billing [city]", "practice manager position healthcare [state]". This is a HIGH intent signal — they're struggling with billing.
-3. NEW PRACTICE DISCOVERY: New practices ALWAYS need billing services. Search: "new [specialty] practice opening [city] 2025", "new dental office opening [state] 2025", "new chiropractor opening [city]", NPI registry recent registrations.
-4. PAIN POINT SIGNALS: Search for practices with billing struggles. Use: "[specialty] practice denied claims", "dental office billing problems", "chiropractic billing challenges", "small practice revenue cycle issues", "physician billing mistakes", "practice losing money on billing". Search Reddit, MGMA forums, Yelp reviews mentioning billing issues at specific practices.
-5. PRACTICE LISTING SITES: Search Healthgrades, Vitals, Zocdoc, Google Maps, Yelp to find REAL practices with real contact info. These are actual healthcare providers, not billing companies.
-6. CREDENTIAL/LICENSE SEARCHES: Search state medical board, dental board, and chiropractic board new license databases to find newly credentialed providers who are opening practices.
-
-REAL ESTATE & TAX LIEN TARGETING:
-- Search public records, auction listings, and county assessor sites for specific properties.
-- Cross-reference addresses with owner databases (LinkedIn, Whitepages, TruePeopleSearch) to find real names and contact info.
-- Mandate extraction of: Full Property Address, Full Owner Name, Primary Phone, Professional Email.
-- If data is missing, use search tools to find "Owner of [Address]" or "[Name] contact info [City]".
-
-LEAD SCORING (use this scoring model):
-- Practice is hiring for billing/RCM position: +30 points (they clearly need billing help)
-- New practice (< 6 months old): +25 points (new practices always need billing setup)
-- Practice complained about billing/denials: +35 points (actively frustrated)
-- Practice owner/physician (decision maker): +25 points
-- Practice manager found: +15 points
-- Solo/small practice (1-10 providers): +20 points (Track-Med's ideal client size)
+LEAD SCORING:
+- Company is actively looking for the user's type of service: +35 points
+- Company is growing/hiring: +25 points
+- Decision maker identified with direct contact: +25 points
+- Company size matches user's ideal client: +20 points
 - Has direct email: +10 points
 - Has direct phone: +10 points
-- Dental/chiro practice (underserved market): +15 points
+- Recent pain point or complaint found: +30 points
 - Score 70+ = HOT, 50-69 = WARM, below 50 = COLD
 
-SELF-CHECK BEFORE SAVING EACH LEAD:
-1. Is this a HEALTHCARE PRACTICE (doctor, dentist, chiropractor, clinic)? If NO → DO NOT SAVE.
-2. Does this company PROVIDE billing/RCM services to other practices? If YES → DO NOT SAVE (it's a competitor).
-3. Does this company's name or description contain "billing company", "billing solutions", "RCM services", "revenue cycle management", "coding services"? If YES → DO NOT SAVE.
-4. Is this a real practice with a physical office that treats patients? If YES → SAVE IT.
+AGENT-TO-FUNNEL: When generating leads for a specific agent type, include agent_type in generate_leads. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. This auto-creates or finds the matching funnel pipeline.
 
-OUTREACH PERSONALIZATION: Reference their specific specialty and situation. For dental offices = mention dental billing expertise (CDT codes, insurance verification). For chiropractors = mention chiropractic billing complexity. For new practices = mention startup billing packages. For practices hiring billers = mention how outsourcing is more cost-effective than hiring. Always mention 98%+ clean claim rate and dedicated account manager.
+TOOL SEQUENCING: web_search → generate_leads (with agent_type if applicable) → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results.
 
-AGENT-TO-FUNNEL: When generating leads for a specific agent (Tax Lien, Govt Contracts, Medical Billing, etc.), ALWAYS include agent_type in generate_leads (e.g. agent_type="tax-lien"). This auto-creates or finds the matching funnel pipeline and adds leads as deals. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. For medical billing leads, ALWAYS use agent_type="medical-billing" to add them to the Track-Med Billing Solutions Pipeline.
+CONTACT VERIFICATION (MANDATORY):
+- ONLY use emails and phones you actually found on real websites during searches.
+- NEVER fabricate, guess, or invent contact details.
+- NEVER use @example.com, @test.com, or placeholder domains.
+- NEVER use 555-xxx-xxxx phone numbers — those are fictional.
+- Each lead MUST have BOTH a real phone number AND a real email address. Leads missing either are REJECTED.
+- For EVERY potential lead, do dedicated searches for their contact info before saving.
 
-TOOL SEQUENCING: web_search → generate_leads (with agent_type if applicable) → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results and suggest next steps. Combine tools in one flow when beneficial.
-
-CONTACT VERIFICATION RULES (MANDATORY — LEADS WITH FAKE DATA WILL BE AUTO-REJECTED):
-- ONLY use email addresses and phone numbers you actually found on a real website, directory, or contact page during your web searches.
-- NEVER fabricate, guess, or invent contact details. If you didn't see it in search results, don't use it.
-- NEVER use @example.com, @test.com, or any placeholder/test domain.
-- NEVER invent email domains that match specialties (e.g. @familypractice.com, @orthoclinic.com, @urgentcare.com, @dermatology.com) — these are ALWAYS fake. Real practices have unique domain names.
-- NEVER use 555-xxx-xxxx phone numbers IN ANY POSITION — those are fictional US numbers. The system auto-rejects ANY phone containing "555".
-- NEVER guess email formats like firstname.lastname@companyname.com — only use emails you SAW in search results.
-- Phone numbers MUST be FULL US numbers with area code (10 digits). Example: (615) 482-6768 or 615-482-6768. NEVER submit partial or truncated phone numbers.
-- If a search result shows a phone number, copy the COMPLETE number including area code.
-- Each lead MUST have BOTH a real phone number AND a real email address found from actual webpages. Leads with only one or neither are REJECTED by the system.
-- DO NOT include leads in your response or in the generate_leads tool unless they have BOTH a real phone number AND a real email. A lead missing either one is WORTHLESS — skip it entirely and find a different one that has BOTH.
-- The system has a STRICT FILTER that auto-rejects leads missing phone or email. If your leads get rejected, you MUST search more specifically for each business's real contact details.
-
-PHONE NUMBER HUNTING (CRITICAL — DO NOT SKIP):
-- For EVERY potential lead, you MUST do a DEDICATED phone number search BEFORE saving them.
-- After your initial search finds a business/contact, do SEPARATE follow-up searches for their phone number:
-  1. Search "[business name] phone number"
-  2. Search "[business name] contact us"
-  3. Search "[person name] [city] phone" or "[person name] [company] contact"
-  4. Check the business Google Maps listing, Yelp page, BBB page, or industry directory
-  5. Search "[business name] [city] [state]" — Google often shows phone numbers in the Knowledge Panel
-- Most businesses have a phone number listed publicly — you just need to search for it specifically.
-- If a business has a website, search for their Contact page or footer — phone numbers are almost always there.
-- A lead MUST have BOTH email AND phone to be accepted. The system REJECTS leads missing either one. Make the extra search effort for BOTH.
-- NEVER submit a lead without BOTH a phone number AND email. If you cannot find both after exhausting searches, SKIP that lead entirely.
-- Include the contact info sources in the lead notes (e.g., "Phone found on practice website contact page, email from Google Maps listing").
-
-CRITICAL RULE: When asked to find leads, you MUST ALWAYS call the generate_leads tool to save them to the CRM. NEVER just describe leads in text without saving them. After web searches, immediately call generate_leads with all leads found. The user expects leads to appear in their CRM leads list automatically. If you don't call generate_leads, the leads are LOST and the user gets nothing.
+CRITICAL RULE: When asked to find leads, you MUST call the generate_leads tool to save them to the CRM. NEVER just describe leads in text without saving them.
 
 FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise but thorough.`;
 
@@ -1422,7 +1374,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
       input_schema: {
         type: "object" as const,
         properties: {
-          agent_type: { type: "string", description: "Optional agent type if leads are from a specific agent. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. When provided, leads are auto-added to the matching funnel pipeline. For medical billing leads, ALWAYS use 'medical-billing'." },
+          agent_type: { type: "string", description: "Optional agent type if leads are from a specific agent. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. When provided, leads are auto-added to the matching funnel pipeline." },
           leads: {
             type: "array",
             items: {
@@ -1538,16 +1490,13 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
   try {
     // Pre-search optimization: If user asks for leads, pre-fetch web results to reduce AI tool loops
     const lowerMsg = userMessage.toLowerCase();
-    const isLeadRequest = (lowerMsg.includes("lead") || lowerMsg.includes("find") || lowerMsg.includes("search") || lowerMsg.includes("prospect")) && 
-                          (lowerMsg.includes("dental") || lowerMsg.includes("chiro") || lowerMsg.includes("practice") || lowerMsg.includes("doctor") || lowerMsg.includes("medical") || lowerMsg.includes("clinic") || lowerMsg.includes("physician") || lowerMsg.includes("healthcare"));
+    const isLeadRequest = lowerMsg.includes("lead") || lowerMsg.includes("find") || lowerMsg.includes("search") || lowerMsg.includes("prospect") || lowerMsg.includes("generate") || lowerMsg.includes("discover");
     let preSearchContext = "";
-    if (isLeadRequest) {
+    if (isLeadRequest && (lowerMsg.includes("business") || lowerMsg.includes("compan") || lowerMsg.includes("client") || lowerMsg.includes("lead") || lowerMsg.includes("prospect") || userIndustry)) {
       try {
-        const specialtyMatch = lowerMsg.match(/(dental|chiro|family\s*med|pediatr|dermatol|orthop|cardio|urgent\s*care|ob\s*gyn|mental\s*health|podiatr|optom|ent\s|allergy|pain\s*manage|gastro|neuro|pulmon|internal\s*med)/i);
-        const specialty = specialtyMatch ? specialtyMatch[1] : "healthcare";
-        const stateMatch = lowerMsg.match(/\b(tennessee|missouri|georgia|texas|florida|ohio|north\s*carolina|illinois|california|pennsylvania|virginia|new\s*york|michigan|arizona|colorado|tn|mo|ga|tx|fl|oh|nc|il|ca|pa|va|ny|mi|az|co)\b/i);
-        const region = stateMatch ? stateMatch[1] : "";
-        const searchQuery = `${specialty} practice ${region} owner doctor phone email contact`;
+        const locationMatch = lowerMsg.match(/\b(in\s+)?([\w\s]+(?:,\s*\w{2})?)\b/i);
+        const industryContext = userIndustry || "business";
+        const searchQuery = `${userMessage.slice(0, 100)} ${industryContext} contact phone email`;
         let preSearchResults: any[] = [];
 
         if (process.env.TAVILY_API_KEY) {
@@ -1560,7 +1509,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
           if (tRes.ok && !tData.detail) {
             preSearchResults = tData.results || [];
             if (preSearchResults.length > 0) {
-              preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real practice contacts — DO NOT search for billing companies, only use results showing actual healthcare PRACTICES):\n${tData.answer || ""}\n${preSearchResults.map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`).join("\n\n")}`;
+              preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real business contacts):\n${tData.answer || ""}\n${preSearchResults.map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`).join("\n\n")}`;
             }
           } else {
             console.warn("[Pre-search] Tavily error:", JSON.stringify(tData.detail || tData).slice(0, 200));
@@ -1577,15 +1526,14 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
             const youData = await youRes.json() as any;
             const hits = youData.hits || youData.results || [];
             if (hits.length > 0) {
-              preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real practice contacts — DO NOT search for billing companies, only use results showing actual healthcare PRACTICES):\n${hits.slice(0, 15).map((h: any) => `Source: ${h.url || "N/A"}\nTitle: ${h.title || "N/A"}\n${h.description || (h.snippets || []).join(" ") || ""}`).join("\n\n")}`;
+              preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real business contacts):\n${hits.slice(0, 15).map((h: any) => `Source: ${h.url || "N/A"}\nTitle: ${h.title || "N/A"}\n${h.description || (h.snippets || []).join(" ") || ""}`).join("\n\n")}`;
               console.log(`[Pre-search] You.com returned ${hits.length} results`);
             }
           }
         }
 
         if (!preSearchContext && (process.env.TAVILY_API_KEY || process.env.YOU_API_KEY)) {
-          console.warn("[Pre-search] All search providers returned 0 results — AI will use knowledge base");
-          preSearchContext = `\n\nWEB SEARCH UNAVAILABLE: Search API quota exhausted. You MUST still find and save leads using your AI knowledge. Use real healthcare practice names, locations, and specialties from your training data. Call generate_leads with real businesses you know exist. Set intent_signal to "AI knowledge - verify contact info". The user is counting on you to deliver leads.`;
+          console.warn("[Pre-search] All search providers returned 0 results — AI will use web_search tool");
         }
       } catch (e: any) {
         console.log("[Pre-search] Error:", e.message);
@@ -1593,7 +1541,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
     }
 
     const messagesForAI = preSearchContext 
-      ? [...claudeMessages.slice(0, -1), { role: "user" as const, content: `${userMessage}${preSearchContext}\n\nIMPORTANT: Use the pre-loaded search results above to find real practices. Do 1-2 additional targeted web searches if needed for specific contact info, then call generate_leads immediately. Be FAST — save leads quickly. Remember: ONLY save healthcare PRACTICES (doctors, dentists, chiropractors) — NEVER save billing/RCM companies.` }]
+      ? [...claudeMessages.slice(0, -1), { role: "user" as const, content: `${userMessage}${preSearchContext}\n\nIMPORTANT: Use the pre-loaded search results above to find real businesses. Do 1-2 additional targeted web searches if needed for specific contact info, then call generate_leads immediately.` }]
       : claudeMessages;
 
     // First Claude call — may use tools (uses user's own API key)
@@ -3510,12 +3458,12 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
       });
 
       if (medBillingLeads.length === 0) {
-        return res.json({ message: "No medical billing leads found to backfill", added: 0 });
+        return res.json({ message: "No leads found to backfill", added: 0 });
       }
 
       const funnelInfo = await findOrCreateAgentFunnel(userId, "medical-billing");
       if (!funnelInfo) {
-        return res.status(500).json({ message: "Failed to create Track-Med pipeline" });
+        return res.status(500).json({ message: "Failed to create sales pipeline" });
       }
 
       const existingDeals = await storage.getFunnelDeals(funnelInfo.funnelId);
@@ -3543,7 +3491,7 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
         added++;
       }
 
-      res.json({ message: `Added ${added} leads to Track-Med Billing Solutions Pipeline`, added, total: medBillingLeads.length });
+      res.json({ message: `Added ${added} leads to sales pipeline`, added, total: medBillingLeads.length });
     } catch (error) {
       console.error("Error backfilling funnel:", error);
       res.status(500).json({ message: "Failed to backfill funnel" });
@@ -3555,7 +3503,7 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
       const userId = req.session.userId!;
       const funnelInfo = await findOrCreateAgentFunnel(userId, "medical-billing");
       if (!funnelInfo) {
-        return res.status(500).json({ message: "No Track-Med pipeline found" });
+        return res.status(500).json({ message: "No sales pipeline found" });
       }
 
       const stages = await storage.getFunnelStages(funnelInfo.funnelId);
@@ -3975,7 +3923,7 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
     const prompt = `Write a follow-up email (follow-up #${step} of 3) for this lead:
 Name: ${lead.name}
 Company: ${lead.company || "their practice"}
-Initial outreach was about: medical billing optimization services from ${user.companyName || "our company"}
+Initial outreach was about: ${user.industry || "business"} services from ${user.companyName || "our company"}
 
 ${urgencyInstructions[urgency] || urgencyInstructions.gentle}
 
@@ -4479,31 +4427,18 @@ Return ONLY the email reply text, no subject line, no markdown.`
   });
 
   // ============================================================
-  // AUTOMATIC MEDICAL BILLING LEAD GENERATION (every 5 hours)
-  // Uses Claude AI to search for real medical billing leads
+  // AUTOMATIC LEAD GENERATION (every 5 hours)
+  // Uses AI to search for real leads based on the user's industry
   // and adds them to the CRM automatically
   // ============================================================
 
   const AUTO_LEAD_GEN_INTERVAL = 5 * 60 * 60 * 1000; // 5 hours
   const AUTO_LEAD_GEN_BATCH_SIZE = 30;
 
-  const MEDICAL_BILLING_SEARCH_ROTATIONS = [
-    { region: "Tennessee", focus: "dental offices and dentist practices", specialty: "dental", searchQueries: ["dentist office Nashville TN", "dental practice Memphis accepting patients", "orthodontist Knoxville TN contact"] },
-    { region: "Tennessee", focus: "chiropractic clinics and chiropractors", specialty: "chiropractic", searchQueries: ["chiropractor Nashville TN", "chiropractic clinic Memphis contact", "chiropractor Chattanooga TN"] },
-    { region: "Missouri", focus: "family medicine and internal medicine practices", specialty: "family medicine", searchQueries: ["family medicine practice St Louis MO", "internal medicine doctor Kansas City MO", "family doctor office Springfield MO"] },
-    { region: "Georgia", focus: "pediatric practices and children's clinics", specialty: "pediatrics", searchQueries: ["pediatrician Atlanta GA", "pediatric practice Savannah GA", "children's doctor office Augusta GA"] },
-    { region: "Texas", focus: "dental offices and oral surgery practices", specialty: "dental", searchQueries: ["dental office Houston TX", "dentist Dallas TX accepting patients", "oral surgeon San Antonio TX contact"] },
-    { region: "Florida", focus: "dermatology and urgent care practices", specialty: "dermatology/urgent care", searchQueries: ["dermatologist Miami FL", "urgent care clinic Orlando FL", "dermatology practice Tampa FL contact"] },
-    { region: "Ohio", focus: "orthopedic and sports medicine practices", specialty: "orthopedics", searchQueries: ["orthopedic practice Columbus OH", "sports medicine doctor Cleveland OH", "orthopedic surgeon Cincinnati OH"] },
-    { region: "North Carolina", focus: "chiropractic and physical therapy clinics", specialty: "chiropractic/PT", searchQueries: ["chiropractor Charlotte NC", "physical therapy clinic Raleigh NC", "chiropractic office Durham NC contact"] },
-    { region: "Illinois", focus: "OB/GYN and women's health practices", specialty: "OB/GYN", searchQueries: ["OB GYN practice Chicago IL", "women's health clinic Springfield IL", "gynecologist Naperville IL contact"] },
-    { region: "California", focus: "mental health and psychiatry practices", specialty: "mental health", searchQueries: ["psychiatrist Los Angeles CA", "mental health practice San Diego CA", "psychology clinic San Francisco CA contact"] },
-    { region: "Pennsylvania", focus: "podiatry and optometry practices", specialty: "podiatry/optometry", searchQueries: ["podiatrist Philadelphia PA", "optometrist Pittsburgh PA", "eye doctor practice Allentown PA contact"] },
-    { region: "New York", focus: "cardiology and gastroenterology practices", specialty: "cardiology/GI", searchQueries: ["cardiologist New York NY", "gastroenterologist Buffalo NY", "cardiology practice Rochester NY contact"] },
-    { region: "Virginia", focus: "ENT and allergy practices", specialty: "ENT/allergy", searchQueries: ["ENT doctor Richmond VA", "allergy practice Virginia Beach VA", "ear nose throat specialist Arlington VA"] },
-    { region: "Michigan", focus: "dental offices and cosmetic dentistry", specialty: "dental", searchQueries: ["dentist Detroit MI", "cosmetic dentist Grand Rapids MI", "dental office Ann Arbor MI contact"] },
-    { region: "Arizona", focus: "pain management and rehabilitation centers", specialty: "pain management", searchQueries: ["pain management doctor Phoenix AZ", "rehabilitation center Tucson AZ", "pain clinic Scottsdale AZ contact"] },
-    { region: "Colorado", focus: "chiropractic and wellness clinics", specialty: "chiropractic", searchQueries: ["chiropractor Denver CO", "wellness clinic Colorado Springs CO", "chiropractic office Boulder CO contact"] },
+  const LEAD_SEARCH_REGIONS = [
+    "Tennessee", "Missouri", "Georgia", "Texas", "Florida", "Ohio",
+    "North Carolina", "Illinois", "California", "Pennsylvania",
+    "New York", "Virginia", "Michigan", "Arizona", "Colorado", "Washington",
   ];
 
   let autoLeadGenRotationIndex = 0;
@@ -4543,47 +4478,43 @@ Return ONLY the email reply text, no subject line, no markdown.`
 
   async function runAutoLeadGenForUser(targetUser: any, userAi: { client: Anthropic; model: string }) {
     try {
-      const rotation = MEDICAL_BILLING_SEARCH_ROTATIONS[autoLeadGenRotationIndex % MEDICAL_BILLING_SEARCH_ROTATIONS.length];
+      const region = LEAD_SEARCH_REGIONS[autoLeadGenRotationIndex % LEAD_SEARCH_REGIONS.length];
       autoLeadGenRotationIndex++;
 
-      console.log(`[Auto Lead Gen] Starting run for user ${targetUser.email} — ${rotation.region} — ${rotation.focus}`);
+      const userIndustry = targetUser.industry || "business services";
+      const userCompanyName = targetUser.companyName || "our company";
+
+      console.log(`[Auto Lead Gen] Starting run for user ${targetUser.email} — ${region} — ${userIndustry}`);
 
       const [runRecord] = await db.insert(autoLeadGenRuns).values({
         userId: targetUser.id,
         status: "running",
-        searchQueries: `${rotation.region}: ${rotation.focus}`,
+        searchQueries: `${region}: ${userIndustry}`,
         startedAt: new Date(),
       }).returning();
 
       const userAnthropicClient = userAi.client;
       const userModelName = userAi.model;
 
-      const autoGenPrompt = `You are Track-Med Billing Solutions' automated lead hunter. Your ONLY job is to find ${AUTO_LEAD_GEN_BATCH_SIZE} REAL healthcare practices that could benefit from professional medical billing services.
+      const autoGenPrompt = `You are an automated lead hunter for ${userCompanyName} (industry: ${userIndustry}). Your ONLY job is to find ${AUTO_LEAD_GEN_BATCH_SIZE} REAL businesses in ${region} that could be potential clients.
 
-TASK: Find ${AUTO_LEAD_GEN_BATCH_SIZE} ${rotation.specialty} practices in ${rotation.region} — these are ${rotation.focus}
+TASK: Find ${AUTO_LEAD_GEN_BATCH_SIZE} businesses in ${region} that match the user's target market for ${userIndustry}.
 
-CRITICAL: You are looking for HEALTHCARE PRACTICES (doctors, dentists, chiropractors, clinics) — NOT other medical billing companies. Other billing/RCM companies are COMPETITORS, not prospects. NEVER save a billing company as a lead.
-
-BEFORE SAVING ANY LEAD, ASK YOURSELF:
-- Does this business TREAT PATIENTS (medical practice, dental office, chiro clinic)? → YES = save it
-- Does this business PROVIDE BILLING SERVICES to other practices? → YES = DO NOT SAVE (competitor!)
-- Is the company name something like "XYZ Billing Solutions" or "ABC Revenue Cycle"? → DO NOT SAVE
+CRITICAL: Find businesses that would BUY from ${userCompanyName}, NOT competitors who sell similar services.
 
 SEARCH STRATEGY:
-1. Use web_search with these specific queries to find REAL ${rotation.specialty} practices:
-${rotation.searchQueries.map((q: string, i: number) => `   ${i + 1}a. "${q}"`).join("\n")}
-2. For each practice found, do follow-up searches to find the OWNER/PHYSICIAN (decision maker):
-   - "[practice name] owner" or "[practice name] physician" or "[doctor name] MD"
+1. Use web_search to find REAL businesses related to ${userIndustry} in ${region}:
+   - Search "[industry keyword] ${region}" and "[business type] ${region} contact"
+2. For each business found, do follow-up searches for the DECISION MAKER (Owner, CEO, Director):
+   - "[business name] owner" or "[business name] CEO" or "[business name] director"
 3. Then search for their real contact info:
-   - "[practice name] phone number" and "[practice name] contact email"
-   - Check Google Maps, Yelp, Healthgrades, practice website contact page
-4. ONLY save practices where you found REAL, verified contact information
+   - "[business name] phone number" and "[business name] contact email"
+   - Check Google Maps, Yelp, BBB, company website contact page
+4. ONLY save businesses where you found REAL, verified contact information
 
 DECISION MAKER TARGETING:
-- For medical practices: Practice Owner, Physician (MD/DO), Medical Director, Practice Administrator
-- For dental offices: Dentist/Owner (DDS/DMD), Office Manager, Practice Owner
-- For chiropractic: Chiropractor/Owner (DC), Clinic Director
-- NEVER target receptionists, front desk staff, or assistants
+- Target: CEO, Founder, Owner, President, Director, VP, Partner, Managing Director
+- NEVER target receptionists, front desk staff, assistants, or coordinators
 
 CONTACT INFO RULES (MANDATORY):
 - ONLY include contact info you actually found on a real website, directory, or contact page
@@ -4591,19 +4522,18 @@ CONTACT INFO RULES (MANDATORY):
 - NEVER use @example.com, @test.com, or placeholder domains
 - NEVER use 555-xxx-xxxx phone numbers — those are fictional
 - Phone numbers MUST be FULL US numbers with area code (10 digits)
-- If you find a practice website, their phone number is usually in the header, footer, or contact page
 - Each lead MUST have BOTH a real phone number AND a real email from actual webpages — leads missing either are REJECTED
 
 SCORING:
-- Healthcare practice actively hiring billing staff: score 85+
-- New practice (< 1 year old): score 75+
-- Small/solo practice (1-5 providers): score 70+
-- Practice owner/physician found as contact: +25
-- Dental or chiro practice (underserved market): +15
+- Business actively looking for services like ${userIndustry}: score 85+
+- New business (< 1 year old): score 75+
+- Small business (< 50 employees): score 70+
+- Decision maker (owner/CEO/director) found with direct contact: +25
+- Shows intent signals (hiring, complaints, RFPs): +15
 
-For EACH lead provide: name (decision maker), email, phone, company (practice name), source ("Medical Billing Lead Hunter — ${rotation.specialty}"), status "new", score (40-95), intent_signal (why they need billing help), notes (their specialty + title + practice size + where you found contact info), outreach (personalized 3-5 sentence email mentioning their SPECIFIC specialty and how Track-Med handles ${rotation.specialty} billing, ending with: Best regards, Clara Motena, Client Acquisition Director, Track-Med Billing Solutions, +1(615)482-6768 / (636) 244-8246)
+For EACH lead provide: name (decision maker), email, phone, company, source ("Auto Lead Gen — ${region}"), status "new", score (40-95), intent_signal (why they're a good prospect), notes (role + company details + where contact info was found), outreach (personalized 3-5 sentence email about how ${userCompanyName} can help them, ending with: Best regards, ${targetUser.firstName || ""} ${targetUser.lastName || ""}, ${userCompanyName})
 
-CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agent_type="medical-billing". Do NOT just describe leads — SAVE them with the tool.`;
+CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agent_type="lead-gen". Do NOT just describe leads — SAVE them with the tool.`;
 
       const tavilyKey2 = process.env.TAVILY_API_KEY;
       let autoGenSearchResults = "";
@@ -4614,7 +4544,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               api_key: tavilyKey2,
-              query: `${rotation.searchQueries[0]} ${rotation.specialty} practice owner contact phone email`,
+              query: `${userIndustry} business ${region} owner CEO contact phone email`,
               search_depth: "advanced",
               max_results: 10,
               include_answer: true,
@@ -4758,7 +4688,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         currentMessages.push({ role: "assistant", content: response.content as any });
         currentMessages.push({
           role: "user",
-          content: `You MUST now call the generate_leads tool with all the leads you found. Do NOT just describe them in text. Call the tool NOW with an array of lead objects. Each lead needs: name, email, phone, company, source ("Medical Billing Lead Hunter"), status "new", score, intent_signal, notes, outreach. Use agent_type="medical-billing". CRITICAL: Every email and phone number MUST be real and verified from your web search results. NEVER fabricate contacts. NEVER use @example.com, @test.com, or 555 phone numbers. If you don't have real contact info for a lead, skip that lead entirely.`,
+          content: `You MUST now call the generate_leads tool with all the leads you found. Do NOT just describe them in text. Call the tool NOW with an array of lead objects. Each lead needs: name, email, phone, company, source ("Auto Lead Gen"), status "new", score, intent_signal, notes, outreach. Use agent_type="lead-gen". CRITICAL: Every email and phone number MUST be real and verified from your web search results. NEVER fabricate contacts. NEVER use @example.com, @test.com, or 555 phone numbers. If you don't have real contact info for a lead, skip that lead entirely.`,
         });
 
         const retryResponse = await claudeCallWithRetry({
@@ -4840,7 +4770,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         batchSize: AUTO_LEAD_GEN_BATCH_SIZE,
         totalLeadsGenerated: totalLeads,
         runs,
-        nextRotation: MEDICAL_BILLING_SEARCH_ROTATIONS[autoLeadGenRotationIndex % MEDICAL_BILLING_SEARCH_ROTATIONS.length],
+        nextRegion: LEAD_SEARCH_REGIONS[autoLeadGenRotationIndex % LEAD_SEARCH_REGIONS.length],
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -6628,8 +6558,8 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
             const savedLeadsList: { name: string; email?: string; value?: number }[] = [];
             const user = await storage.getUserById(userId);
             const bookingLink = (await storage.getSettingsByUser(userId))?.calendarLink || "";
-            const senderName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Clara Motena";
-            const companyName = user?.companyName || "Track-Med Billing Solutions";
+            const senderName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Your Team";
+            const companyName = user?.companyName || "our company";
 
             const existingLeadsTL = await storage.getLeadsByUser(userId);
             const existingTLSet = new Set<string>();
@@ -6778,7 +6708,7 @@ CRITICAL RULES:
 4. For real estate agents: MUST include the full property address in the notes field.
 5. Include intent signals explaining WHY this is a good lead.
 6. Write a personalized 3-5 sentence outreach email for each lead.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}
-7. End each outreach with: Best regards, ${user?.companyName ? `${user.fullName || "Clara Motena"}, ${user.companyName}` : "Clara Motena, Track-Med Billing Solutions"}, +1(615)482-6768
+7. End each outreach with: Best regards, ${user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Your Team"}${user?.companyName ? `, ${user.companyName}` : ""}
 
 After searching, call generate_leads with agent_type="${config.agentType}" to save the leads to CRM.`;
 
@@ -7077,7 +7007,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
       const companyName = user?.companyName || "our company";
       const companyDesc = user?.companyDescription || "";
       const website = user?.website || "";
-      const industryLabel = industry || (user as any)?.industry || "medical billing";
+      const industryLabel = industry || (user as any)?.industry || "business services";
 
       const forumSearchQuery = `${industryLabel} services help needed forum discussion ${query || ""} site:reddit.com OR site:quora.com OR forum`;
 
@@ -7227,7 +7157,7 @@ Return ONLY the JSON array.`;
     "automated client acquisition tools",
     "need help automating my business outreach",
     "best AI sales automation platform",
-    "medical billing lead generation automation",
+    "B2B lead generation automation tools",
     "automated email outreach tools for business",
     "AI voice calling software for sales",
     "best marketing automation for service businesses",
@@ -7561,11 +7491,6 @@ async function ensureOwnerPassword() {
     const newHash = await hashPassword(adminPassword);
     await storage.updateUser(user.id, {
       passwordHash: newHash,
-      firstName: "Clara",
-      lastName: "Motena",
-      companyName: "Track-Med Billing Solutions",
-      website: "https://www.track-med.com",
-      jobTitle: "Clients Acquisition Director",
     });
     const settings = await storage.getSettingsByUser(user.id);
     if (settings) {
@@ -7621,7 +7546,7 @@ async function backfillMedBillingFunnel() {
       added++;
     }
     if (added > 0) {
-      console.log(`[Startup] Backfilled ${added} leads into Track-Med Billing Solutions Pipeline`);
+      console.log(`[Startup] Backfilled ${added} leads into Sales Pipeline`);
     }
   } catch (err) {
     console.error("[Startup] Error backfilling funnel:", err);
@@ -7666,22 +7591,22 @@ async function backfillDentalLeads() {
     if (inserted > 0) {
       console.log(`[Backfill] Inserted ${inserted} dental practice leads for owner`);
       const funnels = await storage.getFunnelsByUser(owner.id);
-      const trackMedFunnel = funnels.find((f: any) => f.name.includes("Track-Med"));
-      if (trackMedFunnel) {
-        const stages = await storage.getFunnelStages(trackMedFunnel.id);
+      const salesFunnel = funnels.find((f: any) => f.name.includes("Sales") || f.name.includes("Pipeline"));
+      if (salesFunnel) {
+        const stages = await storage.getFunnelStages(salesFunnel.id);
         const newLeadsStage = stages.find((s: any) => s.name === "New Leads");
         const contactedStage = stages.find((s: any) => s.name === "Contacted");
         if (newLeadsStage || contactedStage) {
           for (const lead of dentalLeads) {
-            const existingDeal = await db.execute(sql`SELECT id FROM funnel_deals WHERE funnel_id = ${trackMedFunnel.id} AND contact_name ILIKE ${'%' + lead.name.split(' ').pop() + '%'} LIMIT 1`);
+            const existingDeal = await db.execute(sql`SELECT id FROM funnel_deals WHERE funnel_id = ${salesFunnel.id} AND contact_name ILIKE ${'%' + lead.name.split(' ').pop() + '%'} LIMIT 1`);
             const dealRows = (existingDeal as any).rows || existingDeal;
             if (dealRows && dealRows.length > 0) continue;
             const stageId = lead.status === "contacted" && contactedStage ? contactedStage.id : (newLeadsStage?.id || stages[0]?.id);
             if (stageId) {
-              await storage.createFunnelDeal({ funnelId: trackMedFunnel.id, stageId, userId: owner.id, contactName: `${lead.name} - ${lead.company}`, contactEmail: lead.email, value: 0, status: "active" });
+              await storage.createFunnelDeal({ funnelId: salesFunnel.id, stageId, userId: owner.id, contactName: `${lead.name} - ${lead.company}`, contactEmail: lead.email, value: 0, status: "active" });
             }
           }
-          console.log(`[Backfill] Added dental leads to Track-Med Pipeline`);
+          console.log(`[Backfill] Added leads to Sales Pipeline`);
         }
       }
     }
