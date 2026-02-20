@@ -32,8 +32,9 @@ type SubscriptionData = {
 const PLAN_CONFIG = [
   {
     id: "starter",
-    amount: 197,
-    venmoNote: "ArgiFlow%20Starter%20Plan%20-%20Monthly%20Subscription",
+    amount: 0,
+    free: true,
+    venmoNote: "",
     icon: Zap,
     iconColor: "text-chart-3",
     nameKey: "plans.starterName",
@@ -43,8 +44,8 @@ const PLAN_CONFIG = [
   },
   {
     id: "pro",
-    amount: 397,
-    venmoNote: "ArgiFlow%20Pro%20Plan%20-%20Monthly%20Subscription",
+    amount: 259.99,
+    venmoNote: "Argilette%20Pro%20Plan%20-%20%24259.99%20Monthly",
     icon: Crown,
     iconColor: "text-primary",
     popular: true,
@@ -55,8 +56,8 @@ const PLAN_CONFIG = [
   },
   {
     id: "enterprise",
-    amount: 997,
-    venmoNote: "ArgiFlow%20Enterprise%20Plan%20-%20Monthly%20Subscription",
+    amount: 499.99,
+    venmoNote: "Argilette%20Enterprise%20Plan%20-%20%24499.99%20Monthly",
     icon: Sparkles,
     iconColor: "text-chart-4",
     nameKey: "plans.entName",
@@ -202,25 +203,29 @@ export default function PlansPage() {
                       ) : (
                         <ChevronRight className="w-4 h-4 mr-1" />
                       )}
-                      {isTrial || currentStatus === "expired"
-                        ? t("plans.upgradeToPlan", { plan: t(plan.nameKey) })
-                        : t("plans.selectPlan")}
+                      {plan.free
+                        ? t("plans.selectPlan")
+                        : isTrial || currentStatus === "expired"
+                          ? t("plans.upgradeToPlan", { plan: t(plan.nameKey) })
+                          : t("plans.selectPlan")}
                     </Button>
-                    <a
-                      href={`https://venmo.com/argilette?txn=pay&amount=${plan.amount}&note=${plan.venmoNote}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block"
-                    >
-                      <Button
-                        className="w-full bg-[#008CFF] border-[#008CFF] text-white"
-                        variant="outline"
-                        data-testid={`button-venmo-${plan.id}`}
+                    {!plan.free && (
+                      <a
+                        href={`https://venmo.com/argilette?txn=pay&amount=${plan.amount}&note=${plan.venmoNote}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block"
                       >
-                        <SiVenmo className="w-4 h-4 mr-1" />
-                        {t("plans.payWithVenmo")}
-                      </Button>
-                    </a>
+                        <Button
+                          className="w-full bg-[#008CFF] border-[#008CFF] text-white"
+                          variant="outline"
+                          data-testid={`button-venmo-${plan.id}`}
+                        >
+                          <SiVenmo className="w-4 h-4 mr-1" />
+                          {t("plans.payWithVenmo")}
+                        </Button>
+                      </a>
+                    )}
                   </>
                 )}
               </div>

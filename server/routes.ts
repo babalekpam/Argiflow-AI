@@ -2521,7 +2521,7 @@ export async function registerRoutes(
       if (!plan || !["starter", "pro", "enterprise"].includes(plan)) {
         return res.status(400).json({ message: "Invalid plan. Choose starter, pro, or enterprise." });
       }
-      const amounts: Record<string, number> = { starter: 297, pro: 597, enterprise: 1497 };
+      const amounts: Record<string, number> = { starter: 0, pro: 259.99, enterprise: 499.99 };
       const existing = await storage.getSubscriptionByUser(userId);
       if (existing) {
         await storage.updateSubscription(existing.id, {
@@ -6246,7 +6246,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         userId,
         plan,
         status: status || "trial",
-        amount: amount || (plan === "starter" ? 297 : plan === "pro" ? 597 : 1497),
+        amount: amount || (plan === "starter" ? 0 : plan === "pro" ? 259.99 : 499.99),
         paymentMethod: paymentMethod || "venmo",
         venmoHandle: venmoHandle || null,
         trialEndsAt: status === "trial" ? trialEnd : null,
