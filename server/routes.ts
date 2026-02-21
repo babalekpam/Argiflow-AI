@@ -24,6 +24,14 @@ import outreachAgentRoutes from "./outreach-agent-routes";
 import { intelligenceEngine } from "./intelligence-engine";
 import { registerFreeScraperRoutes } from "./free-scraper-routes";
 import { registerStripeRoutes } from "./stripe-routes";
+import { registerSequenceRoutes } from "./sequences-routes";
+import { registerLinkedinRoutes } from "./linkedin-routes";
+import { registerIntentRoutes } from "./intent-routes";
+import { registerTeamRoutes } from "./team-routes";
+import { registerAnalyticsRoutes } from "./analytics-routes";
+import { registerCrmRoutes } from "./crm-routes";
+import { registerWebhookRoutes } from "./webhook-routes";
+import { registerAgencyRoutes } from "./agency-routes";
 
 function normalizePhoneNumber(phone: string | undefined | null): string {
   if (!phone) return "";
@@ -7428,6 +7436,14 @@ Return a JSON array of reply strings in the same order:
     }
   });
 
+  registerSequenceRoutes(app);
+  registerLinkedinRoutes(app);
+  registerIntentRoutes(app);
+  registerTeamRoutes(app);
+  registerAnalyticsRoutes(app);
+  registerCrmRoutes(app);
+  registerWebhookRoutes(app);
+  registerAgencyRoutes(app);
   registerWorkflowRoutes(app);
   startWorkflowEngine();
 

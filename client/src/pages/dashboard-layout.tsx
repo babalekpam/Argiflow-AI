@@ -35,6 +35,14 @@ import SalesIntelligencePage from "./sales-intelligence";
 import OutreachAgentPage from "./outreach-agent";
 import AiKpiPage from "./ai-kpi";
 import LeadIntelligencePage from "./lead-intelligence";
+import SequencesPage from "./sequences";
+import LinkedInPage from "./linkedin";
+import IntentDataPage from "./intent-data";
+import TeamPage from "./team";
+import AnalyticsPage from "./analytics";
+import CrmIntegrationsPage from "./crm-integrations";
+import WebhooksPage from "./webhooks";
+import AgencyPage from "./agency";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -213,6 +221,14 @@ export default function DashboardLayout() {
               <Route path="/dashboard/outreach-agent" component={OutreachAgentPage} />
               <Route path="/dashboard/ai-kpi" component={AiKpiPage} />
               <Route path="/dashboard/lead-intelligence" component={LeadIntelligencePage} />
+              <Route path="/dashboard/sequences" component={SequencesPage} />
+              <Route path="/dashboard/linkedin" component={LinkedInPage} />
+              <Route path="/dashboard/intent-data" component={IntentDataPage} />
+              <Route path="/dashboard/team" component={TeamPage} />
+              <Route path="/dashboard/analytics" component={AnalyticsPage} />
+              <Route path="/dashboard/crm-integrations" component={CrmIntegrationsPage} />
+              <Route path="/dashboard/webhooks" component={WebhooksPage} />
+              <Route path="/dashboard/agency" component={AgencyPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />

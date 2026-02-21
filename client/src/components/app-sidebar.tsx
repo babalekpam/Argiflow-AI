@@ -18,6 +18,7 @@ import {
   Zap,
   LayoutDashboard,
   Users,
+  UsersRound,
   Calendar,
   Bot,
   Mail,
@@ -41,6 +42,11 @@ import {
   Target,
   BarChart3,
   Microscope,
+  Linkedin,
+  Activity,
+  GitBranch,
+  Webhook,
+  Link2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -56,30 +62,37 @@ export function AppSidebar() {
     { title: t("sidebar.leadsCrm"), icon: Users, url: "/dashboard/leads" },
     { title: t("sidebar.salesFunnels"), icon: Filter, url: "/dashboard/funnels" },
     { title: t("sidebar.appointments"), icon: Calendar, url: "/dashboard/appointments" },
-    { title: "AI Performance", icon: BarChart3, url: "/dashboard/ai-kpi", badge: t("common.new") },
+    { title: "AI Performance", icon: BarChart3, url: "/dashboard/ai-kpi" },
+    { title: "Analytics", icon: Activity, url: "/dashboard/analytics", badge: t("common.new") },
+    { title: "Team", icon: UsersRound, url: "/dashboard/team", badge: t("common.new") },
   ];
 
   const automationNav = [
-    { title: t("sidebar.agentCatalog"), icon: Boxes, url: "/dashboard/agent-catalog", badge: t("common.new") },
+    { title: t("sidebar.agentCatalog"), icon: Boxes, url: "/dashboard/agent-catalog" },
     { title: t("sidebar.aiAgentsNav"), icon: Bot, url: "/dashboard/ai-agents", badge: t("common.live") },
-    { title: t("sidebar.voiceAi"), icon: Phone, url: "/dashboard/voice-ai", badge: t("common.new") },
-    { title: t("sidebar.chatbots"), icon: MessageSquare, url: "/dashboard/ai-agents" },
+    { title: t("sidebar.voiceAi"), icon: Phone, url: "/dashboard/voice-ai" },
+    { title: "Sequences", icon: GitBranch, url: "/dashboard/sequences", badge: t("common.new") },
     { title: t("sidebar.emailSms"), icon: Mail, url: "/dashboard/email" },
-    { title: "Email Infrastructure", icon: MailPlus, url: "/dashboard/email-infra", badge: t("common.new") },
-    { title: "Forum Prospector", icon: Globe, url: "/dashboard/forum-prospector", badge: t("common.new") },
-    { title: "Platform Promoter", icon: Megaphone, url: "/dashboard/platform-promoter", badge: t("common.new") },
-    { title: t("sidebar.salesIntelligence", "Sales Intelligence"), icon: Search, url: "/dashboard/sales-intelligence", badge: t("common.new") },
-    { title: "Lead Intelligence", icon: Microscope, url: "/dashboard/lead-intelligence", badge: t("common.new") },
-    { title: t("sidebar.outreachAgent", "Outreach Agent"), icon: Target, url: "/dashboard/outreach-agent", badge: t("common.new") },
+    { title: "Email Infrastructure", icon: MailPlus, url: "/dashboard/email-infra" },
+    { title: t("sidebar.outreachAgent", "Outreach Agent"), icon: Target, url: "/dashboard/outreach-agent" },
+    { title: "LinkedIn", icon: Linkedin, url: "/dashboard/linkedin", badge: t("common.new") },
+    { title: t("sidebar.salesIntelligence", "Sales Intelligence"), icon: Search, url: "/dashboard/sales-intelligence" },
+    { title: "Lead Intelligence", icon: Microscope, url: "/dashboard/lead-intelligence" },
+    { title: "Intent Data", icon: Activity, url: "/dashboard/intent-data", badge: t("common.new") },
+    { title: "Forum Prospector", icon: Globe, url: "/dashboard/forum-prospector" },
+    { title: "Platform Promoter", icon: Megaphone, url: "/dashboard/platform-promoter" },
   ];
 
   const growthNav = [
     { title: t("sidebar.automations"), icon: Workflow, url: "/dashboard/automations" },
-    { title: t("sidebar.workflowBuilder", "Workflow Builder"), icon: Zap, url: "/dashboard/workflows", badge: t("common.new") },
-    { title: t("sidebar.resources"), icon: Library, url: "/dashboard/resources", badge: t("common.new") },
-    { title: t("sidebar.demosInstall"), icon: Wand2, url: "/dashboard/demos", badge: t("common.new") },
+    { title: t("sidebar.workflowBuilder", "Workflow Builder"), icon: Zap, url: "/dashboard/workflows" },
+    { title: "CRM Integrations", icon: Link2, url: "/dashboard/crm-integrations", badge: t("common.new") },
+    { title: "Webhooks", icon: Webhook, url: "/dashboard/webhooks", badge: t("common.new") },
+    { title: "Agency OS", icon: Shield, url: "/dashboard/agency", badge: t("common.new") },
     { title: t("sidebar.training"), icon: GraduationCap, url: "/dashboard/training" },
-    { title: "Growth Guide", icon: BookOpen, url: "/dashboard/guide", badge: t("common.new") },
+    { title: t("sidebar.resources"), icon: Library, url: "/dashboard/resources" },
+    { title: "Growth Guide", icon: BookOpen, url: "/dashboard/guide" },
+    { title: t("sidebar.demosInstall"), icon: Wand2, url: "/dashboard/demos" },
     { title: t("sidebar.settings"), icon: Settings, url: "/dashboard/settings" },
   ];
 
