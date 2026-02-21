@@ -512,6 +512,255 @@ export const PLAN_LIMITS = {
 
 export type PlanTier = keyof typeof PLAN_LIMITS;
 
+// ============================================================
+// Multi-Channel Sequences
+// ============================================================
+export const sequences = pgTable("sequences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("draft"),
+  totalEnrolled: integer("total_enrolled").default(0),
+  totalCompleted: integer("total_completed").default(0),
+  totalReplied: integer("total_replied").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const sequenceSteps = pgTable("sequence_steps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sequenceId: varchar("sequence_id").notNull(),
+  stepNumber: integer("step_number").notNull(),
+  channel: text("channel").notNull(),
+  subject: text("subject"),
+  content: text("content").notNull(),
+  delayDays: integer("delay_days").notNull().default(1),
+  delayHours: integer("delay_hours").notNull().default(0),
+  variants: text("variants"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const sequenceEnrollments = pgTable("sequence_enrollments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sequenceId: varchar("sequence_id").notNull(),
+  leadId: varchar("lead_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  currentStep: integer("current_step").notNull().default(0),
+  status: text("status").notNull().default("active"),
+  nextSendAt: timestamp("next_send_at"),
+  completedAt: timestamp("completed_at"),
+  enrolledAt: timestamp("enrolled_at").defaultNow(),
+});
+
+export const insertSequenceSchema = createInsertSchema(sequences).omit({ id: true, createdAt: true, updatedAt: true });
+export type Sequence = typeof sequences.$inferSelect;
+export type InsertSequence = z.infer<typeof insertSequenceSchema>;
+
+export const insertSequenceStepSchema = createInsertSchema(sequenceSteps).omit({ id: true, createdAt: true });
+export type SequenceStep = typeof sequenceSteps.$inferSelect;
+export type InsertSequenceStep = z.infer<typeof insertSequenceStepSchema>;
+
+export const insertSequenceEnrollmentSchema = createInsertSchema(sequenceEnrollments).omit({ id: true, enrolledAt: true });
+export type SequenceEnrollment = typeof sequenceEnrollments.$inferSelect;
+export type InsertSequenceEnrollment = z.infer<typeof insertSequenceEnrollmentSchema>;
+
+// ============================================================
+// LinkedIn Integration
+// ============================================================
+export const linkedinProfiles = pgTable("linkedin_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  leadId: varchar("lead_id"),
+  linkedinUrl: text("linkedin_url").notNull(),
+  fullName: text("full_name"),
+  headline: text("headline"),
+  company: text("company"),
+  location: text("location"),
+  connectionStatus: text("connection_status").notNull().default("none"),
+  outreachStatus: text("outreach_status").notNull().default("none"),
+  lastMessageSent: text("last_message_sent"),
+  lastMessageAt: timestamp("last_message_at"),
+  notes: text("notes"),
+  enrichmentData: text("enrichment_data"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertLinkedinProfileSchema = createInsertSchema(linkedinProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+export type LinkedinProfile = typeof linkedinProfiles.$inferSelect;
+export type InsertLinkedinProfile = z.infer<typeof insertLinkedinProfileSchema>;
+
+// ============================================================
+// Intent Data / Activity Tracking
+// ============================================================
+export const intentActivity = pgTable("intent_activity", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  leadId: varchar("lead_id"),
+  company: text("company"),
+  signalType: text("signal_type").notNull(),
+  signalSource: text("signal_source").notNull(),
+  strength: integer("strength").notNull().default(50),
+  description: text("description"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertIntentActivitySchema = createInsertSchema(intentActivity).omit({ id: true, createdAt: true });
+export type IntentActivity = typeof intentActivity.$inferSelect;
+export type InsertIntentActivity = z.infer<typeof insertIntentActivitySchema>;
+
+// ============================================================
+// Team Collaboration
+// ============================================================
+export const teamMembers = pgTable("team_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ownerId: varchar("owner_id").notNull(),
+  userId: varchar("user_id"),
+  email: text("email").notNull(),
+  name: text("name"),
+  role: text("role").notNull().default("member"),
+  status: text("status").notNull().default("invited"),
+  invitedAt: timestamp("invited_at").defaultNow(),
+  joinedAt: timestamp("joined_at"),
+});
+
+export const leadAssignments = pgTable("lead_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").notNull(),
+  assignedTo: varchar("assigned_to").notNull(),
+  assignedBy: varchar("assigned_by").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({ id: true, invitedAt: true, joinedAt: true });
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
+
+export const insertLeadAssignmentSchema = createInsertSchema(leadAssignments).omit({ id: true, createdAt: true });
+export type LeadAssignment = typeof leadAssignments.$inferSelect;
+export type InsertLeadAssignment = z.infer<typeof insertLeadAssignmentSchema>;
+
+// ============================================================
+// CRM Integrations
+// ============================================================
+export const crmConnections = pgTable("crm_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  provider: text("provider").notNull(),
+  status: text("status").notNull().default("disconnected"),
+  apiKey: text("api_key"),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  instanceUrl: text("instance_url"),
+  syncDirection: text("sync_direction").notNull().default("bidirectional"),
+  fieldMapping: text("field_mapping"),
+  lastSyncAt: timestamp("last_sync_at"),
+  lastSyncStatus: text("last_sync_status"),
+  totalSynced: integer("total_synced").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCrmConnectionSchema = createInsertSchema(crmConnections).omit({ id: true, createdAt: true, updatedAt: true });
+export type CrmConnection = typeof crmConnections.$inferSelect;
+export type InsertCrmConnection = z.infer<typeof insertCrmConnectionSchema>;
+
+// ============================================================
+// Webhook Integrations
+// ============================================================
+export const webhookEndpoints = pgTable("webhook_endpoints", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  secret: text("secret"),
+  events: text("events").notNull(),
+  status: text("status").notNull().default("active"),
+  lastTriggeredAt: timestamp("last_triggered_at"),
+  totalDeliveries: integer("total_deliveries").default(0),
+  totalFailures: integer("total_failures").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const webhookDeliveries = pgTable("webhook_deliveries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  endpointId: varchar("endpoint_id").notNull(),
+  event: text("event").notNull(),
+  payload: text("payload").notNull(),
+  responseStatus: integer("response_status"),
+  responseBody: text("response_body"),
+  status: text("status").notNull().default("pending"),
+  attempts: integer("attempts").default(0),
+  deliveredAt: timestamp("delivered_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWebhookEndpointSchema = createInsertSchema(webhookEndpoints).omit({ id: true, createdAt: true });
+export type WebhookEndpoint = typeof webhookEndpoints.$inferSelect;
+export type InsertWebhookEndpoint = z.infer<typeof insertWebhookEndpointSchema>;
+
+export const insertWebhookDeliverySchema = createInsertSchema(webhookDeliveries).omit({ id: true, createdAt: true });
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
+export type InsertWebhookDelivery = z.infer<typeof insertWebhookDeliverySchema>;
+
+// ============================================================
+// White-Label / Agency Workspaces
+// ============================================================
+export const agencyClients = pgTable("agency_clients", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ownerId: varchar("owner_id").notNull(),
+  name: text("name").notNull(),
+  domain: text("domain"),
+  logo: text("logo"),
+  brandColor: text("brand_color").default("#00e5a0"),
+  industry: text("industry"),
+  contactEmail: text("contact_email"),
+  contactName: text("contact_name"),
+  status: text("status").notNull().default("active"),
+  totalLeads: integer("total_leads").default(0),
+  totalDeals: integer("total_deals").default(0),
+  monthlyBudget: real("monthly_budget").default(0),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAgencyClientSchema = createInsertSchema(agencyClients).omit({ id: true, createdAt: true, updatedAt: true });
+export type AgencyClient = typeof agencyClients.$inferSelect;
+export type InsertAgencyClient = z.infer<typeof insertAgencyClientSchema>;
+
+// ============================================================
+// Campaign Analytics / A/B Testing
+// ============================================================
+export const campaignReports = pgTable("campaign_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  channel: text("channel"),
+  totalSent: integer("total_sent").default(0),
+  totalOpened: integer("total_opened").default(0),
+  totalClicked: integer("total_clicked").default(0),
+  totalReplied: integer("total_replied").default(0),
+  totalConverted: integer("total_converted").default(0),
+  totalBounced: integer("total_bounced").default(0),
+  totalUnsubscribed: integer("total_unsubscribed").default(0),
+  revenue: real("revenue").default(0),
+  cost: real("cost").default(0),
+  abTestVariant: text("ab_test_variant"),
+  abTestGroup: text("ab_test_group"),
+  periodStart: timestamp("period_start"),
+  periodEnd: timestamp("period_end"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCampaignReportSchema = createInsertSchema(campaignReports).omit({ id: true, createdAt: true });
+export type CampaignReport = typeof campaignReports.$inferSelect;
+export type InsertCampaignReport = z.infer<typeof insertCampaignReportSchema>;
+
 export * from "./workflow-schema";
 export * from "./instantly-schema";
 export * from "./intelligence-schema";
