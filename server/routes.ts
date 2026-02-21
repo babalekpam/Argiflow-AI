@@ -23,6 +23,7 @@ import intelligenceRoutes from "./intelligence-routes";
 import outreachAgentRoutes from "./outreach-agent-routes";
 import { intelligenceEngine } from "./intelligence-engine";
 import { registerFreeScraperRoutes } from "./free-scraper-routes";
+import { registerStripeRoutes } from "./stripe-routes";
 
 function normalizePhoneNumber(phone: string | undefined | null): string {
   if (!phone) return "";
@@ -2014,6 +2015,8 @@ export async function registerRoutes(
   // ---- FREE LEAD INTELLIGENCE SCRAPER ----
   registerFreeScraperRoutes(app, isAuthenticated);
 
+  registerStripeRoutes(app);
+
   // ---- AUTH ----
 
   app.post("/api/auth/register", async (req, res) => {
@@ -2063,22 +2066,56 @@ export async function registerRoutes(
         await storage.markEmailVerified(user.id);
       }
 
-      try {
-        const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-        await storage.createSubscription({
-          userId: user.id,
-          plan: "pro",
-          status: "trial",
-          amount: 0,
-          paymentMethod: "none",
-          trialEndsAt: trialEnd,
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: trialEnd,
-          notes: "14-day Pro trial",
-        });
-        console.log(`14-day Pro trial created for ${email} (expires ${trialEnd.toISOString()})`);
-      } catch (subErr: any) {
-        console.error("Failed to create trial subscription:", subErr?.message || subErr);
+      const stripeSessionId = req.body.stripeSessionId;
+      let stripeReconciled = false;
+      if (stripeSessionId && process.env.STRIPE_SECRET_KEY) {
+        try {
+          const Stripe = (await import("stripe")).default;
+          const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+          const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
+          const sessionEmail = session.customer_email || session.customer_details?.email;
+          if (session.payment_status === "paid" && sessionEmail?.toLowerCase() === email.toLowerCase()) {
+            const { upsertSubscription, PLAN_PRICES } = await import("./stripe-routes");
+            const plan = session.metadata?.plan || "starter";
+            const planConfig = PLAN_PRICES[plan] || PLAN_PRICES.starter;
+            await upsertSubscription(user.id, {
+              plan,
+              status: "active",
+              amount: planConfig.amount / 100,
+              paymentMethod: "stripe",
+              stripeCustomerId: (session.customer as string) || null,
+              stripeSubscriptionId: (session.subscription as string) || null,
+              currentPeriodStart: new Date(),
+              notes: `Stripe checkout ${stripeSessionId}`,
+            });
+            stripeReconciled = true;
+            console.log(`[Stripe] Reconciled subscription for ${email} — ${plan}`);
+          } else if (sessionEmail?.toLowerCase() !== email.toLowerCase()) {
+            console.warn(`[Stripe] Session email ${sessionEmail} does not match registration email ${email}`);
+          }
+        } catch (stripeErr: any) {
+          console.error("[Stripe] Reconciliation failed:", stripeErr?.message || stripeErr);
+        }
+      }
+
+      if (!stripeReconciled) {
+        try {
+          const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+          await storage.createSubscription({
+            userId: user.id,
+            plan: "growth",
+            status: "trial",
+            amount: 0,
+            paymentMethod: "none",
+            trialEndsAt: trialEnd,
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: trialEnd,
+            notes: "14-day Growth trial",
+          });
+          console.log(`14-day Growth trial created for ${email} (expires ${trialEnd.toISOString()})`);
+        } catch (subErr: any) {
+          console.error("Failed to create trial subscription:", subErr?.message || subErr);
+        }
       }
 
       try {
@@ -2376,7 +2413,7 @@ export async function registerRoutes(
       if (sub) {
         if (sub.status === "active" && sub.paymentMethod === "lifetime") {
           isLifetime = true;
-          plan = (sub.plan as PlanTier) || "pro";
+          plan = (sub.plan as PlanTier) || "growth";
         } else if (sub.status === "trial" || sub.status === "active") {
           plan = (sub.plan as PlanTier) || "starter";
         }
@@ -6161,10 +6198,10 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       if (!userId || typeof userId !== "string") {
         return res.status(400).json({ message: "User ID is required" });
       }
-      const validPlans = ["starter", "pro", "enterprise"];
+      const validPlans = ["starter", "growth", "agency"];
       const validStatuses = ["trial", "active", "past_due", "cancelled", "expired"];
       if (!plan || !validPlans.includes(plan)) {
-        return res.status(400).json({ message: "Valid plan is required (starter, pro, enterprise)" });
+        return res.status(400).json({ message: "Valid plan is required (starter, growth, agency)" });
       }
       if (status && !validStatuses.includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
@@ -6176,7 +6213,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         userId,
         plan,
         status: status || "trial",
-        amount: amount || (plan === "starter" ? 0 : plan === "pro" ? 259.99 : 499.99),
+        amount: amount || (plan === "starter" ? 297 : plan === "growth" ? 597 : 1497),
         paymentMethod: paymentMethod || "venmo",
         venmoHandle: venmoHandle || null,
         trialEndsAt: status === "trial" ? trialEnd : null,
@@ -6193,7 +6230,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   app.patch("/api/admin/subscriptions/:id", isAdmin, async (req, res) => {
     try {
       const { plan, status, amount, paymentMethod, venmoHandle, notes, currentPeriodEnd } = req.body;
-      const validPlans = ["starter", "pro", "enterprise"];
+      const validPlans = ["starter", "growth", "agency"];
       const validStatuses = ["trial", "active", "past_due", "cancelled", "expired"];
       if (plan !== undefined && !validPlans.includes(plan)) {
         return res.status(400).json({ message: "Invalid plan" });
@@ -7624,22 +7661,22 @@ async function ensureAllUsersProLifetime() {
       if (!existing) {
         await storage.createSubscription({
           userId: user.id,
-          plan: "pro",
+          plan: "growth",
           status: "active",
           amount: 0,
           paymentMethod: "lifetime",
           currentPeriodStart: new Date(),
           currentPeriodEnd: new Date("2099-12-31"),
-          notes: "Lifetime Pro — All accounts",
+          notes: "Lifetime Growth — All accounts",
         });
         upgraded++;
-      } else if (existing.status !== "active" || existing.plan !== "pro") {
+      } else if (existing.status !== "active" || existing.plan === "starter") {
         await storage.updateSubscription(existing.id, {
-          plan: "pro",
+          plan: "growth",
           status: "active",
           amount: 0,
           currentPeriodEnd: new Date("2099-12-31"),
-          notes: "Lifetime Pro — All accounts",
+          notes: "Lifetime Growth — All accounts",
         });
         upgraded++;
       }

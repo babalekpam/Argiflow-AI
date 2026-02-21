@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Zap, ArrowRight, ArrowLeft, Eye, EyeOff, Check, Building2, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -26,6 +26,10 @@ export default function SignupPage() {
   const { register } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  const urlParams = new URLSearchParams(searchString);
+  const stripeSessionId = urlParams.get("session_id");
+  const stripePlan = urlParams.get("plan");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -68,7 +72,7 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, ...(stripeSessionId ? { stripeSessionId } : {}) }),
         credentials: "include",
       });
       const data = await res.json();

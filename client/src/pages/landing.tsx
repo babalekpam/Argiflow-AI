@@ -2,14 +2,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { SiVenmo } from "react-icons/si";
 import {
   Search, Send, Phone, Target, TrendingUp, ArrowRight, Check,
   Play, Shield, Clock, Sparkles, MessageSquare, Headphones, Brain,
   Rocket, Globe, Users, Mail, BarChart3, Zap, Bot, Activity,
   BarChart, Layers, Flame, ChevronRight, ArrowLeft, Mic,
   FileText, Settings, CreditCard, PieChart, PhoneCall,
-  Database, Eye, Star, Calendar, Filter, X
+  Database, Eye, Star, Calendar, Filter, X, RotateCw
 } from "lucide-react";
 
 type ViewType = "landing" | "demo" | "getstarted" | "dashboard";
@@ -60,6 +59,7 @@ export default function LandingPage() {
   const [activeDemo, setActiveDemo] = useState<DemoTab>("leads");
   const [gsStep, setGsStep] = useState<1 | 2 | 3>(1);
   const [selectedPlan, setSelectedPlan] = useState({ name: "Growth", price: "$597" });
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const [toast, setToast] = useState<{ icon: string; msg: string } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -559,7 +559,7 @@ export default function LandingPage() {
                     <div className={`w-[30px] h-[30px] rounded-full flex items-center justify-center text-[12px] font-bold ${n === gsStep ? "bg-[#00e5a0] text-[#07090f] border-[#00e5a0]" : n < gsStep ? "bg-[rgba(0,229,160,0.12)] text-[#00e5a0] border-[rgba(0,229,160,.3)]" : "border-[rgba(255,255,255,0.07)]"}`} style={{ ...syne, border: n === gsStep ? "1px solid #00e5a0" : n < gsStep ? "1px solid rgba(0,229,160,.3)" : "1px solid rgba(255,255,255,0.07)" }}>
                       {n < gsStep ? <Check className="w-3 h-3" /> : n}
                     </div>
-                    <span className="hidden sm:inline">{["Choose Plan", "Your Info", "Pay via Venmo"][n - 1]}</span>
+                    <span className="hidden sm:inline">{["Choose Plan", "Your Info", "Checkout"][n - 1]}</span>
                   </div>
                   {n < 3 && <div className="w-16 h-px bg-[rgba(255,255,255,0.07)] mx-2" />}
                 </div>
@@ -668,7 +668,7 @@ export default function LandingPage() {
                     <CreditCard className="w-6 h-6 text-[#00e5a0]" />
                   </div>
                   <h2 style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-2.5">Complete Your Setup</h2>
-                  <p className="text-[14px] text-[#8a9abb] mb-9 leading-relaxed">Pay securely via Venmo to activate your {selectedPlan.name} plan instantly.</p>
+                  <p className="text-[14px] text-[#8a9abb] mb-9 leading-relaxed">You'll be redirected to Stripe's secure checkout to activate your {selectedPlan.name} plan.</p>
 
                   {(gsFirstName || gsBusiness || gsEmail) && (
                     <div className="text-left rounded-[10px] p-4 mb-5" style={{ background: "rgba(0,229,160,.04)", border: "1px solid rgba(0,229,160,.15)" }}>
@@ -679,34 +679,57 @@ export default function LandingPage() {
                   )}
 
                   <div className="flex items-center justify-between rounded-xl px-5 py-3.5 mb-7" style={{ background: "rgba(0,229,160,0.12)", border: "1px solid rgba(0,229,160,.2)" }}>
-                    <span className="text-[13px] text-[#8a9abb]">Amount Due</span>
+                    <span className="text-[13px] text-[#8a9abb]">Monthly Subscription</span>
                     <span style={syne} className="text-[22px] font-extrabold text-[#00e5a0]">{selectedPlan.price}/mo</span>
                   </div>
 
-                  <div className="bg-[#131a26] rounded-2xl p-7 mb-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
-                    <div className="flex items-center justify-center gap-2.5 mb-5">
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "#3D95CE" }}>
-                        <SiVenmo className="w-5 h-5 text-white" />
-                      </div>
-                      <span style={syne} className="text-xl font-extrabold text-[#3D95CE]">Venmo</span>
-                    </div>
-                    <div className="w-40 h-40 bg-white rounded-xl mx-auto mb-4 flex items-center justify-center">
-                      <div className="text-[#5a6a8a] text-[11px]">QR Code</div>
-                    </div>
-                    <div style={syne} className="text-[22px] font-extrabold text-[#00e5a0] mb-1">@argilette</div>
-                    <div className="text-[12px] text-[#5a6a8a]">ArgiFlow AI Solutions</div>
-                  </div>
+                  <button
+                    onClick={async () => {
+                      if (checkoutLoading) return;
+                      setCheckoutLoading(true);
+                      try {
+                        const planKey = selectedPlan.name === "Starter" ? "starter" : selectedPlan.name === "Growth" ? "growth" : "agency";
+                        const resp = await fetch("/api/stripe/create-checkout-session", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ plan: planKey, email: gsEmail, name: `${gsFirstName} ${gsLastName}`.trim() }),
+                        });
+                        const data = await resp.json();
+                        if (data.url) {
+                          window.location.href = data.url;
+                        } else {
+                          showToast("error", data.message || "Could not start checkout");
+                          setCheckoutLoading(false);
+                        }
+                      } catch {
+                        showToast("error", "Connection error. Please try again.");
+                        setCheckoutLoading(false);
+                      }
+                    }}
+                    disabled={checkoutLoading}
+                    data-testid="button-stripe-checkout"
+                    className={`w-full py-4 rounded-xl text-[16px] font-bold cursor-pointer transition-all mb-5 flex items-center justify-center gap-2 ${checkoutLoading ? "opacity-60" : "hover:bg-[#00ffb3] hover:-translate-y-0.5"}`}
+                    style={{ background: "#00e5a0", color: "#07090f", ...syne }}
+                  >
+                    {checkoutLoading ? (
+                      <><RotateCw className="w-4 h-4 animate-spin" /> Redirecting to Stripe...</>
+                    ) : (
+                      <>Pay with Stripe <ArrowRight className="w-4 h-4" /></>
+                    )}
+                  </button>
 
-                  <a href="https://link.venmo.com/send-request-money?txn=pay&recipients=argilette&referrer=biz_charge_sheet_payment_link" target="_blank" rel="noopener noreferrer" data-testid="button-open-venmo" className="block w-full py-4 rounded-xl text-[15px] font-bold text-white cursor-pointer hover:-translate-y-0.5 transition-all mb-7 text-center no-underline" style={{ background: "#3D95CE", ...syne }}>
-                    Open Venmo &rarr;
-                  </a>
+                  <div className="flex items-center justify-center gap-4 mb-7 text-[12px] text-[#5a6a8a]">
+                    <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Secure checkout</span>
+                    <span className="flex items-center gap-1"><CreditCard className="w-3 h-3" /> Cards accepted</span>
+                    <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Cancel anytime</span>
+                  </div>
 
                   <div className="text-left">
                     <div className="text-[11px] font-bold uppercase tracking-[1.2px] text-[#5a6a8a] mb-3.5">What Happens Next</div>
                     {[
-                      "Payment confirmed within 1 hour",
-                      "Onboarding call scheduled within 24 hours",
-                      "Your AI agents go live within 48 hours",
+                      "Instant account activation after payment",
+                      "Onboarding guide sent to your email",
+                      "Your AI agents ready within minutes",
                     ].map((step, i) => (
                       <div key={i} className="flex gap-3 mb-3">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-[#00e5a0] shrink-0" style={{ background: "#131a26", border: "1px solid rgba(255,255,255,0.07)", ...syne }}>{i + 1}</div>
