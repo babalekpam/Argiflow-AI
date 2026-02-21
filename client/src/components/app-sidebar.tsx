@@ -79,8 +79,8 @@ export function AppSidebar() {
     { title: t("sidebar.salesIntelligence", "Sales Intelligence"), icon: Search, url: "/dashboard/sales-intelligence" },
     { title: "Lead Intelligence", icon: Microscope, url: "/dashboard/lead-intelligence" },
     { title: "Intent Data", icon: Activity, url: "/dashboard/intent-data", badge: t("common.new") },
-    { title: "Forum Prospector", icon: Globe, url: "/dashboard/forum-prospector" },
-    { title: "Platform Promoter", icon: Megaphone, url: "/dashboard/platform-promoter" },
+    { title: "Forum Prospector", icon: Globe, url: "/dashboard/forum-prospector", adminOnly: true },
+    { title: "Platform Promoter", icon: Megaphone, url: "/dashboard/platform-promoter", adminOnly: true },
   ];
 
   const growthNav = [
@@ -155,7 +155,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>{t("sidebar.aiAutomation")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {automationNav.map((item) => (
+              {automationNav.filter(item => !item.adminOnly || isAdmin).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>

@@ -7073,7 +7073,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
   });
 
   // ---- FORUM PROSPECTOR ----
-  app.post("/api/forum-prospector/search", isAuthenticated, async (req, res) => {
+  app.post("/api/forum-prospector/search", isAdmin, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const { query, industry } = req.body;
