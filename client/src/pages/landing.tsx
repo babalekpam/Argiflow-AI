@@ -1,1656 +1,1023 @@
+import { useState, useRef, useEffect, useCallback } from "react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
-import heroRobotImg from "@assets/image_1770823639986.png";
-import agentTeamImg from "@assets/image_1770823690247.png";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Zap,
-  Bot,
-  BarChart3,
-  Calendar,
-  Users,
-  Mail,
-  Phone,
-  Target,
-  TrendingUp,
-  ArrowRight,
-  Check,
-  Star,
-  ChevronRight,
-  Play,
-  Shield,
-  Clock,
-  Sparkles,
-  MessageSquare,
-  Headphones,
-  Cog,
-  Workflow,
-  Brain,
-  Rocket,
-  ArrowDown,
-  Globe,
-  CheckCircle,
-  Search,
-  Filter,
-  FileText,
-  Landmark,
-  Building2,
-  RefreshCw,
-  Tractor,
-  Eye,
-  MousePointerClick,
-  GraduationCap,
-  Library,
-  Settings,
-  Boxes,
-  Activity,
-  BarChart,
-  Send,
-  Layers,
-  Flame,
-  Inbox,
-  ShieldCheck,
-  Wand2,
-  GitBranch,
-  MapPin,
-  Stethoscope,
-  ClipboardCheck,
-  RotateCw,
-  Server,
-  Mic,
-  PauseCircle,
-  Briefcase,
-  Cpu,
-} from "lucide-react";
-import { SiX, SiLinkedin, SiInstagram, SiVenmo } from "react-icons/si";
-import { CompactFlowchart } from "@/components/animated-flowchart";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { SiVenmo } from "react-icons/si";
+import {
+  Search, Send, Phone, Target, TrendingUp, ArrowRight, Check,
+  Play, Shield, Clock, Sparkles, MessageSquare, Headphones, Brain,
+  Rocket, Globe, Users, Mail, BarChart3, Zap, Bot, Activity,
+  BarChart, Layers, Flame, ChevronRight, ArrowLeft, Mic,
+  FileText, Settings, CreditCard, PieChart, PhoneCall,
+  Database, Eye, Star, Calendar, Filter, X
+} from "lucide-react";
+
+type ViewType = "landing" | "demo" | "getstarted" | "dashboard";
+type DemoTab = "leads" | "outreach" | "voice" | "email";
+type DashPanel = "overview" | "outreach" | "voice" | "intelligence" | "email" | "crm" | "reports" | "billing";
+
+const mockLeads = [
+  { name: "Dr. Sarah Martinez", title: "Practice Owner", company: "OrthoCare Miami", email: "s.martinez@orthocare.com", phone: "(305) 882-4411", score: 92, stype: "high" },
+  { name: "James Wilson", title: "Office Manager", company: "Gulf Coast Pediatrics", email: "j.wilson@gcpeds.com", phone: "(239) 445-7823", score: 88, stype: "high" },
+  { name: "Dr. Kevin Patel", title: "Physician Owner", company: "Sunrise Family Medicine", email: "kpatel@sunrisefm.com", phone: "(813) 229-5510", score: 94, stype: "high" },
+  { name: "Amanda Torres", title: "Billing Director", company: "Tampa Bay Medical Group", email: "a.torres@tbmg.com", phone: "(727) 338-9902", score: 71, stype: "med" },
+  { name: "Dr. Robert Chen", title: "Practice Owner", company: "Bayview Family Practice", email: "rchen@bayviewfp.com", phone: "(561) 774-3311", score: 79, stype: "med" },
+  { name: "Lisa Thompson", title: "Office Admin", company: "Palm Beach Dermatology", email: "l.thompson@pbderm.com", phone: "(561) 447-2200", score: 83, stype: "high" },
+  { name: "Dr. Michael Reeves", title: "Practice Owner", company: "Reeves Internal Medicine", email: "m.reeves@revmed.com", phone: "(407) 882-5511", score: 91, stype: "high" },
+  { name: "Sandra Nguyen", title: "Billing Manager", company: "Central Florida Urgent Care", email: "s.nguyen@cfuc.com", phone: "(407) 338-7700", score: 66, stype: "med" },
+];
+
+const transcriptLines = [
+  { role: "ai", text: "Hi, this is Alex calling from ArgiFlow. Am I speaking with Dr. Torres?" },
+  { role: "prospect", text: "Yes, this is she. What is this regarding?" },
+  { role: "ai", text: "I'm calling because a lot of medical practices in Tampa are losing money on billing errors and staff turnover. We've built an AI system that handles the entire billing process. Do you handle billing in-house currently?" },
+  { role: "prospect", text: "We do, yeah — it's been a headache honestly." },
+  { role: "ai", text: "I completely understand. Most practices lose 15-20% of revenue to billing errors they don't even catch. Could we schedule a 15-minute call this week to show you exactly how much you might be leaving on the table?" },
+  { role: "prospect", text: "Sure, I have Thursday afternoon open." },
+  { role: "ai", text: "Perfect. I'll send a calendar invite to your office email. Thursday at 2pm work for you?" },
+];
+
+const plans = [
+  {
+    name: "Starter", price: "$297", tagline: "Perfect for solo founders & small teams",
+    features: ["500 leads/month", "AI email outreach", "Basic CRM", "Email warmup (2 accounts)", "Weekly reports", "Chat support"],
+  },
+  {
+    name: "Growth", price: "$597", tagline: "Most popular — for scaling teams", popular: true,
+    features: ["1,500 leads/month", "AI email + SMS outreach", "Voice AI Agent", "Full CRM + pipeline", "Email warmup (5 accounts)", "Sales intelligence", "Priority support"],
+  },
+  {
+    name: "Agency OS", price: "$1,497", tagline: "For agencies managing multiple clients",
+    features: ["5,000 leads/month", "Unlimited outreach channels", "White-label Voice AI", "Multi-client CRM", "Email warmup (15 accounts)", "Custom AI training", "Dedicated success manager", "API access"],
+  },
+];
 
 export default function LandingPage() {
   usePageTitle();
   const { t } = useTranslation();
 
-  const services = [
-    {
-      icon: Search,
-      number: "01",
-      title: t("landing.services.s0title"),
-      description: t("landing.services.s0desc"),
-    },
-    {
-      icon: Send,
-      number: "02",
-      title: t("landing.services.s1title"),
-      description: t("landing.services.s1desc"),
-    },
-    {
-      icon: MessageSquare,
-      number: "03",
-      title: t("landing.services.s2title"),
-      description: t("landing.services.s2desc"),
-    },
-    {
-      icon: Calendar,
-      number: "04",
-      title: t("landing.services.s3title"),
-      description: t("landing.services.s3desc"),
-    },
-    {
-      icon: Filter,
-      number: "05",
-      title: t("landing.services.s4title"),
-      description: t("landing.services.s4desc"),
-    },
-    {
-      icon: Phone,
-      number: "06",
-      title: t("landing.services.s5title"),
-      description: t("landing.services.s5desc"),
-    },
-  ];
+  const [currentView, setCurrentView] = useState<ViewType>("landing");
+  const [activeDemo, setActiveDemo] = useState<DemoTab>("leads");
+  const [gsStep, setGsStep] = useState<1 | 2 | 3>(1);
+  const [selectedPlan, setSelectedPlan] = useState({ name: "Growth", price: "$597" });
 
-  const platformFeatures = [
-    {
-      icon: Brain,
-      title: t("landing.platformFeatures.f0title"),
-      description: t("landing.platformFeatures.f0desc"),
-    },
-    {
-      icon: Globe,
-      title: t("landing.platformFeatures.f1title"),
-      description: t("landing.platformFeatures.f1desc"),
-    },
-    {
-      icon: Send,
-      title: t("landing.platformFeatures.f2title"),
-      description: t("landing.platformFeatures.f2desc"),
-    },
-    {
-      icon: Eye,
-      title: t("landing.platformFeatures.f3title"),
-      description: t("landing.platformFeatures.f3desc"),
-    },
-    {
-      icon: Layers,
-      title: t("landing.platformFeatures.f4title"),
-      description: t("landing.platformFeatures.f4desc"),
-    },
-    {
-      icon: GraduationCap,
-      title: t("landing.platformFeatures.f5title"),
-      description: t("landing.platformFeatures.f5desc"),
-    },
-    {
-      icon: Library,
-      title: t("landing.platformFeatures.f6title"),
-      description: t("landing.platformFeatures.f6desc"),
-    },
-    {
-      icon: BarChart,
-      title: t("landing.platformFeatures.f7title"),
-      description: t("landing.platformFeatures.f7desc"),
-    },
-  ];
+  const [toast, setToast] = useState<{ icon: string; msg: string } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const westernAgents = [
-    { icon: Landmark, name: t("landing.agents.w0name"), desc: t("landing.agents.w0desc") },
-    { icon: FileText, name: t("landing.agents.w1name"), desc: t("landing.agents.w1desc") },
-    { icon: Building2, name: t("landing.agents.w2name"), desc: t("landing.agents.w2desc") },
-    { icon: Landmark, name: t("landing.agents.w3name"), desc: t("landing.agents.w3desc") },
-    { icon: RefreshCw, name: t("landing.agents.w4name"), desc: t("landing.agents.w4desc") },
-    { icon: Search, name: t("landing.agents.w5name"), desc: t("landing.agents.w5desc") },
-  ];
+  const [leadStatus, setLeadStatus] = useState("");
+  const [leadResults, setLeadResults] = useState<typeof mockLeads>([]);
+  const [leadRunning, setLeadRunning] = useState(false);
+  const [demoIndustry, setDemoIndustry] = useState("");
+  const [demoLocation, setDemoLocation] = useState("");
+  const [demoTitle, setDemoTitle] = useState("");
+  const leadTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const africanAgents = [
-    { icon: Globe, name: t("landing.agents.a0name"), desc: t("landing.agents.a0desc") },
-    { icon: Globe, name: t("landing.agents.a1name"), desc: t("landing.agents.a1desc") },
-    { icon: Tractor, name: t("landing.agents.a2name"), desc: t("landing.agents.a2desc") },
-    { icon: Users, name: t("landing.agents.a3name"), desc: t("landing.agents.a3desc") },
-  ];
+  const [activityItems, setActivityItems] = useState([
+    { icon: "mail", title: "Email opened — Dr. Sarah Martinez, OrthoCare Miami", time: "2 min ago" },
+    { icon: "reply", title: "Reply received — James Wilson, Gulf Coast Pediatrics", time: "8 min ago" },
+    { icon: "cal", title: "Meeting booked — Kevin Patel, Sunrise Family Medicine", time: "23 min ago" },
+    { icon: "send", title: "Follow-up sent — Amanda Torres, Tampa Bay Medical", time: "41 min ago" },
+  ]);
 
-  const process_steps = [
-    {
-      step: "01",
-      title: t("landing.process.step1Title"),
-      description: t("landing.process.step1Desc"),
-      icon: Rocket,
-    },
-    {
-      step: "02",
-      title: t("landing.process.step2Title"),
-      description: t("landing.process.step2Desc"),
-      icon: Bot,
-    },
-    {
-      step: "03",
-      title: t("landing.process.step3Title"),
-      description: t("landing.process.step3Desc"),
-      icon: TrendingUp,
-    },
-  ];
+  const [callState, setCallState] = useState<"idle" | "calling">("idle");
+  const [callStatus, setCallStatus] = useState("Click to simulate call");
+  const [callTranscript, setCallTranscript] = useState<{ role: string; text: string }[]>([]);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const callTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const transcriptRef = useRef<HTMLDivElement>(null);
 
-  const testimonials = [
-    {
-      name: t("landing.testimonials.t0name"),
-      company: t("landing.testimonials.t0company"),
-      icon: Landmark,
-      quote: t("landing.testimonials.t0quote"),
-      result: t("landing.testimonials.t0result"),
-    },
-    {
-      name: t("landing.testimonials.t1name"),
-      company: t("landing.testimonials.t1company"),
-      icon: Stethoscope,
-      quote: t("landing.testimonials.t1quote"),
-      result: t("landing.testimonials.t1result"),
-    },
-    {
-      name: t("landing.testimonials.t2name"),
-      company: t("landing.testimonials.t2company"),
-      icon: Briefcase,
-      quote: t("landing.testimonials.t2quote"),
-      result: t("landing.testimonials.t2result"),
-    },
-  ];
+  const [gsFirstName, setGsFirstName] = useState("");
+  const [gsLastName, setGsLastName] = useState("");
+  const [gsBusiness, setGsBusiness] = useState("");
+  const [gsEmail, setGsEmail] = useState("");
+  const [gsPhone, setGsPhone] = useState("");
+  const [gsIndustry, setGsIndustry] = useState("");
+  const [gsTarget, setGsTarget] = useState("");
 
-  const faqs = [
-    { q: t("landing.faq.q0"), a: t("landing.faq.a0") },
-    { q: t("landing.faq.q1"), a: t("landing.faq.a1") },
-    { q: t("landing.faq.q2"), a: t("landing.faq.a2") },
-    { q: t("landing.faq.q3"), a: t("landing.faq.a3") },
-    { q: t("landing.faq.q4"), a: t("landing.faq.a4") },
-    { q: t("landing.faq.q5"), a: t("landing.faq.a5") },
-  ];
+  const [dashPanel, setDashPanel] = useState<DashPanel>("overview");
+
+  const showToast = useCallback((icon: string, msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ icon, msg });
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const showView = useCallback((v: ViewType) => {
+    setCurrentView(v);
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
+    if (transcriptRef.current) {
+      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+    }
+  }, [callTranscript]);
+
+  useEffect(() => {
+    return () => {
+      if (leadTimer.current) clearInterval(leadTimer.current);
+      callTimers.current.forEach(t => clearTimeout(t));
+    };
+  }, []);
+
+  const runLeadGen = useCallback(() => {
+    setLeadRunning(true);
+    setLeadResults([]);
+    const industry = demoIndustry || "businesses";
+    const location = demoLocation || "US";
+    const msgs = [
+      "Scanning NPI Registry and public directories...",
+      `Matching ${industry} in ${location}...`,
+      "Verifying email addresses...",
+      "Enriching with phone numbers and LinkedIn...",
+      "Scoring leads by intent and fit...",
+    ];
+    let i = 0;
+    setLeadStatus(msgs[0]);
+    if (leadTimer.current) clearInterval(leadTimer.current);
+    leadTimer.current = setInterval(() => {
+      i++;
+      if (i < msgs.length) {
+        setLeadStatus(msgs[i]);
+      } else {
+        if (leadTimer.current) clearInterval(leadTimer.current);
+        setLeadRunning(false);
+        setLeadStatus("");
+        const count = Math.floor(Math.random() * 4) + 5;
+        setLeadResults(mockLeads.slice(0, count));
+        showToast("check", `${count} leads found!`);
+      }
+    }, 700);
+  }, [demoIndustry, demoLocation, showToast]);
+
+  const simulateOutreach = useCallback(() => {
+    showToast("mail", "Running next outreach cycle — 12 emails queued...");
+    const t = setTimeout(() => {
+      setActivityItems(prev => [
+        { icon: "send", title: "Email sent → Dr. Robert Chen, Bayview Family Practice", time: "Just now" },
+        ...prev,
+      ]);
+    }, 1500);
+    callTimers.current.push(t);
+  }, [showToast]);
+
+  const simulateCall = useCallback(() => {
+    if (callState !== "idle") {
+      setCallState("idle");
+      setCallStatus("Click to simulate call");
+      setShowTranscript(false);
+      setCallTranscript([]);
+      callTimers.current.forEach(t => clearTimeout(t));
+      callTimers.current = [];
+      return;
+    }
+    setCallState("calling");
+    setCallStatus("Dialing...");
+    setShowTranscript(true);
+    setCallTranscript([]);
+
+    const t1 = setTimeout(() => setCallStatus("Connected — AI speaking"), 1500);
+    callTimers.current.push(t1);
+
+    const delays = [2000, 5000, 9000, 13000, 17000, 22000, 27000];
+    transcriptLines.forEach((line, idx) => {
+      const t = setTimeout(() => {
+        setCallTranscript(prev => [...prev, line]);
+        if (idx === transcriptLines.length - 1) {
+          const t2 = setTimeout(() => {
+            setCallStatus("Meeting booked — Thu 2pm");
+            setCallState("idle");
+            showToast("calendar", "Meeting booked — Thu 2pm!");
+          }, 2000);
+          callTimers.current.push(t2);
+        }
+      }, delays[idx] || idx * 4000);
+      callTimers.current.push(t);
+    });
+  }, [callState, showToast]);
+
+  const gsSelectPlan = useCallback((name: string, price: string) => {
+    setSelectedPlan({ name, price });
+  }, []);
+
+  const goToStep = useCallback((step: 1 | 2 | 3) => {
+    setGsStep(step);
+    window.scrollTo(0, 0);
+  }, []);
+
+  const startPlan = useCallback((name: string, price: string) => {
+    setSelectedPlan({ name, price });
+    setGsStep(1);
+    showView("getstarted");
+  }, [showView]);
+
+  const syne = { fontFamily: "'Syne', sans-serif" };
+  const dm = { fontFamily: "'DM Sans', sans-serif" };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-          <a href="/" className="flex items-center gap-2" data-testid="link-home">
-            <Zap className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold gradient-text">{t("common.brandName")}</span>
-            <Badge variant="outline" className="text-[10px] ml-1 border-primary/30 text-primary">{t("common.brandTag")}</Badge>
-          </a>
-          <div className="hidden md:flex items-center gap-1">
-            <a href="#services" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              {t("nav.services")}
-            </a>
-            <a href="#agents" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              {t("nav.aiAgents")}
-            </a>
-            <a href="#platform" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              {t("nav.platform")}
-            </a>
-            <a href="#email-engine" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md" data-testid="link-nav-email">
-              {t("nav.emailInfra")}
-            </a>
-            <a href="#sales-intelligence" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md" data-testid="link-nav-intelligence">
-              {t("nav.salesIntelligence", "Intelligence")}
-            </a>
-            <a href="#pricing" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              {t("nav.pricing")}
-            </a>
-            <a href="#testimonials" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              {t("nav.results")}
-            </a>
-            <a href="#faq" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md">
-              {t("nav.faq")}
-            </a>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+        @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.7);} }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
+        @keyframes voicePulse { 0%{box-shadow:0 0 0 0 rgba(0,229,160,.6);}70%{box-shadow:0 0 0 30px rgba(0,229,160,0);}100%{box-shadow:0 0 0 0 rgba(0,229,160,0);} }
+        @keyframes toastIn { from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;} }
+        .anim-fadeUp { animation: fadeUp .3s ease; }
+        .voice-pulse { animation: voicePulse 1.5s infinite; }
+      `}</style>
+
+      <div style={dm} className="min-h-screen bg-[#07090f] text-[#eef2ff] relative overflow-x-hidden">
+        <div className="fixed inset-0 pointer-events-none z-0" style={{
+          backgroundImage: "linear-gradient(rgba(0,229,160,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,160,.025) 1px,transparent 1px)",
+          backgroundSize: "48px 48px",
+        }} />
+        <div className="fixed pointer-events-none z-0" style={{ width: 800, height: 800, borderRadius: "50%", background: "radial-gradient(circle,rgba(0,100,255,.08) 0%,transparent 65%)", top: -300, right: -200 }} />
+        <div className="fixed pointer-events-none z-0" style={{ width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(0,229,160,.06) 0%,transparent 65%)", bottom: -150, left: -100 }} />
+
+        {toast && (
+          <div className="fixed top-20 right-6 z-[200] px-5 py-3 rounded-xl flex items-center gap-3 text-sm font-medium shadow-lg" style={{ background: "#131a26", border: "1px solid rgba(255,255,255,0.12)", animation: "toastIn .3s ease" }}>
+            <span className="text-[#00e5a0]">
+              {toast.icon === "check" && <Check className="w-4 h-4" />}
+              {toast.icon === "mail" && <Mail className="w-4 h-4" />}
+              {toast.icon === "calendar" && <Calendar className="w-4 h-4" />}
+              {!["check", "mail", "calendar"].includes(toast.icon) && <Sparkles className="w-4 h-4" />}
+            </span>
+            <span>{toast.msg}</span>
+          </div>
+        )}
+
+        <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-8 h-16" style={{ background: "rgba(7,9,15,.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <div className="cursor-pointer" style={syne} onClick={() => showView("landing")} data-testid="link-home">
+            <span className="text-xl font-extrabold tracking-tight">Argi<span className="text-[#00e5a0]">Flow</span></span>
+          </div>
+          <div className="hidden md:flex items-center gap-8">
+            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => showView("landing")} data-testid="link-nav-features">Features</span>
+            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => showView("demo")} data-testid="link-nav-demo">Demo</span>
+            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => showView("landing")} data-testid="link-nav-pricing">Pricing</span>
           </div>
           <div className="flex items-center gap-3">
-            <LanguageSwitcher />
-            <a href="/login" data-testid="button-login">
-              <Button variant="ghost" size="sm">{t("nav.clientLogin")}</Button>
-            </a>
-            <a href="/signup" data-testid="button-get-started">
-              <Button size="sm">
-                {t("nav.getStarted")}
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </a>
+            <LanguageSwitcher variant="compact" />
+            <button onClick={() => showView("demo")} data-testid="button-live-demo" className="px-4 py-2 rounded-lg text-[13px] text-[#eef2ff] cursor-pointer transition-all" style={{ border: "1px solid rgba(255,255,255,0.12)", background: "transparent", ...dm }}>
+              <span className="inline-block w-[7px] h-[7px] bg-[#00e5a0] rounded-full mr-1.5" style={{ animation: "pulse-dot 2s infinite" }} />
+              Live Demo
+            </button>
+            <button onClick={() => showView("getstarted")} data-testid="button-get-started" className="px-4 py-2 bg-[#00e5a0] rounded-lg text-[13px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all" style={syne}>
+              Get Started
+            </button>
           </div>
-        </div>
-      </nav>
+        </nav>
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center pt-24 pb-20 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/4 left-1/5 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/5 w-80 h-80 bg-chart-4/10 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-chart-2/5 rounded-full blur-3xl" />
-        </div>
+        {currentView === "landing" && (
+          <div className="relative z-[1] min-h-screen">
+            <div className="pt-[140px] pb-20 px-6 md:px-12 max-w-[1200px] mx-auto">
+              <div className="inline-flex items-center gap-2 text-[11px] font-medium text-[#8a9abb] uppercase tracking-[2px] px-4 py-1.5 rounded-full mb-8" style={{ background: "#131a26", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <span className="w-1.5 h-1.5 bg-[#00e5a0] rounded-full" />
+                B2B Sales Intelligence Platform
+              </div>
+              <h1 style={syne} className="text-[clamp(42px,7vw,88px)] font-extrabold leading-[1.0] tracking-[-3px] mb-7 max-w-[900px]">
+                Automate Your Pipeline. <span className="text-[#00e5a0]">Close More</span> <span className="text-[#3b82f6]">Deals.</span>
+              </h1>
+              <p className="text-lg text-[#8a9abb] font-light max-w-[540px] leading-relaxed mb-12">
+                AI-powered lead generation, multi-channel outreach, voice agents, and email infrastructure — all in one platform built for B2B sales teams.
+              </p>
+              <div className="flex items-center gap-4 flex-wrap">
+                <button onClick={() => showView("getstarted")} data-testid="button-start-trial" className="px-9 py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] hover:shadow-[0_8px_32px_rgba(0,229,160,.35)] hover:-translate-y-0.5 transition-all" style={syne}>
+                  Start Free Trial
+                </button>
+                <button onClick={() => showView("demo")} data-testid="button-watch-demo" className="px-9 py-4 rounded-xl text-[15px] font-medium text-[#eef2ff] cursor-pointer hover:border-[rgba(255,255,255,.3)] transition-all" style={{ border: "1px solid rgba(255,255,255,0.12)", background: "transparent", ...dm }}>
+                  Watch Demo
+                </button>
+              </div>
+              <div className="flex items-center gap-4 mt-8">
+                <div className="flex -space-x-2">
+                  {["#3b82f6", "#00e5a0", "#f59e0b", "#ef4444", "#8a9abb"].map((c, i) => (
+                    <div key={i} className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: c, border: "2px solid #07090f" }}>
+                      {["JM", "SK", "AT", "RC", "LP"][i]}
+                    </div>
+                  ))}
+                </div>
+                <span className="text-[13px] text-[#8a9abb]">
+                  Trusted by <strong className="text-[#00e5a0]">500+</strong> sales teams
+                </span>
+              </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
-          <div>
-            <Badge variant="outline" className="mb-6 py-1.5 px-4 border-primary/30 bg-primary/5">
-              <Sparkles className="w-3.5 h-3.5 mr-2 text-primary" />
-              {t("landing.hero.badge")}
-            </Badge>
-            <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
-              {t("landing.hero.titlePart1")}{" "}
-              <span className="gradient-text">{t("landing.hero.titleHighlight")}</span>{" "}
-              {t("landing.hero.titlePart2")}
-            </h1>
-            <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed">
-              {t("landing.hero.description")}
-            </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-px mt-20 rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                {[
+                  { num: "500+", label: "Leads Generated Monthly" },
+                  { num: "47%", label: "Average Reply Rate" },
+                  { num: "24/7", label: "AI Agent Availability" },
+                  { num: "10x", label: "Pipeline Growth" },
+                ].map((s, i) => (
+                  <div key={i} className="bg-[#0d1119] py-8 px-7 text-center">
+                    <div style={syne} className="text-4xl font-extrabold tracking-[-1.5px] mb-1.5">{s.num}</div>
+                    <div className="text-[13px] text-[#5a6a8a]">{s.label}</div>
+                  </div>
+                ))}
+              </div>
 
-            <div className="flex flex-wrap items-center gap-6 mb-10">
-              <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">{t("landing.hero.stat1Value")}</span>
-                <span className="text-sm text-muted-foreground">{t("landing.hero.stat1Label")}</span>
-              </div>
-              <div className="w-px h-10 bg-border" />
-              <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">{t("landing.hero.stat2Value")}</span>
-                <span className="text-sm text-muted-foreground">{t("landing.hero.stat2Label")}</span>
-              </div>
-              <div className="w-px h-10 bg-border" />
-              <div className="flex flex-col">
-                <span className="text-3xl font-extrabold gradient-text">{t("landing.hero.stat3Value")}</span>
-                <span className="text-sm text-muted-foreground">{t("landing.hero.stat3Label")}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <a href="/signup" data-testid="button-hero-cta">
-                <Button size="lg" className="text-base px-8">
-                  <Rocket className="w-4 h-4 mr-2" />
-                  {t("landing.hero.ctaGetStarted")}
-                </Button>
-              </a>
-              <a href="#agents">
-                <Button variant="outline" size="lg" className="text-base px-8">
-                  <Boxes className="w-4 h-4 mr-2" />
-                  {t("landing.hero.ctaExplore")}
-                </Button>
-              </a>
-            </div>
-
-            <div className="mt-8 flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-chart-3" />
-                <span>{t("landing.hero.trust1")}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Globe className="w-4 h-4 text-chart-3" />
-                <span>{t("landing.hero.trust2")}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-chart-3" />
-                <span>{t("landing.hero.trust3")}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Hero Visual */}
-          <div className="hidden lg:block">
-            <div className="relative rounded-xl overflow-hidden">
-              <img src={heroRobotImg} alt="AI Agent" className="w-full h-auto rounded-xl" />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="grid grid-cols-2 gap-3">
+              <div className="mt-24">
+                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">Core Features</div>
+                <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">Everything You Need to Close</h2>
+                <p className="text-[16px] text-[#8a9abb] max-w-[480px] leading-relaxed">Six integrated modules that work together to automate your entire sales pipeline.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-12">
                   {[
-                    { icon: Boxes, label: t("landing.heroVisual.agentCatalog"), value: t("landing.heroVisual.agentCatalogVal"), color: "bg-primary/10 text-primary" },
-                    { icon: Filter, label: t("landing.heroVisual.salesFunnels"), value: t("landing.heroVisual.salesFunnelsVal"), color: "bg-chart-3/10 text-chart-3" },
-                    { icon: Eye, label: t("landing.heroVisual.engagement"), value: t("landing.heroVisual.engagementVal"), color: "bg-chart-4/10 text-chart-4" },
-                    { icon: Brain, label: t("landing.heroVisual.aiStrategy"), value: t("landing.heroVisual.aiStrategyVal"), color: "bg-chart-2/10 text-chart-2" },
-                    { icon: Globe, label: t("landing.heroVisual.multiRegion"), value: t("landing.heroVisual.multiRegionVal"), color: "bg-amber-500/10 text-amber-400" },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2.5 rounded-md bg-background/70 backdrop-blur-sm border border-border/30">
-                      <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${item.color}`}>
-                        <item.icon className="w-3.5 h-3.5" />
+                    { icon: Search, title: "Lead Intelligence", desc: "AI-powered prospecting that finds verified decision-makers with emails, phones, and intent signals.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Send, title: "AI Outreach", desc: "Multi-channel sequences — email, SMS, LinkedIn — personalized by AI and sent at optimal times.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: Phone, title: "Voice AI Agent", desc: "AI-powered phone agent that calls prospects, handles objections, and books meetings 24/7.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Mail, title: "Email Infrastructure", desc: "Automated warmup, reputation monitoring, and deliverability optimization across all your domains.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                    { icon: Brain, title: "Sales Intelligence", desc: "ZoomInfo-style B2B data — company info, org charts, tech stacks, and real-time intent signals.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: Users, title: "Smart CRM", desc: "AI-enhanced CRM that auto-updates deal stages, predicts close probability, and suggests next actions.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                  ].map((f, i) => (
+                    <div key={i} className="bg-[#0d1119] rounded-2xl p-8 transition-all duration-200 hover:-translate-y-1 cursor-default" style={{ border: "1px solid rgba(255,255,255,0.07)" }} data-testid={`card-feature-${i}`}>
+                      <div className="w-11 h-11 rounded-[10px] flex items-center justify-center text-xl mb-5" style={{ background: f.bg, color: f.color }}>
+                        <f.icon className="w-5 h-5" />
                       </div>
-                      <div>
-                        <p className="text-xs font-medium text-foreground">{item.label}</p>
-                        <p className="text-[10px] font-semibold text-muted-foreground">{item.value}</p>
+                      <div style={syne} className="text-[16px] font-bold mb-2">{f.title}</div>
+                      <div className="text-[13px] text-[#8a9abb] leading-relaxed">{f.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div id="pricing-section" className="py-24 px-6 md:px-12 max-w-[1200px] mx-auto">
+              <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">Pricing</div>
+              <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">Simple, Transparent Pricing</h2>
+              <p className="text-[16px] text-[#8a9abb] max-w-[480px] leading-relaxed">Choose the plan that fits your sales operation. Scale up anytime.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-12">
+                {plans.map((p, i) => (
+                  <div key={i} className={`bg-[#0d1119] rounded-[20px] p-9 relative overflow-hidden transition-transform hover:-translate-y-1 ${p.popular ? "border-[rgba(59,130,246,.4)]" : ""}`} style={{ border: p.popular ? "1px solid rgba(59,130,246,.4)" : "1px solid rgba(255,255,255,0.07)" }} data-testid={`card-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`}>
+                    {p.popular && (
+                      <div className="absolute top-0 right-6 bg-[#3b82f6] text-white text-[10px] font-bold uppercase tracking-[1px] px-3 py-1 rounded-b-lg">Most Popular</div>
+                    )}
+                    <div style={syne} className="text-[16px] font-bold mb-1.5">{p.name}</div>
+                    <div style={syne} className="text-5xl font-extrabold tracking-[-2px] leading-none mb-1">{p.price}<sub className="text-[16px] font-normal text-[#5a6a8a] tracking-normal align-middle">/mo</sub></div>
+                    <div className="text-[13px] text-[#5a6a8a] mb-7">{p.tagline}</div>
+                    <ul className="flex flex-col gap-2.5 mb-8">
+                      {p.features.map((f, j) => (
+                        <li key={j} className="text-[13px] flex gap-2.5 items-start text-[rgba(238,242,255,.75)]">
+                          <Check className="w-3.5 h-3.5 text-[#00e5a0] mt-0.5 shrink-0" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <button onClick={() => startPlan(p.name, p.price)} data-testid={`button-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`} className={`w-full py-3.5 rounded-[10px] text-[14px] font-bold cursor-pointer transition-all ${p.popular ? "bg-[#00e5a0] text-[#07090f] hover:bg-[#00ffb3]" : "text-[#eef2ff] hover:border-[rgba(255,255,255,.3)]"}`} style={p.popular ? syne : { ...syne, background: "transparent", border: "1px solid rgba(255,255,255,0.12)" }}>
+                      Get Started
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <footer className="py-8 px-6 text-center text-[13px] text-[#5a6a8a]" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+              &copy; 2026 ArgiFlow AI. All rights reserved.
+            </footer>
+          </div>
+        )}
+
+        {currentView === "demo" && (
+          <div className="relative z-[1] min-h-screen pt-24 pb-16 px-6 md:px-12 max-w-[1100px] mx-auto anim-fadeUp">
+            <div className="mb-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-2">Interactive Demo</div>
+              <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-2">See ArgiFlow in Action</h2>
+              <p className="text-[14px] text-[#8a9abb]">Explore each module with live simulations.</p>
+            </div>
+            <div className="flex gap-2 p-1 rounded-xl w-fit mb-10" style={{ background: "#0d1119", border: "1px solid rgba(255,255,255,0.07)" }}>
+              {([["leads", "Lead Gen"], ["outreach", "Outreach"], ["voice", "Voice AI"], ["email", "Email Infra"]] as const).map(([k, label]) => (
+                <button key={k} onClick={() => setActiveDemo(k)} data-testid={`button-demo-tab-${k}`} className={`px-5 py-2.5 rounded-lg text-[13px] font-medium cursor-pointer transition-all ${activeDemo === k ? "bg-[#1a2235] text-[#eef2ff]" : "text-[#8a9abb]"}`} style={{ border: "none", ...dm }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {activeDemo === "leads" && (
+              <div className="anim-fadeUp">
+                <div className="bg-[#0d1119] rounded-2xl p-8 mb-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div className="flex gap-3 mb-6 flex-wrap">
+                    <input value={demoIndustry} onChange={e => setDemoIndustry(e.target.value)} placeholder="Industry (e.g. Healthcare)" data-testid="input-demo-industry" className="flex-1 min-w-[180px] bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] focus:border-[rgba(0,229,160,.4)] transition-colors" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} />
+                    <input value={demoLocation} onChange={e => setDemoLocation(e.target.value)} placeholder="Location (e.g. Florida)" data-testid="input-demo-location" className="flex-1 min-w-[180px] bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] focus:border-[rgba(0,229,160,.4)] transition-colors" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} />
+                    <input value={demoTitle} onChange={e => setDemoTitle(e.target.value)} placeholder="Title (e.g. Owner)" data-testid="input-demo-title" className="flex-1 min-w-[180px] bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] focus:border-[rgba(0,229,160,.4)] transition-colors" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} />
+                    <button onClick={runLeadGen} disabled={leadRunning} data-testid="button-run-lead-gen" className="px-7 py-3 bg-[#00e5a0] rounded-[10px] text-[14px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed" style={syne}>
+                      Generate Leads
+                    </button>
+                  </div>
+                  {leadStatus && <div className="text-[14px] text-[#8a9abb] py-4">{leadStatus}</div>}
+                  {leadResults.length > 0 && (
+                    <div className="anim-fadeUp">
+                      <div className="text-[13px] text-[#8a9abb] mb-4"><strong className="text-[#00e5a0]">{leadResults.length}</strong> verified leads found</div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr>
+                              {["Name", "Title", "Company", "Email", "Phone", "Score"].map(h => (
+                                <th key={h} className="text-[11px] font-semibold uppercase tracking-[1px] text-[#5a6a8a] px-3.5 py-2.5 text-left" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {leadResults.map((l, i) => (
+                              <tr key={i} className="hover:bg-[#131a26]">
+                                <td className="px-3.5 py-3.5 text-[13px] font-medium" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>{l.name}</td>
+                                <td className="px-3.5 py-3.5 text-[13px] text-[#8a9abb]" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>{l.title}</td>
+                                <td className="px-3.5 py-3.5 text-[13px]" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>{l.company}</td>
+                                <td className="px-3.5 py-3.5 text-[13px] text-[#00e5a0]" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>{l.email}</td>
+                                <td className="px-3.5 py-3.5 text-[13px] text-[#8a9abb]" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>{l.phone}</td>
+                                <td className="px-3.5 py-3.5 text-[13px]" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${l.stype === "high" ? "bg-[rgba(0,229,160,.15)] text-[#00e5a0]" : "bg-[rgba(245,158,11,.15)] text-[#f59e0b]"}`}>{l.score}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* What ArgiFlow Does — Quick Summary */}
-      <section className="py-16 relative" data-testid="section-what-we-do">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-3">
-              {t("landing.whatWeDo.title", "In Simple Terms:")}{" "}
-              <span className="gradient-text">{t("landing.whatWeDo.titleHighlight", "What Does ArgiFlow Actually Do?")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-3xl mx-auto text-lg leading-relaxed">
-              {t("landing.whatWeDo.description", "ArgiFlow is an AI-powered platform that automatically finds potential clients for your business, reaches out to them with personalized messages, handles their replies, and books meetings on your calendar — all without you lifting a finger.")}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4 mb-8">
-            {[
-              {
-                icon: Search,
-                step: "1",
-                title: t("landing.whatWeDo.step1Title", "AI Finds Your Clients"),
-                desc: t("landing.whatWeDo.step1Desc", "Tell us who your ideal customer is. AI searches the internet and finds matching businesses with contact details — emails, phone numbers, company info."),
-                color: "bg-primary/10 text-primary",
-              },
-              {
-                icon: Send,
-                step: "2",
-                title: t("landing.whatWeDo.step2Title", "AI Sends Messages For You"),
-                desc: t("landing.whatWeDo.step2Desc", "AI writes and sends personalized emails and text messages to each prospect. Every message is tailored to their business and pain points."),
-                color: "bg-chart-3/10 text-chart-3",
-              },
-              {
-                icon: MessageSquare,
-                step: "3",
-                title: t("landing.whatWeDo.step3Title", "AI Handles Replies"),
-                desc: t("landing.whatWeDo.step3Desc", "When someone responds, AI reads the reply, understands if they're interested, and responds appropriately — no manual work needed."),
-                color: "bg-chart-4/10 text-chart-4",
-              },
-              {
-                icon: Calendar,
-                step: "4",
-                title: t("landing.whatWeDo.step4Title", "AI Books Your Meetings"),
-                desc: t("landing.whatWeDo.step4Desc", "Interested prospects get scheduled on your calendar automatically. You just show up, present your service, and close the deal."),
-                color: "bg-chart-2/10 text-chart-2",
-              },
-            ].map((item) => (
-              <Card key={item.step} className="p-5 flex gap-4" data-testid={`card-what-we-do-step-${item.step}`}>
-                <div className={`w-11 h-11 rounded-md flex items-center justify-center shrink-0 ${item.color}`}>
-                  <item.icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
-                      {t("landing.process.step", "Step")} {item.step}
-                    </Badge>
-                    <h3 className="text-sm font-semibold">{item.title}</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          <div className="text-center">
-            <Card className="inline-block p-4 bg-primary/5 border-primary/20">
-              <p className="text-sm font-medium">
-                <span className="text-primary">{t("landing.whatWeDo.resultIcon", "Result:")}</span>{" "}
-                {t("landing.whatWeDo.resultText", "You wake up to new meetings on your calendar from prospects who want to buy your service. Every single day.")}
-              </p>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Services Section */}
-      <section id="services" className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              {t("landing.services.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.services.title")}{" "}
-              <span className="gradient-text">{t("landing.services.titleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.services.description")}
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services.map((service) => (
-              <Card key={service.title} className="p-6 hover-elevate group relative overflow-visible">
-                <div className="absolute top-4 right-4 text-4xl font-extrabold text-foreground/5 group-hover:text-primary/10 transition-colors">
-                  {service.number}
-                </div>
-                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center mb-4">
-                  <service.icon className="w-5 h-5 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{service.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {service.description}
-                </p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* AI Agent Catalog Showcase */}
-      <section id="agents" className="py-24 relative">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/3 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/3 right-0 w-80 h-80 bg-chart-4/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              <Boxes className="w-3.5 h-3.5 mr-2" />
-              {t("landing.agents.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.agents.title")}{" "}
-              <span className="gradient-text">{t("landing.agents.titleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.agents.description")}
-            </p>
-          </div>
-
-          <div className="relative rounded-xl overflow-hidden mb-10 max-h-64">
-            <img src={agentTeamImg} alt="AI Agent Team" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent" />
-            <div className="absolute inset-0 flex items-center p-8">
-              <div>
-                <p className="text-2xl font-bold mb-2">{t("landing.agents.autonomousTitle")}</p>
-                <p className="text-sm text-muted-foreground max-w-md">{t("landing.agents.autonomousDesc")}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 mb-12">
-            {/* Western Agents */}
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-bold">{t("landing.agents.argiflow")}</h3>
-                  <p className="text-xs text-muted-foreground">{t("landing.agents.westernMarkets")}</p>
-                </div>
-                <Badge variant="outline" className="ml-auto text-xs">{t("landing.agents.westernRegions")}</Badge>
-              </div>
-              <div className="space-y-3">
-                {westernAgents.map((agent) => (
-                  <div key={agent.name} className="flex items-center gap-3 p-2.5 rounded-md bg-secondary/30">
-                    <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                      <agent.icon className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{agent.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{agent.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* African Agents */}
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 rounded-md bg-amber-500/10 flex items-center justify-center">
-                  <Globe className="w-5 h-5 text-amber-400" />
-                </div>
-                <div>
-                  <h3 className="font-bold">{t("landing.agents.tradeflow")}</h3>
-                  <p className="text-xs text-muted-foreground">{t("landing.agents.africanMarkets")}</p>
-                </div>
-                <Badge variant="outline" className="ml-auto text-xs">{t("landing.agents.africanRegions")}</Badge>
-              </div>
-              <div className="space-y-3">
-                {africanAgents.map((agent) => (
-                  <div key={agent.name} className="flex items-center gap-3 p-2.5 rounded-md bg-secondary/30">
-                    <div className="w-8 h-8 rounded-md bg-amber-500/10 flex items-center justify-center shrink-0">
-                      <agent.icon className="w-4 h-4 text-amber-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{agent.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{agent.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 p-3 rounded-md bg-amber-500/5 border border-amber-500/10">
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-amber-400">{t("landing.agents.payPerResult")}</span> — {t("landing.agents.payPerResultDesc")}
-                </p>
-              </div>
-            </Card>
-          </div>
-
-          <div className="text-center">
-            <a href="/signup">
-              <Button size="lg" className="text-base px-8">
-                <Bot className="w-4 h-4 mr-2" />
-                {t("landing.agents.deployCta")}
-              </Button>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* AI Pipeline Flowchart */}
-      <section className="py-24 relative" data-testid="section-pipeline">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-primary/3 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-5xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              {t("landing.agents.pipelineBadge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.agents.pipelineTitle")}{" "}
-              <span className="gradient-text">{t("landing.agents.pipelineTitleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.agents.pipelineDesc")}
-            </p>
-          </div>
-          <Card className="p-8" data-testid="card-landing-pipeline">
-            <CompactFlowchart />
-          </Card>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
-            {[
-              { value: t("landing.agents.pipelineStat1Value"), label: t("landing.agents.pipelineStat1Label"), color: "text-primary" },
-              { value: t("landing.agents.pipelineStat2Value"), label: t("landing.agents.pipelineStat2Label"), color: "text-chart-3" },
-              { value: t("landing.agents.pipelineStat3Value"), label: t("landing.agents.pipelineStat3Label"), color: "text-chart-4" },
-              { value: t("landing.agents.pipelineStat4Value"), label: t("landing.agents.pipelineStat4Label"), color: "text-amber-400" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Platform Features Grid */}
-      <section id="platform" className="py-24 relative">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 right-0 w-96 h-96 bg-chart-2/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              {t("landing.platform.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.platform.title")}{" "}
-              <span className="gradient-text">{t("landing.platform.titleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.platform.description")}
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {platformFeatures.map((feature) => (
-              <Card key={feature.title} className="p-5 hover-elevate">
-                <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center mb-3">
-                  <feature.icon className="w-4 h-4 text-primary" />
-                </div>
-                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {feature.description}
-                </p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Email Infrastructure Engine */}
-      <section id="email-engine" className="py-24 relative" data-testid="section-email-engine">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/3 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/3 left-0 w-80 h-80 bg-chart-3/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              <Mail className="w-3.5 h-3.5 mr-2" />
-              {t("landing.emailEngine.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.emailEngine.title")}{" "}
-              <span className="gradient-text">{t("landing.emailEngine.titleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.emailEngine.description")}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
-            {[
-              { icon: Flame, title: t("landing.emailEngine.f0title"), desc: t("landing.emailEngine.f0desc"), color: "bg-orange-500/10 text-orange-400" },
-              { icon: Send, title: t("landing.emailEngine.f1title"), desc: t("landing.emailEngine.f1desc"), color: "bg-primary/10 text-primary" },
-              { icon: Inbox, title: t("landing.emailEngine.f2title"), desc: t("landing.emailEngine.f2desc"), color: "bg-chart-2/10 text-chart-2" },
-              { icon: ShieldCheck, title: t("landing.emailEngine.f3title"), desc: t("landing.emailEngine.f3desc"), color: "bg-chart-3/10 text-chart-3" },
-              { icon: CheckCircle, title: t("landing.emailEngine.f4title"), desc: t("landing.emailEngine.f4desc"), color: "bg-chart-4/10 text-chart-4" },
-              { icon: Sparkles, title: t("landing.emailEngine.f5title"), desc: t("landing.emailEngine.f5desc"), color: "bg-purple-500/10 text-purple-400" },
-            ].map((feature) => (
-              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-email-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
-                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
-                  <feature.icon className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6 mb-10">
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
-                  <Mail className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-bold">{t("landing.emailEngine.connectTitle")}</h3>
-                  <p className="text-xs text-muted-foreground">{t("landing.emailEngine.connectDesc")}</p>
-                </div>
-              </div>
-              <div className="space-y-2.5">
-                {[
-                  { name: t("landing.emailEngine.providerGoogle"), sub: t("landing.emailEngine.providerGoogleSub"), color: "text-red-400" },
-                  { name: t("landing.emailEngine.providerMicrosoft"), sub: t("landing.emailEngine.providerMicrosoftSub"), color: "text-blue-400" },
-                  { name: t("landing.emailEngine.providerAny"), sub: t("landing.emailEngine.providerAnySub"), color: "text-primary" },
-                ].map((provider) => (
-                  <div key={provider.name} className="flex items-center gap-3 p-3 rounded-md border border-border/50 bg-secondary/20">
-                    <div className={`w-8 h-8 rounded-md bg-secondary/50 flex items-center justify-center ${provider.color}`}>
-                      <Mail className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{provider.name}</p>
-                      <p className="text-xs text-muted-foreground">{provider.sub}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-md bg-chart-3/10 flex items-center justify-center">
-                  <Server className="w-5 h-5 text-chart-3" />
-                </div>
-                <div>
-                  <h3 className="font-bold">{t("landing.emailEngine.dfyTitle")}</h3>
-                  <p className="text-xs text-muted-foreground">{t("landing.emailEngine.dfyDesc")}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {[
-                  t("landing.emailEngine.dfyItem1"),
-                  t("landing.emailEngine.dfyItem2"),
-                  t("landing.emailEngine.dfyItem3"),
-                  t("landing.emailEngine.dfyItem4"),
-                  t("landing.emailEngine.dfyItem5"),
-                  t("landing.emailEngine.dfyItem6"),
-                ].map((item) => (
-                  <div key={item} className="flex items-center gap-2.5">
-                    <CheckCircle className="w-4 h-4 text-chart-3 shrink-0" />
-                    <span className="text-sm">{item}</span>
-                  </div>
-                ))}
-                <div className="flex items-center gap-2.5">
-                  <CheckCircle className="w-4 h-4 text-chart-3 shrink-0" />
-                  <span className="text-sm">{t("landing.emailEngine.dfyItem7")}</span>
-                  <Badge className="text-[10px] bg-amber-500/20 text-amber-400 border-amber-500/30">Pro</Badge>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-3 gap-6 mb-10">
-            {[
-              { value: t("landing.emailEngine.stat1Value"), label: t("landing.emailEngine.stat1Label"), color: "text-chart-3" },
-              { value: t("landing.emailEngine.stat2Value"), label: t("landing.emailEngine.stat2Label"), color: "text-primary" },
-              { value: t("landing.emailEngine.stat3Value"), label: t("landing.emailEngine.stat3Label"), color: "text-chart-4" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center">
-            <a href="/signup" data-testid="button-email-engine-cta">
-              <Button size="lg" className="text-base px-8">
-                <Mail className="w-4 h-4 mr-2" />
-                {t("landing.emailEngine.cta")}
-              </Button>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Workflow Automation Engine */}
-      <section id="workflow-engine" className="py-24 relative" data-testid="section-workflow-engine">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-chart-2/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              <Workflow className="w-3.5 h-3.5 mr-2" />
-              {t("landing.workflowEngine.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.workflowEngine.title")}{" "}
-              <span className="gradient-text">{t("landing.workflowEngine.titleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.workflowEngine.description")}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
-            {[
-              { icon: GitBranch, title: t("landing.workflowEngine.f0title"), desc: t("landing.workflowEngine.f0desc"), color: "bg-primary/10 text-primary" },
-              { icon: Boxes, title: t("landing.workflowEngine.f1title"), desc: t("landing.workflowEngine.f1desc"), color: "bg-chart-4/10 text-chart-4" },
-              { icon: FileText, title: t("landing.workflowEngine.f2title"), desc: t("landing.workflowEngine.f2desc"), color: "bg-chart-3/10 text-chart-3" },
-              { icon: Sparkles, title: t("landing.workflowEngine.f3title"), desc: t("landing.workflowEngine.f3desc"), color: "bg-purple-500/10 text-purple-400" },
-              { icon: Zap, title: t("landing.workflowEngine.f4title"), desc: t("landing.workflowEngine.f4desc"), color: "bg-amber-500/10 text-amber-400" },
-              { icon: BarChart3, title: t("landing.workflowEngine.f5title"), desc: t("landing.workflowEngine.f5desc"), color: "bg-chart-2/10 text-chart-2" },
-            ].map((feature) => (
-              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-workflow-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
-                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
-                  <feature.icon className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
-              </Card>
-            ))}
-          </div>
-
-          <Card className="p-6 mb-10">
-            <h3 className="font-semibold mb-4 text-center">{t("landing.workflowEngine.howItWorks")}</h3>
-            <div className="grid md:grid-cols-4 gap-4">
-              {[
-                { step: "01", label: t("landing.workflowEngine.step1Label"), desc: t("landing.workflowEngine.step1Desc"), icon: FileText },
-                { step: "02", label: t("landing.workflowEngine.step2Label"), desc: t("landing.workflowEngine.step2Desc"), icon: Sparkles },
-                { step: "03", label: t("landing.workflowEngine.step3Label"), desc: t("landing.workflowEngine.step3Desc"), icon: Settings },
-                { step: "04", label: t("landing.workflowEngine.step4Label"), desc: t("landing.workflowEngine.step4Desc"), icon: Activity },
-              ].map((s, i) => (
-                <div key={s.step} className="text-center relative">
-                  {i < 3 && <div className="hidden md:block absolute top-6 left-full w-full h-px bg-gradient-to-r from-primary/30 to-transparent -translate-x-1/2 z-0" />}
-                  <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-3 relative z-10">
-                    <s.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <Badge variant="outline" className="mb-2 border-primary/30 text-primary text-[10px]">{s.step}</Badge>
-                  <p className="text-sm font-medium">{s.label}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{s.desc}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <div className="grid grid-cols-3 gap-6 mb-10">
-            {[
-              { value: t("landing.workflowEngine.stat1Value"), label: t("landing.workflowEngine.stat1Label"), color: "text-primary" },
-              { value: t("landing.workflowEngine.stat2Value"), label: t("landing.workflowEngine.stat2Label"), color: "text-chart-3" },
-              { value: t("landing.workflowEngine.stat3Value"), label: t("landing.workflowEngine.stat3Label"), color: "text-chart-4" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center">
-            <a href="/signup" data-testid="button-workflow-engine-cta">
-              <Button size="lg" className="text-base px-8">
-                <Workflow className="w-4 h-4 mr-2" />
-                {t("landing.workflowEngine.cta")}
-              </Button>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Revenue Automation Suite */}
-      <section id="revenue-suite" className="py-24 relative" data-testid="section-revenue-suite">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/3 left-0 w-96 h-96 bg-chart-4/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/3 right-0 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              <TrendingUp className="w-3.5 h-3.5 mr-2" />
-              {t("landing.revenueSuite.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.revenueSuite.title")}{" "}
-              <span className="gradient-text">{t("landing.revenueSuite.titleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.revenueSuite.description")}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
-            {[
-              { icon: Mic, title: t("landing.revenueSuite.f0title"), desc: t("landing.revenueSuite.f0desc"), color: "bg-chart-4/10 text-chart-4" },
-              { icon: RefreshCw, title: t("landing.revenueSuite.f1title"), desc: t("landing.revenueSuite.f1desc"), color: "bg-primary/10 text-primary" },
-              { icon: Inbox, title: t("landing.revenueSuite.f2title"), desc: t("landing.revenueSuite.f2desc"), color: "bg-chart-2/10 text-chart-2" },
-              { icon: Clock, title: t("landing.revenueSuite.f3title"), desc: t("landing.revenueSuite.f3desc"), color: "bg-chart-3/10 text-chart-3" },
-              { icon: PauseCircle, title: t("landing.revenueSuite.f4title"), desc: t("landing.revenueSuite.f4desc"), color: "bg-amber-500/10 text-amber-400" },
-              { icon: Briefcase, title: t("landing.revenueSuite.f5title"), desc: t("landing.revenueSuite.f5desc"), color: "bg-purple-500/10 text-purple-400" },
-            ].map((feature) => (
-              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-revenue-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
-                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
-                  <feature.icon className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
-              </Card>
-            ))}
-          </div>
-
-          <Card className="p-6 mb-10">
-            <h3 className="font-semibold mb-4 text-center">{t("landing.revenueSuite.flowTitle")}</h3>
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              {[
-                { label: t("landing.revenueSuite.flowStep1"), icon: Search, color: "bg-primary/10 text-primary" },
-                { label: t("landing.revenueSuite.flowStep2"), icon: Send, color: "bg-chart-3/10 text-chart-3" },
-                { label: t("landing.revenueSuite.flowStep3"), icon: RefreshCw, color: "bg-chart-4/10 text-chart-4" },
-                { label: t("landing.revenueSuite.flowStep4"), icon: MessageSquare, color: "bg-chart-2/10 text-chart-2" },
-                { label: t("landing.revenueSuite.flowStep5"), icon: Calendar, color: "bg-amber-500/10 text-amber-400" },
-              ].map((step, i) => (
-                <div key={step.label} className="flex items-center gap-3">
-                  <div className="text-center">
-                    <div className={`w-12 h-12 rounded-full ${step.color} flex items-center justify-center mx-auto mb-2`}>
-                      <step.icon className="w-5 h-5" />
-                    </div>
-                    <p className="text-xs font-medium">{step.label}</p>
-                  </div>
-                  {i < 4 && <ArrowRight className="w-4 h-4 text-muted-foreground/40 hidden md:block" />}
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <div className="grid grid-cols-3 gap-6 mb-10">
-            {[
-              { value: t("landing.revenueSuite.stat1Value"), label: t("landing.revenueSuite.stat1Label"), color: "text-chart-4" },
-              { value: t("landing.revenueSuite.stat2Value"), label: t("landing.revenueSuite.stat2Label"), color: "text-primary" },
-              { value: t("landing.revenueSuite.stat3Value"), label: t("landing.revenueSuite.stat3Label"), color: "text-chart-3" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center">
-            <a href="/signup" data-testid="button-revenue-suite-cta">
-              <Button size="lg" className="text-base px-8">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                {t("landing.revenueSuite.cta")}
-              </Button>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* B2B Sales Intelligence */}
-      <section id="sales-intelligence" className="py-24 relative" data-testid="section-sales-intelligence">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/3 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/3 left-0 w-80 h-80 bg-chart-3/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              <Search className="w-3.5 h-3.5 mr-2" />
-              {t("landing.salesIntelligence.badge", "Sales Intelligence")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.salesIntelligence.title", "B2B Sales Intelligence")}{" "}
-              <span className="gradient-text">{t("landing.salesIntelligence.titleHighlight", "Engine")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.salesIntelligence.description", "Apollo.io-style prospecting built into your platform. Search contacts, enrich data, detect buying intent, and build org charts — all without leaving ArgiFlow.")}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-            {[
-              { icon: Users, title: t("landing.salesIntelligence.f0title", "People Search"), desc: t("landing.salesIntelligence.f0desc", "Find decision makers by title, seniority, department, company, and location. Filter by industry, employee count, and revenue range."), color: "bg-primary/10 text-primary" },
-              { icon: Building2, title: t("landing.salesIntelligence.f1title", "Company Discovery"), desc: t("landing.salesIntelligence.f1desc", "Search companies by industry, size, location, and technology stack. Full firmographic profiles with funding and social data."), color: "bg-chart-3/10 text-chart-3" },
-              { icon: Sparkles, title: t("landing.salesIntelligence.f2title", "Data Enrichment"), desc: t("landing.salesIntelligence.f2desc", "Enrich contacts and companies with emails, phone numbers, social profiles, skills, and tech stacks. Bulk-enrich your entire CRM."), color: "bg-chart-4/10 text-chart-4" },
-              { icon: Mail, title: t("landing.salesIntelligence.f3title", "Email & Phone Finder"), desc: t("landing.salesIntelligence.f3desc", "Pattern-based email discovery with confidence scoring. Direct, mobile, and company phone number lookup."), color: "bg-chart-2/10 text-chart-2" },
-              { icon: TrendingUp, title: t("landing.salesIntelligence.f4title", "Intent Data"), desc: t("landing.salesIntelligence.f4desc", "Detect buying signals — hiring surges, tech installs, content consumption. Track which companies are actively in-market."), color: "bg-amber-500/10 text-amber-400" },
-              { icon: Cpu, title: t("landing.salesIntelligence.f5title", "Technographics"), desc: t("landing.salesIntelligence.f5desc", "See what technology companies use — CRM, EHR, marketing tools, analytics. Find competitors of your existing customers."), color: "bg-purple-500/10 text-purple-400" },
-              { icon: GitBranch, title: t("landing.salesIntelligence.f6title", "Org Chart Builder"), desc: t("landing.salesIntelligence.f6desc", "Map company hierarchies. Identify decision makers, budget holders, and influencers to build multi-threaded outreach."), color: "bg-primary/10 text-primary" },
-              { icon: Brain, title: t("landing.salesIntelligence.f7title", "AI Deep Research"), desc: t("landing.salesIntelligence.f7desc", "AI researches companies and contacts. Get pain points, competitors, approach angles, buyer personas, and personalized icebreakers."), color: "bg-chart-3/10 text-chart-3" },
-            ].map((feature) => (
-              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-intelligence-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
-                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
-                  <feature.icon className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
-            {[
-              { value: t("landing.salesIntelligence.stat1Value", "12+"), label: t("landing.salesIntelligence.stat1Label", "Data Points per Contact"), color: "text-primary" },
-              { value: t("landing.salesIntelligence.stat2Value", "8"), label: t("landing.salesIntelligence.stat2Label", "Search Dimensions"), color: "text-chart-3" },
-              { value: t("landing.salesIntelligence.stat3Value", "50+"), label: t("landing.salesIntelligence.stat3Label", "API Endpoints"), color: "text-chart-4" },
-              { value: t("landing.salesIntelligence.stat4Value", "11"), label: t("landing.salesIntelligence.stat4Label", "Data Tables"), color: "text-chart-2" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center">
-            <a href="/signup" data-testid="button-intelligence-cta">
-              <Button size="lg" className="text-base px-8">
-                <Search className="w-4 h-4 mr-2" />
-                {t("landing.salesIntelligence.cta", "Start Prospecting Free")}
-              </Button>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* AI Outreach Agent */}
-      <section id="outreach-agent" className="py-24 relative" data-testid="section-outreach-agent">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-chart-4/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              <Bot className="w-3.5 h-3.5 mr-2" />
-              {t("landing.outreachAgent.badge", "Autonomous Agent")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.outreachAgent.title", "AI Outreach Agent")}{" "}
-              <span className="gradient-text">{t("landing.outreachAgent.titleHighlight", "on Autopilot")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.outreachAgent.description", "A fully autonomous agent that discovers prospects, sends personalized outreach, monitors replies, classifies responses, and books meetings — running 24/7 with no manual effort.")}
-            </p>
-          </div>
-
-          <Card className="p-6 mb-10">
-            <h3 className="font-semibold mb-6 text-center">{t("landing.outreachAgent.pipelineTitle", "8-Step Autonomous Pipeline")}</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { step: "01", label: t("landing.outreachAgent.step1", "Discover"), desc: t("landing.outreachAgent.step1Desc", "AI finds prospects matching your ICP"), icon: Search, color: "bg-primary/10 text-primary" },
-                { step: "02", label: t("landing.outreachAgent.step2", "Enroll"), desc: t("landing.outreachAgent.step2Desc", "Auto-add to email campaigns"), icon: Users, color: "bg-chart-3/10 text-chart-3" },
-                { step: "03", label: t("landing.outreachAgent.step3", "Send"), desc: t("landing.outreachAgent.step3Desc", "Inbox rotation with personalization"), icon: Send, color: "bg-chart-4/10 text-chart-4" },
-                { step: "04", label: t("landing.outreachAgent.step4", "Monitor"), desc: t("landing.outreachAgent.step4Desc", "IMAP polling for new replies"), icon: Eye, color: "bg-chart-2/10 text-chart-2" },
-                { step: "05", label: t("landing.outreachAgent.step5", "Classify"), desc: t("landing.outreachAgent.step5Desc", "AI labels every reply by intent"), icon: Brain, color: "bg-amber-500/10 text-amber-400" },
-                { step: "06", label: t("landing.outreachAgent.step6", "Respond"), desc: t("landing.outreachAgent.step6Desc", "Contextual auto-replies by label"), icon: MessageSquare, color: "bg-purple-500/10 text-purple-400" },
-                { step: "07", label: t("landing.outreachAgent.step7", "Book"), desc: t("landing.outreachAgent.step7Desc", "Auto-create appointments on interest"), icon: Calendar, color: "bg-primary/10 text-primary" },
-                { step: "08", label: t("landing.outreachAgent.step8", "Repeat"), desc: t("landing.outreachAgent.step8Desc", "Continuous discovery & follow-up"), icon: RotateCw, color: "bg-chart-3/10 text-chart-3" },
-              ].map((s) => (
-                <div key={s.step} className="text-center">
-                  <div className={`w-12 h-12 rounded-full ${s.color} flex items-center justify-center mx-auto mb-2`}>
-                    <s.icon className="w-5 h-5" />
-                  </div>
-                  <Badge variant="outline" className="mb-1.5 border-primary/30 text-primary text-[10px]">{s.step}</Badge>
-                  <p className="text-sm font-medium">{s.label}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{s.desc}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <div className="grid md:grid-cols-3 gap-5 mb-10">
-            {[
-              { icon: Target, title: t("landing.outreachAgent.f0title", "Smart Discovery"), desc: t("landing.outreachAgent.f0desc", "AI matches your ideal customer profile and finds new prospects automatically. Deduplicates against existing leads and blacklist domains."), color: "bg-primary/10 text-primary" },
-              { icon: Mail, title: t("landing.outreachAgent.f1title", "Inbox Rotation"), desc: t("landing.outreachAgent.f1desc", "Round-robin across multiple email accounts with spintax and variable replacement. Respects daily limits and business hours (M-F 9-5)."), color: "bg-chart-3/10 text-chart-3" },
-              { icon: Brain, title: t("landing.outreachAgent.f2title", "AI Reply Classification"), desc: t("landing.outreachAgent.f2desc", "Classifies replies into 8 categories: interested, not interested, OOO, meeting booked, referral, question, wrong person, bounced. Takes action accordingly."), color: "bg-chart-4/10 text-chart-4" },
-            ].map((feature) => (
-              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-outreach-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
-                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
-                  <feature.icon className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-3 gap-6 mb-10">
-            {[
-              { value: t("landing.outreachAgent.stat1Value", "8"), label: t("landing.outreachAgent.stat1Label", "Pipeline Steps"), color: "text-primary" },
-              { value: t("landing.outreachAgent.stat2Value", "24/7"), label: t("landing.outreachAgent.stat2Label", "Autonomous Operation"), color: "text-chart-3" },
-              { value: t("landing.outreachAgent.stat3Value", "8"), label: t("landing.outreachAgent.stat3Label", "Reply Classifications"), color: "text-chart-4" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center">
-            <a href="/signup" data-testid="button-outreach-agent-cta">
-              <Button size="lg" className="text-base px-8">
-                <Bot className="w-4 h-4 mr-2" />
-                {t("landing.outreachAgent.cta", "Launch Outreach Agent")}
-              </Button>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Deep Lead Discovery */}
-      <section id="lead-discovery" className="py-24 relative" data-testid="section-lead-discovery">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 right-0 w-96 h-96 bg-chart-3/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              <Search className="w-3.5 h-3.5 mr-2" />
-              {t("landing.leadDiscovery.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.leadDiscovery.title")}{" "}
-              <span className="gradient-text">{t("landing.leadDiscovery.titleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.leadDiscovery.description")}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
-            {[
-              { icon: MapPin, title: t("landing.leadDiscovery.f0title"), desc: t("landing.leadDiscovery.f0desc"), color: "bg-chart-4/10 text-chart-4" },
-              { icon: TrendingUp, title: t("landing.leadDiscovery.f1title"), desc: t("landing.leadDiscovery.f1desc"), color: "bg-chart-3/10 text-chart-3" },
-              { icon: ClipboardCheck, title: t("landing.leadDiscovery.f2title"), desc: t("landing.leadDiscovery.f2desc"), color: "bg-primary/10 text-primary" },
-              { icon: Stethoscope, title: t("landing.leadDiscovery.f3title"), desc: t("landing.leadDiscovery.f3desc"), color: "bg-chart-2/10 text-chart-2" },
-              { icon: Shield, title: t("landing.leadDiscovery.f4title"), desc: t("landing.leadDiscovery.f4desc"), color: "bg-amber-500/10 text-amber-400" },
-              { icon: RotateCw, title: t("landing.leadDiscovery.f5title"), desc: t("landing.leadDiscovery.f5desc"), color: "bg-purple-500/10 text-purple-400" },
-            ].map((feature) => (
-              <Card key={feature.title} className="p-5 hover-elevate" data-testid={`card-discovery-feature-${feature.title.toLowerCase().replace(/\s/g, "-")}`}>
-                <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${feature.color}`}>
-                  <feature.icon className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-semibold mb-1.5">{feature.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6 mb-10">
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-md bg-chart-4/10 flex items-center justify-center">
-                  <Landmark className="w-5 h-5 text-chart-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold">{t("landing.leadDiscovery.taxLienTitle")}</h3>
-                  <p className="text-xs text-muted-foreground">{t("landing.leadDiscovery.taxLienDesc")}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { state: "Florida", rate: "18%" },
-                  { state: "Arizona", rate: "16%" },
-                  { state: "Iowa", rate: "24%" },
-                  { state: "New Jersey", rate: "18%" },
-                  { state: "Illinois", rate: "18%" },
-                  { state: "Maryland", rate: "12%" },
-                  { state: "South Carolina", rate: "12%" },
-                  { state: "Colorado", rate: "9%" },
-                  { state: "Indiana", rate: "10%" },
-                  { state: "West Virginia", rate: "12%" },
-                ].map((s) => (
-                  <div key={s.state} className="flex items-center justify-between p-2 rounded-md bg-secondary/30 text-sm">
-                    <span>{s.state}</span>
-                    <Badge variant="outline" className="text-[10px] text-chart-3">{s.rate}</Badge>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-md bg-chart-2/10 flex items-center justify-center">
-                  <Stethoscope className="w-5 h-5 text-chart-2" />
-                </div>
-                <div>
-                  <h3 className="font-bold">{t("landing.leadDiscovery.medBillingTitle")}</h3>
-                  <p className="text-xs text-muted-foreground">{t("landing.leadDiscovery.medBillingDesc")}</p>
-                </div>
-              </div>
-              <div className="space-y-2.5">
-                {[
-                  { label: t("landing.leadDiscovery.strategyHiring"), desc: t("landing.leadDiscovery.strategyHiringDesc") },
-                  { label: t("landing.leadDiscovery.strategyNew"), desc: t("landing.leadDiscovery.strategyNewDesc") },
-                  { label: t("landing.leadDiscovery.strategyPain"), desc: t("landing.leadDiscovery.strategyPainDesc") },
-                  { label: t("landing.leadDiscovery.strategySpecialty"), desc: t("landing.leadDiscovery.strategySpecialtyDesc") },
-                ].map((strategy) => (
-                  <div key={strategy.label} className="flex items-center gap-3 p-2.5 rounded-md bg-secondary/30">
-                    <CheckCircle className="w-4 h-4 text-chart-3 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium">{strategy.label}</p>
-                      <p className="text-xs text-muted-foreground">{strategy.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-3 gap-6 mb-10">
-            {[
-              { value: t("landing.leadDiscovery.stat1Value"), label: t("landing.leadDiscovery.stat1Label"), color: "text-chart-4" },
-              { value: t("landing.leadDiscovery.stat2Value"), label: t("landing.leadDiscovery.stat2Label"), color: "text-chart-3" },
-              { value: t("landing.leadDiscovery.stat3Value"), label: t("landing.leadDiscovery.stat3Label"), color: "text-amber-400" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center">
-            <a href="/signup" data-testid="button-lead-discovery-cta">
-              <Button size="lg" className="text-base px-8">
-                <Search className="w-4 h-4 mr-2" />
-                {t("landing.leadDiscovery.cta")}
-              </Button>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Platform Stats Strip */}
-      <section className="py-16 relative" data-testid="section-platform-stats">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-10">
-            <Badge variant="outline" className="py-1.5 px-4 border-primary/30 bg-primary/5">
-              {t("landing.platformStats.badge")}
-            </Badge>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-            {[
-              { value: t("landing.platformStats.s0value"), label: t("landing.platformStats.s0label"), color: "text-primary" },
-              { value: t("landing.platformStats.s1value"), label: t("landing.platformStats.s1label"), color: "text-chart-3" },
-              { value: t("landing.platformStats.s2value"), label: t("landing.platformStats.s2label"), color: "text-chart-4" },
-              { value: t("landing.platformStats.s3value"), label: t("landing.platformStats.s3label"), color: "text-chart-2" },
-              { value: t("landing.platformStats.s4value"), label: t("landing.platformStats.s4label"), color: "text-amber-400" },
-              { value: t("landing.platformStats.s5value"), label: t("landing.platformStats.s5label"), color: "text-purple-400" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works / Process */}
-      <section id="process" className="py-24 relative">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              {t("landing.process.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.process.title")}{" "}
-              <span className="gradient-text">{t("landing.process.titleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.process.description")}
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {process_steps.map((step, index) => (
-              <div key={step.step} className="relative">
-                {index < process_steps.length - 1 && (
-                  <div className="hidden md:block absolute top-12 left-full w-full h-px bg-gradient-to-r from-primary/30 to-transparent -translate-x-1/2 z-0" />
-                )}
-                <Card className="p-6 text-center relative z-10">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
-                    <step.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <Badge variant="outline" className="mb-3 border-primary/30 text-primary text-xs">
-                    {t("landing.process.step")} {step.step}
-                  </Badge>
-                  <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {step.description}
-                  </p>
-                </Card>
-              </div>
-            ))}
-          </div>
-          <div className="text-center mt-12">
-            <a href="/signup">
-              <Button size="lg" className="text-base px-8">
-                <Rocket className="w-4 h-4 mr-2" />
-                {t("landing.process.cta")}
-              </Button>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-6">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              {t("landing.pricing.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.pricing.title")} <span className="gradient-text">{t("landing.pricing.titleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              {t("landing.pricing.description")}
-            </p>
-          </div>
-
-          {/* Western Pricing */}
-          <div className="mb-8">
-            <div className="flex items-center justify-center gap-2 mb-6">
-              <Zap className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-bold">{t("landing.agents.argiflow")}</h3>
-              <Badge variant="outline" className="text-xs">{t("landing.agents.westernMarkets")}</Badge>
-            </div>
-            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {/* Starter */}
-              <Card className="p-6 relative">
-                <div className="text-center mb-6 pt-2">
-                  <h3 className="text-lg font-semibold mb-1">{t("landing.pricing.starterName")}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {t("landing.pricing.starterDesc")}
-                  </p>
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-extrabold">{t("landing.pricing.starterPrice")}</span>
-                  </div>
-                </div>
-                <ul className="space-y-3 mb-6">
-                  {(t("landing.pricing.starterFeatures", { returnObjects: true }) as string[]).map((f) => (
-                    <li key={f} className="flex items-start gap-3 text-sm">
-                      <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="space-y-2">
-                  <a href="/signup" className="block">
-                    <Button className="w-full" variant="outline" data-testid="button-starter-trial">
-                      {t("landing.pricing.starterCta")}
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </a>
-                </div>
-              </Card>
-
-              {/* Pro */}
-              <Card className="p-6 relative border-primary/40 glow-purple">
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
-                  {t("landing.pricing.proPopular")}
-                </Badge>
-                <div className="text-center mb-6 pt-2">
-                  <h3 className="text-lg font-semibold mb-1">{t("landing.pricing.proName")}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {t("landing.pricing.proDesc")}
-                  </p>
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-extrabold">{t("landing.pricing.proPrice")}</span>
-                    <span className="text-muted-foreground">{t("landing.pricing.perMonth")}</span>
-                  </div>
-                </div>
-                <ul className="space-y-3 mb-6">
-                  {(t("landing.pricing.proFeatures", { returnObjects: true }) as string[]).map((f) => (
-                    <li key={f} className="flex items-start gap-3 text-sm">
-                      <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="space-y-2">
-                  <a href="/signup" className="block">
-                    <Button className="w-full" data-testid="button-pro-trial">
-                      {t("landing.pricing.proCta")}
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </a>
-                  <a href="https://venmo.com/argilette?txn=pay&amount=259.99&note=ArgiFlow%20Pro%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
-                    <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-pro-venmo">
-                      <SiVenmo className="w-4 h-4 mr-1" />
-                      {t("landing.pricing.payWith")} Venmo
-                    </Button>
-                  </a>
-                </div>
-              </Card>
-
-              {/* Enterprise */}
-              <Card className="p-6 relative">
-                <div className="text-center mb-6 pt-2">
-                  <h3 className="text-lg font-semibold mb-1">{t("landing.pricing.entName")}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {t("landing.pricing.entDesc")}
-                  </p>
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-extrabold">{t("landing.pricing.entPrice")}</span>
-                    <span className="text-muted-foreground">{t("landing.pricing.perMonth")}</span>
-                  </div>
-                </div>
-                <ul className="space-y-3 mb-6">
-                  {(t("landing.pricing.entFeatures", { returnObjects: true }) as string[]).map((f) => (
-                    <li key={f} className="flex items-start gap-3 text-sm">
-                      <Check className="w-4 h-4 text-chart-3 shrink-0 mt-0.5" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="space-y-2">
-                  <a href="/signup" className="block">
-                    <Button className="w-full" variant="outline" data-testid="button-enterprise-trial">
-                      {t("landing.pricing.entCta")}
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </a>
-                  <a href="https://venmo.com/argilette?txn=pay&amount=499.99&note=ArgiFlow%20Enterprise%20Plan%20-%20Monthly%20Subscription" target="_blank" rel="noopener noreferrer" className="block">
-                    <Button className="w-full bg-[#008CFF] border-[#008CFF] text-white" variant="outline" data-testid="button-enterprise-venmo">
-                      <SiVenmo className="w-4 h-4 mr-1" />
-                      {t("landing.pricing.payWith")} Venmo
-                    </Button>
-                  </a>
-                </div>
-              </Card>
-            </div>
-          </div>
-
-          {/* African Pricing */}
-          <div className="mt-16">
-            <div className="flex items-center justify-center gap-2 mb-6">
-              <Globe className="w-5 h-5 text-amber-400" />
-              <h3 className="text-lg font-bold">{t("landing.agents.tradeflow")}</h3>
-              <Badge variant="outline" className="text-xs">{t("landing.agents.africanMarkets")}</Badge>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
-              {[
-                { name: t("landing.pricing.tfHustleName"), price: t("landing.pricing.tfHustlePrice"), agents: t("landing.pricing.tfHustleAgents"), leads: t("landing.pricing.tfHustleLeads"), fee: t("landing.pricing.tfHustleFee"), features: t("landing.pricing.tfHustleFeatures", { returnObjects: true }) as string[] },
-                { name: t("landing.pricing.tfBusinessName"), price: t("landing.pricing.tfBusinessPrice"), agents: t("landing.pricing.tfBusinessAgents"), leads: t("landing.pricing.tfBusinessLeads"), fee: t("landing.pricing.tfBusinessFee"), features: t("landing.pricing.tfBusinessFeatures", { returnObjects: true }) as string[], popular: true },
-                { name: t("landing.pricing.tfMogulName"), price: t("landing.pricing.tfMogulPrice"), agents: t("landing.pricing.tfMogulAgents"), leads: t("landing.pricing.tfMogulLeads"), fee: t("landing.pricing.tfMogulFee"), features: t("landing.pricing.tfMogulFeatures", { returnObjects: true }) as string[] },
-                { name: t("landing.pricing.tfPayPerResultName"), price: t("landing.pricing.tfPayPerResultPrice"), agents: t("landing.pricing.tfPayPerResultAgents"), leads: t("landing.pricing.tfPayPerResultLeads"), fee: t("landing.pricing.tfPayPerResultFee"), features: t("landing.pricing.tfPayPerResultFeatures", { returnObjects: true }) as string[] },
-              ].map((plan) => (
-                <Card key={plan.name} className={`p-4 ${plan.popular ? "border-amber-500/40" : ""}`}>
-                  {plan.popular && (
-                    <Badge className="mb-2 bg-amber-500 text-white text-[10px]">{t("landing.pricing.tfBusinessPopular")}</Badge>
                   )}
-                  <h4 className="font-semibold text-sm">{plan.name}</h4>
-                  <div className="flex items-baseline gap-0.5 mt-1 mb-3">
-                    <span className="text-2xl font-extrabold">{plan.price}</span>
-                    {plan.price !== "$0" && <span className="text-xs text-muted-foreground">/mo</span>}
-                  </div>
-                  <div className="space-y-1.5 text-xs text-muted-foreground mb-3">
-                    <p>{plan.agents}</p>
-                    <p>{plan.leads}</p>
-                    <p className="text-amber-400 font-medium">{plan.fee}</p>
-                  </div>
-                  <ul className="space-y-1">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-center gap-1.5 text-xs">
-                        <Check className="w-3 h-3 text-chart-3 shrink-0" />
-                        <span>{f}</span>
-                      </li>
+                </div>
+              </div>
+            )}
+
+            {activeDemo === "outreach" && (
+              <div className="anim-fadeUp">
+                <div className="bg-[#0d1119] rounded-2xl p-8 mb-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div className="flex gap-0 mb-8 overflow-x-auto">
+                    {[
+                      { label: "DISCOVERED", count: 127, sub: "New leads", done: true },
+                      { label: "ENRICHED", count: 98, sub: "Verified", done: true },
+                      { label: "CONTACTED", count: 64, sub: "Email sent", active: true },
+                      { label: "REPLIED", count: 23, sub: "17% rate" },
+                      { label: "MEETING", count: 11, sub: "Booked" },
+                    ].map((s, i, arr) => (
+                      <div key={i} className={`flex-1 min-w-[100px] px-3 py-4 text-center relative ${i === 0 ? "rounded-l-[10px]" : ""} ${i === arr.length - 1 ? "rounded-r-[10px]" : ""} ${s.done ? "bg-[rgba(0,229,160,.08)]" : s.active ? "bg-[rgba(59,130,246,.1)]" : "bg-[#131a26]"}`} style={{ border: `1px solid ${s.done ? "rgba(0,229,160,.2)" : s.active ? "rgba(59,130,246,.3)" : "rgba(255,255,255,0.07)"}` }}>
+                        <div className="text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[.8px]">{s.label}</div>
+                        <div style={syne} className="text-[22px] font-extrabold my-1">{s.count}</div>
+                        <div className="text-[10px] text-[#5a6a8a]">{s.sub}</div>
+                        {i < arr.length - 1 && <span className="absolute -right-2.5 top-1/2 -translate-y-1/2 text-[#5a6a8a] text-[14px] z-10">&rarr;</span>}
+                      </div>
                     ))}
-                  </ul>
-                  <a href="/signup" className="block mt-3">
-                    <Button size="sm" variant="outline" className="w-full text-xs" data-testid={`button-africa-${plan.name.toLowerCase().replace(/\s/g, "-")}`}>
-                      {t("landing.pricing.getStarted")}
-                    </Button>
-                  </a>
-                </Card>
+                  </div>
+                  <div className="flex items-center justify-between mb-6 gap-4 flex-wrap" style={syne}>
+                    <span className="text-[14px] font-bold">Live Activity</span>
+                    <button onClick={simulateOutreach} data-testid="button-run-outreach" className="px-7 py-3 bg-[#00e5a0] rounded-[10px] text-[14px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all" style={syne}>
+                      Run Next Cycle
+                    </button>
+                  </div>
+                  <div className="flex flex-col">
+                    {activityItems.map((item, i) => (
+                      <div key={i} className="flex items-start gap-3.5 py-3.5" style={{ borderBottom: i < activityItems.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[14px] shrink-0 mt-0.5" style={{ background: item.icon === "cal" ? "rgba(59,130,246,0.12)" : "rgba(0,229,160,0.12)" }}>
+                          {item.icon === "mail" && <Mail className="w-4 h-4 text-[#00e5a0]" />}
+                          {item.icon === "reply" && <MessageSquare className="w-4 h-4 text-[#00e5a0]" />}
+                          {item.icon === "cal" && <Calendar className="w-4 h-4 text-[#3b82f6]" />}
+                          {item.icon === "send" && <Send className="w-4 h-4 text-[#00e5a0]" />}
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-medium mb-0.5">{item.title}</div>
+                          <div className="text-[11px] text-[#5a6a8a]">{item.time}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeDemo === "voice" && (
+              <div className="anim-fadeUp">
+                <div className="bg-[#0d1119] rounded-2xl p-8" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div className="flex flex-col items-center py-12 gap-6">
+                    <button onClick={simulateCall} data-testid="button-simulate-call" className={`w-[100px] h-[100px] rounded-full border-none cursor-pointer text-4xl flex items-center justify-center transition-all hover:scale-105 ${callState === "calling" ? "voice-pulse" : ""}`} style={{ background: "linear-gradient(135deg,#00e5a0,#00b377)" }}>
+                      {callState === "calling" ? <PhoneCall className="w-9 h-9 text-[#07090f]" /> : <Phone className="w-9 h-9 text-[#07090f]" />}
+                    </button>
+                    <div style={syne} className="text-[16px] font-bold">{callStatus}</div>
+                    {showTranscript && (
+                      <div ref={transcriptRef} className="bg-[#131a26] rounded-xl p-5 w-full max-w-[500px] max-h-[220px] overflow-y-auto text-[13px] leading-relaxed" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                        {callTranscript.map((line, i) => (
+                          <div key={i} className={`mb-2.5 ${line.role === "ai" ? "text-[#00e5a0]" : "text-[#8a9abb]"}`}>
+                            <strong>{line.role === "ai" ? "AI:" : "Dr. Torres:"}</strong> {line.text}
+                          </div>
+                        ))}
+                        {callTranscript.length === 0 && <div className="text-[#5a6a8a]">Waiting for connection...</div>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeDemo === "email" && (
+              <div className="anim-fadeUp">
+                <div className="bg-[#0d1119] rounded-2xl p-8 mb-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={syne} className="text-[14px] font-bold mb-5">Email Warmup Dashboard</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    {[
+                      { email: "outreach@argilette.co", pct: 92, sent: "1,247", rep: "94%" },
+                      { email: "sales@argilette.co", pct: 78, sent: "892", rep: "87%" },
+                      { email: "hello@argilette.co", pct: 85, sent: "1,031", rep: "91%" },
+                      { email: "team@argilette.co", pct: 41, sent: "234", rep: "72%" },
+                    ].map((e, i) => (
+                      <div key={i} className="bg-[#131a26] rounded-xl p-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                        <div className="text-[13px] font-medium mb-3">{e.email}</div>
+                        <div className="h-1.5 rounded bg-[rgba(255,255,255,.06)] mb-2">
+                          <div className="h-1.5 rounded transition-all duration-1000" style={{ width: `${e.pct}%`, background: "linear-gradient(90deg,#00e5a0,#3b82f6)" }} />
+                        </div>
+                        <div className="flex justify-between text-[11px] text-[#5a6a8a]">
+                          <span>Warmup: {e.pct}%</span>
+                          <span>Sent: {e.sent}</span>
+                          <span>Reputation: {e.rep}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { label: "Active Domains", val: "4", color: "#00e5a0" },
+                      { label: "Avg Reputation", val: "92%", color: "#00e5a0" },
+                      { label: "Bounce Rate", val: "0.1%", color: "#eef2ff" },
+                      { label: "Open Rate", val: "47%", color: "#f59e0b" },
+                    ].map((s, i) => (
+                      <div key={i} className="bg-[#131a26] rounded-xl p-5 text-center" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                        <div style={{ ...syne, color: s.color }} className="text-2xl font-extrabold mb-1">{s.val}</div>
+                        <div className="text-[11px] text-[#5a6a8a]">{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {currentView === "getstarted" && (
+          <div className="relative z-[1] min-h-screen pt-24 pb-20 px-6 max-w-[1100px] mx-auto anim-fadeUp">
+            <div className="flex items-center justify-center gap-0 mb-14">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="flex items-center gap-0">
+                  <div className={`flex items-center gap-2.5 text-[13px] font-medium ${n < gsStep ? "text-[#00e5a0]" : n === gsStep ? "text-[#eef2ff]" : "text-[#5a6a8a]"}`}>
+                    <div className={`w-[30px] h-[30px] rounded-full flex items-center justify-center text-[12px] font-bold ${n === gsStep ? "bg-[#00e5a0] text-[#07090f] border-[#00e5a0]" : n < gsStep ? "bg-[rgba(0,229,160,0.12)] text-[#00e5a0] border-[rgba(0,229,160,.3)]" : "border-[rgba(255,255,255,0.07)]"}`} style={{ ...syne, border: n === gsStep ? "1px solid #00e5a0" : n < gsStep ? "1px solid rgba(0,229,160,.3)" : "1px solid rgba(255,255,255,0.07)" }}>
+                      {n < gsStep ? <Check className="w-3 h-3" /> : n}
+                    </div>
+                    <span className="hidden sm:inline">{["Choose Plan", "Your Info", "Pay via Venmo"][n - 1]}</span>
+                  </div>
+                  {n < 3 && <div className="w-16 h-px bg-[rgba(255,255,255,0.07)] mx-2" />}
+                </div>
               ))}
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Testimonials */}
-      <section id="testimonials" className="py-24 relative">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-chart-4/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              {t("landing.testimonials.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.testimonials.title")} <span className="gradient-text">{t("landing.testimonials.titleHighlight")}</span>
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((item) => (
-              <Card key={item.name} className="p-6" data-testid={`card-usecase-${item.name.toLowerCase().replace(/\s+/g, '-')}`}>
-                <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                      <item.icon className="w-5 h-5 text-primary" />
+            {gsStep === 1 && (
+              <div className="anim-fadeUp">
+                <div className="text-center mb-10">
+                  <h2 style={syne} className="text-3xl font-extrabold tracking-[-1px] mb-2">Choose Your Plan</h2>
+                  <p className="text-[14px] text-[#8a9abb]">Select the plan that fits your sales operation.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+                  {plans.map((p) => (
+                    <div key={p.name} onClick={() => gsSelectPlan(p.name, p.price)} data-testid={`button-select-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`} className={`bg-[#0d1119] rounded-2xl p-7 cursor-pointer relative transition-all hover:-translate-y-1 ${selectedPlan.name === p.name ? "border-[#00e5a0] bg-[rgba(0,229,160,.04)]" : "hover:border-[rgba(0,229,160,.3)]"}`} style={{ border: selectedPlan.name === p.name ? "1px solid #00e5a0" : "1px solid rgba(255,255,255,0.07)" }}>
+                      <div className={`absolute top-4 right-4 w-[22px] h-[22px] rounded-full bg-[#00e5a0] flex items-center justify-center transition-opacity ${selectedPlan.name === p.name ? "opacity-100" : "opacity-0"}`}>
+                        <Check className="w-3 h-3 text-[#07090f]" />
+                      </div>
+                      {p.popular && (
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-[1px] text-[#3b82f6] px-2.5 py-0.5 rounded-[10px] mb-4" style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,.3)" }}>Most Popular</span>
+                      )}
+                      <div style={syne} className="text-[17px] font-bold mb-1.5">{p.name}</div>
+                      <div style={syne} className="text-[40px] font-extrabold tracking-[-2px] leading-none mb-1">{p.price}<sub className="text-[15px] font-normal text-[#5a6a8a] tracking-normal">/mo</sub></div>
+                      <div className="text-[12px] text-[#5a6a8a] mb-5">{p.tagline}</div>
+                      <ul className="flex flex-col gap-2">
+                        {p.features.map((f, j) => (
+                          <li key={j} className="text-[12px] flex gap-2 text-[rgba(238,242,255,.7)]">
+                            <Check className="w-3 h-3 text-[#00e5a0] mt-0.5 shrink-0" />{f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-center">
+                  <button onClick={() => { if (selectedPlan.name) goToStep(2); else showToast("warn", "Please select a plan"); }} data-testid="button-gs-continue-1" className="px-10 py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all" style={syne}>
+                    Continue <ArrowRight className="inline w-4 h-4 ml-1" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {gsStep === 2 && (
+              <div className="anim-fadeUp">
+                <button onClick={() => goToStep(1)} data-testid="button-gs-back-1" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] text-[13px] text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-all mb-7" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.07)", ...dm }}>
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back
+                </button>
+                <div className="bg-[#0d1119] rounded-[20px] p-11 max-w-[580px] mx-auto" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div className="flex justify-between items-center rounded-[10px] px-5 py-3.5 mb-8" style={{ background: "rgba(0,229,160,0.12)", border: "1px solid rgba(0,229,160,.2)" }}>
+                    <span style={syne} className="text-[14px] font-bold">{selectedPlan.name} Plan</span>
+                    <span style={syne} className="text-[18px] font-extrabold text-[#00e5a0]">{selectedPlan.price}/mo</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mb-5">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">First Name</label>
+                      <input value={gsFirstName} onChange={e => setGsFirstName(e.target.value)} data-testid="input-gs-firstname" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="John" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.company}</p>
+                      <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Last Name</label>
+                      <input value={gsLastName} onChange={e => setGsLastName(e.target.value)} data-testid="input-gs-lastname" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="Smith" />
                     </div>
                   </div>
-                  <Badge className="bg-chart-3/10 text-chart-3 border-chart-3/20 text-xs">
-                    {item.result}
-                  </Badge>
+                  <div className="mb-5">
+                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Business Name</label>
+                    <input value={gsBusiness} onChange={e => setGsBusiness(e.target.value)} data-testid="input-gs-business" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="Acme Corp" />
+                  </div>
+                  <div className="mb-5">
+                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Email</label>
+                    <input value={gsEmail} onChange={e => setGsEmail(e.target.value)} type="email" data-testid="input-gs-email" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="john@acme.com" />
+                  </div>
+                  <div className="mb-5">
+                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Phone</label>
+                    <input value={gsPhone} onChange={e => setGsPhone(e.target.value)} data-testid="input-gs-phone" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="(555) 123-4567" />
+                  </div>
+                  <div className="mb-5">
+                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Industry</label>
+                    <select value={gsIndustry} onChange={e => setGsIndustry(e.target.value)} data-testid="select-gs-industry" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }}>
+                      <option value="">Select industry...</option>
+                      <option value="healthcare">Healthcare</option>
+                      <option value="saas">SaaS / Technology</option>
+                      <option value="finance">Finance / Insurance</option>
+                      <option value="realestate">Real Estate</option>
+                      <option value="legal">Legal</option>
+                      <option value="marketing">Marketing / Agency</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="mb-5">
+                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Target Customer Description</label>
+                    <textarea value={gsTarget} onChange={e => setGsTarget(e.target.value)} data-testid="input-gs-target" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] resize-y min-h-[80px]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="Describe your ideal customer..." />
+                  </div>
+                  <button onClick={() => goToStep(3)} data-testid="button-gs-continue-2" className="w-full py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all mt-1" style={syne}>
+                    Continue to Payment
+                  </button>
                 </div>
-                <p className="text-sm leading-relaxed text-foreground/90">
-                  {item.quote}
-                </p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="py-24 relative">
-        <div className="max-w-3xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 py-1.5 px-4 border-primary/30 bg-primary/5">
-              {t("landing.faq.badge")}
-            </Badge>
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.faq.title")} <span className="gradient-text">{t("landing.faq.titleHighlight")}</span>
-            </h2>
-          </div>
-          <div className="space-y-4">
-            {faqs.map((faq, i) => (
-              <Card key={i} className="p-6">
-                <h3 className="font-semibold mb-2 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-primary shrink-0" />
-                  {faq.q}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed pl-6">
-                  {faq.a}
-                </p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="py-24 relative">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <Card className="p-12 gradient-border glow-purple">
-            <h2 className="text-4xl font-bold mb-4">
-              {t("landing.cta.title")} <span className="gradient-text">{t("landing.cta.titleHighlight")}</span>
-            </h2>
-            <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-              {t("landing.cta.description")}
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
-              <a href="/signup" data-testid="button-cta-final">
-                <Button size="lg" className="text-base px-8">
-                  <Rocket className="w-4 h-4 mr-2" />
-                  {t("landing.cta.button")}
-                </Button>
-              </a>
-              <a href="mailto:abel@argilette.com">
-                <Button variant="outline" size="lg" className="text-base px-8">
-                  <Mail className="w-4 h-4 mr-2" />
-                  {t("landing.cta.emailUs")}
-                </Button>
-              </a>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {t("landing.cta.trialNote")}
-            </p>
-          </Card>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-16">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-4">
-                <Zap className="w-5 h-5 text-primary" />
-                <span className="font-bold gradient-text">{t("landing.footer.brandName")}</span>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                {t("landing.footer.description")}
-              </p>
-              <div className="flex items-center gap-3">
-                <Button size="icon" variant="ghost"><SiX className="w-4 h-4" /></Button>
-                <Button size="icon" variant="ghost"><SiLinkedin className="w-4 h-4" /></Button>
-                <Button size="icon" variant="ghost"><SiInstagram className="w-4 h-4" /></Button>
+            )}
+
+            {gsStep === 3 && (
+              <div className="anim-fadeUp">
+                <button onClick={() => goToStep(2)} data-testid="button-gs-back-2" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] text-[13px] text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-all mb-7" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.07)", ...dm }}>
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back
+                </button>
+                <div className="bg-[#0d1119] rounded-[20px] p-12 max-w-[560px] mx-auto text-center" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: "rgba(0,229,160,0.12)", border: "1px solid rgba(0,229,160,.25)" }}>
+                    <CreditCard className="w-6 h-6 text-[#00e5a0]" />
+                  </div>
+                  <h2 style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-2.5">Complete Your Setup</h2>
+                  <p className="text-[14px] text-[#8a9abb] mb-9 leading-relaxed">Pay securely via Venmo to activate your {selectedPlan.name} plan instantly.</p>
+
+                  {(gsFirstName || gsBusiness || gsEmail) && (
+                    <div className="text-left rounded-[10px] p-4 mb-5" style={{ background: "rgba(0,229,160,.04)", border: "1px solid rgba(0,229,160,.15)" }}>
+                      {gsFirstName && <div className="flex justify-between text-[13px] mb-1"><span className="text-[#5a6a8a]">Name</span><span className="font-medium">{gsFirstName} {gsLastName}</span></div>}
+                      {gsBusiness && <div className="flex justify-between text-[13px] mb-1"><span className="text-[#5a6a8a]">Business</span><span className="font-medium">{gsBusiness}</span></div>}
+                      {gsEmail && <div className="flex justify-between text-[13px]"><span className="text-[#5a6a8a]">Email</span><span className="font-medium">{gsEmail}</span></div>}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between rounded-xl px-5 py-3.5 mb-7" style={{ background: "rgba(0,229,160,0.12)", border: "1px solid rgba(0,229,160,.2)" }}>
+                    <span className="text-[13px] text-[#8a9abb]">Amount Due</span>
+                    <span style={syne} className="text-[22px] font-extrabold text-[#00e5a0]">{selectedPlan.price}/mo</span>
+                  </div>
+
+                  <div className="bg-[#131a26] rounded-2xl p-7 mb-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div className="flex items-center justify-center gap-2.5 mb-5">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "#3D95CE" }}>
+                        <SiVenmo className="w-5 h-5 text-white" />
+                      </div>
+                      <span style={syne} className="text-xl font-extrabold text-[#3D95CE]">Venmo</span>
+                    </div>
+                    <div className="w-40 h-40 bg-white rounded-xl mx-auto mb-4 flex items-center justify-center">
+                      <div className="text-[#5a6a8a] text-[11px]">QR Code</div>
+                    </div>
+                    <div style={syne} className="text-[22px] font-extrabold text-[#00e5a0] mb-1">@argilette</div>
+                    <div className="text-[12px] text-[#5a6a8a]">ArgiFlow AI Solutions</div>
+                  </div>
+
+                  <a href="https://link.venmo.com/send-request-money?txn=pay&recipients=argilette&referrer=biz_charge_sheet_payment_link" target="_blank" rel="noopener noreferrer" data-testid="button-open-venmo" className="block w-full py-4 rounded-xl text-[15px] font-bold text-white cursor-pointer hover:-translate-y-0.5 transition-all mb-7 text-center no-underline" style={{ background: "#3D95CE", ...syne }}>
+                    Open Venmo &rarr;
+                  </a>
+
+                  <div className="text-left">
+                    <div className="text-[11px] font-bold uppercase tracking-[1.2px] text-[#5a6a8a] mb-3.5">What Happens Next</div>
+                    {[
+                      "Payment confirmed within 1 hour",
+                      "Onboarding call scheduled within 24 hours",
+                      "Your AI agents go live within 48 hours",
+                    ].map((step, i) => (
+                      <div key={i} className="flex gap-3 mb-3">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-[#00e5a0] shrink-0" style={{ background: "#131a26", border: "1px solid rgba(255,255,255,0.07)", ...syne }}>{i + 1}</div>
+                        <span className="text-[13px] text-[rgba(238,242,255,.7)] leading-relaxed pt-0.5">{step}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 pt-5 text-[12px] text-[#5a6a8a]" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                    Questions? Email <a href="mailto:support@argiflow.ai" className="text-[#00e5a0] no-underline">support@argiflow.ai</a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {currentView === "dashboard" && (
+          <div className="relative z-[1] min-h-screen">
+            <div className="flex min-h-screen pt-16">
+              <div className="w-60 bg-[#0d1119] fixed left-0 top-16 bottom-0 overflow-y-auto shrink-0 py-6" style={{ borderRight: "1px solid rgba(255,255,255,0.07)" }}>
+                <div className="px-4 mb-2">
+                  <div className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#5a6a8a] px-2 py-2">Main</div>
+                  {([
+                    { key: "overview", icon: BarChart3, label: "Overview", badge: null },
+                    { key: "outreach", icon: Send, label: "Outreach", badge: "12" },
+                    { key: "voice", icon: Phone, label: "Voice AI", badge: null },
+                    { key: "intelligence", icon: Brain, label: "Intelligence", badge: null },
+                    { key: "email", icon: Mail, label: "Email Infra", badge: null },
+                    { key: "crm", icon: Users, label: "CRM", badge: "3", badgeColor: "orange" },
+                    { key: "reports", icon: FileText, label: "Reports", badge: null },
+                    { key: "billing", icon: CreditCard, label: "Billing", badge: null },
+                  ] as const).map(item => (
+                    <div key={item.key} onClick={() => setDashPanel(item.key)} data-testid={`button-dash-${item.key}`} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer transition-all text-[13px] mb-0.5 ${dashPanel === item.key ? "bg-[rgba(0,229,160,0.12)] text-[#00e5a0]" : "text-[#8a9abb] hover:bg-[#131a26] hover:text-[#eef2ff]"}`}>
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                      {item.badge && (
+                        <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.badgeColor === "orange" ? "bg-[#f59e0b] text-[#07090f]" : "bg-[#00e5a0] text-[#07090f]"}`}>{item.badge}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex-1 ml-60 p-8 min-h-screen">
+                {dashPanel === "overview" && (
+                  <div className="anim-fadeUp">
+                    <div style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-1">Welcome back, Client</div>
+                    <div className="text-[14px] text-[#8a9abb] mb-8">Here's your pipeline overview for this week.</div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+                      {[
+                        { label: "Active Leads", num: "487", change: "+23 this week", up: true, icon: Target },
+                        { label: "Emails Sent", num: "1,247", change: "+312 this week", up: true, icon: Mail },
+                        { label: "Meetings Booked", num: "11", change: "+3 this week", up: true, icon: Calendar },
+                        { label: "Pipeline Value", num: "$44k", change: "+41% MoM", up: true, icon: TrendingUp },
+                      ].map((k, i) => (
+                        <div key={i} className="bg-[#0d1119] rounded-[14px] p-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <div className="flex items-center justify-between text-[12px] text-[#5a6a8a] mb-2">
+                            <span>{k.label}</span>
+                            <k.icon className="w-4 h-4" />
+                          </div>
+                          <div style={syne} className="text-[32px] font-extrabold tracking-[-1.5px] mb-1">{k.num}</div>
+                          <div className="text-[12px] text-[#00e5a0]">{k.change}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+                      <div className="bg-[#0d1119] rounded-[14px] p-6" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                        <div className="flex items-center justify-between mb-5" style={syne}>
+                          <span className="text-[14px] font-bold">Weekly Performance</span>
+                          <span className="text-[12px] text-[#00e5a0] cursor-pointer font-normal" style={dm}>View Details</span>
+                        </div>
+                        <div className="flex items-end gap-1 h-[60px]">
+                          {[35, 55, 40, 70, 60, 85, 50].map((h, i) => (
+                            <div key={i} className="flex-1 rounded-t cursor-pointer transition-colors hover:bg-[#00e5a0]" style={{ height: `${h}%`, background: "rgba(0,229,160,.25)" }} />
+                          ))}
+                        </div>
+                        <div className="flex gap-1 mt-1.5">
+                          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
+                            <span key={d} className="flex-1 text-center text-[10px] text-[#5a6a8a]">{d}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="bg-[#0d1119] rounded-[14px] p-6" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                        <div style={syne} className="text-[14px] font-bold mb-5">Pipeline Funnel</div>
+                        <div className="flex flex-col gap-2">
+                          {[
+                            { label: "Discovered", count: 487, pct: 100 },
+                            { label: "Contacted", count: 312, pct: 64 },
+                            { label: "Replied", count: 67, pct: 14 },
+                            { label: "Meeting", count: 11, pct: 2 },
+                          ].map((f, i) => (
+                            <div key={i}>
+                              <div className="flex justify-between text-[11px] text-[#5a6a8a] mb-1">
+                                <span>{f.label}</span>
+                                <span>{f.count}</span>
+                              </div>
+                              <div className="h-5 rounded bg-[rgba(255,255,255,.04)]">
+                                <div className="h-5 rounded flex items-center pl-2 text-[11px] font-semibold" style={{ width: `${f.pct}%`, background: "linear-gradient(90deg,#3b82f6,#00e5a0)" }}>{f.pct}%</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-[#0d1119] rounded-[14px] p-6" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div className="flex items-center justify-between mb-5" style={syne}>
+                        <span className="text-[14px] font-bold">Recent Activity</span>
+                        <span className="text-[12px] text-[#00e5a0] cursor-pointer font-normal" style={dm}>View All</span>
+                      </div>
+                      <div className="flex flex-col">
+                        {[
+                          { icon: Mail, text: "Email opened by Dr. Sarah Martinez", time: "2 min ago", color: "rgba(0,229,160,0.12)" },
+                          { icon: MessageSquare, text: "Reply from James Wilson — interested", time: "8 min ago", color: "rgba(59,130,246,0.12)" },
+                          { icon: Calendar, text: "Meeting booked — Kevin Patel, Thu 2pm", time: "23 min ago", color: "rgba(0,229,160,0.12)" },
+                          { icon: Send, text: "Follow-up sent to Amanda Torres", time: "41 min ago", color: "rgba(0,229,160,0.12)" },
+                        ].map((a, i, arr) => (
+                          <div key={i} className="flex items-start gap-3.5 py-3.5" style={{ borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: a.color }}>
+                              <a.icon className="w-4 h-4 text-[#00e5a0]" />
+                            </div>
+                            <div>
+                              <div className="text-[13px] font-medium mb-0.5">{a.text}</div>
+                              <div className="text-[11px] text-[#5a6a8a]">{a.time}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {dashPanel === "outreach" && (
+                  <div className="anim-fadeUp">
+                    <div style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-1">Outreach Campaigns</div>
+                    <div className="text-[14px] text-[#8a9abb] mb-8">312 emails sent this week &middot; 17% reply rate</div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+                      {[
+                        { label: "Emails Sent", val: "312" },
+                        { label: "Open Rate", val: "47%", color: "#00e5a0" },
+                        { label: "Reply Rate", val: "17%", color: "#f59e0b" },
+                        { label: "Meetings", val: "11", color: "#3b82f6" },
+                      ].map((k, i) => (
+                        <div key={i} className="bg-[#0d1119] rounded-[14px] p-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <div className="text-[12px] text-[#5a6a8a] mb-2">{k.label}</div>
+                          <div style={{ ...syne, color: k.color || "#eef2ff" }} className="text-[32px] font-extrabold tracking-[-1.5px]">{k.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {dashPanel === "voice" && (
+                  <div className="anim-fadeUp">
+                    <div style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-1">Voice AI Agent</div>
+                    <div className="text-[14px] text-[#8a9abb] mb-8">AI-powered calling &middot; 47 calls attempted</div>
+                    <div className="grid grid-cols-3 gap-4 mb-7">
+                      {[
+                        { label: "Calls Attempted", val: "47", color: "#00e5a0" },
+                        { label: "Calls Completed", val: "0", color: "#ef4444" },
+                        { label: "Meetings Booked", val: "0" },
+                      ].map((k, i) => (
+                        <div key={i} className="bg-[#0d1119] rounded-[14px] p-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <div className="text-[12px] text-[#5a6a8a] mb-2">{k.label}</div>
+                          <div style={{ ...syne, color: k.color || "#eef2ff" }} className="text-[32px] font-extrabold tracking-[-1.5px]">{k.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {dashPanel === "intelligence" && (
+                  <div className="anim-fadeUp">
+                    <div style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-1">Sales Intelligence</div>
+                    <div className="text-[14px] text-[#8a9abb] mb-8">ZoomInfo-style B2B data — people, companies, intent signals</div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+                      {[
+                        { label: "People Searched", val: "1,204" },
+                        { label: "Emails Found", val: "987", color: "#00e5a0" },
+                        { label: "Intent Signals", val: "43", color: "#f59e0b" },
+                        { label: "Companies Tracked", val: "218", color: "#3b82f6" },
+                      ].map((k, i) => (
+                        <div key={i} className="bg-[#0d1119] rounded-[14px] p-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <div className="text-[12px] text-[#5a6a8a] mb-2">{k.label}</div>
+                          <div style={{ ...syne, color: k.color || "#eef2ff" }} className="text-[32px] font-extrabold tracking-[-1.5px]">{k.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {dashPanel === "email" && (
+                  <div className="anim-fadeUp">
+                    <div style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-1">Email Infrastructure</div>
+                    <div className="text-[14px] text-[#8a9abb] mb-8">Warmup, deliverability, and campaign management</div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+                      {[
+                        { label: "Active Domains", val: "4", color: "#00e5a0" },
+                        { label: "Avg Reputation", val: "92%", color: "#00e5a0" },
+                        { label: "Bounce Rate", val: "0.1%" },
+                        { label: "Open Rate", val: "47%", color: "#f59e0b" },
+                      ].map((k, i) => (
+                        <div key={i} className="bg-[#0d1119] rounded-[14px] p-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <div className="text-[12px] text-[#5a6a8a] mb-2">{k.label}</div>
+                          <div style={{ ...syne, color: k.color || "#eef2ff" }} className="text-[32px] font-extrabold tracking-[-1.5px]">{k.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="bg-[#0d1119] rounded-[14px] p-6" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={syne} className="text-[14px] font-bold mb-5">Email Accounts</div>
+                      {[
+                        { email: "outreach@argilette.co", score: 92, color: "#00e5a0", status: "Active" },
+                        { email: "sales@argilette.co", score: 78, color: "#f59e0b", status: "Warming" },
+                        { email: "hello@argilette.co", score: 85, color: "#00e5a0", status: "Active" },
+                        { email: "team@argilette.co", score: 41, color: "#ef4444", status: "Low" },
+                      ].map((e, i) => (
+                        <div key={i} className="flex items-center gap-4 py-3 flex-wrap" style={{ borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
+                          <span className="text-[13px] w-48">{e.email}</span>
+                          <div className="flex-1 h-1.5 rounded bg-[rgba(255,255,255,.06)] min-w-[100px]">
+                            <div className="h-1.5 rounded" style={{ width: `${e.score}%`, background: e.color }} />
+                          </div>
+                          <span className="text-[13px] font-semibold w-8" style={{ color: e.color }}>{e.score}</span>
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded" style={{ background: e.color === "#00e5a0" ? "rgba(0,229,160,0.12)" : e.color === "#f59e0b" ? "rgba(245,158,11,.12)" : "rgba(239,68,68,.1)", color: e.color }}>{e.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {dashPanel === "crm" && (
+                  <div className="anim-fadeUp">
+                    <div style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-1">CRM & Pipeline</div>
+                    <div className="text-[14px] text-[#8a9abb] mb-8">11 active deals &middot; $44,000 pipeline value</div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+                      {[
+                        { label: "Open Deals", val: "11" },
+                        { label: "Pipeline Value", val: "$44k", color: "#f59e0b" },
+                        { label: "Won This Month", val: "2", color: "#00e5a0" },
+                        { label: "Avg Deal Size", val: "$4k" },
+                      ].map((k, i) => (
+                        <div key={i} className="bg-[#0d1119] rounded-[14px] p-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <div className="text-[12px] text-[#5a6a8a] mb-2">{k.label}</div>
+                          <div style={{ ...syne, color: k.color || "#eef2ff" }} className="text-[32px] font-extrabold tracking-[-1.5px]">{k.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {dashPanel === "reports" && (
+                  <div className="anim-fadeUp">
+                    <div style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-1">Weekly Reports</div>
+                    <div className="text-[14px] text-[#8a9abb] mb-8">Auto-generated every Monday &middot; Next report in 5 days</div>
+                    <div className="bg-[#0d1119] rounded-[14px] p-6 mb-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={syne} className="text-[14px] font-bold mb-1">Week of Feb 10 – Feb 16, 2026</div>
+                      <div className="text-[12px] text-[#5a6a8a] mb-4">Delivered Monday Feb 17 at 8:00 AM</div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        {[
+                          { label: "Leads Found", val: "127", color: "#00e5a0", change: "+18%" },
+                          { label: "Emails Sent", val: "312", color: "#3b82f6", change: "+8%" },
+                          { label: "Open Rate", val: "47%", change: "+3pts" },
+                          { label: "Reply Rate", val: "17%", color: "#f59e0b", change: "+2pts" },
+                          { label: "Meetings", val: "11", change: "+3" },
+                          { label: "Pipeline", val: "$44k", color: "#00e5a0", change: "+41%" },
+                        ].map((m, i) => (
+                          <div key={i} className="text-center">
+                            <div style={{ ...syne, color: m.color || "#eef2ff" }} className="text-xl font-extrabold">{m.val}</div>
+                            <div className="text-[11px] text-[#5a6a8a]">{m.label}</div>
+                            <div className="text-[11px] text-[#00e5a0]">{m.change}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {dashPanel === "billing" && (
+                  <div className="anim-fadeUp">
+                    <div style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-1">Billing & Plan</div>
+                    <div className="text-[14px] text-[#8a9abb] mb-8">Current plan: Starter &middot; Next payment due Mar 1, 2026</div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                      <div className="bg-[#0d1119] rounded-[14px] p-6" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                        <div style={syne} className="text-[14px] font-bold mb-5">Current Plan</div>
+                        <div style={syne} className="text-4xl font-extrabold tracking-[-1px] mb-1">$297<span className="text-[16px] font-normal text-[#5a6a8a]">/mo</span></div>
+                        <div className="text-[14px] text-[#8a9abb] mb-5">Starter Plan</div>
+                        <div className="rounded-[10px] p-3.5 mb-5" style={{ background: "rgba(245,158,11,.08)", border: "1px solid rgba(245,158,11,.2)" }}>
+                          <div className="text-[13px] font-semibold text-[#f59e0b] mb-1">487/500 leads used (97%)</div>
+                          <div className="text-[12px] text-[#8a9abb]">Upgrade to Growth for 1,500 leads + Voice AI</div>
+                        </div>
+                        <button onClick={() => startPlan("Growth", "$597")} data-testid="button-upgrade-plan" className="w-full py-3.5 bg-[#3b82f6] rounded-[10px] text-[14px] font-bold text-white cursor-pointer border-none" style={syne}>
+                          Upgrade to Growth — $597/mo
+                        </button>
+                      </div>
+                      <div className="bg-[#0d1119] rounded-[14px] p-6" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                        <div style={syne} className="text-[14px] font-bold mb-5">Payment History</div>
+                        {[
+                          { date: "Feb 1, 2026", plan: "Starter Plan", amount: "$297" },
+                          { date: "Jan 1, 2026", plan: "Starter Plan", amount: "$297" },
+                          { date: "Dec 1, 2025", plan: "Starter Plan", amount: "$297" },
+                        ].map((p, i, arr) => (
+                          <div key={i} className="flex justify-between py-3.5 text-[13px]" style={{ borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
+                            <span>{p.date}</span>
+                            <span className="text-[#5a6a8a]">{p.plan}</span>
+                            <span className="text-[#00e5a0] font-semibold">{p.amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            <div>
-              <h4 className="font-semibold text-sm mb-4">{t("landing.footer.platformTitle")}</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#agents" className="hover:text-foreground transition-colors">{t("landing.footer.aiAgentCatalog")}</a></li>
-                <li><a href="#services" className="hover:text-foreground transition-colors">{t("landing.footer.voiceAiAgents")}</a></li>
-                <li><a href="#services" className="hover:text-foreground transition-colors">{t("landing.footer.salesFunnels")}</a></li>
-                <li><a href="#platform" className="hover:text-foreground transition-colors">{t("landing.footer.engagementTracking")}</a></li>
-                <li><a href="#platform" className="hover:text-foreground transition-colors">{t("landing.footer.aiStrategyEngine")}</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-sm mb-4">{t("landing.footer.companyTitle")}</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#process" className="hover:text-foreground transition-colors">{t("landing.footer.howItWorks")}</a></li>
-                <li><a href="#pricing" className="hover:text-foreground transition-colors">{t("landing.footer.pricing")}</a></li>
-                <li><a href="#testimonials" className="hover:text-foreground transition-colors">{t("landing.footer.results")}</a></li>
-                <li><a href="#faq" className="hover:text-foreground transition-colors">{t("landing.footer.faq")}</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-sm mb-4">{t("landing.footer.contactTitle")}</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="/signup" className="hover:text-foreground transition-colors">{t("landing.footer.getStarted")}</a></li>
-                <li><a href="mailto:info@argilette.com" className="hover:text-foreground transition-colors">info@argilette.com</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">{t("landing.footer.privacy")}</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">{t("landing.footer.terms")}</a></li>
-              </ul>
-            </div>
           </div>
-          <div className="border-t border-border/50 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex flex-col items-center md:items-start gap-1">
-              <p className="text-xs text-muted-foreground">
-                &copy; {new Date().getFullYear()} {t("landing.footer.copyright")}
-              </p>
-              <p className="text-[11px] text-muted-foreground/70" data-testid="text-product-of">
-                {t("landing.footer.productOf")}
-              </p>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Shield className="w-3 h-3" /> {t("landing.footer.soc2")}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Zap className="w-3 h-3" /> {t("landing.footer.poweredBy")}
-              </span>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
+        )}
+      </div>
+    </>
   );
 }
