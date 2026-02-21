@@ -252,8 +252,23 @@ export function registerLinkedinRoutes(app: Express) {
         return res.status(400).json({ message: "Maximum 50,000 connections per import. Please split your CSV." });
       }
 
+      const existingProfiles = await db.select({
+        fullName: linkedinProfiles.fullName,
+        company: linkedinProfiles.company,
+        linkedinUrl: linkedinProfiles.linkedinUrl,
+      }).from(linkedinProfiles).where(eq(linkedinProfiles.userId, userId));
+
+      const existingKeys = new Set(
+        existingProfiles.map(p => `${(p.fullName || "").toLowerCase()}|${(p.company || "").toLowerCase()}`)
+      );
+      const existingUrls = new Set(
+        existingProfiles.map(p => (p.linkedinUrl || "").toLowerCase()).filter(Boolean)
+      );
+
       let imported = 0;
       let skipped = 0;
+      const batchSize = 100;
+      const toInsert: any[] = [];
 
       for (const conn of connections) {
         const firstName = (conn["First Name"] || conn.firstName || "").trim();
@@ -270,15 +285,20 @@ export function registerLinkedinRoutes(app: Express) {
           continue;
         }
 
-        const existingCheck = await db.select().from(linkedinProfiles)
-          .where(sql`${linkedinProfiles.userId} = ${userId} AND LOWER(${linkedinProfiles.fullName}) = LOWER(${fullName}) AND (${linkedinProfiles.company} = ${company} OR ${linkedinProfiles.company} IS NULL)`);
-
-        if (existingCheck.length > 0) {
+        const key = `${fullName.toLowerCase()}|${company.toLowerCase()}`;
+        if (existingKeys.has(key)) {
+          skipped++;
+          continue;
+        }
+        if (linkedinUrl && existingUrls.has(linkedinUrl.toLowerCase())) {
           skipped++;
           continue;
         }
 
-        await db.insert(linkedinProfiles).values({
+        existingKeys.add(key);
+        if (linkedinUrl) existingUrls.add(linkedinUrl.toLowerCase());
+
+        toInsert.push({
           userId,
           linkedinUrl: linkedinUrl || `https://linkedin.com/in/${fullName.toLowerCase().replace(/\s+/g, "-")}`,
           fullName,
@@ -290,8 +310,14 @@ export function registerLinkedinRoutes(app: Express) {
           notes: connectedOn ? `Connected on: ${connectedOn}` : null,
           enrichmentData: email ? JSON.stringify({ email }) : null,
         });
-        imported++;
       }
+
+      for (let i = 0; i < toInsert.length; i += batchSize) {
+        const batch = toInsert.slice(i, i + batchSize);
+        await db.insert(linkedinProfiles).values(batch);
+      }
+      imported = toInsert.length;
+      skipped = connections.length - imported;
 
       res.json({
         success: true,
