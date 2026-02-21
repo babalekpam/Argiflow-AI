@@ -127,6 +127,9 @@ export const userSettings = pgTable("user_settings", {
   youApiKey: text("you_api_key"),
   webSearchProvider: text("web_search_provider").default("claude"),
   autoLeadGenEnabled: boolean("auto_lead_gen_enabled").default(false),
+  linkedinProfileUrl: text("linkedin_profile_url"),
+  linkedinEmail: text("linkedin_email"),
+  linkedinConnected: boolean("linkedin_connected").default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

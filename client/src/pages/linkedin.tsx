@@ -29,6 +29,7 @@ import {
   Trash2,
   Pencil,
   Link,
+  Link2Off,
   UserCheck,
   MessageSquare,
   Send,
@@ -36,15 +37,29 @@ import {
   Building2,
   MapPin,
   ExternalLink,
+  Upload,
+  Download,
+  UserPlus,
+  Sparkles,
+  CheckCircle2,
+  FileSpreadsheet,
+  Zap,
+  ArrowRight,
 } from "lucide-react";
 import type { LinkedinProfile } from "@shared/schema";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 
 type StatsData = {
   totalProfiles: number;
   connected: number;
   messagesSent: number;
   replies: number;
+};
+
+type AccountStatus = {
+  linked: boolean;
+  profileUrl: string | null;
+  email: string | null;
 };
 
 function ConnectionBadge({ status }: { status: string }) {
@@ -66,6 +81,378 @@ function OutreachBadge({ status }: { status: string }) {
   };
   const c = config[status] || config.none;
   return <Badge className={c.style} data-testid={`badge-outreach-${status}`}>{c.label}</Badge>;
+}
+
+function LinkedInAccountPanel() {
+  const { toast } = useToast();
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkEmail, setLinkEmail] = useState("");
+  const [showLinkForm, setShowLinkForm] = useState(false);
+
+  const { data: accountStatus, isLoading } = useQuery<AccountStatus>({
+    queryKey: ["/api/linkedin/account-status"],
+  });
+
+  const linkMutation = useMutation({
+    mutationFn: async (data: { linkedinProfileUrl: string; linkedinEmail: string }) => {
+      const res = await apiRequest("POST", "/api/linkedin/link-account", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/account-status"] });
+      toast({ title: "LinkedIn account linked" });
+      setShowLinkForm(false);
+      setLinkUrl("");
+      setLinkEmail("");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const unlinkMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/linkedin/unlink-account", {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/account-status"] });
+      toast({ title: "LinkedIn account unlinked" });
+    },
+  });
+
+  if (isLoading) return <Skeleton className="h-20 w-full" />;
+
+  if (accountStatus?.linked) {
+    return (
+      <Card className="p-4 border-emerald-500/20 bg-emerald-500/5" data-testid="card-linkedin-linked">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <p className="font-medium text-sm flex items-center gap-2">
+                LinkedIn Connected
+                <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Linked</Badge>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {accountStatus.email} &middot;{" "}
+                <a href={accountStatus.profileUrl || "#"} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" data-testid="link-linkedin-profile">
+                  View Profile
+                </a>
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => unlinkMutation.mutate()} disabled={unlinkMutation.isPending} data-testid="button-unlink-linkedin">
+            <Link2Off className="w-4 h-4 mr-1" />
+            Unlink
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-4" data-testid="card-linkedin-unlinked">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+            <Link className="w-5 h-5 text-blue-400" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">Link Your LinkedIn Account</p>
+            <p className="text-xs text-muted-foreground">Connect your LinkedIn to import and leverage your connections</p>
+          </div>
+        </div>
+        {!showLinkForm && (
+          <Button size="sm" onClick={() => setShowLinkForm(true)} data-testid="button-link-linkedin">
+            <Link className="w-4 h-4 mr-1" />
+            Link Account
+          </Button>
+        )}
+      </div>
+      {showLinkForm && (
+        <div className="mt-4 space-y-3 border-t pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="linkUrl" className="text-xs">LinkedIn Profile URL</Label>
+              <Input
+                id="linkUrl"
+                placeholder="https://linkedin.com/in/yourname"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                data-testid="input-link-url"
+              />
+            </div>
+            <div>
+              <Label htmlFor="linkEmail" className="text-xs">LinkedIn Email</Label>
+              <Input
+                id="linkEmail"
+                type="email"
+                placeholder="your@email.com"
+                value={linkEmail}
+                onChange={(e) => setLinkEmail(e.target.value)}
+                data-testid="input-link-email"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => linkMutation.mutate({ linkedinProfileUrl: linkUrl, linkedinEmail: linkEmail })}
+              disabled={!linkUrl.trim() || !linkEmail.trim() || linkMutation.isPending}
+              data-testid="button-submit-link"
+            >
+              {linkMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              Connect
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowLinkForm(false)} data-testid="button-cancel-link">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function CsvImportPanel() {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [parsedData, setParsedData] = useState<any[] | null>(null);
+
+  const importMutation = useMutation({
+    mutationFn: async (connections: any[]) => {
+      const res = await apiRequest("POST", "/api/linkedin/import-csv", { connections });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/stats"] });
+      toast({ title: "Import complete", description: data.message });
+      setParsedData(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  function parseCSV(text: string): any[] {
+    const lines = text.split("\n").filter(l => l.trim());
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(",").map(h => h.replace(/^"|"$/g, "").trim());
+    const rows: any[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values: string[] = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (const char of lines[i]) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+          values.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim());
+
+      const row: any = {};
+      headers.forEach((h, idx) => {
+        row[h] = values[idx] || "";
+      });
+      rows.push(row);
+    }
+
+    return rows;
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const data = parseCSV(text);
+      if (data.length === 0) {
+        toast({ title: "Invalid CSV", description: "Could not parse any connections from this file.", variant: "destructive" });
+        return;
+      }
+      setParsedData(data);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  return (
+    <Card className="p-4" data-testid="card-csv-import">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-sky-500/10 flex items-center justify-center">
+            <FileSpreadsheet className="w-5 h-5 text-sky-400" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">Import LinkedIn Connections</p>
+            <p className="text-xs text-muted-foreground">
+              Export your connections from LinkedIn as CSV and upload here
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://www.linkedin.com/mypreferences/d/download-my-data"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+            data-testid="link-linkedin-export"
+          >
+            <Download className="w-3 h-3" />
+            How to export
+          </a>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleFileSelect}
+            data-testid="input-csv-file"
+          />
+          <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} data-testid="button-upload-csv">
+            <Upload className="w-4 h-4 mr-1" />
+            Upload CSV
+          </Button>
+        </div>
+      </div>
+
+      {parsedData && (
+        <div className="mt-4 border-t pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium" data-testid="text-parsed-count">
+              {parsedData.length} connections found in CSV
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setParsedData(null)} data-testid="button-cancel-import">
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => importMutation.mutate(parsedData)}
+                disabled={importMutation.isPending}
+                data-testid="button-confirm-import"
+              >
+                {importMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                Import All
+              </Button>
+            </div>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto rounded-md border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/30 sticky top-0">
+                <tr>
+                  <th className="p-2 text-left font-medium text-muted-foreground">Name</th>
+                  <th className="p-2 text-left font-medium text-muted-foreground">Company</th>
+                  <th className="p-2 text-left font-medium text-muted-foreground">Position</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parsedData.slice(0, 20).map((row, i) => (
+                  <tr key={i} className="border-t">
+                    <td className="p-2">{`${row["First Name"] || ""} ${row["Last Name"] || ""}`.trim() || row.fullName || "-"}</td>
+                    <td className="p-2 text-muted-foreground">{row.Company || row.company || "-"}</td>
+                    <td className="p-2 text-muted-foreground">{row.Position || row.position || "-"}</td>
+                  </tr>
+                ))}
+                {parsedData.length > 20 && (
+                  <tr className="border-t">
+                    <td colSpan={3} className="p-2 text-center text-muted-foreground">
+                      ...and {parsedData.length - 20} more
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function BulkActionsBar({ profileCount, unconvertedCount }: { profileCount: number; unconvertedCount: number }) {
+  const { toast } = useToast();
+
+  const convertMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/linkedin/convert-to-leads", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/stats"] });
+      toast({ title: "Conversion complete", description: data.message });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const enrichMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/linkedin/enrich", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/profiles"] });
+      toast({ title: "Enrichment complete", description: data.message });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  if (profileCount === 0) return null;
+
+  return (
+    <Card className="p-3 bg-muted/20" data-testid="card-bulk-actions">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-sm">
+          <Zap className="w-4 h-4 text-primary" />
+          <span className="font-medium">Quick Actions</span>
+          <span className="text-muted-foreground text-xs">({profileCount} profiles)</span>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => enrichMutation.mutate()}
+            disabled={enrichMutation.isPending}
+            data-testid="button-enrich-all"
+          >
+            {enrichMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+            AI Enrich
+          </Button>
+          {unconvertedCount > 0 && (
+            <Button
+              size="sm"
+              onClick={() => convertMutation.mutate()}
+              disabled={convertMutation.isPending}
+              data-testid="button-convert-all"
+            >
+              {convertMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <UserPlus className="w-4 h-4 mr-1" />}
+              Convert {unconvertedCount} to Leads
+            </Button>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 export default function LinkedInPage() {
@@ -107,6 +494,8 @@ export default function LinkedInPage() {
         (p.location || "").toLowerCase().includes(q)
     );
   }, [profiles, searchQuery]);
+
+  const unconvertedCount = profiles.filter(p => !p.leadId).length;
 
   const createMutation = useMutation({
     mutationFn: (data: typeof formData) => apiRequest("POST", "/api/linkedin/profiles", data),
@@ -219,7 +608,7 @@ export default function LinkedInPage() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">LinkedIn Integration</h1>
-          <p className="text-sm text-muted-foreground mt-1">Track LinkedIn outreach and manage connections</p>
+          <p className="text-sm text-muted-foreground mt-1">Link your account, import connections, and convert them to leads</p>
         </div>
         <Button
           onClick={() => { resetForm(); setAddDialogOpen(true); }}
@@ -229,6 +618,8 @@ export default function LinkedInPage() {
           Add Profile
         </Button>
       </div>
+
+      <LinkedInAccountPanel />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (
@@ -249,6 +640,35 @@ export default function LinkedInPage() {
           </Card>
         ))}
       </div>
+
+      <CsvImportPanel />
+
+      <Card className="p-4 bg-muted/10" data-testid="card-workflow-steps">
+        <div className="flex items-center gap-2 mb-3">
+          <Zap className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold">LinkedIn Connection Pipeline</span>
+        </div>
+        <div className="flex items-center gap-1 overflow-x-auto pb-1">
+          {[
+            { icon: Link, label: "Link Account", desc: "Connect LinkedIn" },
+            { icon: Upload, label: "Import CSV", desc: "Upload connections" },
+            { icon: Sparkles, label: "AI Enrich", desc: "Find emails & data" },
+            { icon: UserPlus, label: "Convert", desc: "Create leads" },
+            { icon: Send, label: "Outreach", desc: "Auto-sequence" },
+          ].map((step, i, arr) => (
+            <div key={step.label} className="flex items-center gap-1 shrink-0">
+              <div className="px-3 py-2 rounded-lg border border-border/50 bg-muted/20 flex flex-col items-center min-w-[90px]" data-testid={`pipeline-step-${step.label.toLowerCase().replace(/\s/g, "-")}`}>
+                <step.icon className="w-4 h-4 mb-1 text-primary" />
+                <span className="text-xs font-medium">{step.label}</span>
+                <span className="text-[10px] text-muted-foreground">{step.desc}</span>
+              </div>
+              {i < arr.length - 1 && <ArrowRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <BulkActionsBar profileCount={profiles.length} unconvertedCount={unconvertedCount} />
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -271,7 +691,7 @@ export default function LinkedInPage() {
         <Card className="p-8 text-center" data-testid="text-no-profiles">
           <Users className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
           <p className="text-muted-foreground">
-            {searchQuery ? "No profiles match your search." : "No LinkedIn profiles yet. Add one to get started."}
+            {searchQuery ? "No profiles match your search." : "No LinkedIn profiles yet. Import your connections or add one manually."}
           </p>
         </Card>
       ) : (
@@ -285,7 +705,7 @@ export default function LinkedInPage() {
                   <th className="p-3 font-medium text-muted-foreground hidden lg:table-cell">Company</th>
                   <th className="p-3 font-medium text-muted-foreground">Connection</th>
                   <th className="p-3 font-medium text-muted-foreground">Outreach</th>
-                  <th className="p-3 font-medium text-muted-foreground hidden xl:table-cell">Last Message</th>
+                  <th className="p-3 font-medium text-muted-foreground hidden xl:table-cell">Lead</th>
                   <th className="p-3 font-medium text-muted-foreground text-right">Actions</th>
                 </tr>
               </thead>
@@ -341,22 +761,14 @@ export default function LinkedInPage() {
                       <OutreachBadge status={profile.outreachStatus} />
                     </td>
                     <td className="p-3 hidden xl:table-cell">
-                      <div className="max-w-[200px]">
-                        {profile.lastMessageSent ? (
-                          <div>
-                            <div className="truncate text-muted-foreground" data-testid={`text-last-message-${profile.id}`}>
-                              {profile.lastMessageSent}
-                            </div>
-                            {profile.lastMessageAt && (
-                              <div className="text-xs text-muted-foreground/60">
-                                {new Date(profile.lastMessageAt).toLocaleDateString()}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground/60">-</span>
-                        )}
-                      </div>
+                      {profile.leadId ? (
+                        <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20" data-testid={`badge-lead-linked-${profile.id}`}>
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Lead
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/50">-</span>
+                      )}
                     </td>
                     <td className="p-3">
                       <div className="flex items-center justify-end gap-1">
