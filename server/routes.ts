@@ -32,6 +32,7 @@ import { registerAnalyticsRoutes } from "./analytics-routes";
 import { registerCrmRoutes } from "./crm-routes";
 import { registerWebhookRoutes } from "./webhook-routes";
 import { registerAgencyRoutes } from "./agency-routes";
+import { startSequenceAutomationEngine, stopSequencesForLead, stopSequencesForDeal, autoEnrollLeadInSequence, getAutomationStatus, processSequenceAutomation } from "./sequence-automation";
 
 function normalizePhoneNumber(phone: string | undefined | null): string {
   if (!phone) return "";
@@ -4345,10 +4346,15 @@ RULES:
               followUpStatus: "completed",
             });
 
+            const seqsStopped = await stopSequencesForLead(matchedLead.id, "replied");
+            if (seqsStopped > 0) {
+              console.log(`[INBOX] Auto-stopped ${seqsStopped} sequence(s) for ${matchedLead.name} after reply`);
+            }
+
             await storage.createNotification({
               userId: matchedUser.id,
               title: `Reply from ${matchedLead.name}`,
-              message: `${matchedLead.name} (${matchedLead.company || fromEmail}) replied to your outreach. AI auto-reply has been sent.`,
+              message: `${matchedLead.name} (${matchedLead.company || fromEmail}) replied to your outreach.${seqsStopped > 0 ? ` ${seqsStopped} active sequence(s) auto-stopped.` : ""} AI auto-reply has been sent.`,
               type: "lead_reply",
               read: false,
             });
@@ -6470,6 +6476,14 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       }
       if (status === "won") {
         workflowHooks.onDealWon(userId, updated);
+        stopSequencesForDeal(updated.id, userId, "won").catch(err =>
+          console.error("[Deal] Failed to stop sequences on deal won:", err.message)
+        );
+      }
+      if (status === "lost") {
+        stopSequencesForDeal(updated.id, userId, "lost").catch(err =>
+          console.error("[Deal] Failed to stop sequences on deal lost:", err.message)
+        );
       }
       res.json(updated);
     } catch (error) {
@@ -7486,6 +7500,28 @@ Return a JSON array of reply strings in the same order:
   registerAgencyRoutes(app);
   registerWorkflowRoutes(app);
   startWorkflowEngine();
+  startSequenceAutomationEngine();
+
+  app.get("/api/sequence-automation/status", isAuthenticated, (_req, res) => {
+    res.json(getAutomationStatus());
+  });
+
+  app.post("/api/sequence-automation/run-now", isAuthenticated, async (_req, res) => {
+    processSequenceAutomation().catch(err => console.error("[SeqAuto] Manual run error:", err.message));
+    res.json({ message: "Automation cycle triggered" });
+  });
+
+  app.post("/api/sequence-automation/enroll", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { leadId, sequenceId } = req.body;
+      if (!leadId) return res.status(400).json({ message: "leadId required" });
+      const enrolled = await autoEnrollLeadInSequence(userId, leadId, sequenceId);
+      res.json({ success: enrolled, message: enrolled ? "Lead enrolled in sequence" : "Already enrolled or no active sequence" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   fixIncorrectLifetimeTrials().catch(err => console.error("Trial fix error:", err));
 

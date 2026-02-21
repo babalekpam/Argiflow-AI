@@ -351,6 +351,22 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
           console.warn(`[OutreachAgent] Failed to add to funnel: ${fErr.message}`);
         }
 
+        try {
+          const { autoEnrollLeadInSequence } = await import("./sequence-automation");
+          const enrolledLeads = await db.select().from(leads)
+            .where(and(eq(leads.userId, userId), eq(leads.source, "AI Outreach Agent"), eq(leads.status, "new")));
+          let seqEnrolled = 0;
+          for (const lead of enrolledLeads) {
+            const ok = await autoEnrollLeadInSequence(userId, lead.id);
+            if (ok) seqEnrolled++;
+          }
+          if (seqEnrolled > 0) {
+            console.log(`[OutreachAgent] Auto-enrolled ${seqEnrolled} leads into sequences`);
+          }
+        } catch (seqErr: any) {
+          console.warn(`[OutreachAgent] Sequence enrollment error: ${seqErr.message}`);
+        }
+
         await this.notify(userId, "Prospects Found", `AI Outreach Agent discovered ${added} new prospects and prepared outreach emails`);
         await this.logAgentTask(userId, "discovery", `Found ${added} new prospects with outreach drafts from: ${queries.join(", ")}`);
         console.log(`[OutreachAgent] Added ${added} real prospects for user ${userId}`);

@@ -39,6 +39,19 @@ import {
   BarChart3,
   Loader2,
   ArrowDown,
+  Zap,
+  Bot,
+  Search,
+  UserPlus,
+  Send,
+  Eye,
+  Tag,
+  MessageCircle,
+  Calendar,
+  RefreshCw,
+  ArrowRight,
+  Shield,
+  Activity,
 } from "lucide-react";
 import type { Sequence, SequenceStep } from "@shared/schema";
 
@@ -87,6 +100,101 @@ function ChannelBadge({ channel }: { channel: string }) {
 
 function emptyStep(): StepDraft {
   return { channel: "email", subject: "", content: "", delayDays: 1, delayHours: 0 };
+}
+
+function AutomationPipeline() {
+  const { toast } = useToast();
+  const { data: autoStatus } = useQuery<any>({
+    queryKey: ["/api/sequence-automation/status"],
+    refetchInterval: 30000,
+  });
+
+  const triggerMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/sequence-automation/run-now", {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sequence-automation/status"] });
+      toast({ title: "Automation cycle triggered" });
+    },
+  });
+
+  const pipelineSteps = [
+    { icon: Search, label: "Discover", desc: "AI finds prospects", color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
+    { icon: UserPlus, label: "Enroll", desc: "Auto-add to sequences", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+    { icon: Send, label: "Send", desc: "Multi-channel outreach", color: "text-sky-400 bg-sky-500/10 border-sky-500/20" },
+    { icon: Eye, label: "Monitor", desc: "Watch for replies", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+    { icon: Tag, label: "Classify", desc: "AI reads intent", color: "text-purple-400 bg-purple-500/10 border-purple-500/20" },
+    { icon: MessageCircle, label: "Respond", desc: "AI auto-replies", color: "text-pink-400 bg-pink-500/10 border-pink-500/20" },
+    { icon: Calendar, label: "Book", desc: "Schedule meeting", color: "text-orange-400 bg-orange-500/10 border-orange-500/20" },
+    { icon: Shield, label: "Close", desc: "Deal won → stop", color: "text-green-400 bg-green-500/10 border-green-500/20" },
+  ];
+
+  return (
+    <Card className="p-5" data-testid="card-automation-pipeline">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Zap className="w-4 h-4 text-primary" />
+            100% Automation Pipeline
+          </h3>
+          <Badge variant="outline" className="text-xs bg-green-500/10 text-green-400 border-green-500/20" data-testid="badge-automation-active">
+            Always Running
+          </Badge>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          {autoStatus?.lastRun && (
+            <span data-testid="text-last-run">Last run: {new Date(autoStatus.lastRun).toLocaleTimeString()}</span>
+          )}
+          <span data-testid="text-steps-sent">{autoStatus?.stepsSent || 0} steps sent</span>
+          <span data-testid="text-seqs-stopped">{autoStatus?.sequencesStopped || 0} auto-stopped</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => triggerMutation.mutate()}
+            disabled={triggerMutation.isPending}
+            data-testid="button-run-automation"
+          >
+            <RefreshCw className={`w-3 h-3 mr-1 ${triggerMutation.isPending ? "animate-spin" : ""}`} />
+            Run Now
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1 overflow-x-auto pb-2">
+        {pipelineSteps.map((step, i) => {
+          const Icon = step.icon;
+          return (
+            <div key={step.label} className="flex items-center gap-1 shrink-0">
+              <div className={`px-3 py-2 rounded-lg border ${step.color} flex flex-col items-center min-w-[80px]`} data-testid={`pipeline-step-${step.label.toLowerCase()}`}>
+                <Icon className="w-4 h-4 mb-1" />
+                <span className="text-xs font-medium">{step.label}</span>
+                <span className="text-[10px] opacity-70">{step.desc}</span>
+              </div>
+              {i < pipelineSteps.length - 1 && (
+                <ArrowRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+        <div className="flex items-start gap-2">
+          <Bot className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+          <div className="text-xs text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">Fully autonomous:</span>{" "}
+            The AI agent discovers leads, enrolls them in your active sequences, sends multi-channel outreach
+            (email, SMS, LinkedIn, calls) on schedule, monitors for replies, auto-responds with AI, books
+            meetings, and automatically stops all outreach when a lead replies favorably or a deal is won.
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 export default function SequencesPage() {
@@ -308,6 +416,8 @@ export default function SequencesPage() {
           </div>
         </Card>
       </div>
+
+      <AutomationPipeline />
 
       {isLoading ? (
         <div className="space-y-4">
