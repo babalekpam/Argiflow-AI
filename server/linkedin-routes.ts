@@ -248,8 +248,8 @@ export function registerLinkedinRoutes(app: Express) {
         return res.status(400).json({ message: "No connections data provided" });
       }
 
-      if (connections.length > 5000) {
-        return res.status(400).json({ message: "Maximum 5,000 connections per import. Please split your CSV." });
+      if (connections.length > 50000) {
+        return res.status(400).json({ message: "Maximum 50,000 connections per import. Please split your CSV." });
       }
 
       let imported = 0;
