@@ -90,9 +90,9 @@ export function AppSidebar() {
     { title: "Webhooks", icon: Webhook, url: "/dashboard/webhooks", badge: t("common.new") },
     { title: "Agency OS", icon: Shield, url: "/dashboard/agency", badge: t("common.new") },
     { title: t("sidebar.training"), icon: GraduationCap, url: "/dashboard/training" },
-    { title: t("sidebar.resources"), icon: Library, url: "/dashboard/resources" },
-    { title: "Growth Guide", icon: BookOpen, url: "/dashboard/guide" },
-    { title: t("sidebar.demosInstall"), icon: Wand2, url: "/dashboard/demos" },
+    { title: t("sidebar.resources"), icon: Library, url: "/dashboard/resources", adminOnly: true },
+    { title: "Growth Guide", icon: BookOpen, url: "/dashboard/guide", adminOnly: true },
+    { title: t("sidebar.demosInstall"), icon: Wand2, url: "/dashboard/demos", adminOnly: true },
     { title: t("sidebar.settings"), icon: Settings, url: "/dashboard/settings" },
   ];
 
@@ -178,7 +178,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>{t("sidebar.growth")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {growthNav.map((item) => (
+              {growthNav.filter(item => !item.adminOnly || isAdmin).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
