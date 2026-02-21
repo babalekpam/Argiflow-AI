@@ -2010,6 +2010,46 @@ export async function registerRoutes(
     next();
   });
 
+  // ---- SEO: SITEMAP & ROBOTS ----
+  app.get("/sitemap.xml", (_req, res) => {
+    const domain = process.env.REPLIT_DOMAINS
+      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+      : "https://argilette.co";
+
+    const pages = [
+      { loc: "/", priority: "1.0", changefreq: "weekly" },
+      { loc: "/auth", priority: "0.8", changefreq: "monthly" },
+    ];
+
+    const urls = pages
+      .map(
+        (p) =>
+          `  <url>\n    <loc>${domain}${p.loc}</loc>\n    <lastmod>${new Date().toISOString().split("T")[0]}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`
+      )
+      .join("\n");
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`;
+    res.set("Content-Type", "application/xml");
+    res.send(xml);
+  });
+
+  app.get("/robots.txt", (_req, res) => {
+    const domain = process.env.REPLIT_DOMAINS
+      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+      : "https://argilette.co";
+
+    const txt = [
+      "User-agent: *",
+      "Allow: /",
+      "Disallow: /api/",
+      "Disallow: /dashboard/",
+      "",
+      `Sitemap: ${domain}/sitemap.xml`,
+    ].join("\n");
+    res.set("Content-Type", "text/plain");
+    res.send(txt);
+  });
+
   // ---- INSTANTLY FEATURES ----
   app.use("/api/instantly", instantlyRoutes);
   app.post("/api/pixel/t", handlePixelTrack);
