@@ -107,6 +107,19 @@ export default function LandingPage() {
     window.scrollTo(0, 0);
   }, []);
 
+  const scrollToSection = useCallback((sectionId: string) => {
+    if (currentView !== "landing") {
+      setCurrentView("landing");
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    } else {
+      const el = document.getElementById(sectionId);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [currentView]);
+
   useEffect(() => {
     if (transcriptRef.current) {
       transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
@@ -251,9 +264,9 @@ export default function LandingPage() {
             <span className="text-xl font-extrabold tracking-tight">Argi<span className="text-[#00e5a0]">Flow</span></span>
           </div>
           <div className="hidden md:flex items-center gap-8">
-            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => showView("landing")} data-testid="link-nav-features">Features</span>
+            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => scrollToSection("features-section")} data-testid="link-nav-features">Features</span>
             <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => showView("demo")} data-testid="link-nav-demo">Demo</span>
-            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => showView("landing")} data-testid="link-nav-pricing">Pricing</span>
+            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => scrollToSection("pricing-section")} data-testid="link-nav-pricing">Pricing</span>
           </div>
           <div className="flex items-center gap-3">
             <LanguageSwitcher variant="compact" />
@@ -318,7 +331,7 @@ export default function LandingPage() {
                 ))}
               </div>
 
-              <div className="mt-24">
+              <div id="features-section" className="mt-24 scroll-mt-20">
                 <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">Core Features</div>
                 <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">Everything You Need to Close</h2>
                 <p className="text-[16px] text-[#8a9abb] max-w-[480px] leading-relaxed">Six integrated modules that work together to automate your entire sales pipeline.</p>
@@ -343,7 +356,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div id="pricing-section" className="py-24 px-6 md:px-12 max-w-[1200px] mx-auto">
+            <div id="pricing-section" className="py-24 px-6 md:px-12 max-w-[1200px] mx-auto scroll-mt-20">
               <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">Pricing</div>
               <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">Simple, Transparent Pricing</h2>
               <p className="text-[16px] text-[#8a9abb] max-w-[480px] leading-relaxed">Choose the plan that fits your sales operation. Scale up anytime.</p>
