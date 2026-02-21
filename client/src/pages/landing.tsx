@@ -257,6 +257,9 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <LanguageSwitcher variant="compact" />
+            <a href="/login" data-testid="link-login" className="px-4 py-2 rounded-lg text-[13px] text-[#8a9abb] hover:text-[#eef2ff] cursor-pointer transition-all" style={dm}>
+              Log In
+            </a>
             <button onClick={() => showView("demo")} data-testid="button-live-demo" className="px-4 py-2 rounded-lg text-[13px] text-[#eef2ff] cursor-pointer transition-all" style={{ border: "1px solid rgba(255,255,255,0.12)", background: "transparent", ...dm }}>
               <span className="inline-block w-[7px] h-[7px] bg-[#00e5a0] rounded-full mr-1.5" style={{ animation: "pulse-dot 2s infinite" }} />
               Live Demo
