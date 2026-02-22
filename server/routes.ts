@@ -4872,7 +4872,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         completedAt: new Date(),
       }).where(eq(autoLeadGenRuns.id, runRecord.id));
 
-      console.log(`[Auto Lead Gen] Completed for ${targetUser.email}: ${leadsGenerated} leads generated for ${rotation.region}`);
+      console.log(`[Auto Lead Gen] Completed for ${targetUser.email}: ${leadsGenerated} leads generated for ${region}`);
 
     } catch (error: any) {
       console.error(`[Auto Lead Gen] Error for user ${targetUser.email}:`, error?.message);
@@ -4923,6 +4923,407 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
       const user = await storage.getUserById(userId);
       res.json({ message: "Auto lead generation triggered for your account. Check status in a few minutes." });
       runAutoLeadGenForUser(user, userAi);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ---- MEDICAL BILLING LEAD GEN (Hourly for abel@argilette.com) ----
+  const MEDBILL_LEAD_GEN_INTERVAL = 60 * 60 * 1000; // 1 hour
+  const MEDBILL_LEAD_GEN_BATCH = 20;
+  const MEDBILL_USER_EMAIL = "abel@argilette.com";
+
+  const MEDBILL_REGIONS = [
+    "Tennessee", "Texas", "Florida", "Georgia", "California",
+    "New York", "Ohio", "Illinois", "Pennsylvania", "North Carolina",
+    "Virginia", "Michigan", "Arizona", "Colorado", "Missouri",
+    "Washington", "Maryland", "New Jersey", "Massachusetts", "Indiana",
+  ];
+  let medBillRegionIndex = 0;
+
+  const MEDBILL_SPECIALTIES = [
+    "mental health", "chiropractic", "pain management", "urgent care",
+    "physical therapy", "podiatry", "home health", "family medicine",
+    "internal medicine", "dermatology", "orthopedics", "cardiology",
+  ];
+  let medBillSpecialtyIndex = 0;
+
+  async function runMedBillLeadGen() {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const targetUser = allUsers.find((u: any) => u.email === MEDBILL_USER_EMAIL);
+      if (!targetUser) {
+        console.log("[MedBill Lead Gen] Target user not found, skipping");
+        return;
+      }
+
+      const sub = await storage.getSubscriptionByUser(targetUser.id);
+      if (!sub || (sub.status !== "active" && sub.status !== "trial")) {
+        console.log("[MedBill Lead Gen] No active subscription, skipping");
+        return;
+      }
+
+      let userAi: { client: Anthropic; model: string };
+      try {
+        userAi = await getAnthropicForUser(targetUser.id);
+      } catch {
+        console.log("[MedBill Lead Gen] AI not configured for user, skipping");
+        return;
+      }
+
+      const region = MEDBILL_REGIONS[medBillRegionIndex % MEDBILL_REGIONS.length];
+      const specialty = MEDBILL_SPECIALTIES[medBillSpecialtyIndex % MEDBILL_SPECIALTIES.length];
+      medBillRegionIndex++;
+      medBillSpecialtyIndex++;
+
+      console.log(`[MedBill Lead Gen] Starting hourly run — ${region} — ${specialty}`);
+
+      const [runRecord] = await db.insert(autoLeadGenRuns).values({
+        userId: targetUser.id,
+        status: "running",
+        searchQueries: `MedBill: ${specialty} in ${region}`,
+        startedAt: new Date(),
+      }).returning();
+
+      const medBillPrompt = `You are a specialized B2B lead generation agent for Track-Med Billing Solutions, a Revenue Cycle Management (RCM) company. Your job is to identify and qualify medical practices that are either ACTIVELY seeking medical billing services or LIKELY to need them.
+
+CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} specializing in ${specialty}.
+
+## LEAD TIERS
+
+**TIER 1 — ACTIVELY LOOKING (Hot Leads)** — practices showing direct signals:
+- Posted job listings for billing specialists, medical coders, or RCM staff
+- Posted on forums asking for billing service recommendations
+- Reviews/complaints about billing on Google, Yelp, Healthgrades ("billing errors", "slow payments", "wrong codes")
+- Advertised for in-house billing roles (frustrated or transitioning)
+- Recent ownership changes, new practice openings, or physician departures
+
+**TIER 2 — LIKELY TO NEED (Warm Leads)** — matching struggle profiles:
+- Solo practitioners or small group practices (1–5 providers)
+- Complex billing specialties: ${specialty}
+- Low Google ratings citing billing/insurance issues
+- Recently credentialed providers (new practice = billing needed)
+- Rural/underserved areas with limited admin staff
+- Multi-location practices without centralized billing
+
+## DECISION MAKER TARGETING (MANDATORY)
+- You MUST find the DECISION MAKER for each practice: Owner, CEO, Managing Partner, Practice Administrator, Office Manager, Medical Director
+- NEVER target receptionists, front desk staff, billing clerks, or assistants
+- For each lead, identify the person who has authority to sign a billing services contract
+- Search for "[practice name] owner" or "[practice name] administrator" or check LinkedIn
+
+## DATA TO COLLECT PER LEAD
+1. Practice Name
+2. Decision Maker Name + Title (Owner/CEO/Administrator/Director)
+3. Specialty
+4. City/State
+5. Phone Number (real, verified)
+6. Email Address (real, verified — NOT fabricated)
+7. Website URL
+8. Google Rating + Number of Reviews
+9. Tier Classification (Tier 1 or Tier 2)
+10. Lead Signal (specific evidence that flagged this lead)
+11. Outreach Angle (personalized hook for cold outreach)
+
+## SEARCH STRATEGY
+1. Use web_search to find "${specialty} practices ${region}" and "${specialty} doctor ${region} contact"
+2. For each practice, search for the decision maker: "[practice name] owner" or "[practice name] administrator"
+3. Search for real contact info: "[practice name] phone email contact"
+4. Check Google Maps, Yelp, Healthgrades, NPI Registry for verified data
+
+## CONTACT INFO RULES (MANDATORY)
+- ONLY include contact info you actually found on a real website, directory, or contact page
+- NEVER fabricate or guess emails — only use what you SAW in search results
+- NEVER use @example.com, @test.com, or placeholder domains
+- NEVER use 555-xxx-xxxx phone numbers — those are fictional
+- Phone numbers MUST be FULL US numbers with area code (10 digits)
+- Each lead MUST have a real phone number from actual webpages
+
+## SCORING
+- Practice actively posting for billing help (Tier 1): score 85-95
+- Practice matching struggle profile (Tier 2): score 65-80
+- Decision maker found with direct contact: +15 bonus
+- Multiple lead signals: +10 bonus
+- Has billing-related complaints in reviews: +10 bonus
+
+For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone, company (practice name), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + practice details + where contact was found), outreach (personalized 3-5 sentence pitch about how Track-Med Billing Solutions can help with their specific billing challenges, referencing their specialty)
+
+CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agent_type="medical-billing". Do NOT just describe leads — SAVE them with the tool. Prioritize quality over quantity — 15 strong leads with real decision-maker contacts beat 30 weak ones.`;
+
+      const tavilyKey = process.env.TAVILY_API_KEY;
+      let searchResults = "";
+      if (tavilyKey) {
+        try {
+          const searchQueries = [
+            `${specialty} medical practice ${region} owner contact phone email`,
+            `${specialty} doctor office ${region} billing services needed`,
+          ];
+          for (const sq of searchQueries) {
+            const tRes = await fetch("https://api.tavily.com/search", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                api_key: tavilyKey,
+                query: sq,
+                search_depth: "advanced",
+                max_results: 8,
+                include_answer: true,
+              }),
+            });
+            if (tRes.ok) {
+              const tData = await tRes.json();
+              searchResults += [
+                tData.answer || "",
+                ...(tData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
+              ].join("\n\n") + "\n\n";
+            }
+          }
+        } catch (e: any) {
+          console.error("[MedBill Lead Gen] Tavily search error:", e.message);
+        }
+      }
+
+      const systemPrompt = searchResults
+        ? `Use these web search results to find real medical practice leads with verified decision-maker contacts:\n\n${searchResults}`
+        : "";
+
+      const tools: any[] = [
+        {
+          name: "generate_leads",
+          description: "Save medical billing leads to CRM. Pass all leads at once.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              leads: {
+                type: "array" as const,
+                items: {
+                  type: "object" as const,
+                  properties: {
+                    name: { type: "string" as const, description: "Decision maker name (Owner/CEO/Administrator)" },
+                    email: { type: "string" as const },
+                    phone: { type: "string" as const },
+                    company: { type: "string" as const, description: "Practice name" },
+                    source: { type: "string" as const },
+                    status: { type: "string" as const },
+                    score: { type: "number" as const },
+                    intent_signal: { type: "string" as const },
+                    notes: { type: "string" as const },
+                    outreach: { type: "string" as const },
+                  },
+                  required: ["name", "company"],
+                },
+              },
+              agent_type: { type: "string" as const },
+            },
+            required: ["leads"],
+          },
+        },
+        {
+          name: "web_search",
+          description: "Search the web for medical practice information, decision makers, and contact details.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              query: { type: "string" as const },
+            },
+            required: ["query"],
+          },
+        },
+      ];
+
+      const userAnthropicClient = userAi.client;
+      const userModelName = userAi.model;
+
+      async function medBillClaudeCall(params: any, retries = 3): Promise<any> {
+        for (let i = 0; i < retries; i++) {
+          try {
+            return await userAnthropicClient.messages.create(params);
+          } catch (err: any) {
+            if (err?.status === 429 && i < retries - 1) {
+              const wait = Math.min((i + 1) * 30000, 90000);
+              console.log(`[MedBill Lead Gen] Rate limited, waiting ${wait / 1000}s...`);
+              await new Promise(r => setTimeout(r, wait));
+            } else { throw err; }
+          }
+        }
+      }
+
+      let response = await medBillClaudeCall({
+        model: userModelName,
+        max_tokens: 4096,
+        ...(systemPrompt ? { system: systemPrompt } : {}),
+        messages: [{ role: "user", content: medBillPrompt }],
+        tools,
+      });
+
+      let loopCount = 0;
+      const maxLoops = 15;
+      let currentMessages: any[] = [{ role: "user", content: medBillPrompt }];
+      let leadsGenerated = 0;
+
+      while (response.stop_reason === "tool_use" && loopCount < maxLoops) {
+        loopCount++;
+        currentMessages.push({ role: "assistant", content: response.content });
+
+        const toolUseBlocks = response.content.filter((block: any) => block.type === "tool_use");
+        const toolResults: any[] = [];
+
+        for (const toolUse of toolUseBlocks) {
+          if (toolUse.name === "web_search") {
+            try {
+              let webResult = "";
+              if (tavilyKey) {
+                const tRes = await fetch("https://api.tavily.com/search", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    api_key: tavilyKey,
+                    query: toolUse.input?.query || "",
+                    search_depth: "advanced",
+                    max_results: 5,
+                    include_answer: true,
+                  }),
+                });
+                if (tRes.ok) {
+                  const tData = await tRes.json();
+                  webResult = [
+                    tData.answer || "",
+                    ...(tData.results || []).map((r: any) => `Source: ${r.url}\n${r.title}\n${r.content || ""}`)
+                  ].join("\n\n");
+                }
+              }
+              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: webResult || "No results found." });
+            } catch (e: any) {
+              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `Search error: ${e.message}` });
+            }
+          } else {
+            try {
+              const result = await executeAction(targetUser.id, toolUse.name, toolUse.input || {});
+              console.log(`[MedBill Lead Gen] ${toolUse.name}: ${result.slice(0, 150)}`);
+              const match = result.match(/Saved (\d+) real leads/);
+              if (match) leadsGenerated += parseInt(match[1]);
+              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: result });
+            } catch (err: any) {
+              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `ERROR: ${err?.message}`, is_error: true });
+            }
+          }
+        }
+
+        if (toolResults.length > 0) {
+          currentMessages.push({ role: "user", content: toolResults });
+        }
+
+        response = await medBillClaudeCall({
+          model: userModelName,
+          max_tokens: 4096,
+          messages: currentMessages,
+          tools,
+        });
+      }
+
+      if (leadsGenerated === 0 && loopCount < maxLoops) {
+        console.log("[MedBill Lead Gen] No leads yet, forcing generate_leads call...");
+        currentMessages.push({ role: "assistant", content: response.content as any });
+        currentMessages.push({
+          role: "user",
+          content: `You MUST now call the generate_leads tool with all the medical practice leads you found. Each lead needs the DECISION MAKER name (Owner, CEO, Administrator), email, phone, company (practice name), source "MedBill Lead Gen", status "new", score, intent_signal, notes (title + specialty), outreach. Use agent_type="medical-billing". NEVER fabricate contacts. Skip leads without real verified contact info.`,
+        });
+
+        let retryResp = await medBillClaudeCall({
+          model: userModelName,
+          max_tokens: 4096,
+          messages: currentMessages,
+          tools,
+        });
+
+        let retryLoops = 0;
+        let retryCurrent = [...currentMessages];
+        while (retryResp.stop_reason === "tool_use" && retryLoops < 5) {
+          retryLoops++;
+          retryCurrent.push({ role: "assistant", content: retryResp.content as any });
+          const retryToolUses = retryResp.content.filter((block: any) => block.type === "tool_use" && block.name !== "web_search");
+          const retryResults: any[] = [];
+          for (const toolUse of retryToolUses) {
+            try {
+              const result = await executeAction(targetUser.id, toolUse.name, toolUse.input || {});
+              console.log(`[MedBill Lead Gen Retry] ${toolUse.name}: ${result.slice(0, 150)}`);
+              const match = result.match(/Saved (\d+) real leads/);
+              if (match) leadsGenerated += parseInt(match[1]);
+              retryResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: result });
+            } catch (err: any) {
+              retryResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `ERROR: ${err?.message}`, is_error: true });
+            }
+          }
+          if (retryResults.length > 0) retryCurrent.push({ role: "user", content: retryResults });
+          retryResp = await medBillClaudeCall({ model: userModelName, max_tokens: 4096, messages: retryCurrent, tools });
+        }
+      }
+
+      await db.update(autoLeadGenRuns).set({
+        status: leadsGenerated > 0 ? "completed" : "no_leads",
+        leadsGenerated,
+        completedAt: new Date(),
+      }).where(eq(autoLeadGenRuns.id, runRecord.id));
+
+      console.log(`[MedBill Lead Gen] Completed: ${leadsGenerated} leads generated — ${specialty} in ${region}`);
+
+      if (leadsGenerated > 0) {
+        await storage.createNotification({
+          userId: targetUser.id,
+          type: "lead",
+          title: "Medical Billing Leads Found",
+          message: `Found ${leadsGenerated} new ${specialty} practice leads in ${region}. Decision makers identified and ready for outreach.`,
+          read: false,
+        });
+      }
+    } catch (error: any) {
+      console.error(`[MedBill Lead Gen] Error:`, error?.message);
+    }
+  }
+
+  setTimeout(() => {
+    runMedBillLeadGen().catch(err => console.error("[MedBill Lead Gen] Initial run error:", err));
+    setInterval(() => {
+      runMedBillLeadGen().catch(err => console.error("[MedBill Lead Gen] Hourly run error:", err));
+    }, MEDBILL_LEAD_GEN_INTERVAL);
+  }, 3 * 60 * 1000);
+  console.log("[MedBill Lead Gen] Scheduled to run every hour for abel@argilette.com. First run in 3 minutes.");
+
+  app.get("/api/medbill-lead-gen/status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      if (!user || (user.email !== MEDBILL_USER_EMAIL && user.email !== process.env.ADMIN_EMAIL)) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const targetUser = user.email === MEDBILL_USER_EMAIL ? user : (await storage.getAllUsers()).find((u: any) => u.email === MEDBILL_USER_EMAIL);
+      if (!targetUser) return res.status(404).json({ message: "Target user not found" });
+      const runs = await db.select().from(autoLeadGenRuns)
+        .where(and(eq(autoLeadGenRuns.userId, targetUser.id), sql`${autoLeadGenRuns.searchQueries} LIKE 'MedBill:%'`))
+        .orderBy(desc(autoLeadGenRuns.startedAt)).limit(20);
+      const totalLeads = runs.reduce((sum, r) => sum + (r.leadsGenerated || 0), 0);
+      res.json({
+        intervalHours: 1,
+        batchSize: MEDBILL_LEAD_GEN_BATCH,
+        totalLeadsGenerated: totalLeads,
+        runs,
+        nextRegion: MEDBILL_REGIONS[medBillRegionIndex % MEDBILL_REGIONS.length],
+        nextSpecialty: MEDBILL_SPECIALTIES[medBillSpecialtyIndex % MEDBILL_SPECIALTIES.length],
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/medbill-lead-gen/trigger", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      if (!user || (user.email !== MEDBILL_USER_EMAIL && user.email !== process.env.ADMIN_EMAIL)) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      res.json({ message: "Medical billing lead generation triggered. Leads will appear in your CRM within a few minutes." });
+      runMedBillLeadGen();
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
