@@ -362,7 +362,12 @@ export default function LandingPagesPage() {
                           </Button>
                         )}
                         {page.status === "published" && page.slug && (
-                          <Button size="icon" variant="ghost" data-testid={`button-view-page-${page.id}`}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => window.open(`/p/${page.slug}`, "_blank")}
+                            data-testid={`button-view-page-${page.id}`}
+                          >
                             <ExternalLink className="w-4 h-4 text-muted-foreground" />
                           </Button>
                         )}
@@ -451,7 +456,7 @@ export default function LandingPagesPage() {
                   type: form.type,
                   slug: form.slug,
                   status: "draft",
-                  pageContent: { template: form.template },
+                  pageContent: JSON.stringify({ template: form.template }),
                   totalVisits: 0,
                   totalConversions: 0,
                 })

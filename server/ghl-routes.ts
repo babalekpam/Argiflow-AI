@@ -41,6 +41,27 @@ export function registerGhlRoutes(app: Express) {
   // ============================================================
   // 1. Landing Pages
   // ============================================================
+  app.get("/api/public/landing-pages/:slug", async (req, res) => {
+    try {
+      const [row] = await db.select({
+        id: landingPages.id,
+        name: landingPages.name,
+        slug: landingPages.slug,
+        type: landingPages.type,
+        pageContent: landingPages.pageContent,
+        seo: landingPages.seo,
+        totalVisits: landingPages.totalVisits,
+        totalConversions: landingPages.totalConversions,
+      }).from(landingPages).where(and(eq(landingPages.slug, req.params.slug), eq(landingPages.status, "published")));
+      if (!row) return res.status(404).json({ message: "Page not found" });
+      await db.update(landingPages).set({ totalVisits: (row.totalVisits || 0) + 1 }).where(eq(landingPages.id, row.id));
+      res.json(row);
+    } catch (e: any) {
+      console.error("[LandingPages] Public fetch error:", e.message);
+      res.status(500).json({ message: "Failed to fetch page" });
+    }
+  });
+
   app.get("/api/landing-pages", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
