@@ -746,6 +746,57 @@ export function registerLinkedinRoutes(app: Express) {
     }
   });
 
+  (async () => {
+    try {
+      const targetUserId = "61d08cac-80d8-4cce-98b6-ce25639f607d";
+      const seedFile = path.join(process.cwd(), "server", "seed-linkedin-profiles.json");
+      if (!fs.existsSync(seedFile)) return;
+
+      const existing = await db
+        .select({ id: linkedinProfiles.id })
+        .from(linkedinProfiles)
+        .where(eq(linkedinProfiles.userId, targetUserId));
+
+      if (existing.length > 5) {
+        console.log(`[LinkedIn] Seed skipped — user already has ${existing.length} profiles`);
+        return;
+      }
+
+      const raw = fs.readFileSync(seedFile, "utf-8");
+      const profiles = JSON.parse(raw);
+      if (!Array.isArray(profiles) || profiles.length === 0) return;
+
+      const existingUrls = new Set(
+        (await db.select({ url: linkedinProfiles.linkedinUrl }).from(linkedinProfiles).where(eq(linkedinProfiles.userId, targetUserId)))
+          .map((e) => e.url?.trim().toLowerCase())
+      );
+
+      const toInsert = profiles
+        .filter((p: any) => !existingUrls.has(p.linkedin_url?.trim().toLowerCase()))
+        .map((p: any) => ({
+          userId: targetUserId,
+          linkedinUrl: p.linkedin_url || "",
+          fullName: p.full_name || "",
+          headline: p.headline || "",
+          company: p.company || "",
+          location: p.location || "",
+          connectionStatus: p.connection_status || "none",
+          outreachStatus: p.outreach_status || "none",
+          enrichmentData: p.enrichment_data || null,
+        }));
+
+      if (toInsert.length === 0) return;
+
+      const batchSize = 100;
+      for (let i = 0; i < toInsert.length; i += batchSize) {
+        await db.insert(linkedinProfiles).values(toInsert.slice(i, i + batchSize));
+      }
+      console.log(`[LinkedIn] Auto-seeded ${toInsert.length} profiles for production user`);
+    } catch (err: any) {
+      console.error("[LinkedIn] Auto-seed error:", err.message);
+    }
+  })();
+
   app.post("/api/linkedin/seed-profiles", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
