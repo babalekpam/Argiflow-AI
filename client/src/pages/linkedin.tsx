@@ -48,7 +48,7 @@ import {
   Filter,
 } from "lucide-react";
 import type { LinkedinProfile } from "@shared/schema";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 type StatsData = {
   totalProfiles: number;
@@ -231,7 +231,10 @@ function CsvImportPanel() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/linkedin/profiles"] });
       queryClient.invalidateQueries({ queryKey: ["/api/linkedin/stats"] });
-      toast({ title: "Import complete", description: data.message });
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/filter-status"] });
+      toast({ title: "Import complete", description: data.autoFilterStarted
+        ? `${data.message}. AI is now filtering by your industry...`
+        : data.message });
       setParsedData(null);
     },
     onError: (err: Error) => {
@@ -459,9 +462,8 @@ function BulkActionsBar({ profileCount, unconvertedCount }: { profileCount: numb
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/profiles"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/stats"] });
-      toast({ title: "AI Filter Complete", description: data.message });
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/filter-status"] });
+      toast({ title: "AI Filter Started", description: data.message });
       setShowFilterInput(false);
       setFilterIndustry("");
     },
@@ -541,6 +543,98 @@ function BulkActionsBar({ profileCount, unconvertedCount }: { profileCount: numb
           <span className="text-xs text-muted-foreground">AI will analyze all {profileCount} profiles and remove non-matching ones</span>
         </div>
       )}
+    </Card>
+  );
+}
+
+type FilterStatus = {
+  active: boolean;
+  status?: "detecting_industry" | "filtering" | "done" | "error";
+  industry?: string;
+  totalProfiles?: number;
+  processed?: number;
+  kept?: number;
+  removed?: number;
+  message?: string;
+  elapsedSeconds?: number;
+};
+
+function FilterProgressBanner() {
+  const wasActiveRef = useRef(false);
+
+  const { data: filterStatus } = useQuery<FilterStatus>({
+    queryKey: ["/api/linkedin/filter-status"],
+    refetchInterval: (query) => {
+      const data = query.state.data as FilterStatus | undefined;
+      if (data?.active) return 2000;
+      return false;
+    },
+  });
+
+  useEffect(() => {
+    if (filterStatus?.active) {
+      wasActiveRef.current = true;
+    }
+    if (wasActiveRef.current && filterStatus && !filterStatus.active) {
+      wasActiveRef.current = false;
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/stats"] });
+    }
+  }, [filterStatus]);
+
+  if (!filterStatus || (!filterStatus.active && !filterStatus.status)) {
+    return null;
+  }
+
+  if (!filterStatus.active && filterStatus.status !== "done" && filterStatus.status !== "error") {
+    return null;
+  }
+
+  const progress = filterStatus.totalProfiles && filterStatus.totalProfiles > 0
+    ? Math.round((filterStatus.processed! / filterStatus.totalProfiles) * 100)
+    : 0;
+
+  return (
+    <Card className="p-4 border-sky-500/30 bg-sky-500/5" data-testid="card-filter-progress">
+      <div className="flex items-center gap-3">
+        {filterStatus.active ? (
+          <Loader2 className="w-5 h-5 text-sky-400 animate-spin flex-shrink-0" />
+        ) : filterStatus.status === "done" ? (
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+        ) : (
+          <Filter className="w-5 h-5 text-red-400 flex-shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium" data-testid="text-filter-message">
+              {filterStatus.status === "detecting_industry" && "AI is detecting your industry..."}
+              {filterStatus.status === "filtering" && `Filtering for "${filterStatus.industry}"...`}
+              {filterStatus.status === "done" && filterStatus.message}
+              {filterStatus.status === "error" && filterStatus.message}
+            </p>
+            {filterStatus.active && filterStatus.totalProfiles! > 0 && (
+              <span className="text-xs text-muted-foreground flex-shrink-0" data-testid="text-filter-progress">
+                {filterStatus.processed}/{filterStatus.totalProfiles} ({progress}%)
+              </span>
+            )}
+          </div>
+          {filterStatus.active && filterStatus.totalProfiles! > 0 && (
+            <div className="mt-2 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-sky-500 transition-all duration-500"
+                style={{ width: `${progress}%` }}
+                data-testid="progress-filter-bar"
+              />
+            </div>
+          )}
+          {filterStatus.active && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {filterStatus.kept} kept &middot; {filterStatus.removed} removed
+              {filterStatus.elapsedSeconds! > 0 && ` &middot; ${filterStatus.elapsedSeconds}s elapsed`}
+            </p>
+          )}
+        </div>
+      </div>
     </Card>
   );
 }
@@ -710,6 +804,8 @@ export default function LinkedInPage() {
       </div>
 
       <LinkedInAccountPanel />
+
+      <FilterProgressBanner />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (

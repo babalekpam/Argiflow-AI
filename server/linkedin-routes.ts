@@ -1,8 +1,9 @@
 import type { Express, RequestHandler } from "express";
 import { db } from "./db";
 import { eq, and, sql, count, desc } from "drizzle-orm";
-import { linkedinProfiles, leads, userSettings } from "@shared/schema";
+import { linkedinProfiles, leads, userSettings, users } from "@shared/schema";
 import { storage } from "./storage";
+import OpenAI from "openai";
 
 const isAuthenticated: RequestHandler = (req, res, next) => {
   if (!req.session?.userId) {
@@ -10,6 +11,150 @@ const isAuthenticated: RequestHandler = (req, res, next) => {
   }
   next();
 };
+
+const filterJobs = new Map<string, {
+  status: "detecting_industry" | "filtering" | "done" | "error";
+  industry: string;
+  totalProfiles: number;
+  processed: number;
+  kept: number;
+  removed: number;
+  message: string;
+  startedAt: number;
+}>();
+
+async function detectUserIndustry(userId: string): Promise<string | null> {
+  try {
+    const [user] = await db.select({
+      companyName: users.companyName,
+      jobTitle: users.jobTitle,
+      industry: users.industry,
+      companyDescription: users.companyDescription,
+    }).from(users).where(eq(users.id, userId));
+
+    if (!user) return null;
+    if (user.industry && user.industry.trim().length > 1) return user.industry.trim();
+
+    const context = [
+      user.companyName && `Company: ${user.companyName}`,
+      user.jobTitle && `Job Title: ${user.jobTitle}`,
+      user.companyDescription && `Description: ${user.companyDescription}`,
+    ].filter(Boolean).join(", ");
+
+    if (!context) return null;
+
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You detect a user's industry from their business info. Return ONLY the industry name as a single short phrase (e.g. 'healthcare', 'real estate', 'technology', 'finance', 'legal', 'education'). Nothing else." },
+        { role: "user", content: context }
+      ],
+      temperature: 0,
+      max_tokens: 50,
+    });
+    const industry = (response.choices[0]?.message?.content || "").trim().toLowerCase();
+    if (industry.length >= 2 && industry.length <= 100) {
+      await db.update(users).set({ industry }).where(eq(users.id, userId));
+      return industry;
+    }
+    return null;
+  } catch (err: any) {
+    console.error("[LinkedIn] Industry detection error:", err.message);
+    return null;
+  }
+}
+
+async function runBackgroundIndustryFilter(userId: string, industry: string) {
+  const job = filterJobs.get(userId);
+  if (!job) return;
+
+  try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const allProfiles = await db.select({
+      id: linkedinProfiles.id,
+      fullName: linkedinProfiles.fullName,
+      headline: linkedinProfiles.headline,
+      company: linkedinProfiles.company,
+    }).from(linkedinProfiles).where(eq(linkedinProfiles.userId, userId));
+
+    job.totalProfiles = allProfiles.length;
+    job.status = "filtering";
+
+    if (allProfiles.length === 0) {
+      job.status = "done";
+      job.message = "No profiles to filter";
+      return;
+    }
+
+    const batchSize = 100;
+    for (let i = 0; i < allProfiles.length; i += batchSize) {
+      const batch = allProfiles.slice(i, i + batchSize);
+
+      try {
+        const compact = batch.map(p =>
+          `${p.id}|${p.fullName || ""}|${p.headline || ""}|${p.company || ""}`
+        ).join("\n");
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: `Classify profiles as "${industry}" or not. Input: lines of "id|name|headline|company". Return ONLY a JSON array of IDs that belong to ${industry}. Be inclusive — if there's a reasonable chance they're in ${industry}, keep them.` },
+            { role: "user", content: compact }
+          ],
+          temperature: 0.1,
+          max_tokens: 8000,
+        });
+
+        const content = response.choices[0]?.message?.content || "";
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+          job.kept += batch.length;
+          job.processed += batch.length;
+          continue;
+        }
+
+        let keepIds: string[];
+        try {
+          keepIds = JSON.parse(jsonMatch[0]);
+          if (!Array.isArray(keepIds)) throw new Error("bad");
+        } catch {
+          job.kept += batch.length;
+          job.processed += batch.length;
+          continue;
+        }
+
+        const batchIds = new Set(batch.map(p => p.id));
+        const keepSet = new Set(keepIds.filter(id => typeof id === "string" && batchIds.has(id)));
+        const removeIds = batch.filter(p => !keepSet.has(p.id)).map(p => p.id);
+
+        if (removeIds.length > 0) {
+          await db.delete(linkedinProfiles).where(
+            sql`${linkedinProfiles.id} IN (${sql.join(removeIds.map(id => sql`${id}`), sql`,`)}) AND ${linkedinProfiles.userId} = ${userId}`
+          );
+        }
+
+        job.kept += keepSet.size;
+        job.removed += removeIds.length;
+        job.processed += batch.length;
+        console.log(`[LinkedIn] Filter ${industry} batch: +${keepSet.size} kept, -${removeIds.length} removed (${job.processed}/${job.totalProfiles})`);
+      } catch (aiErr: any) {
+        console.warn(`[LinkedIn] AI filter batch error: ${aiErr.message}`);
+        job.kept += batch.length;
+        job.processed += batch.length;
+      }
+    }
+
+    job.status = "done";
+    job.message = `Kept ${job.kept} ${industry} contacts, removed ${job.removed} non-${industry} contacts`;
+    console.log(`[LinkedIn] Filter complete: ${job.message}`);
+  } catch (err: any) {
+    console.error("[LinkedIn] Background filter error:", err.message);
+    job.status = "error";
+    job.message = `Filter failed: ${err.message}`;
+  }
+}
 
 export function registerLinkedinRoutes(app: Express) {
   app.get("/api/linkedin/stats", isAuthenticated, async (req, res) => {
@@ -333,17 +478,76 @@ export function registerLinkedinRoutes(app: Express) {
       imported = toInsert.length;
       skipped = connections.length - imported;
 
+      let autoFilterStarted = false;
+      if (imported > 0) {
+        const existingJob = filterJobs.get(userId);
+        if (!existingJob || existingJob.status === "done" || existingJob.status === "error") {
+          autoFilterStarted = true;
+          filterJobs.set(userId, {
+            status: "detecting_industry",
+            industry: "",
+            totalProfiles: 0,
+            processed: 0,
+            kept: 0,
+            removed: 0,
+            message: "Detecting your industry...",
+            startedAt: Date.now(),
+          });
+
+          (async () => {
+            const job = filterJobs.get(userId)!;
+            try {
+              const industry = await detectUserIndustry(userId);
+              if (!industry) {
+                job.status = "error";
+                job.message = "Could not detect industry — please set your industry in Settings to enable auto-filtering";
+                return;
+              }
+              job.industry = industry;
+              job.message = `Filtering contacts for "${industry}"...`;
+              console.log(`[LinkedIn] Auto-filter: detected industry "${industry}" for user ${userId}`);
+              await runBackgroundIndustryFilter(userId, industry);
+            } catch (err: any) {
+              console.error("[LinkedIn] Auto-filter error:", err.message);
+              job.status = "error";
+              job.message = `Auto-filter failed: ${err.message}`;
+            }
+          })();
+        }
+      }
+
       res.json({
         success: true,
         imported,
         skipped,
         total: connections.length,
         message: `Imported ${imported} connections, skipped ${skipped} duplicates`,
+        autoFilterStarted,
       });
     } catch (error: any) {
       console.error("[LinkedIn] CSV import error:", error);
       res.status(500).json({ message: "Failed to import connections" });
     }
+  });
+
+  app.get("/api/linkedin/filter-status", isAuthenticated, async (req, res) => {
+    const userId = req.session!.userId!;
+    const job = filterJobs.get(userId);
+    if (!job) {
+      return res.json({ active: false });
+    }
+    const elapsed = Math.round((Date.now() - job.startedAt) / 1000);
+    res.json({
+      active: job.status === "detecting_industry" || job.status === "filtering",
+      status: job.status,
+      industry: job.industry,
+      totalProfiles: job.totalProfiles,
+      processed: job.processed,
+      kept: job.kept,
+      removed: job.removed,
+      message: job.message,
+      elapsedSeconds: elapsed,
+    });
   });
 
   app.post("/api/linkedin/convert-to-leads", isAuthenticated, async (req, res) => {
@@ -512,102 +716,31 @@ export function registerLinkedinRoutes(app: Express) {
         return res.status(400).json({ message: "Please specify a valid industry name (2-100 characters)" });
       }
 
-      const allProfiles = await db.select().from(linkedinProfiles)
-        .where(eq(linkedinProfiles.userId, userId));
-
-      if (allProfiles.length === 0) {
-        return res.json({ kept: 0, removed: 0, message: "No profiles to filter" });
+      const existingJob = filterJobs.get(userId);
+      if (existingJob && (existingJob.status === "detecting_industry" || existingJob.status === "filtering")) {
+        return res.status(409).json({ message: "A filter is already running. Check progress via the status endpoint." });
       }
 
-      const batchSize = 50;
-      let kept = 0;
-      let removed = 0;
-      const idsToRemove: string[] = [];
+      filterJobs.set(userId, {
+        status: "filtering",
+        industry: industry.trim(),
+        totalProfiles: 0,
+        processed: 0,
+        kept: 0,
+        removed: 0,
+        message: `Filtering contacts for "${industry.trim()}"...`,
+        startedAt: Date.now(),
+      });
 
-      for (let i = 0; i < allProfiles.length; i += batchSize) {
-        const batch = allProfiles.slice(i, i + batchSize);
-        const profileSummaries = batch.map(p =>
-          `ID:${p.id}|Name:${p.fullName}|Title:${p.headline || "N/A"}|Company:${p.company || "N/A"}`
-        ).join("\n");
-
-        try {
-          const { OpenAI } = await import("openai");
-          const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-          const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-              {
-                role: "system",
-                content: `You are an industry classification expert. Given a list of LinkedIn profiles, determine which ones belong to the "${industry}" industry based on their job title, company name, and any other clues. Return ONLY a JSON array of profile IDs that DO belong to the "${industry}" industry. Be inclusive - if there's a reasonable chance they're in ${industry}, keep them. Return format: ["id1", "id2", ...]`
-              },
-              {
-                role: "user",
-                content: `Classify these profiles. Keep only those in the "${industry}" industry:\n\n${profileSummaries}`
-              }
-            ],
-            temperature: 0.1,
-            max_tokens: 4000,
-          });
-
-          const content = response.choices[0]?.message?.content || "";
-          const jsonMatch = content.match(/\[[\s\S]*\]/);
-          if (!jsonMatch) {
-            console.warn(`[LinkedIn] AI filter returned no valid JSON, keeping batch of ${batch.length}`);
-            kept += batch.length;
-            continue;
-          }
-
-          let keepIds: string[];
-          try {
-            keepIds = JSON.parse(jsonMatch[0]);
-            if (!Array.isArray(keepIds) || !keepIds.every(id => typeof id === "string")) {
-              throw new Error("Invalid response format");
-            }
-          } catch {
-            console.warn(`[LinkedIn] AI filter returned invalid JSON, keeping batch of ${batch.length}`);
-            kept += batch.length;
-            continue;
-          }
-
-          const batchIds = new Set(batch.map(p => p.id));
-          const validKeepIds = keepIds.filter(id => batchIds.has(id));
-          const keepSet = new Set(validKeepIds);
-
-          for (const p of batch) {
-            if (keepSet.has(p.id)) {
-              kept++;
-            } else {
-              idsToRemove.push(p.id);
-              removed++;
-            }
-          }
-        } catch (aiErr: any) {
-          console.warn(`[LinkedIn] AI filter batch error: ${aiErr.message}`);
-          kept += batch.length;
-        }
-      }
-
-      if (idsToRemove.length > 0) {
-        for (let i = 0; i < idsToRemove.length; i += 100) {
-          const batch = idsToRemove.slice(i, i + 100);
-          for (const id of batch) {
-            await db.delete(linkedinProfiles).where(
-              sql`${linkedinProfiles.id} = ${id} AND ${linkedinProfiles.userId} = ${userId}`
-            );
-          }
-        }
-      }
+      runBackgroundIndustryFilter(userId, industry.trim());
 
       res.json({
-        kept,
-        removed,
-        total: allProfiles.length,
-        message: `Kept ${kept} ${industry} contacts, removed ${removed} non-${industry} contacts`,
+        started: true,
+        message: `AI industry filter started for "${industry.trim()}". Check /api/linkedin/filter-status for progress.`,
       });
     } catch (error: any) {
       console.error("[LinkedIn] Industry filter error:", error);
-      res.status(500).json({ message: "Failed to filter by industry" });
+      res.status(500).json({ message: "Failed to start industry filter" });
     }
   });
 }
