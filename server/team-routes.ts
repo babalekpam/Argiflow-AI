@@ -22,6 +22,7 @@ async function sendTeamInviteEmail(
   const greeting = inviteeName ? `Hi ${inviteeName}` : "Hi there";
   const subject = `${inviterName} invited you to join their team on Argilette`;
   const from = { email: smtpUser || "noreply@argilette.co", name: "Argilette" };
+  const signupUrl = `${appUrl}/signup`;
 
   const html = `
     <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1119; color: #e2e8f0; padding: 40px; border-radius: 12px;">
@@ -40,7 +41,7 @@ async function sendTeamInviteEmail(
         With Argilette, you'll have access to powerful AI-driven tools for lead generation, sales intelligence, and client acquisition.
       </p>
       <div style="text-align: center; margin: 32px 0;">
-        <a href="${appUrl}/auth" style="display: inline-block; background: linear-gradient(135deg, #00e5a0, #00b8d4); color: #0d1119; font-weight: 700; font-size: 16px; padding: 14px 36px; border-radius: 8px; text-decoration: none;">
+        <a href="${signupUrl}" style="display: inline-block; background: linear-gradient(135deg, #00e5a0, #00b8d4); color: #0d1119; font-weight: 700; font-size: 16px; padding: 14px 36px; border-radius: 8px; text-decoration: none;">
           Accept Invitation
         </a>
       </div>

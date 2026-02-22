@@ -4,6 +4,8 @@ import { eq, and, sql, count, desc } from "drizzle-orm";
 import { linkedinProfiles, leads, userSettings, users } from "@shared/schema";
 import { storage } from "./storage";
 import OpenAI from "openai";
+import fs from "fs";
+import path from "path";
 
 const isAuthenticated: RequestHandler = (req, res, next) => {
   if (!req.session?.userId) {
@@ -741,6 +743,57 @@ export function registerLinkedinRoutes(app: Express) {
     } catch (error: any) {
       console.error("[LinkedIn] Industry filter error:", error);
       res.status(500).json({ message: "Failed to start industry filter" });
+    }
+  });
+
+  app.post("/api/linkedin/seed-profiles", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const seedFile = path.join(process.cwd(), "server", "seed-linkedin-profiles.json");
+      if (!fs.existsSync(seedFile)) {
+        return res.status(404).json({ message: "No seed data available" });
+      }
+
+      const raw = fs.readFileSync(seedFile, "utf-8");
+      const profiles = JSON.parse(raw);
+      if (!Array.isArray(profiles) || profiles.length === 0) {
+        return res.status(400).json({ message: "No profiles in seed file" });
+      }
+
+      const existing = await db
+        .select({ url: linkedinProfiles.linkedinUrl })
+        .from(linkedinProfiles)
+        .where(eq(linkedinProfiles.userId, userId));
+      const existingUrls = new Set(existing.map((e) => e.url?.trim().toLowerCase()));
+
+      const toInsert = profiles
+        .filter((p: any) => !existingUrls.has(p.linkedin_url?.trim().toLowerCase()))
+        .map((p: any) => ({
+          userId,
+          linkedinUrl: p.linkedin_url || "",
+          fullName: p.full_name || "",
+          headline: p.headline || "",
+          company: p.company || "",
+          location: p.location || "",
+          connectionStatus: p.connection_status || "none",
+          outreachStatus: p.outreach_status || "none",
+          enrichmentData: p.enrichment_data || null,
+        }));
+
+      if (toInsert.length === 0) {
+        return res.json({ imported: 0, message: "All profiles already exist" });
+      }
+
+      const batchSize = 100;
+      for (let i = 0; i < toInsert.length; i += batchSize) {
+        await db.insert(linkedinProfiles).values(toInsert.slice(i, i + batchSize));
+      }
+
+      console.log(`[LinkedIn] Seeded ${toInsert.length} profiles for user ${userId}`);
+      res.json({ imported: toInsert.length, message: `Imported ${toInsert.length} profiles` });
+    } catch (error: any) {
+      console.error("[LinkedIn] Seed error:", error);
+      res.status(500).json({ message: "Failed to seed profiles" });
     }
   });
 }
