@@ -2150,7 +2150,7 @@ export async function registerRoutes(
 
       if (!stripeReconciled) {
         try {
-          const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+          const trialEnd = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
           await storage.createSubscription({
             userId: user.id,
             plan: "growth",
@@ -2160,9 +2160,9 @@ export async function registerRoutes(
             trialEndsAt: trialEnd,
             currentPeriodStart: new Date(),
             currentPeriodEnd: trialEnd,
-            notes: "14-day Growth trial",
+            notes: "15-day Pro trial — full access to all features",
           });
-          console.log(`14-day Growth trial created for ${email} (expires ${trialEnd.toISOString()})`);
+          console.log(`15-day Pro trial created for ${email} (expires ${trialEnd.toISOString()})`);
         } catch (subErr: any) {
           console.error("Failed to create trial subscription:", subErr?.message || subErr);
         }
@@ -2179,16 +2179,17 @@ export async function registerRoutes(
               <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
             </div>
             <h2 style="color: #e6edf3; font-size: 22px;">Welcome, ${firstName}!</h2>
-            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Your account is ready and your <strong style="color: #38bdf8;">Pro plan</strong> is now active. You have full access to all Pro features including AI agents, lead generation, email campaigns, and more.</p>
+            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Your account is ready and your <strong style="color: #38bdf8;">15-day Pro trial</strong> is now active. You have full access to all Pro features including AI agents, lead generation, voice AI calling, email campaigns, sales intelligence, and more — completely free for 15 days.</p>
             <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 20px 0;">
               <p style="color: #e6edf3; margin: 0 0 8px; font-weight: 600;">Your Account:</p>
-              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Plan: <strong style="color: #38bdf8;">Pro (Lifetime)</strong></p>
-              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Status: <strong style="color: #22c55e;">Active</strong></p>
+              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Plan: <strong style="color: #38bdf8;">Pro Trial (15 days free)</strong></p>
+              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Status: <strong style="color: #22c55e;">Active — Full Access</strong></p>
+              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Includes: <strong style="color: #38bdf8;">All 40+ tools, AI agents, voice calling, sales intelligence</strong></p>
             </div>
             <div style="text-align: center; margin: 30px 0;">
               <a href="https://argilette.co/dashboard" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Go to Dashboard</a>
             </div>
-            <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">Enjoy unlimited access to all ArgiFlow features. Welcome to the family!</p>
+            <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">Enjoy full access to every ArgiFlow feature for 15 days — no credit card required. After your trial, choose a plan that fits your needs.</p>
             <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
           </div>`
         );
@@ -2391,7 +2392,7 @@ export async function registerRoutes(
         await storage.updateSubscription(sub.id, {
           plan: "starter",
           status: "expired",
-          notes: "Pro trial expired — upgrade to continue",
+          notes: "15-day Pro trial expired — upgrade to continue",
         });
         sub = await storage.getSubscriptionByUser(user.id);
         console.log(`[Trial] Expired trial for user ${user.email}, downgraded to starter`);
@@ -2404,7 +2405,7 @@ export async function registerRoutes(
         else if (sub.status === "trial") {
           const daysLeft = sub.trialEndsAt ? Math.max(0, Math.ceil((new Date(sub.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
           trialDaysLeft = daysLeft;
-          planLabel = `${planName} Trial (${daysLeft}d left)`;
+          planLabel = `Pro Trial (${daysLeft}d left)`;
         }
         else if (sub.status === "active") planLabel = `${planName} Plan`;
         else if (sub.status === "expired") planLabel = "Trial Expired — Upgrade";
@@ -7565,7 +7566,7 @@ async function fixIncorrectLifetimeTrials() {
           paymentMethod: "none",
           trialEndsAt: trialEnd,
           currentPeriodEnd: trialEnd,
-          notes: "Pro trial expired — upgrade to continue",
+          notes: "15-day Pro trial expired — upgrade to continue",
         });
       } else {
         await storage.updateSubscription(sub.id, {
@@ -7573,12 +7574,12 @@ async function fixIncorrectLifetimeTrials() {
           paymentMethod: "none",
           trialEndsAt: trialEnd,
           currentPeriodEnd: trialEnd,
-          notes: "14-day Pro trial (corrected from lifetime)",
+          notes: "15-day Pro trial (corrected from lifetime)",
         });
       }
       fixed++;
     }
-    if (fixed > 0) console.log(`[Trial Fix] Corrected ${fixed} incorrect lifetime subscriptions to 14-day trials`);
+    if (fixed > 0) console.log(`[Trial Fix] Corrected ${fixed} incorrect lifetime subscriptions to 15-day trials`);
   } catch (error) {
     console.error("Error fixing lifetime trials:", error);
   }

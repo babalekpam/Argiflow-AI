@@ -301,11 +301,11 @@ export default function LandingPage() {
                 ArgiFlow gives you what Apollo, ZoomInfo, Instantly, Smartlead, and GoHighLevel do — combined into a single platform. Lead data, outreach, voice AI, email infrastructure, CRM, funnels, and 40+ tools. No add-ons. No per-seat charges. Nothing else to buy.
               </p>
               <p className="text-[15px] text-[#00e5a0] font-medium mb-12 max-w-[540px]">
-                One login. One bill. Every tool you need to find, contact, and close B2B deals.
+                One login. One bill. Every tool you need to find, contact, and close B2B deals. Start with a <strong>15-day free trial</strong> — full Pro access, no credit card.
               </p>
               <div className="flex items-center gap-4 flex-wrap">
                 <button onClick={() => showView("getstarted")} data-testid="button-start-trial" className="px-9 py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] hover:shadow-[0_8px_32px_rgba(0,229,160,.35)] hover:-translate-y-0.5 transition-all" style={syne}>
-                  Start Free Trial
+                  Start 15-Day Free Trial
                 </button>
                 <button onClick={() => showView("demo")} data-testid="button-watch-demo" className="px-9 py-4 rounded-xl text-[15px] font-medium text-[#eef2ff] cursor-pointer hover:border-[rgba(255,255,255,.3)] transition-all" style={{ border: "1px solid rgba(255,255,255,0.12)", background: "transparent", ...dm }}>
                   Watch Demo
@@ -505,7 +505,7 @@ export default function LandingPage() {
             <div id="pricing-section" className="py-24 px-6 md:px-12 max-w-[1200px] mx-auto scroll-mt-20">
               <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">Pricing</div>
               <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">One Platform. One Price. Everything Included.</h2>
-              <p className="text-[16px] text-[#8a9abb] max-w-[520px] leading-relaxed">No per-seat charges. No credit limits. No hidden add-ons. Choose your plan and get every single tool from day one.</p>
+              <p className="text-[16px] text-[#8a9abb] max-w-[520px] leading-relaxed">Every plan starts with <strong className="text-[#00e5a0]">15 days free</strong> with full Pro access. No per-seat charges. No credit limits. No hidden add-ons. Get every single tool from day one.</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-12">
                 {plans.map((p, i) => (
                   <div key={i} className={`bg-[#0d1119] rounded-[20px] p-9 relative overflow-hidden transition-transform hover:-translate-y-1 ${p.popular ? "border-[rgba(59,130,246,.4)]" : ""}`} style={{ border: p.popular ? "1px solid rgba(59,130,246,.4)" : "1px solid rgba(255,255,255,0.07)" }} data-testid={`card-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`}>
@@ -533,10 +533,10 @@ export default function LandingPage() {
 
             <div className="py-20 px-6 md:px-12 max-w-[800px] mx-auto text-center">
               <h2 style={syne} className="text-[clamp(26px,3.5vw,40px)] font-extrabold tracking-[-1.5px] mb-5">Ready to Replace Your Entire Sales Stack?</h2>
-              <p className="text-[16px] text-[#8a9abb] leading-relaxed mb-8">Join 500+ teams who ditched 5+ subscriptions for one platform that does it all. Start free — no credit card required.</p>
+              <p className="text-[16px] text-[#8a9abb] leading-relaxed mb-8">Join 500+ teams who ditched 5+ subscriptions for one platform that does it all. Get 15 days of full Pro access free — no credit card required.</p>
               <div className="flex items-center justify-center gap-4 flex-wrap">
                 <button onClick={() => showView("getstarted")} data-testid="button-bottom-cta" className="px-9 py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] hover:shadow-[0_8px_32px_rgba(0,229,160,.35)] hover:-translate-y-0.5 transition-all" style={syne}>
-                  Start Free Trial
+                  Start 15-Day Free Trial
                 </button>
                 <button onClick={() => showView("demo")} data-testid="button-bottom-demo" className="px-9 py-4 rounded-xl text-[15px] font-medium text-[#eef2ff] cursor-pointer hover:border-[rgba(255,255,255,.3)] transition-all" style={{ border: "1px solid rgba(255,255,255,0.12)", background: "transparent", ...dm }}>
                   Watch Demo First
@@ -742,7 +742,7 @@ export default function LandingPage() {
               <div className="anim-fadeUp">
                 <div className="text-center mb-10">
                   <h2 style={syne} className="text-3xl font-extrabold tracking-[-1px] mb-2">Choose Your Plan</h2>
-                  <p className="text-[14px] text-[#8a9abb]">Select the plan that fits your sales operation.</p>
+                  <p className="text-[14px] text-[#8a9abb]">Every plan starts with a <strong className="text-[#00e5a0]">15-day free trial</strong> — full Pro access, no credit card required.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
                   {plans.map((p) => (
