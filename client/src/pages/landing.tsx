@@ -36,24 +36,25 @@ const transcriptLines = [
   { role: "ai", text: "Perfect. I'll send a calendar invite to your office email. Thursday at 2pm work for you?" },
 ];
 
-const plans = [
-  {
-    name: "Starter", price: "$297", tagline: "Perfect for solo founders & small teams",
-    features: ["500 leads/month", "AI email outreach", "Basic CRM", "Email warmup (2 accounts)", "Weekly reports", "Chat support"],
-  },
-  {
-    name: "Growth", price: "$597", tagline: "Most popular — for scaling teams", popular: true,
-    features: ["1,500 leads/month", "AI email + SMS outreach", "Voice AI Agent", "Full CRM + pipeline", "Email warmup (5 accounts)", "Sales intelligence", "Priority support"],
-  },
-  {
-    name: "Agency OS", price: "$1,497", tagline: "For agencies managing multiple clients",
-    features: ["5,000 leads/month", "Unlimited outreach channels", "White-label Voice AI", "Multi-client CRM", "Email warmup (15 accounts)", "Custom AI training", "Dedicated success manager", "API access"],
-  },
-];
 
 export default function LandingPage() {
   usePageTitle();
   const { t } = useTranslation();
+
+  const plans = [
+    {
+      name: t("landing.pricing2.starterName"), price: t("landing.pricing2.starterPrice"), tagline: t("landing.pricing2.starterTagline"),
+      features: [t("landing.pricing2.starterF0"), t("landing.pricing2.starterF1"), t("landing.pricing2.starterF2"), t("landing.pricing2.starterF3"), t("landing.pricing2.starterF4"), t("landing.pricing2.starterF5")],
+    },
+    {
+      name: t("landing.pricing2.growthName"), price: t("landing.pricing2.growthPrice"), tagline: t("landing.pricing2.growthTagline"), popular: true,
+      features: [t("landing.pricing2.growthF0"), t("landing.pricing2.growthF1"), t("landing.pricing2.growthF2"), t("landing.pricing2.growthF3"), t("landing.pricing2.growthF4"), t("landing.pricing2.growthF5"), t("landing.pricing2.growthF6")],
+    },
+    {
+      name: t("landing.pricing2.agencyName"), price: t("landing.pricing2.agencyPrice"), tagline: t("landing.pricing2.agencyTagline"),
+      features: [t("landing.pricing2.agencyF0"), t("landing.pricing2.agencyF1"), t("landing.pricing2.agencyF2"), t("landing.pricing2.agencyF3"), t("landing.pricing2.agencyF4"), t("landing.pricing2.agencyF5"), t("landing.pricing2.agencyF6"), t("landing.pricing2.agencyF7")],
+    },
+  ];
 
   const [currentView, setCurrentView] = useState<ViewType>("landing");
   const [activeDemo, setActiveDemo] = useState<DemoTab>("leads");
@@ -72,15 +73,15 @@ export default function LandingPage() {
   const [demoTitle, setDemoTitle] = useState("");
   const leadTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [activityItems, setActivityItems] = useState([
-    { icon: "mail", title: "Email opened — Dr. Sarah Martinez, OrthoCare Miami", time: "2 min ago" },
-    { icon: "reply", title: "Reply received — James Wilson, Gulf Coast Pediatrics", time: "8 min ago" },
-    { icon: "cal", title: "Meeting booked — Kevin Patel, Sunrise Family Medicine", time: "23 min ago" },
-    { icon: "send", title: "Follow-up sent — Amanda Torres, Tampa Bay Medical", time: "41 min ago" },
+  const [activityItems, setActivityItems] = useState<{icon: string; titleKey: string; timeKey: string}[]>([
+    { icon: "mail", titleKey: "landing.demo.activity1", timeKey: "landing.demo.time2min" },
+    { icon: "reply", titleKey: "landing.demo.activity2", timeKey: "landing.demo.time8min" },
+    { icon: "cal", titleKey: "landing.demo.activity3", timeKey: "landing.demo.time23min" },
+    { icon: "send", titleKey: "landing.demo.activity4", timeKey: "landing.demo.time41min" },
   ]);
 
   const [callState, setCallState] = useState<"idle" | "calling">("idle");
-  const [callStatus, setCallStatus] = useState("Click to simulate call");
+  const [callStatus, setCallStatus] = useState("");
   const [callTranscript, setCallTranscript] = useState<{ role: string; text: string }[]>([]);
   const [showTranscript, setShowTranscript] = useState(false);
   const callTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -139,11 +140,11 @@ export default function LandingPage() {
     const industry = demoIndustry || "businesses";
     const location = demoLocation || "US";
     const msgs = [
-      "Scanning NPI Registry and public directories...",
-      `Matching ${industry} in ${location}...`,
-      "Verifying email addresses...",
-      "Enriching with phone numbers and LinkedIn...",
-      "Scoring leads by intent and fit...",
+      t("landing.demo.scanningNPI"),
+      t("landing.demo.matchingIndustry", { industry, location }),
+      t("landing.demo.verifyingEmails"),
+      t("landing.demo.enrichingPhones"),
+      t("landing.demo.scoringLeads"),
     ];
     let i = 0;
     setLeadStatus(msgs[0]);
@@ -158,56 +159,56 @@ export default function LandingPage() {
         setLeadStatus("");
         const count = Math.floor(Math.random() * 4) + 5;
         setLeadResults(mockLeads.slice(0, count));
-        showToast("check", `${count} leads found!`);
+        showToast("check", t("landing.demo.leadsFoundToast", { count }));
       }
     }, 700);
-  }, [demoIndustry, demoLocation, showToast]);
+  }, [demoIndustry, demoLocation, showToast, t]);
 
   const simulateOutreach = useCallback(() => {
-    showToast("mail", "Running next outreach cycle — 12 emails queued...");
-    const t = setTimeout(() => {
+    showToast("mail", t("landing.demo.outreachCycle"));
+    const tmr = setTimeout(() => {
       setActivityItems(prev => [
-        { icon: "send", title: "Email sent → Dr. Robert Chen, Bayview Family Practice", time: "Just now" },
+        { icon: "send", titleKey: "landing.demo.emailSentActivity", timeKey: "landing.demo.justNow" },
         ...prev,
       ]);
     }, 1500);
-    callTimers.current.push(t);
-  }, [showToast]);
+    callTimers.current.push(tmr);
+  }, [showToast, t]);
 
   const simulateCall = useCallback(() => {
     if (callState !== "idle") {
       setCallState("idle");
-      setCallStatus("Click to simulate call");
+      setCallStatus(t("landing.demo.clickToSimulate"));
       setShowTranscript(false);
       setCallTranscript([]);
-      callTimers.current.forEach(t => clearTimeout(t));
+      callTimers.current.forEach(tmr => clearTimeout(tmr));
       callTimers.current = [];
       return;
     }
     setCallState("calling");
-    setCallStatus("Dialing...");
+    setCallStatus(t("landing.demo.dialing"));
     setShowTranscript(true);
     setCallTranscript([]);
 
-    const t1 = setTimeout(() => setCallStatus("Connected — AI speaking"), 1500);
+    const t1 = setTimeout(() => setCallStatus(t("landing.demo.connectedSpeaking")), 1500);
     callTimers.current.push(t1);
 
     const delays = [2000, 5000, 9000, 13000, 17000, 22000, 27000];
     transcriptLines.forEach((line, idx) => {
-      const t = setTimeout(() => {
+      const tmr = setTimeout(() => {
         setCallTranscript(prev => [...prev, line]);
         if (idx === transcriptLines.length - 1) {
           const t2 = setTimeout(() => {
-            setCallStatus("Meeting booked — Thu 2pm");
+            setCallStatus(t("landing.demo.meetingBooked"));
             setCallState("idle");
-            showToast("calendar", "Meeting booked — Thu 2pm!");
+            showToast("calendar", t("landing.demo.meetingBooked"));
           }, 2000);
           callTimers.current.push(t2);
         }
       }, delays[idx] || idx * 4000);
-      callTimers.current.push(t);
+      callTimers.current.push(tmr);
     });
-  }, [callState, showToast]);
+  }, [callState, showToast, t]);
 
   const gsSelectPlan = useCallback((name: string, price: string) => {
     setSelectedPlan({ name, price });
@@ -264,21 +265,21 @@ export default function LandingPage() {
             <span className="text-xl font-extrabold tracking-tight">Argi<span className="text-[#00e5a0]">Flow</span></span>
           </div>
           <div className="hidden md:flex items-center gap-8">
-            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => scrollToSection("features-section")} data-testid="link-nav-features">Features</span>
-            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => showView("demo")} data-testid="link-nav-demo">Demo</span>
-            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => scrollToSection("pricing-section")} data-testid="link-nav-pricing">Pricing</span>
+            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => scrollToSection("features-section")} data-testid="link-nav-features">{t("landing.nav.features")}</span>
+            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => showView("demo")} data-testid="link-nav-demo">{t("landing.nav.demo")}</span>
+            <span className="text-sm text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-colors" onClick={() => scrollToSection("pricing-section")} data-testid="link-nav-pricing">{t("landing.nav.pricing")}</span>
           </div>
           <div className="flex items-center gap-3">
             <LanguageSwitcher variant="compact" />
             <a href="/login" data-testid="link-login" className="px-4 py-2 rounded-lg text-[13px] text-[#8a9abb] hover:text-[#eef2ff] cursor-pointer transition-all" style={dm}>
-              Log In
+              {t("landing.nav.logIn")}
             </a>
             <button onClick={() => showView("demo")} data-testid="button-live-demo" className="px-4 py-2 rounded-lg text-[13px] text-[#eef2ff] cursor-pointer transition-all" style={{ border: "1px solid rgba(255,255,255,0.12)", background: "transparent", ...dm }}>
               <span className="inline-block w-[7px] h-[7px] bg-[#00e5a0] rounded-full mr-1.5" style={{ animation: "pulse-dot 2s infinite" }} />
-              Live Demo
+              {t("landing.nav.liveDemo")}
             </button>
             <button onClick={() => showView("getstarted")} data-testid="button-get-started" className="px-4 py-2 bg-[#00e5a0] rounded-lg text-[13px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all" style={syne}>
-              Get Started
+              {t("landing.nav.getStarted")}
             </button>
           </div>
         </nav>
@@ -288,27 +289,27 @@ export default function LandingPage() {
             <div className="pt-[140px] pb-20 px-6 md:px-12 max-w-[1200px] mx-auto">
               <div className="inline-flex items-center gap-2 text-[11px] font-medium text-[#8a9abb] uppercase tracking-[2px] px-4 py-1.5 rounded-full mb-4" style={{ background: "#131a26", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <span className="w-1.5 h-1.5 bg-[#00e5a0] rounded-full" />
-                The All-In-One B2B Growth Engine
+                {t("landing.hero.engineBadge")}
               </div>
               <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-[#f59e0b] px-4 py-1.5 rounded-full mb-8" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)" }} data-testid="badge-replaces">
-                Replaces Apollo + ZoomInfo + Instantly + GoHighLevel + Smartlead
+                {t("landing.hero.replacesBadge")}
               </div>
               <h1 style={syne} className="text-[clamp(38px,6.5vw,82px)] font-extrabold leading-[1.0] tracking-[-3px] mb-7 max-w-[950px]">
-                Stop Paying for <span className="text-[#ef4444] line-through decoration-[3px]">5 Tools.</span>{" "}
-                <span className="text-[#00e5a0]">Get Everything</span> in <span className="text-[#3b82f6]">One.</span>
+                {t("landing.hero.titleStop")} <span className="text-[#ef4444] line-through decoration-[3px]">{t("landing.hero.title5Tools")}</span>{" "}
+                <span className="text-[#00e5a0]">{t("landing.hero.titleGetEverything")}</span> {t("landing.hero.titleIn")} <span className="text-[#3b82f6]">{t("landing.hero.titleOne")}</span>
               </h1>
               <p className="text-lg text-[#8a9abb] font-light max-w-[600px] leading-relaxed mb-5">
-                ArgiFlow gives you what Apollo, ZoomInfo, Instantly, Smartlead, and GoHighLevel do — combined into a single platform. Lead data, outreach, voice AI, email infrastructure, CRM, funnels, and 40+ tools. No add-ons. No per-seat charges. Nothing else to buy.
+                {t("landing.hero.descFull")}
               </p>
               <p className="text-[15px] text-[#00e5a0] font-medium mb-12 max-w-[540px]">
-                One login. One bill. Every tool you need to find, contact, and close B2B deals. Start with a <strong>15-day free trial</strong> — full Pro access, no credit card.
+                {t("landing.hero.oneLogin")} <strong>{t("landing.hero.freeTrialBold")}</strong> {t("landing.hero.oneLoginEnd")}
               </p>
               <div className="flex items-center gap-4 flex-wrap">
                 <button onClick={() => showView("getstarted")} data-testid="button-start-trial" className="px-9 py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] hover:shadow-[0_8px_32px_rgba(0,229,160,.35)] hover:-translate-y-0.5 transition-all" style={syne}>
-                  Start 15-Day Free Trial
+                  {t("landing.hero.ctaTrial")}
                 </button>
                 <button onClick={() => showView("demo")} data-testid="button-watch-demo" className="px-9 py-4 rounded-xl text-[15px] font-medium text-[#eef2ff] cursor-pointer hover:border-[rgba(255,255,255,.3)] transition-all" style={{ border: "1px solid rgba(255,255,255,0.12)", background: "transparent", ...dm }}>
-                  Watch Demo
+                  {t("landing.hero.ctaDemo")}
                 </button>
               </div>
               <div className="flex items-center gap-4 mt-8">
@@ -320,16 +321,16 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <span className="text-[13px] text-[#8a9abb]">
-                  Trusted by <strong className="text-[#00e5a0]">500+</strong> sales teams saving $2,000+/mo
+                  {t("landing.hero.trustedBy")} <strong className="text-[#00e5a0]">500+</strong> {t("landing.hero.savingTeams")}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-px mt-20 rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 {[
-                  { num: "40+", label: "Tools Built In" },
-                  { num: "$0", label: "Extra Software Costs" },
-                  { num: "24/7", label: "AI Agent Availability" },
-                  { num: "10x", label: "Pipeline Growth" },
+                  { num: "40+", label: t("landing.stats.toolsBuiltIn") },
+                  { num: "$0", label: t("landing.stats.extraCosts") },
+                  { num: "24/7", label: t("landing.stats.aiAvailability") },
+                  { num: "10x", label: t("landing.stats.pipelineGrowth") },
                 ].map((s, i) => (
                   <div key={i} className="bg-[#0d1119] py-8 px-7 text-center">
                     <div style={syne} className="text-4xl font-extrabold tracking-[-1.5px] mb-1.5">{s.num}</div>
@@ -339,44 +340,44 @@ export default function LandingPage() {
               </div>
 
               <div className="mt-24 scroll-mt-20" data-testid="section-comparison">
-                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">Why ArgiFlow Wins</div>
-                <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">They Sell You Pieces. We Give You the Whole Machine.</h2>
-                <p className="text-[16px] text-[#8a9abb] max-w-[580px] leading-relaxed mb-12">Other platforms make you buy 5 subscriptions and glue them together. ArgiFlow replaces all of them — for a fraction of the cost.</p>
+                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">{t("landing.comparison.badge")}</div>
+                <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">{t("landing.comparison.title")}</h2>
+                <p className="text-[16px] text-[#8a9abb] max-w-[580px] leading-relaxed mb-12">{t("landing.comparison.desc")}</p>
 
                 <div className="rounded-2xl overflow-hidden overflow-x-auto" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
                   <div className="grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center min-w-[560px]" style={{ background: "#131a26" }}>
-                    <div className="p-4 text-left text-[13px] font-semibold text-[#5a6a8a]">Capability</div>
+                    <div className="p-4 text-left text-[13px] font-semibold text-[#5a6a8a]">{t("landing.comparison.capability")}</div>
                     <div className="p-4 text-[13px] font-bold text-[#00e5a0]" style={syne}>ArgiFlow</div>
                     <div className="p-4 text-[13px] font-medium text-[#5a6a8a]">Apollo</div>
                     <div className="p-4 text-[13px] font-medium text-[#5a6a8a]">ZoomInfo</div>
                     <div className="p-4 text-[13px] font-medium text-[#5a6a8a]">GHL</div>
                   </div>
                   {[
-                    { feat: "B2B Contact & Company Data", a: true, b: true, c: true, d: false },
-                    { feat: "Email Finder & Verification", a: true, b: true, c: true, d: false },
-                    { feat: "Intent Data & Buying Signals", a: true, b: true, c: true, d: false },
-                    { feat: "Org Charts & Technographics", a: true, b: false, c: true, d: false },
-                    { feat: "AI-Powered Deep Research", a: true, b: false, c: false, d: false },
-                    { feat: "Multi-Channel Outreach (Email + SMS)", a: true, b: "email", c: false, d: true },
-                    { feat: "AI Voice Calling Agent", a: true, b: false, c: false, d: false },
-                    { feat: "Email Warmup & Deliverability", a: true, b: false, c: false, d: "add-on" },
-                    { feat: "AI-Written Personalized Sequences", a: true, b: false, c: false, d: "basic" },
-                    { feat: "CRM & Sales Pipeline", a: true, b: "basic", c: false, d: true },
-                    { feat: "Landing Pages & Funnels", a: true, b: false, c: false, d: true },
-                    { feat: "AI Chat Widget", a: true, b: false, c: false, d: "add-on" },
-                    { feat: "Invoicing & Payments", a: true, b: false, c: false, d: true },
-                    { feat: "Proposals & E-Signatures", a: true, b: false, c: false, d: false },
-                    { feat: "Social Media Management", a: true, b: false, c: false, d: true },
-                    { feat: "Reputation & Review Management", a: true, b: false, c: false, d: true },
-                    { feat: "Blog & Content Builder", a: true, b: false, c: false, d: "basic" },
-                    { feat: "Membership Sites & Courses", a: true, b: false, c: false, d: true },
-                    { feat: "Workflow Automation Engine", a: true, b: "basic", c: false, d: true },
-                    { feat: "Calendar & Scheduling", a: true, b: false, c: false, d: true },
-                    { feat: "A/B Split Testing", a: true, b: false, c: false, d: "basic" },
-                    { feat: "Google Business Profile", a: true, b: false, c: false, d: true },
-                    { feat: "Community & Forums", a: true, b: false, c: false, d: "add-on" },
-                    { feat: "AI Agent Marketplace (40+ agents)", a: true, b: false, c: false, d: false },
-                    { feat: "Auto Lead Gen (runs 24/7)", a: true, b: false, c: false, d: false },
+                    { feat: t("landing.comparison.feat0"), a: true, b: true, c: true, d: false },
+                    { feat: t("landing.comparison.feat1"), a: true, b: true, c: true, d: false },
+                    { feat: t("landing.comparison.feat2"), a: true, b: true, c: true, d: false },
+                    { feat: t("landing.comparison.feat3"), a: true, b: false, c: true, d: false },
+                    { feat: t("landing.comparison.feat4"), a: true, b: false, c: false, d: false },
+                    { feat: t("landing.comparison.feat5"), a: true, b: "email", c: false, d: true },
+                    { feat: t("landing.comparison.feat6"), a: true, b: false, c: false, d: false },
+                    { feat: t("landing.comparison.feat7"), a: true, b: false, c: false, d: "add-on" },
+                    { feat: t("landing.comparison.feat8"), a: true, b: false, c: false, d: "basic" },
+                    { feat: t("landing.comparison.feat9"), a: true, b: "basic", c: false, d: true },
+                    { feat: t("landing.comparison.feat10"), a: true, b: false, c: false, d: true },
+                    { feat: t("landing.comparison.feat11"), a: true, b: false, c: false, d: "add-on" },
+                    { feat: t("landing.comparison.feat12"), a: true, b: false, c: false, d: true },
+                    { feat: t("landing.comparison.feat13"), a: true, b: false, c: false, d: false },
+                    { feat: t("landing.comparison.feat14"), a: true, b: false, c: false, d: true },
+                    { feat: t("landing.comparison.feat15"), a: true, b: false, c: false, d: true },
+                    { feat: t("landing.comparison.feat16"), a: true, b: false, c: false, d: "basic" },
+                    { feat: t("landing.comparison.feat17"), a: true, b: false, c: false, d: true },
+                    { feat: t("landing.comparison.feat18"), a: true, b: "basic", c: false, d: true },
+                    { feat: t("landing.comparison.feat19"), a: true, b: false, c: false, d: true },
+                    { feat: t("landing.comparison.feat20"), a: true, b: false, c: false, d: "basic" },
+                    { feat: t("landing.comparison.feat21"), a: true, b: false, c: false, d: true },
+                    { feat: t("landing.comparison.feat22"), a: true, b: false, c: false, d: "add-on" },
+                    { feat: t("landing.comparison.feat23"), a: true, b: false, c: false, d: false },
+                    { feat: t("landing.comparison.feat24"), a: true, b: false, c: false, d: false },
                   ].map((row, i) => (
                     <div key={i} className="grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center items-center min-w-[560px]" style={{ background: i % 2 === 0 ? "#0d1119" : "#0f1420", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
                       <div className="p-3 md:p-4 text-left text-[12px] md:text-[13px] text-[#c8d0e0]">{row.feat}</div>
@@ -387,19 +388,19 @@ export default function LandingPage() {
                     </div>
                   ))}
                   <div className="grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center items-center min-w-[560px]" style={{ background: "#131a26", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-                    <div className="p-4 text-left text-[13px] font-bold text-[#eef2ff]">Starting Price</div>
+                    <div className="p-4 text-left text-[13px] font-bold text-[#eef2ff]">{t("landing.comparison.startingPrice")}</div>
                     <div className="p-4 text-[13px] font-bold text-[#00e5a0]" style={syne}>$297/mo</div>
-                    <div className="p-4 text-[11px] text-[#8a9abb]">$49-149/mo<br /><span className="text-[10px] text-[#5a6a8a]">+ credits</span></div>
-                    <div className="p-4 text-[11px] text-[#8a9abb]">$14,995/yr<br /><span className="text-[10px] text-[#5a6a8a]">per seat</span></div>
-                    <div className="p-4 text-[11px] text-[#8a9abb]">$297-497<br /><span className="text-[10px] text-[#5a6a8a]">+ add-ons</span></div>
+                    <div className="p-4 text-[11px] text-[#8a9abb]">$49-149/mo<br /><span className="text-[10px] text-[#5a6a8a]">{t("landing.comparison.credits")}</span></div>
+                    <div className="p-4 text-[11px] text-[#8a9abb]">$14,995/yr<br /><span className="text-[10px] text-[#5a6a8a]">{t("landing.comparison.perSeat")}</span></div>
+                    <div className="p-4 text-[11px] text-[#8a9abb]">$297-497<br /><span className="text-[10px] text-[#5a6a8a]">{t("landing.comparison.addOns")}</span></div>
                   </div>
                 </div>
 
                 <div className="mt-6 p-5 rounded-xl flex items-start gap-3" style={{ background: "rgba(0,229,160,0.06)", border: "1px solid rgba(0,229,160,0.12)" }}>
                   <Zap className="w-5 h-5 text-[#00e5a0] mt-0.5 shrink-0" />
                   <div>
-                    <div className="text-[14px] font-semibold text-[#eef2ff] mb-1">The bottom line</div>
-                    <div className="text-[13px] text-[#8a9abb] leading-relaxed">Apollo gives you data. ZoomInfo gives you intel. GoHighLevel gives you a CRM — but charges extra for AI, warmup, and chat. <strong className="text-[#eef2ff]">None of them give you everything.</strong> ArgiFlow does. One platform, <strong className="text-[#00e5a0]">$297/mo</strong>, zero add-ons — with features none of them have, like AI Voice Calling and a 40+ AI Agent marketplace.</div>
+                    <div className="text-[14px] font-semibold text-[#eef2ff] mb-1">{t("landing.comparison.bottomLine")}</div>
+                    <div className="text-[13px] text-[#8a9abb] leading-relaxed">{t("landing.comparison.bottomLineText1")} <strong className="text-[#eef2ff]">{t("landing.comparison.bottomLineNone")}</strong> {t("landing.comparison.bottomLineText2")} <strong className="text-[#00e5a0]">$297/mo</strong>{t("landing.comparison.bottomLineText3")}</div>
                   </div>
                 </div>
 
@@ -408,14 +409,14 @@ export default function LandingPage() {
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "rgba(245,158,11,0.15)" }}>
                       <Shield className="w-5 h-5 text-[#f59e0b]" />
                     </div>
-                    <div style={syne} className="text-[18px] font-bold">Why ArgiFlow Beats GoHighLevel</div>
+                    <div style={syne} className="text-[18px] font-bold">{t("landing.ghl.title")}</div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[
-                      { title: "GHL has no B2B data", desc: "GoHighLevel doesn't find leads for you. You still need Apollo or ZoomInfo for contact data. ArgiFlow has built-in B2B intelligence with verified emails, phones, company data, and intent signals." },
-                      { title: "GHL AI costs $497/mo extra", desc: "GoHighLevel's AI Employee (chat, voice, reviews) is a paid add-on starting at $497/mo. ArgiFlow includes AI chat, AI voice calling, and AI content — all included, no add-ons." },
-                      { title: "GHL charges per seat", desc: "Need your team on GoHighLevel? Pay per user. ArgiFlow has no per-seat pricing — your whole team gets access." },
-                      { title: "GHL can't research prospects", desc: "GoHighLevel can't tell you a company's tech stack, org chart, recent funding, or buying signals. ArgiFlow's AI-powered deep research does all of this automatically." },
+                      { title: t("landing.ghl.item0Title"), desc: t("landing.ghl.item0Desc") },
+                      { title: t("landing.ghl.item1Title"), desc: t("landing.ghl.item1Desc") },
+                      { title: t("landing.ghl.item2Title"), desc: t("landing.ghl.item2Desc") },
+                      { title: t("landing.ghl.item3Title"), desc: t("landing.ghl.item3Desc") },
                     ].map((item, i) => (
                       <div key={i} className="p-4 rounded-xl" style={{ background: "rgba(7,9,15,0.5)", border: "1px solid rgba(255,255,255,0.05)" }}>
                         <div className="text-[14px] font-semibold text-[#eef2ff] mb-1.5 flex items-center gap-2">
@@ -430,27 +431,27 @@ export default function LandingPage() {
               </div>
 
               <div id="features-section" className="mt-24 scroll-mt-20">
-                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">What's All Included</div>
-                <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">40+ Tools. Zero Add-Ons. Nothing Else to Buy.</h2>
-                <p className="text-[16px] text-[#8a9abb] max-w-[580px] leading-relaxed">Every tool below is included in your plan. No upsells, no per-seat fees, no credit limits, no surprise invoices.</p>
+                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">{t("landing.features.badge")}</div>
+                <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">{t("landing.features.title")}</h2>
+                <p className="text-[16px] text-[#8a9abb] max-w-[580px] leading-relaxed">{t("landing.features.desc")}</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-12">
                   {[
-                    { icon: Search, title: "B2B Lead Intelligence", desc: "Find decision-makers with verified emails, phones, company data, and buying intent — like Apollo + ZoomInfo combined.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
-                    { icon: Send, title: "AI Multi-Channel Outreach", desc: "Automated email, SMS, and LinkedIn sequences — personalized by AI, sent at the perfect time. Replaces Instantly + Smartlead.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-                    { icon: Phone, title: "Voice AI Calling Agent", desc: "An AI agent that makes real phone calls, handles objections, and books meetings — 24/7. Apollo, ZoomInfo, and GHL don't have this.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
-                    { icon: Mail, title: "Email Infrastructure", desc: "Warmup, reputation monitoring, inbox placement testing, and deliverability optimization. Built in — GHL charges extra for this.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-                    { icon: Brain, title: "Sales Intelligence & Enrichment", desc: "Company profiles, org charts, technographic data, intent signals, and AI-powered deep research on any prospect.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-                    { icon: Users, title: "CRM & Sales Pipeline", desc: "Kanban pipelines, deal tracking, lead scoring, and AI-predicted close probability. No Salesforce needed.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
-                    { icon: Globe, title: "Landing Pages & Funnels", desc: "Build high-converting pages with 5 templates, custom domains, and built-in analytics. Replaces ClickFunnels.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-                    { icon: MessageSquare, title: "AI Chat Widget", desc: "Embed an AI chatbot on your site that captures leads, answers questions, and books appointments. GHL charges $497/mo for their AI add-on.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-                    { icon: FileText, title: "Invoicing & Proposals", desc: "Send professional invoices and proposals with e-signatures. Track views, get paid — no QuickBooks required.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
-                    { icon: BarChart3, title: "Social Media Management", desc: "Schedule and publish to multiple platforms. AI writes your posts. Replaces Buffer or Hootsuite.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-                    { icon: Star, title: "Reputation & Reviews", desc: "Monitor reviews across Google and other platforms. AI-powered response suggestions. Manage your brand.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-                    { icon: Layers, title: "Workflow Automation Engine", desc: "Visual n8n-style automations with triggers, conditions, and AI actions. Automate any process — no Zapier needed.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
-                    { icon: Calendar, title: "Calendar & Scheduling", desc: "Client appointment booking with availability sync. Like Calendly, but already built into your sales workflow.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-                    { icon: Activity, title: "Blog & Content Builder", desc: "AI-powered blog with SEO optimization. Publish to your site, drive organic traffic, capture leads.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-                    { icon: Rocket, title: "Membership & Courses", desc: "Create gated content, online courses, and membership areas. Monetize your expertise directly.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Search, title: t("landing.features.f0Title"), desc: t("landing.features.f0Desc"), color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Send, title: t("landing.features.f1Title"), desc: t("landing.features.f1Desc"), color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: Phone, title: t("landing.features.f2Title"), desc: t("landing.features.f2Desc"), color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Mail, title: t("landing.features.f3Title"), desc: t("landing.features.f3Desc"), color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                    { icon: Brain, title: t("landing.features.f4Title"), desc: t("landing.features.f4Desc"), color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: Users, title: t("landing.features.f5Title"), desc: t("landing.features.f5Desc"), color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Globe, title: t("landing.features.f6Title"), desc: t("landing.features.f6Desc"), color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                    { icon: MessageSquare, title: t("landing.features.f7Title"), desc: t("landing.features.f7Desc"), color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: FileText, title: t("landing.features.f8Title"), desc: t("landing.features.f8Desc"), color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: BarChart3, title: t("landing.features.f9Title"), desc: t("landing.features.f9Desc"), color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                    { icon: Star, title: t("landing.features.f10Title"), desc: t("landing.features.f10Desc"), color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: Layers, title: t("landing.features.f11Title"), desc: t("landing.features.f11Desc"), color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Calendar, title: t("landing.features.f12Title"), desc: t("landing.features.f12Desc"), color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                    { icon: Activity, title: t("landing.features.f13Title"), desc: t("landing.features.f13Desc"), color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: Rocket, title: t("landing.features.f14Title"), desc: t("landing.features.f14Desc"), color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
                   ].map((f, i) => (
                     <div key={i} className="bg-[#0d1119] rounded-2xl p-7 transition-all duration-200 hover:-translate-y-1 cursor-default" style={{ border: "1px solid rgba(255,255,255,0.07)" }} data-testid={`card-feature-${i}`}>
                       <div className="w-11 h-11 rounded-[10px] flex items-center justify-center text-xl mb-4" style={{ background: f.bg, color: f.color }}>
@@ -463,30 +464,30 @@ export default function LandingPage() {
                 </div>
 
                 <div className="mt-12 p-6 rounded-2xl text-center" style={{ background: "linear-gradient(135deg, rgba(0,229,160,0.08), rgba(59,130,246,0.08))", border: "1px solid rgba(255,255,255,0.07)" }}>
-                  <div style={syne} className="text-[20px] font-bold mb-2">Plus: A/B Testing, Documents, Google Business Profile, Community Forums, and more.</div>
-                  <div className="text-[14px] text-[#8a9abb]">Every feature is included. Every plan. No hidden upgrades.</div>
+                  <div style={syne} className="text-[20px] font-bold mb-2">{t("landing.features.plusText")}</div>
+                  <div className="text-[14px] text-[#8a9abb]">{t("landing.features.everyFeature")}</div>
                 </div>
               </div>
 
               <div className="mt-24 py-16 px-6 md:px-12" data-testid="section-what-they-charge">
-                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3 text-center">The Real Cost of "Cheaper" Tools</div>
-                <h2 style={syne} className="text-[clamp(24px,3.5vw,40px)] font-extrabold tracking-[-1.5px] mb-12 text-center max-w-[700px] mx-auto">What You'd Pay Without ArgiFlow</h2>
+                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3 text-center">{t("landing.costs.badge")}</div>
+                <h2 style={syne} className="text-[clamp(24px,3.5vw,40px)] font-extrabold tracking-[-1.5px] mb-12 text-center max-w-[700px] mx-auto">{t("landing.costs.title")}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-[900px] mx-auto">
                   {[
-                    { tool: "Apollo.io", price: "$99/mo", what: "Contact data only" },
-                    { tool: "ZoomInfo", price: "$1,250/mo", what: "Company intel only" },
-                    { tool: "GoHighLevel", price: "$297/mo", what: "CRM + funnels — no B2B data" },
-                    { tool: "GHL AI Add-On", price: "$497/mo", what: "AI features cost extra" },
-                    { tool: "Instantly.ai", price: "$97/mo", what: "Cold email only" },
-                    { tool: "Smartlead", price: "$94/mo", what: "Email warmup only" },
-                    { tool: "Calendly", price: "$12/mo", what: "Scheduling only" },
-                  ].map((t, i) => (
+                    { tool: t("landing.costs.tool0Name"), price: t("landing.costs.tool0Price"), what: t("landing.costs.tool0What") },
+                    { tool: t("landing.costs.tool1Name"), price: t("landing.costs.tool1Price"), what: t("landing.costs.tool1What") },
+                    { tool: t("landing.costs.tool2Name"), price: t("landing.costs.tool2Price"), what: t("landing.costs.tool2What") },
+                    { tool: t("landing.costs.tool3Name"), price: t("landing.costs.tool3Price"), what: t("landing.costs.tool3What") },
+                    { tool: t("landing.costs.tool4Name"), price: t("landing.costs.tool4Price"), what: t("landing.costs.tool4What") },
+                    { tool: t("landing.costs.tool5Name"), price: t("landing.costs.tool5Price"), what: t("landing.costs.tool5What") },
+                    { tool: t("landing.costs.tool6Name"), price: t("landing.costs.tool6Price"), what: t("landing.costs.tool6What") },
+                  ].map((item, i) => (
                     <div key={i} className="flex items-center justify-between p-4 rounded-xl" style={{ background: "#0d1119", border: "1px solid rgba(255,255,255,0.07)" }}>
                       <div>
-                        <div className="text-[14px] font-medium text-[#eef2ff]">{t.tool}</div>
-                        <div className="text-[11px] text-[#5a6a8a]">{t.what}</div>
+                        <div className="text-[14px] font-medium text-[#eef2ff]">{item.tool}</div>
+                        <div className="text-[11px] text-[#5a6a8a]">{item.what}</div>
                       </div>
-                      <div className="text-[14px] font-bold text-[#ef4444]">{t.price}</div>
+                      <div className="text-[14px] font-bold text-[#ef4444]">{item.price}</div>
                     </div>
                   ))}
                 </div>
@@ -495,25 +496,25 @@ export default function LandingPage() {
                     <span className="text-[18px] font-bold text-[#ef4444] line-through" style={syne}>$2,346+/mo</span>
                     <ArrowRight className="w-5 h-5 text-[#5a6a8a]" />
                     <span className="text-[22px] font-extrabold text-[#00e5a0]" style={syne}>$297/mo</span>
-                    <span className="text-[13px] text-[#8a9abb] ml-1">with ArgiFlow</span>
+                    <span className="text-[13px] text-[#8a9abb] ml-1">{t("landing.costs.withArgiflow")}</span>
                   </div>
-                  <div className="mt-4 text-[14px] text-[#8a9abb]">Save over <strong className="text-[#00e5a0]">$24,000/year</strong> — and get more features than Apollo, ZoomInfo, and GoHighLevel combined.</div>
+                  <div className="mt-4 text-[14px] text-[#8a9abb]">{t("landing.costs.savePrefix")} <strong className="text-[#00e5a0]">{t("landing.costs.saveAmount")}</strong> {t("landing.costs.saveSuffix")}</div>
                 </div>
               </div>
             </div>
 
             <div id="pricing-section" className="py-24 px-6 md:px-12 max-w-[1200px] mx-auto scroll-mt-20">
-              <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">Pricing</div>
-              <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">One Platform. One Price. Everything Included.</h2>
-              <p className="text-[16px] text-[#8a9abb] max-w-[520px] leading-relaxed">Every plan starts with <strong className="text-[#00e5a0]">15 days free</strong> with full Pro access. No per-seat charges. No credit limits. No hidden add-ons. Get every single tool from day one.</p>
+              <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">{t("landing.pricing2.badge")}</div>
+              <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">{t("landing.pricing2.title")}</h2>
+              <p className="text-[16px] text-[#8a9abb] max-w-[520px] leading-relaxed">{t("landing.pricing2.descPre")} <strong className="text-[#00e5a0]">{t("landing.pricing2.daysFree")}</strong> {t("landing.pricing2.descPost")}</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-12">
                 {plans.map((p, i) => (
                   <div key={i} className={`bg-[#0d1119] rounded-[20px] p-9 relative overflow-hidden transition-transform hover:-translate-y-1 ${p.popular ? "border-[rgba(59,130,246,.4)]" : ""}`} style={{ border: p.popular ? "1px solid rgba(59,130,246,.4)" : "1px solid rgba(255,255,255,0.07)" }} data-testid={`card-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`}>
                     {p.popular && (
-                      <div className="absolute top-0 right-6 bg-[#3b82f6] text-white text-[10px] font-bold uppercase tracking-[1px] px-3 py-1 rounded-b-lg">Most Popular</div>
+                      <div className="absolute top-0 right-6 bg-[#3b82f6] text-white text-[10px] font-bold uppercase tracking-[1px] px-3 py-1 rounded-b-lg">{t("landing.pricing2.mostPopular")}</div>
                     )}
                     <div style={syne} className="text-[16px] font-bold mb-1.5">{p.name}</div>
-                    <div style={syne} className="text-5xl font-extrabold tracking-[-2px] leading-none mb-1">{p.price}<sub className="text-[16px] font-normal text-[#5a6a8a] tracking-normal align-middle">/mo</sub></div>
+                    <div style={syne} className="text-5xl font-extrabold tracking-[-2px] leading-none mb-1">{p.price}<sub className="text-[16px] font-normal text-[#5a6a8a] tracking-normal align-middle">{t("landing.pricing2.perMonth")}</sub></div>
                     <div className="text-[13px] text-[#5a6a8a] mb-7">{p.tagline}</div>
                     <ul className="flex flex-col gap-2.5 mb-8">
                       {p.features.map((f, j) => (
@@ -524,7 +525,7 @@ export default function LandingPage() {
                       ))}
                     </ul>
                     <button onClick={() => startPlan(p.name, p.price)} data-testid={`button-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`} className={`w-full py-3.5 rounded-[10px] text-[14px] font-bold cursor-pointer transition-all ${p.popular ? "bg-[#00e5a0] text-[#07090f] hover:bg-[#00ffb3]" : "text-[#eef2ff] hover:border-[rgba(255,255,255,.3)]"}`} style={p.popular ? syne : { ...syne, background: "transparent", border: "1px solid rgba(255,255,255,0.12)" }}>
-                      Get Started
+                      {t("landing.pricing2.getStarted")}
                     </button>
                   </div>
                 ))}
@@ -532,20 +533,20 @@ export default function LandingPage() {
             </div>
 
             <div className="py-20 px-6 md:px-12 max-w-[800px] mx-auto text-center">
-              <h2 style={syne} className="text-[clamp(26px,3.5vw,40px)] font-extrabold tracking-[-1.5px] mb-5">Ready to Replace Your Entire Sales Stack?</h2>
-              <p className="text-[16px] text-[#8a9abb] leading-relaxed mb-8">Join 500+ teams who ditched 5+ subscriptions for one platform that does it all. Get 15 days of full Pro access free — no credit card required.</p>
+              <h2 style={syne} className="text-[clamp(26px,3.5vw,40px)] font-extrabold tracking-[-1.5px] mb-5">{t("landing.cta2.title")}</h2>
+              <p className="text-[16px] text-[#8a9abb] leading-relaxed mb-8">{t("landing.cta2.desc")}</p>
               <div className="flex items-center justify-center gap-4 flex-wrap">
                 <button onClick={() => showView("getstarted")} data-testid="button-bottom-cta" className="px-9 py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] hover:shadow-[0_8px_32px_rgba(0,229,160,.35)] hover:-translate-y-0.5 transition-all" style={syne}>
-                  Start 15-Day Free Trial
+                  {t("landing.hero.ctaTrial")}
                 </button>
                 <button onClick={() => showView("demo")} data-testid="button-bottom-demo" className="px-9 py-4 rounded-xl text-[15px] font-medium text-[#eef2ff] cursor-pointer hover:border-[rgba(255,255,255,.3)] transition-all" style={{ border: "1px solid rgba(255,255,255,0.12)", background: "transparent", ...dm }}>
-                  Watch Demo First
+                  {t("landing.cta2.ctaDemoFirst")}
                 </button>
               </div>
             </div>
 
             <footer className="py-8 px-6 text-center text-[13px] text-[#5a6a8a]" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-              &copy; 2026 ArgiFlow AI. All rights reserved.
+              {t("landing.footer2.copyright")}
             </footer>
           </div>
         )}
@@ -553,12 +554,12 @@ export default function LandingPage() {
         {currentView === "demo" && (
           <div className="relative z-[1] min-h-screen pt-24 pb-16 px-6 md:px-12 max-w-[1100px] mx-auto anim-fadeUp">
             <div className="mb-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-2">Interactive Demo</div>
-              <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-2">See ArgiFlow in Action</h2>
-              <p className="text-[14px] text-[#8a9abb]">Explore each module with live simulations.</p>
+              <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-2">{t("landing.demo.badge")}</div>
+              <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-2">{t("landing.demo.title")}</h2>
+              <p className="text-[14px] text-[#8a9abb]">{t("landing.demo.desc")}</p>
             </div>
             <div className="flex gap-2 p-1 rounded-xl w-fit mb-10" style={{ background: "#0d1119", border: "1px solid rgba(255,255,255,0.07)" }}>
-              {([["leads", "Lead Gen"], ["outreach", "Outreach"], ["voice", "Voice AI"], ["email", "Email Infra"]] as const).map(([k, label]) => (
+              {([["leads", t("landing.demo.tabLeads")], ["outreach", t("landing.demo.tabOutreach")], ["voice", t("landing.demo.tabVoice")], ["email", t("landing.demo.tabEmail")]] as [DemoTab, string][]).map(([k, label]) => (
                 <button key={k} onClick={() => setActiveDemo(k)} data-testid={`button-demo-tab-${k}`} className={`px-5 py-2.5 rounded-lg text-[13px] font-medium cursor-pointer transition-all ${activeDemo === k ? "bg-[#1a2235] text-[#eef2ff]" : "text-[#8a9abb]"}`} style={{ border: "none", ...dm }}>
                   {label}
                 </button>
@@ -569,22 +570,22 @@ export default function LandingPage() {
               <div className="anim-fadeUp">
                 <div className="bg-[#0d1119] rounded-2xl p-8 mb-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
                   <div className="flex gap-3 mb-6 flex-wrap">
-                    <input value={demoIndustry} onChange={e => setDemoIndustry(e.target.value)} placeholder="Industry (e.g. Healthcare)" data-testid="input-demo-industry" className="flex-1 min-w-[180px] bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] focus:border-[rgba(0,229,160,.4)] transition-colors" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} />
-                    <input value={demoLocation} onChange={e => setDemoLocation(e.target.value)} placeholder="Location (e.g. Florida)" data-testid="input-demo-location" className="flex-1 min-w-[180px] bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] focus:border-[rgba(0,229,160,.4)] transition-colors" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} />
-                    <input value={demoTitle} onChange={e => setDemoTitle(e.target.value)} placeholder="Title (e.g. Owner)" data-testid="input-demo-title" className="flex-1 min-w-[180px] bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] focus:border-[rgba(0,229,160,.4)] transition-colors" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} />
+                    <input value={demoIndustry} onChange={e => setDemoIndustry(e.target.value)} placeholder={t("landing.demo.industryPlaceholder")} data-testid="input-demo-industry" className="flex-1 min-w-[180px] bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] focus:border-[rgba(0,229,160,.4)] transition-colors" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} />
+                    <input value={demoLocation} onChange={e => setDemoLocation(e.target.value)} placeholder={t("landing.demo.locationPlaceholder")} data-testid="input-demo-location" className="flex-1 min-w-[180px] bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] focus:border-[rgba(0,229,160,.4)] transition-colors" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} />
+                    <input value={demoTitle} onChange={e => setDemoTitle(e.target.value)} placeholder={t("landing.demo.titlePlaceholder")} data-testid="input-demo-title" className="flex-1 min-w-[180px] bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] focus:border-[rgba(0,229,160,.4)] transition-colors" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} />
                     <button onClick={runLeadGen} disabled={leadRunning} data-testid="button-run-lead-gen" className="px-7 py-3 bg-[#00e5a0] rounded-[10px] text-[14px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed" style={syne}>
-                      Generate Leads
+                      {t("landing.demo.generateLeads")}
                     </button>
                   </div>
                   {leadStatus && <div className="text-[14px] text-[#8a9abb] py-4">{leadStatus}</div>}
                   {leadResults.length > 0 && (
                     <div className="anim-fadeUp">
-                      <div className="text-[13px] text-[#8a9abb] mb-4"><strong className="text-[#00e5a0]">{leadResults.length}</strong> verified leads found</div>
+                      <div className="text-[13px] text-[#8a9abb] mb-4"><strong className="text-[#00e5a0]">{leadResults.length}</strong> {t("landing.demo.leadsFound")}</div>
                       <div className="overflow-x-auto">
                         <table className="w-full border-collapse">
                           <thead>
                             <tr>
-                              {["Name", "Title", "Company", "Email", "Phone", "Score"].map(h => (
+                              {[t("landing.demo.thName"), t("landing.demo.thTitle"), t("landing.demo.thCompany"), t("landing.demo.thEmail"), t("landing.demo.thPhone"), t("landing.demo.thScore")].map(h => (
                                 <th key={h} className="text-[11px] font-semibold uppercase tracking-[1px] text-[#5a6a8a] px-3.5 py-2.5 text-left" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>{h}</th>
                               ))}
                             </tr>
@@ -616,11 +617,11 @@ export default function LandingPage() {
                 <div className="bg-[#0d1119] rounded-2xl p-8 mb-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
                   <div className="flex gap-0 mb-8 overflow-x-auto">
                     {[
-                      { label: "DISCOVERED", count: 127, sub: "New leads", done: true },
-                      { label: "ENRICHED", count: 98, sub: "Verified", done: true },
-                      { label: "CONTACTED", count: 64, sub: "Email sent", active: true },
-                      { label: "REPLIED", count: 23, sub: "17% rate" },
-                      { label: "MEETING", count: 11, sub: "Booked" },
+                      { label: t("landing.demo.discovered"), count: 127, sub: t("landing.demo.newLeads"), done: true },
+                      { label: t("landing.demo.enriched"), count: 98, sub: t("landing.demo.verified"), done: true },
+                      { label: t("landing.demo.contacted"), count: 64, sub: t("landing.demo.emailSent"), active: true },
+                      { label: t("landing.demo.replied"), count: 23, sub: t("landing.demo.rate17") },
+                      { label: t("landing.demo.meetingLabel"), count: 11, sub: t("landing.demo.booked") },
                     ].map((s, i, arr) => (
                       <div key={i} className={`flex-1 min-w-[100px] px-3 py-4 text-center relative ${i === 0 ? "rounded-l-[10px]" : ""} ${i === arr.length - 1 ? "rounded-r-[10px]" : ""} ${s.done ? "bg-[rgba(0,229,160,.08)]" : s.active ? "bg-[rgba(59,130,246,.1)]" : "bg-[#131a26]"}`} style={{ border: `1px solid ${s.done ? "rgba(0,229,160,.2)" : s.active ? "rgba(59,130,246,.3)" : "rgba(255,255,255,0.07)"}` }}>
                         <div className="text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[.8px]">{s.label}</div>
@@ -631,9 +632,9 @@ export default function LandingPage() {
                     ))}
                   </div>
                   <div className="flex items-center justify-between mb-6 gap-4 flex-wrap" style={syne}>
-                    <span className="text-[14px] font-bold">Live Activity</span>
+                    <span className="text-[14px] font-bold">{t("landing.demo.liveActivity")}</span>
                     <button onClick={simulateOutreach} data-testid="button-run-outreach" className="px-7 py-3 bg-[#00e5a0] rounded-[10px] text-[14px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all" style={syne}>
-                      Run Next Cycle
+                      {t("landing.demo.runNextCycle")}
                     </button>
                   </div>
                   <div className="flex flex-col">
@@ -646,8 +647,8 @@ export default function LandingPage() {
                           {item.icon === "send" && <Send className="w-4 h-4 text-[#00e5a0]" />}
                         </div>
                         <div>
-                          <div className="text-[13px] font-medium mb-0.5">{item.title}</div>
-                          <div className="text-[11px] text-[#5a6a8a]">{item.time}</div>
+                          <div className="text-[13px] font-medium mb-0.5">{t(item.titleKey)}</div>
+                          <div className="text-[11px] text-[#5a6a8a]">{t(item.timeKey)}</div>
                         </div>
                       </div>
                     ))}
@@ -663,7 +664,7 @@ export default function LandingPage() {
                     <button onClick={simulateCall} data-testid="button-simulate-call" className={`w-[100px] h-[100px] rounded-full border-none cursor-pointer text-4xl flex items-center justify-center transition-all hover:scale-105 ${callState === "calling" ? "voice-pulse" : ""}`} style={{ background: "linear-gradient(135deg,#00e5a0,#00b377)" }}>
                       {callState === "calling" ? <PhoneCall className="w-9 h-9 text-[#07090f]" /> : <Phone className="w-9 h-9 text-[#07090f]" />}
                     </button>
-                    <div style={syne} className="text-[16px] font-bold">{callStatus}</div>
+                    <div style={syne} className="text-[16px] font-bold">{callStatus || t("landing.demo.clickToSimulate")}</div>
                     {showTranscript && (
                       <div ref={transcriptRef} className="bg-[#131a26] rounded-xl p-5 w-full max-w-[500px] max-h-[220px] overflow-y-auto text-[13px] leading-relaxed" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
                         {callTranscript.map((line, i) => (
@@ -671,7 +672,7 @@ export default function LandingPage() {
                             <strong>{line.role === "ai" ? "AI:" : "Dr. Torres:"}</strong> {line.text}
                           </div>
                         ))}
-                        {callTranscript.length === 0 && <div className="text-[#5a6a8a]">Waiting for connection...</div>}
+                        {callTranscript.length === 0 && <div className="text-[#5a6a8a]">{t("landing.demo.waitingConnection")}</div>}
                       </div>
                     )}
                   </div>
@@ -682,7 +683,7 @@ export default function LandingPage() {
             {activeDemo === "email" && (
               <div className="anim-fadeUp">
                 <div className="bg-[#0d1119] rounded-2xl p-8 mb-5" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
-                  <div style={syne} className="text-[14px] font-bold mb-5">Email Warmup Dashboard</div>
+                  <div style={syne} className="text-[14px] font-bold mb-5">{t("landing.demo.emailWarmupDashboard")}</div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     {[
                       { email: "outreach@argilette.co", pct: 92, sent: "1,247", rep: "94%" },
@@ -696,19 +697,19 @@ export default function LandingPage() {
                           <div className="h-1.5 rounded transition-all duration-1000" style={{ width: `${e.pct}%`, background: "linear-gradient(90deg,#00e5a0,#3b82f6)" }} />
                         </div>
                         <div className="flex justify-between text-[11px] text-[#5a6a8a]">
-                          <span>Warmup: {e.pct}%</span>
-                          <span>Sent: {e.sent}</span>
-                          <span>Reputation: {e.rep}</span>
+                          <span>{t("landing.demo.warmupLabel")}: {e.pct}%</span>
+                          <span>{t("landing.demo.sentLabel")}: {e.sent}</span>
+                          <span>{t("landing.demo.reputationLabel")}: {e.rep}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                      { label: "Active Domains", val: "4", color: "#00e5a0" },
-                      { label: "Avg Reputation", val: "92%", color: "#00e5a0" },
-                      { label: "Bounce Rate", val: "0.1%", color: "#eef2ff" },
-                      { label: "Open Rate", val: "47%", color: "#f59e0b" },
+                      { label: t("landing.demo.activeDomains"), val: "4", color: "#00e5a0" },
+                      { label: t("landing.demo.avgReputation"), val: "92%", color: "#00e5a0" },
+                      { label: t("landing.demo.bounceRate"), val: "0.1%", color: "#eef2ff" },
+                      { label: t("landing.demo.openRate"), val: "47%", color: "#f59e0b" },
                     ].map((s, i) => (
                       <div key={i} className="bg-[#131a26] rounded-xl p-5 text-center" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
                         <div style={{ ...syne, color: s.color }} className="text-2xl font-extrabold mb-1">{s.val}</div>
@@ -731,7 +732,7 @@ export default function LandingPage() {
                     <div className={`w-[30px] h-[30px] rounded-full flex items-center justify-center text-[12px] font-bold ${n === gsStep ? "bg-[#00e5a0] text-[#07090f] border-[#00e5a0]" : n < gsStep ? "bg-[rgba(0,229,160,0.12)] text-[#00e5a0] border-[rgba(0,229,160,.3)]" : "border-[rgba(255,255,255,0.07)]"}`} style={{ ...syne, border: n === gsStep ? "1px solid #00e5a0" : n < gsStep ? "1px solid rgba(0,229,160,.3)" : "1px solid rgba(255,255,255,0.07)" }}>
                       {n < gsStep ? <Check className="w-3 h-3" /> : n}
                     </div>
-                    <span className="hidden sm:inline">{["Choose Plan", "Your Info", "Checkout"][n - 1]}</span>
+                    <span className="hidden sm:inline">{[t("landing.getstarted.step1"), t("landing.getstarted.step2"), t("landing.getstarted.step3")][n - 1]}</span>
                   </div>
                   {n < 3 && <div className="w-16 h-px bg-[rgba(255,255,255,0.07)] mx-2" />}
                 </div>
@@ -741,8 +742,8 @@ export default function LandingPage() {
             {gsStep === 1 && (
               <div className="anim-fadeUp">
                 <div className="text-center mb-10">
-                  <h2 style={syne} className="text-3xl font-extrabold tracking-[-1px] mb-2">Choose Your Plan</h2>
-                  <p className="text-[14px] text-[#8a9abb]">Every plan starts with a <strong className="text-[#00e5a0]">15-day free trial</strong> — full Pro access, no credit card required.</p>
+                  <h2 style={syne} className="text-3xl font-extrabold tracking-[-1px] mb-2">{t("landing.getstarted.chooseTitle")}</h2>
+                  <p className="text-[14px] text-[#8a9abb]">{t("landing.getstarted.choosePre")} <strong className="text-[#00e5a0]">{t("landing.getstarted.freeTrial")}</strong> {t("landing.getstarted.choosePost")}</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
                   {plans.map((p) => (
@@ -751,10 +752,10 @@ export default function LandingPage() {
                         <Check className="w-3 h-3 text-[#07090f]" />
                       </div>
                       {p.popular && (
-                        <span className="inline-block text-[10px] font-bold uppercase tracking-[1px] text-[#3b82f6] px-2.5 py-0.5 rounded-[10px] mb-4" style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,.3)" }}>Most Popular</span>
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-[1px] text-[#3b82f6] px-2.5 py-0.5 rounded-[10px] mb-4" style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,.3)" }}>{t("landing.pricing2.mostPopular")}</span>
                       )}
                       <div style={syne} className="text-[17px] font-bold mb-1.5">{p.name}</div>
-                      <div style={syne} className="text-[40px] font-extrabold tracking-[-2px] leading-none mb-1">{p.price}<sub className="text-[15px] font-normal text-[#5a6a8a] tracking-normal">/mo</sub></div>
+                      <div style={syne} className="text-[40px] font-extrabold tracking-[-2px] leading-none mb-1">{p.price}<sub className="text-[15px] font-normal text-[#5a6a8a] tracking-normal">{t("landing.pricing2.perMonth")}</sub></div>
                       <div className="text-[12px] text-[#5a6a8a] mb-5">{p.tagline}</div>
                       <ul className="flex flex-col gap-2">
                         {p.features.map((f, j) => (
@@ -767,8 +768,8 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <div className="text-center">
-                  <button onClick={() => { if (selectedPlan.name) goToStep(2); else showToast("warn", "Please select a plan"); }} data-testid="button-gs-continue-1" className="px-10 py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all" style={syne}>
-                    Continue <ArrowRight className="inline w-4 h-4 ml-1" />
+                  <button onClick={() => { if (selectedPlan.name) goToStep(2); else showToast("warn", t("landing.getstarted.pleaseSelect")); }} data-testid="button-gs-continue-1" className="px-10 py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all" style={syne}>
+                    {t("landing.getstarted.continue")} <ArrowRight className="inline w-4 h-4 ml-1" />
                   </button>
                 </div>
               </div>
@@ -777,54 +778,54 @@ export default function LandingPage() {
             {gsStep === 2 && (
               <div className="anim-fadeUp">
                 <button onClick={() => goToStep(1)} data-testid="button-gs-back-1" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] text-[13px] text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-all mb-7" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.07)", ...dm }}>
-                  <ArrowLeft className="w-3.5 h-3.5" /> Back
+                  <ArrowLeft className="w-3.5 h-3.5" /> {t("landing.getstarted.back")}
                 </button>
                 <div className="bg-[#0d1119] rounded-[20px] p-11 max-w-[580px] mx-auto" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
                   <div className="flex justify-between items-center rounded-[10px] px-5 py-3.5 mb-8" style={{ background: "rgba(0,229,160,0.12)", border: "1px solid rgba(0,229,160,.2)" }}>
-                    <span style={syne} className="text-[14px] font-bold">{selectedPlan.name} Plan</span>
-                    <span style={syne} className="text-[18px] font-extrabold text-[#00e5a0]">{selectedPlan.price}/mo</span>
+                    <span style={syne} className="text-[14px] font-bold">{selectedPlan.name} {t("landing.getstarted.planLabel")}</span>
+                    <span style={syne} className="text-[18px] font-extrabold text-[#00e5a0]">{selectedPlan.price}{t("landing.pricing2.perMonth")}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-4 mb-5">
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">First Name</label>
+                      <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">{t("landing.getstarted.firstName")}</label>
                       <input value={gsFirstName} onChange={e => setGsFirstName(e.target.value)} data-testid="input-gs-firstname" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="John" />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Last Name</label>
+                      <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">{t("landing.getstarted.lastName")}</label>
                       <input value={gsLastName} onChange={e => setGsLastName(e.target.value)} data-testid="input-gs-lastname" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="Smith" />
                     </div>
                   </div>
                   <div className="mb-5">
-                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Business Name</label>
+                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">{t("landing.getstarted.businessName")}</label>
                     <input value={gsBusiness} onChange={e => setGsBusiness(e.target.value)} data-testid="input-gs-business" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="Acme Corp" />
                   </div>
                   <div className="mb-5">
-                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Email</label>
+                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">{t("landing.getstarted.email")}</label>
                     <input value={gsEmail} onChange={e => setGsEmail(e.target.value)} type="email" data-testid="input-gs-email" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="john@acme.com" />
                   </div>
                   <div className="mb-5">
-                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Phone</label>
+                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">{t("landing.getstarted.phone")}</label>
                     <input value={gsPhone} onChange={e => setGsPhone(e.target.value)} data-testid="input-gs-phone" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="(555) 123-4567" />
                   </div>
                   <div className="mb-5">
-                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Industry</label>
+                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">{t("landing.getstarted.industry")}</label>
                     <select value={gsIndustry} onChange={e => setGsIndustry(e.target.value)} data-testid="select-gs-industry" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }}>
-                      <option value="">Select industry...</option>
-                      <option value="healthcare">Healthcare</option>
-                      <option value="saas">SaaS / Technology</option>
-                      <option value="finance">Finance / Insurance</option>
-                      <option value="realestate">Real Estate</option>
-                      <option value="legal">Legal</option>
-                      <option value="marketing">Marketing / Agency</option>
-                      <option value="other">Other</option>
+                      <option value="">{t("landing.getstarted.selectIndustry")}</option>
+                      <option value="healthcare">{t("landing.getstarted.healthcare")}</option>
+                      <option value="saas">{t("landing.getstarted.saas")}</option>
+                      <option value="finance">{t("landing.getstarted.finance")}</option>
+                      <option value="realestate">{t("landing.getstarted.realestate")}</option>
+                      <option value="legal">{t("landing.getstarted.legal")}</option>
+                      <option value="marketing">{t("landing.getstarted.marketing")}</option>
+                      <option value="other">{t("landing.getstarted.other")}</option>
                     </select>
                   </div>
                   <div className="mb-5">
-                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">Target Customer Description</label>
-                    <textarea value={gsTarget} onChange={e => setGsTarget(e.target.value)} data-testid="input-gs-target" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] resize-y min-h-[80px]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder="Describe your ideal customer..." />
+                    <label className="block text-[11px] font-semibold text-[#5a6a8a] uppercase tracking-[1.2px] mb-2">{t("landing.getstarted.targetCustomer")}</label>
+                    <textarea value={gsTarget} onChange={e => setGsTarget(e.target.value)} data-testid="input-gs-target" className="w-full bg-[#131a26] rounded-[10px] px-4 py-3 text-[14px] text-[#eef2ff] outline-none placeholder:text-[#5a6a8a] resize-y min-h-[80px]" style={{ border: "1px solid rgba(255,255,255,0.07)", ...dm }} placeholder={t("landing.getstarted.targetPlaceholder")} />
                   </div>
                   <button onClick={() => goToStep(3)} data-testid="button-gs-continue-2" className="w-full py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] transition-all mt-1" style={syne}>
-                    Continue to Payment
+                    {t("landing.getstarted.continuePayment")}
                   </button>
                 </div>
               </div>
@@ -833,26 +834,26 @@ export default function LandingPage() {
             {gsStep === 3 && (
               <div className="anim-fadeUp">
                 <button onClick={() => goToStep(2)} data-testid="button-gs-back-2" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] text-[13px] text-[#8a9abb] cursor-pointer hover:text-[#eef2ff] transition-all mb-7" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.07)", ...dm }}>
-                  <ArrowLeft className="w-3.5 h-3.5" /> Back
+                  <ArrowLeft className="w-3.5 h-3.5" /> {t("landing.getstarted.back")}
                 </button>
                 <div className="bg-[#0d1119] rounded-[20px] p-12 max-w-[560px] mx-auto text-center" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
                   <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: "rgba(0,229,160,0.12)", border: "1px solid rgba(0,229,160,.25)" }}>
                     <CreditCard className="w-6 h-6 text-[#00e5a0]" />
                   </div>
-                  <h2 style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-2.5">Complete Your Setup</h2>
-                  <p className="text-[14px] text-[#8a9abb] mb-9 leading-relaxed">You'll be redirected to Stripe's secure checkout to activate your {selectedPlan.name} plan.</p>
+                  <h2 style={syne} className="text-[26px] font-extrabold tracking-[-1px] mb-2.5">{t("landing.getstarted.completeSetup")}</h2>
+                  <p className="text-[14px] text-[#8a9abb] mb-9 leading-relaxed">{t("landing.getstarted.stripeDesc", { plan: selectedPlan.name })}</p>
 
                   {(gsFirstName || gsBusiness || gsEmail) && (
                     <div className="text-left rounded-[10px] p-4 mb-5" style={{ background: "rgba(0,229,160,.04)", border: "1px solid rgba(0,229,160,.15)" }}>
-                      {gsFirstName && <div className="flex justify-between text-[13px] mb-1"><span className="text-[#5a6a8a]">Name</span><span className="font-medium">{gsFirstName} {gsLastName}</span></div>}
-                      {gsBusiness && <div className="flex justify-between text-[13px] mb-1"><span className="text-[#5a6a8a]">Business</span><span className="font-medium">{gsBusiness}</span></div>}
-                      {gsEmail && <div className="flex justify-between text-[13px]"><span className="text-[#5a6a8a]">Email</span><span className="font-medium">{gsEmail}</span></div>}
+                      {gsFirstName && <div className="flex justify-between text-[13px] mb-1"><span className="text-[#5a6a8a]">{t("landing.getstarted.nameLabel")}</span><span className="font-medium">{gsFirstName} {gsLastName}</span></div>}
+                      {gsBusiness && <div className="flex justify-between text-[13px] mb-1"><span className="text-[#5a6a8a]">{t("landing.getstarted.businessLabel")}</span><span className="font-medium">{gsBusiness}</span></div>}
+                      {gsEmail && <div className="flex justify-between text-[13px]"><span className="text-[#5a6a8a]">{t("landing.getstarted.emailLabel")}</span><span className="font-medium">{gsEmail}</span></div>}
                     </div>
                   )}
 
                   <div className="flex items-center justify-between rounded-xl px-5 py-3.5 mb-7" style={{ background: "rgba(0,229,160,0.12)", border: "1px solid rgba(0,229,160,.2)" }}>
-                    <span className="text-[13px] text-[#8a9abb]">Monthly Subscription</span>
-                    <span style={syne} className="text-[22px] font-extrabold text-[#00e5a0]">{selectedPlan.price}/mo</span>
+                    <span className="text-[13px] text-[#8a9abb]">{t("landing.getstarted.monthlySubscription")}</span>
+                    <span style={syne} className="text-[22px] font-extrabold text-[#00e5a0]">{selectedPlan.price}{t("landing.pricing2.perMonth")}</span>
                   </div>
 
                   <button
@@ -870,11 +871,11 @@ export default function LandingPage() {
                         if (data.url) {
                           window.location.href = data.url;
                         } else {
-                          showToast("error", data.message || "Could not start checkout");
+                          showToast("error", data.message || t("landing.getstarted.checkoutError"));
                           setCheckoutLoading(false);
                         }
                       } catch {
-                        showToast("error", "Connection error. Please try again.");
+                        showToast("error", t("landing.getstarted.connectionError"));
                         setCheckoutLoading(false);
                       }
                     }}
@@ -884,24 +885,24 @@ export default function LandingPage() {
                     style={{ background: "#00e5a0", color: "#07090f", ...syne }}
                   >
                     {checkoutLoading ? (
-                      <><RotateCw className="w-4 h-4 animate-spin" /> Redirecting to Stripe...</>
+                      <><RotateCw className="w-4 h-4 animate-spin" /> {t("landing.getstarted.redirecting")}</>
                     ) : (
-                      <>Pay with Stripe <ArrowRight className="w-4 h-4" /></>
+                      <>{t("landing.getstarted.payWithStripe")} <ArrowRight className="w-4 h-4" /></>
                     )}
                   </button>
 
                   <div className="flex items-center justify-center gap-4 mb-7 text-[12px] text-[#5a6a8a]">
-                    <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Secure checkout</span>
-                    <span className="flex items-center gap-1"><CreditCard className="w-3 h-3" /> Cards accepted</span>
-                    <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Cancel anytime</span>
+                    <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> {t("landing.getstarted.secureCheckout")}</span>
+                    <span className="flex items-center gap-1"><CreditCard className="w-3 h-3" /> {t("landing.getstarted.cardsAccepted")}</span>
+                    <span className="flex items-center gap-1"><Check className="w-3 h-3" /> {t("landing.getstarted.cancelAnytime")}</span>
                   </div>
 
                   <div className="text-left">
-                    <div className="text-[11px] font-bold uppercase tracking-[1.2px] text-[#5a6a8a] mb-3.5">What Happens Next</div>
+                    <div className="text-[11px] font-bold uppercase tracking-[1.2px] text-[#5a6a8a] mb-3.5">{t("landing.getstarted.whatHappensNext")}</div>
                     {[
-                      "Instant account activation after payment",
-                      "Onboarding guide sent to your email",
-                      "Your AI agents ready within minutes",
+                      t("landing.getstarted.next1"),
+                      t("landing.getstarted.next2"),
+                      t("landing.getstarted.next3"),
                     ].map((step, i) => (
                       <div key={i} className="flex gap-3 mb-3">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-[#00e5a0] shrink-0" style={{ background: "#131a26", border: "1px solid rgba(255,255,255,0.07)", ...syne }}>{i + 1}</div>
@@ -911,7 +912,7 @@ export default function LandingPage() {
                   </div>
 
                   <div className="mt-6 pt-5 text-[12px] text-[#5a6a8a]" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-                    Questions? Email <a href="mailto:support@argiflow.ai" className="text-[#00e5a0] no-underline">support@argiflow.ai</a>
+                    {t("landing.getstarted.questionsEmail")} <a href="mailto:support@argiflow.ai" className="text-[#00e5a0] no-underline">support@argiflow.ai</a>
                   </div>
                 </div>
               </div>
