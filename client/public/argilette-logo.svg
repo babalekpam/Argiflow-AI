@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200">
+  <defs>
+    <linearGradient id="flowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00E5FF;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#0090C8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#004E8C;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00E5FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00FFBB;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050D1A;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#071425;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="logoClip">
+      <rect width="600" height="200" rx="16"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+
+  <rect width="600" height="200" rx="16" fill="url(#bgGrad)"/>
+
+  <!-- Subtle grid lines -->
+
+  <g opacity="0.04" stroke="#00E5FF" stroke-width="0.5">
+    <line x1="0" y1="40" x2="600" y2="40"/>
+    <line x1="0" y1="80" x2="600" y2="80"/>
+    <line x1="0" y1="120" x2="600" y2="120"/>
+    <line x1="0" y1="160" x2="600" y2="160"/>
+    <line x1="100" y1="0" x2="100" y2="200"/>
+    <line x1="200" y1="0" x2="200" y2="200"/>
+    <line x1="300" y1="0" x2="300" y2="200"/>
+    <line x1="400" y1="0" x2="400" y2="200"/>
+    <line x1="500" y1="0" x2="500" y2="200"/>
+  </g>
+
+  <!-- ═══ ICON MARK ═══ -->
+
+  <!-- Hexagonal container -->
+
+<polygon points="100,30 130,15 160,30 160,70 130,85 100,70" 
+fill="none" stroke="url(#flowGrad)" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- A-shaped mark with flow lines -->
+
+  <!-- Main A structure -->
+
+<path d="M115,72 L130,28 L145,72" 
+stroke="url(#flowGrad)" stroke-width="3.5" fill="none" 
+stroke-linecap="round" stroke-linejoin="round"
+filter="url(#glow)"/>
+
+  <!-- Crossbar of A -->
+
+<line x1="120" y1="57" x2="140" y2="57" 
+stroke="url(#accentGrad)" stroke-width="2.5" 
+stroke-linecap="round" filter="url(#glow)"/>
+
+  <!-- Flow lines emanating right from icon -->
+
+  <line x1="163" y1="45" x2="182" y2="45" stroke="#00E5FF" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="163" y1="52" x2="176" y2="52" stroke="#00E5FF" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
+  <line x1="163" y1="58" x2="179" y2="58" stroke="#00FFBB" stroke-width="1" stroke-linecap="round" opacity="0.35"/>
+
+  <!-- Dot accent -->
+
+  <circle cx="130" cy="26" r="2.5" fill="#00E5FF" filter="url(#glow)" opacity="0.9"/>
+
+  <!-- ═══ WORDMARK ═══ -->
+
+  <!-- ARGILETTE label (smaller, above) -->
+
+<text x="198" y="70" 
+font-family="'Courier New', Courier, monospace" 
+font-size="10" 
+font-weight="400"
+letter-spacing="5"
+fill="#00AACC" 
+opacity="0.75">ARGILETTE</text>
+
+  <!-- ARGILETTE main wordmark -->
+
+<text x="195" y="118" 
+font-family="Georgia, 'Times New Roman', serif" 
+font-size="52" 
+font-weight="700"
+letter-spacing="-1"
+fill="white">ARGILETTE</text>
+
+  <!-- .co accent -->
+
+<text x="198" y="140" 
+font-family="'Courier New', Courier, monospace" 
+font-size="11.5" 
+font-weight="400"
+letter-spacing="8"
+fill="url(#accentGrad)" 
+opacity="0.9">.co  —  AI BUSINESS PLATFORM</text>
+
+  <!-- Accent underline bar -->
+
+  <rect x="195" y="126" width="60" height="2" rx="1" fill="url(#accentGrad)" opacity="0.6"/>
+  <rect x="258" y="126" width="8" height="2" rx="1" fill="#00FFBB" opacity="0.3"/>
+
+  <!-- Corner accent marks -->
+
+  <path d="M580,20 L580,12 L572,12" stroke="#00E5FF" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.4"/>
+  <path d="M20,180 L20,188 L28,188" stroke="#00E5FF" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.4"/>
+</svg>

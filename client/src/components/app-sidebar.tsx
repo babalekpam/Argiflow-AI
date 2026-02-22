@@ -117,13 +117,13 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <Link href="/" className="flex items-center gap-2" data-testid="link-sidebar-logo">
-          <Zap className="w-5 h-5 text-primary" />
+          <img src="/argilette-icon.svg" alt="Argilette" className="w-7 h-7" />
           <span className="font-bold gradient-text text-lg">{t("common.brandName")}</span>
           <Badge variant="outline" className="text-[9px] py-0 px-1.5 border-primary/30 text-primary ml-0.5">
             {t("common.brandTag")}
           </Badge>
         </Link>
-        <p className="text-[10px] text-muted-foreground/60 pl-7 -mt-1" data-testid="text-sidebar-product-of">
+        <p className="text-[10px] text-muted-foreground/60 pl-9 -mt-1" data-testid="text-sidebar-product-of">
           by ARGILETTE Labs
         </p>
       </SidebarHeader>

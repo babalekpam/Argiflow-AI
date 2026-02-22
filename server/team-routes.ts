@@ -27,7 +27,7 @@ async function sendTeamInviteEmail(
   const html = `
     <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1119; color: #e2e8f0; padding: 40px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 32px;">
-        <h1 style="color: #00e5a0; font-size: 28px; margin: 0;">Argilette</h1>
+        <h1 style="background: linear-gradient(135deg, #00E5FF, #004E8C); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 28px; margin: 0;">ARGILETTE</h1>
         <p style="color: #94a3b8; font-size: 14px; margin-top: 4px;">AI Automation Platform</p>
       </div>
       <h2 style="color: #f1f5f9; font-size: 22px; margin-bottom: 16px;">You're Invited!</h2>
@@ -35,13 +35,13 @@ async function sendTeamInviteEmail(
         ${greeting},
       </p>
       <p style="color: #cbd5e1; font-size: 16px; line-height: 1.6;">
-        <strong style="color: #f1f5f9;">${inviterName}</strong> from <strong style="color: #f1f5f9;">${inviterCompany}</strong> has invited you to join their team as a <strong style="color: #00e5a0;">${role}</strong>.
+        <strong style="color: #f1f5f9;">${inviterName}</strong> from <strong style="color: #f1f5f9;">${inviterCompany}</strong> has invited you to join their team as a <strong style="color: #00E5FF;">${role}</strong>.
       </p>
       <p style="color: #cbd5e1; font-size: 16px; line-height: 1.6;">
         With Argilette, you'll have access to powerful AI-driven tools for lead generation, sales intelligence, and client acquisition.
       </p>
       <div style="text-align: center; margin: 32px 0;">
-        <a href="${signupUrl}" style="display: inline-block; background: linear-gradient(135deg, #00e5a0, #00b8d4); color: #0d1119; font-weight: 700; font-size: 16px; padding: 14px 36px; border-radius: 8px; text-decoration: none;">
+        <a href="${signupUrl}" style="display: inline-block; background: linear-gradient(135deg, #00E5FF, #0090C8); color: #0d1119; font-weight: 700; font-size: 16px; padding: 14px 36px; border-radius: 8px; text-decoration: none;">
           Accept Invitation
         </a>
       </div>

@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Zap, ArrowRight, ArrowLeft, Eye, EyeOff, Check, Building2, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowLeft, Eye, EyeOff, Check, Building2, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation, useSearch } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -104,7 +104,7 @@ export default function SignupPage() {
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
           <a href="/" className="inline-flex items-center gap-2 mb-2" data-testid="link-signup-home">
-            <Zap className="w-7 h-7 text-primary" />
+            <img src="/argilette-icon.svg" alt="Argilette" className="w-8 h-8" />
             <span className="text-2xl font-bold gradient-text">{t("common.brandName")}</span>
             <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{t("common.brandTag")}</Badge>
           </a>
