@@ -7312,18 +7312,20 @@ Return ONLY the JSON array.`;
 
       if (!promoterSearchContent && !openaiKey) {
         await db.update(platformPromotionRuns).set({
-          status: "failed", results: JSON.stringify([]),
+          status: "failed", errorMessage: "No search provider available.",
+          results: JSON.stringify([]),
           completedAt: new Date(),
         }).where(eq(platformPromotionRuns.id, run.id));
-        return res.json({ message: "No search provider available." });
+        return;
       }
 
       if (!openaiKey) {
         await db.update(platformPromotionRuns).set({
-          status: "failed", results: JSON.stringify([]),
+          status: "failed", errorMessage: "OpenAI not configured.",
+          results: JSON.stringify([]),
           completedAt: new Date(),
         }).where(eq(platformPromotionRuns.id, run.id));
-        return res.json({ message: "OpenAI not configured." });
+        return;
       }
 
       const promoterOpenAI = new OpenAI({ apiKey: openaiKey });
@@ -7449,12 +7451,13 @@ Return a JSON array of reply strings in the same order:
     }
   }
 
-  // Background: run twice a week (every 84 hours = 3.5 days)
-  const PLATFORM_PROMOTER_INTERVAL = 84 * 60 * 60 * 1000;
+  // Background: run 5 times per day (every 4.8 hours)
+  const PLATFORM_PROMOTER_INTERVAL = Math.round((24 / 5) * 60 * 60 * 1000);
   setInterval(() => {
     runPlatformPromotion().catch(err => console.error("[Platform Promoter] Scheduler error:", err));
   }, PLATFORM_PROMOTER_INTERVAL);
-  console.log("[Platform Promoter] Scheduled to run every 3.5 days (twice per week). Manual trigger available at /api/platform-promoter/trigger");
+  runPlatformPromotion().catch(err => console.error("[Platform Promoter] Initial run error:", err));
+  console.log("[Platform Promoter] Scheduled to run 5 times per day (every ~4.8 hours). Manual trigger available at /api/platform-promoter/trigger");
 
   app.get("/api/platform-promoter/status", isAdmin, async (req, res) => {
     try {
