@@ -45,6 +45,7 @@ import {
   FileSpreadsheet,
   Zap,
   ArrowRight,
+  Filter,
 } from "lucide-react";
 import type { LinkedinProfile } from "@shared/schema";
 import { useState, useMemo, useRef } from "react";
@@ -239,13 +240,41 @@ function CsvImportPanel() {
   });
 
   function parseCSV(text: string): any[] {
-    const lines = text.split("\n").filter(l => l.trim());
+    const cleanText = text.replace(/^\uFEFF/, "");
+    const lines = cleanText.split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(",").map(h => h.replace(/^"|"$/g, "").trim());
-    const rows: any[] = [];
+    const headerAliases: Record<string, string[]> = {
+      "First Name": ["first name", "firstname", "first_name", "prénom", "prenom"],
+      "Last Name": ["last name", "lastname", "last_name", "nom", "nom de famille"],
+      "Email Address": ["email address", "emailaddress", "email", "e-mail", "adresse e-mail"],
+      "Company": ["company", "société", "societe", "organization", "organisation", "entreprise"],
+      "Position": ["position", "title", "job title", "jobtitle", "titre", "poste", "headline"],
+      "Connected On": ["connected on", "connectedon", "connected_on", "date de connexion", "connecté le"],
+      "URL": ["url", "profile url", "profileurl", "linkedin url", "lien"],
+    };
 
-    for (let i = 1; i < lines.length; i++) {
+    let headerLine = 0;
+    const rawHeaders = lines[0].split(",").map(h => h.replace(/^"|"$/g, "").trim());
+    const firstLower = rawHeaders.map(h => h.toLowerCase());
+    const allAliasValues = Object.values(headerAliases).flat();
+    if (!firstLower.some(h => allAliasValues.includes(h))) {
+      if (lines.length < 3) return [];
+      headerLine = 1;
+    }
+
+    const finalHeaders = lines[headerLine].split(",").map(h => h.replace(/^"|"$/g, "").trim());
+
+    const normalizedHeaders = finalHeaders.map(h => {
+      const lower = h.toLowerCase();
+      for (const [canonical, aliases] of Object.entries(headerAliases)) {
+        if (aliases.includes(lower) || lower === canonical.toLowerCase()) return canonical;
+      }
+      return h;
+    });
+
+    const rows: any[] = [];
+    for (let i = headerLine + 1; i < lines.length; i++) {
       const values: string[] = [];
       let current = "";
       let inQuotes = false;
@@ -262,11 +291,16 @@ function CsvImportPanel() {
       }
       values.push(current.trim());
 
+      if (values.every(v => !v)) continue;
+
       const row: any = {};
-      headers.forEach((h, idx) => {
+      normalizedHeaders.forEach((h, idx) => {
         row[h] = values[idx] || "";
       });
-      rows.push(row);
+
+      if ((row["First Name"] || "").trim() || (row["Last Name"] || "").trim()) {
+        rows.push(row);
+      }
     }
 
     return rows;
@@ -387,6 +421,8 @@ function CsvImportPanel() {
 
 function BulkActionsBar({ profileCount, unconvertedCount }: { profileCount: number; unconvertedCount: number }) {
   const { toast } = useToast();
+  const [filterIndustry, setFilterIndustry] = useState("");
+  const [showFilterInput, setShowFilterInput] = useState(false);
 
   const convertMutation = useMutation({
     mutationFn: async () => {
@@ -417,6 +453,23 @@ function BulkActionsBar({ profileCount, unconvertedCount }: { profileCount: numb
     },
   });
 
+  const filterMutation = useMutation({
+    mutationFn: async (industry: string) => {
+      const res = await apiRequest("POST", "/api/linkedin/filter-industry", { industry });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/linkedin/stats"] });
+      toast({ title: "AI Filter Complete", description: data.message });
+      setShowFilterInput(false);
+      setFilterIndustry("");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Filter failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   if (profileCount === 0) return null;
 
   return (
@@ -438,6 +491,15 @@ function BulkActionsBar({ profileCount, unconvertedCount }: { profileCount: numb
             {enrichMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
             AI Enrich
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowFilterInput(!showFilterInput)}
+            data-testid="button-filter-industry"
+          >
+            <Filter className="w-4 h-4 mr-1" />
+            AI Industry Filter
+          </Button>
           {unconvertedCount > 0 && (
             <Button
               size="sm"
@@ -451,6 +513,34 @@ function BulkActionsBar({ profileCount, unconvertedCount }: { profileCount: numb
           )}
         </div>
       </div>
+      {showFilterInput && (
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <Input
+            placeholder="Type industry (e.g. Healthcare, Tech, Finance...)"
+            value={filterIndustry}
+            onChange={(e) => setFilterIndustry(e.target.value)}
+            className="max-w-xs text-sm"
+            data-testid="input-filter-industry"
+          />
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => {
+              if (!filterIndustry.trim()) {
+                toast({ title: "Enter an industry", description: "Type the industry you want to keep", variant: "destructive" });
+                return;
+              }
+              filterMutation.mutate(filterIndustry.trim());
+            }}
+            disabled={filterMutation.isPending || !filterIndustry.trim()}
+            data-testid="button-apply-filter"
+          >
+            {filterMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Filter className="w-4 h-4 mr-1" />}
+            {filterMutation.isPending ? "AI Filtering..." : `Keep Only ${filterIndustry || "..."} Contacts`}
+          </Button>
+          <span className="text-xs text-muted-foreground">AI will analyze all {profileCount} profiles and remove non-matching ones</span>
+        </div>
+      )}
     </Card>
   );
 }

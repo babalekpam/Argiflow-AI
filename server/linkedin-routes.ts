@@ -270,15 +270,29 @@ export function registerLinkedinRoutes(app: Express) {
       const batchSize = 100;
       const toInsert: any[] = [];
 
+      if (connections.length > 0) {
+        console.log("[LinkedIn] CSV headers/keys from first row:", Object.keys(connections[0]));
+        console.log("[LinkedIn] First row sample:", JSON.stringify(connections[0]).slice(0, 500));
+      }
+
       for (const conn of connections) {
-        const firstName = (conn["First Name"] || conn.firstName || "").trim();
-        const lastName = (conn["Last Name"] || conn.lastName || "").trim();
+        const keys = Object.keys(conn);
+        const get = (aliases: string[]) => {
+          for (const alias of aliases) {
+            const found = keys.find(k => k.toLowerCase().replace(/[_\s-]/g, "") === alias.toLowerCase().replace(/[_\s-]/g, ""));
+            if (found && conn[found]) return conn[found];
+          }
+          return "";
+        };
+
+        const firstName = get(["First Name", "firstName", "first_name", "Prénom", "prenom"]).trim();
+        const lastName = get(["Last Name", "lastName", "last_name", "Nom", "nom de famille"]).trim();
         const fullName = `${firstName} ${lastName}`.trim();
-        const email = (conn["Email Address"] || conn.emailAddress || conn.email || "").trim();
-        const company = (conn["Company"] || conn.company || "").trim();
-        const position = (conn["Position"] || conn.position || conn.headline || "").trim();
-        const connectedOn = conn["Connected On"] || conn.connectedOn || "";
-        const linkedinUrl = conn["URL"] || conn.url || conn.linkedinUrl || "";
+        const email = get(["Email Address", "emailAddress", "email", "E-mail", "adresse e-mail"]).trim();
+        const company = get(["Company", "société", "societe", "organization", "Organisation", "entreprise"]).trim();
+        const position = get(["Position", "title", "Job Title", "jobtitle", "headline", "Poste", "titre"]).trim();
+        const connectedOn = get(["Connected On", "connectedOn", "connected_on", "Date de connexion"]);
+        const linkedinUrl = get(["URL", "Profile URL", "profileurl", "linkedin url", "Lien"]);
 
         if (!fullName || fullName.length < 2) {
           skipped++;
@@ -486,6 +500,114 @@ export function registerLinkedinRoutes(app: Express) {
     } catch (error: any) {
       console.error("[LinkedIn] Enrich error:", error);
       res.status(500).json({ message: "Failed to enrich profiles" });
+    }
+  });
+
+  app.post("/api/linkedin/filter-industry", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { industry } = req.body;
+
+      if (!industry || typeof industry !== "string" || industry.trim().length < 2 || industry.trim().length > 100) {
+        return res.status(400).json({ message: "Please specify a valid industry name (2-100 characters)" });
+      }
+
+      const allProfiles = await db.select().from(linkedinProfiles)
+        .where(eq(linkedinProfiles.userId, userId));
+
+      if (allProfiles.length === 0) {
+        return res.json({ kept: 0, removed: 0, message: "No profiles to filter" });
+      }
+
+      const batchSize = 50;
+      let kept = 0;
+      let removed = 0;
+      const idsToRemove: string[] = [];
+
+      for (let i = 0; i < allProfiles.length; i += batchSize) {
+        const batch = allProfiles.slice(i, i + batchSize);
+        const profileSummaries = batch.map(p =>
+          `ID:${p.id}|Name:${p.fullName}|Title:${p.headline || "N/A"}|Company:${p.company || "N/A"}`
+        ).join("\n");
+
+        try {
+          const { OpenAI } = await import("openai");
+          const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: `You are an industry classification expert. Given a list of LinkedIn profiles, determine which ones belong to the "${industry}" industry based on their job title, company name, and any other clues. Return ONLY a JSON array of profile IDs that DO belong to the "${industry}" industry. Be inclusive - if there's a reasonable chance they're in ${industry}, keep them. Return format: ["id1", "id2", ...]`
+              },
+              {
+                role: "user",
+                content: `Classify these profiles. Keep only those in the "${industry}" industry:\n\n${profileSummaries}`
+              }
+            ],
+            temperature: 0.1,
+            max_tokens: 4000,
+          });
+
+          const content = response.choices[0]?.message?.content || "";
+          const jsonMatch = content.match(/\[[\s\S]*\]/);
+          if (!jsonMatch) {
+            console.warn(`[LinkedIn] AI filter returned no valid JSON, keeping batch of ${batch.length}`);
+            kept += batch.length;
+            continue;
+          }
+
+          let keepIds: string[];
+          try {
+            keepIds = JSON.parse(jsonMatch[0]);
+            if (!Array.isArray(keepIds) || !keepIds.every(id => typeof id === "string")) {
+              throw new Error("Invalid response format");
+            }
+          } catch {
+            console.warn(`[LinkedIn] AI filter returned invalid JSON, keeping batch of ${batch.length}`);
+            kept += batch.length;
+            continue;
+          }
+
+          const batchIds = new Set(batch.map(p => p.id));
+          const validKeepIds = keepIds.filter(id => batchIds.has(id));
+          const keepSet = new Set(validKeepIds);
+
+          for (const p of batch) {
+            if (keepSet.has(p.id)) {
+              kept++;
+            } else {
+              idsToRemove.push(p.id);
+              removed++;
+            }
+          }
+        } catch (aiErr: any) {
+          console.warn(`[LinkedIn] AI filter batch error: ${aiErr.message}`);
+          kept += batch.length;
+        }
+      }
+
+      if (idsToRemove.length > 0) {
+        for (let i = 0; i < idsToRemove.length; i += 100) {
+          const batch = idsToRemove.slice(i, i + 100);
+          for (const id of batch) {
+            await db.delete(linkedinProfiles).where(
+              sql`${linkedinProfiles.id} = ${id} AND ${linkedinProfiles.userId} = ${userId}`
+            );
+          }
+        }
+      }
+
+      res.json({
+        kept,
+        removed,
+        total: allProfiles.length,
+        message: `Kept ${kept} ${industry} contacts, removed ${removed} non-${industry} contacts`,
+      });
+    } catch (error: any) {
+      console.error("[LinkedIn] Industry filter error:", error);
+      res.status(500).json({ message: "Failed to filter by industry" });
     }
   });
 }
