@@ -286,15 +286,22 @@ export default function LandingPage() {
         {currentView === "landing" && (
           <div className="relative z-[1] min-h-screen">
             <div className="pt-[140px] pb-20 px-6 md:px-12 max-w-[1200px] mx-auto">
-              <div className="inline-flex items-center gap-2 text-[11px] font-medium text-[#8a9abb] uppercase tracking-[2px] px-4 py-1.5 rounded-full mb-8" style={{ background: "#131a26", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="inline-flex items-center gap-2 text-[11px] font-medium text-[#8a9abb] uppercase tracking-[2px] px-4 py-1.5 rounded-full mb-4" style={{ background: "#131a26", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <span className="w-1.5 h-1.5 bg-[#00e5a0] rounded-full" />
-                B2B Sales Intelligence Platform
+                The All-In-One B2B Growth Engine
               </div>
-              <h1 style={syne} className="text-[clamp(42px,7vw,88px)] font-extrabold leading-[1.0] tracking-[-3px] mb-7 max-w-[900px]">
-                Automate Your Pipeline. <span className="text-[#00e5a0]">Close More</span> <span className="text-[#3b82f6]">Deals.</span>
+              <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-[#f59e0b] px-4 py-1.5 rounded-full mb-8" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)" }} data-testid="badge-replaces">
+                Replaces Apollo + ZoomInfo + Instantly + GoHighLevel + Smartlead
+              </div>
+              <h1 style={syne} className="text-[clamp(38px,6.5vw,82px)] font-extrabold leading-[1.0] tracking-[-3px] mb-7 max-w-[950px]">
+                Stop Paying for <span className="text-[#ef4444] line-through decoration-[3px]">5 Tools.</span>{" "}
+                <span className="text-[#00e5a0]">Get Everything</span> in <span className="text-[#3b82f6]">One.</span>
               </h1>
-              <p className="text-lg text-[#8a9abb] font-light max-w-[540px] leading-relaxed mb-12">
-                AI-powered lead generation, multi-channel outreach, voice agents, and email infrastructure — all in one platform built for B2B sales teams.
+              <p className="text-lg text-[#8a9abb] font-light max-w-[600px] leading-relaxed mb-5">
+                ArgiFlow gives you what Apollo, ZoomInfo, Instantly, Smartlead, and GoHighLevel do — combined into a single platform. Lead data, outreach, voice AI, email infrastructure, CRM, funnels, and 40+ tools. No add-ons. No per-seat charges. Nothing else to buy.
+              </p>
+              <p className="text-[15px] text-[#00e5a0] font-medium mb-12 max-w-[540px]">
+                One login. One bill. Every tool you need to find, contact, and close B2B deals.
               </p>
               <div className="flex items-center gap-4 flex-wrap">
                 <button onClick={() => showView("getstarted")} data-testid="button-start-trial" className="px-9 py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] hover:shadow-[0_8px_32px_rgba(0,229,160,.35)] hover:-translate-y-0.5 transition-all" style={syne}>
@@ -313,14 +320,14 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <span className="text-[13px] text-[#8a9abb]">
-                  Trusted by <strong className="text-[#00e5a0]">500+</strong> sales teams
+                  Trusted by <strong className="text-[#00e5a0]">500+</strong> sales teams saving $2,000+/mo
                 </span>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-px mt-20 rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 {[
-                  { num: "500+", label: "Leads Generated Monthly" },
-                  { num: "47%", label: "Average Reply Rate" },
+                  { num: "40+", label: "Tools Built In" },
+                  { num: "$0", label: "Extra Software Costs" },
                   { num: "24/7", label: "AI Agent Availability" },
                   { num: "10x", label: "Pipeline Growth" },
                 ].map((s, i) => (
@@ -331,35 +338,138 @@ export default function LandingPage() {
                 ))}
               </div>
 
+              <div className="mt-24 scroll-mt-20" data-testid="section-comparison">
+                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">Why ArgiFlow Wins</div>
+                <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">They Sell You Pieces. We Give You the Whole Machine.</h2>
+                <p className="text-[16px] text-[#8a9abb] max-w-[580px] leading-relaxed mb-12">Other platforms make you buy 5 subscriptions and glue them together. ArgiFlow replaces all of them — for a fraction of the cost.</p>
+
+                <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div className="grid grid-cols-[1fr_100px_100px_100px] md:grid-cols-[1fr_120px_120px_120px] text-center" style={{ background: "#131a26" }}>
+                    <div className="p-4 text-left text-[13px] font-semibold text-[#5a6a8a]">Capability</div>
+                    <div className="p-4 text-[13px] font-bold text-[#00e5a0]" style={syne}>ArgiFlow</div>
+                    <div className="p-4 text-[13px] font-medium text-[#5a6a8a]">Apollo</div>
+                    <div className="p-4 text-[13px] font-medium text-[#5a6a8a]">ZoomInfo</div>
+                  </div>
+                  {[
+                    { feat: "B2B Contact & Company Data", a: true, b: true, c: true },
+                    { feat: "Email Finder & Verification", a: true, b: true, c: true },
+                    { feat: "Multi-Channel Outreach (Email + SMS)", a: true, b: "email", c: false },
+                    { feat: "AI Voice Calling Agent", a: true, b: false, c: false },
+                    { feat: "Email Warmup & Deliverability", a: true, b: false, c: false },
+                    { feat: "CRM & Sales Pipeline", a: true, b: "basic", c: false },
+                    { feat: "Landing Pages & Funnels", a: true, b: false, c: false },
+                    { feat: "AI Chat Widget", a: true, b: false, c: false },
+                    { feat: "Invoicing & Proposals", a: true, b: false, c: false },
+                    { feat: "Social Media Management", a: true, b: false, c: false },
+                    { feat: "Reputation & Reviews", a: true, b: false, c: false },
+                    { feat: "Blog & Content Builder", a: true, b: false, c: false },
+                    { feat: "Membership & Courses", a: true, b: false, c: false },
+                    { feat: "Workflow Automation Engine", a: true, b: "basic", c: false },
+                    { feat: "Intent Data & Signals", a: true, b: true, c: true },
+                    { feat: "Org Charts & Technographics", a: true, b: false, c: true },
+                    { feat: "A/B Testing", a: true, b: false, c: false },
+                    { feat: "Calendar & Scheduling", a: true, b: false, c: false },
+                  ].map((row, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_100px_100px_100px] md:grid-cols-[1fr_120px_120px_120px] text-center items-center" style={{ background: i % 2 === 0 ? "#0d1119" : "#0f1420", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div className="p-3 md:p-4 text-left text-[12px] md:text-[13px] text-[#c8d0e0]">{row.feat}</div>
+                      <div className="p-3 md:p-4">{row.a === true ? <Check className="w-4 h-4 text-[#00e5a0] mx-auto" /> : <span className="text-[11px] text-[#5a6a8a]">{row.a}</span>}</div>
+                      <div className="p-3 md:p-4">{row.b === true ? <Check className="w-4 h-4 text-[#3b82f6] mx-auto" /> : row.b === false ? <X className="w-4 h-4 text-[#ef4444]/40 mx-auto" /> : <span className="text-[11px] text-[#5a6a8a]">{row.b}</span>}</div>
+                      <div className="p-3 md:p-4">{row.c === true ? <Check className="w-4 h-4 text-[#3b82f6] mx-auto" /> : row.c === false ? <X className="w-4 h-4 text-[#ef4444]/40 mx-auto" /> : <span className="text-[11px] text-[#5a6a8a]">{row.c}</span>}</div>
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-[1fr_100px_100px_100px] md:grid-cols-[1fr_120px_120px_120px] text-center items-center" style={{ background: "#131a26", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div className="p-4 text-left text-[13px] font-bold text-[#eef2ff]">Starting Price</div>
+                    <div className="p-4 text-[14px] font-bold text-[#00e5a0]" style={syne}>$297/mo</div>
+                    <div className="p-4 text-[13px] text-[#8a9abb]">$49-149/mo<br /><span className="text-[10px] text-[#5a6a8a]">+ credits</span></div>
+                    <div className="p-4 text-[13px] text-[#8a9abb]">$14,995/yr<br /><span className="text-[10px] text-[#5a6a8a]">per seat</span></div>
+                  </div>
+                </div>
+
+                <div className="mt-6 p-5 rounded-xl flex items-start gap-3" style={{ background: "rgba(0,229,160,0.06)", border: "1px solid rgba(0,229,160,0.12)" }}>
+                  <Zap className="w-5 h-5 text-[#00e5a0] mt-0.5 shrink-0" />
+                  <div>
+                    <div className="text-[14px] font-semibold text-[#eef2ff] mb-1">The bottom line</div>
+                    <div className="text-[13px] text-[#8a9abb] leading-relaxed">With Apollo + ZoomInfo + Instantly + Smartlead + GoHighLevel, you'd pay <strong className="text-[#eef2ff]">$3,000-5,000/mo</strong> and still need to connect everything yourself. ArgiFlow gives you <strong className="text-[#00e5a0]">all of it for $297/mo</strong> — already connected, already automated, ready to go.</div>
+                  </div>
+                </div>
+              </div>
+
               <div id="features-section" className="mt-24 scroll-mt-20">
-                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">Core Features</div>
-                <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">Everything You Need to Close</h2>
-                <p className="text-[16px] text-[#8a9abb] max-w-[480px] leading-relaxed">Six integrated modules that work together to automate your entire sales pipeline.</p>
+                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">What's All Included</div>
+                <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">40+ Tools. Zero Add-Ons. Nothing Else to Buy.</h2>
+                <p className="text-[16px] text-[#8a9abb] max-w-[580px] leading-relaxed">Every tool below is included in your plan. No upsells, no per-seat fees, no credit limits, no surprise invoices.</p>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-12">
                   {[
-                    { icon: Search, title: "Lead Intelligence", desc: "AI-powered prospecting that finds verified decision-makers with emails, phones, and intent signals.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
-                    { icon: Send, title: "AI Outreach", desc: "Multi-channel sequences — email, SMS, LinkedIn — personalized by AI and sent at optimal times.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-                    { icon: Phone, title: "Voice AI Agent", desc: "AI-powered phone agent that calls prospects, handles objections, and books meetings 24/7.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
-                    { icon: Mail, title: "Email Infrastructure", desc: "Automated warmup, reputation monitoring, and deliverability optimization across all your domains.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-                    { icon: Brain, title: "Sales Intelligence", desc: "ZoomInfo-style B2B data — company info, org charts, tech stacks, and real-time intent signals.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-                    { icon: Users, title: "Smart CRM", desc: "AI-enhanced CRM that auto-updates deal stages, predicts close probability, and suggests next actions.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Search, title: "B2B Lead Intelligence", desc: "Find decision-makers with verified emails, phones, company data, and buying intent — like Apollo + ZoomInfo combined.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Send, title: "AI Multi-Channel Outreach", desc: "Automated email, SMS, and LinkedIn sequences — personalized by AI, sent at the perfect time. Replaces Instantly + Smartlead.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: Phone, title: "Voice AI Calling Agent", desc: "An AI agent that makes real phone calls, handles objections, and books meetings — 24/7. No other platform has this.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Mail, title: "Email Infrastructure", desc: "Warmup, reputation monitoring, inbox placement testing, and deliverability optimization. Built in — not a $100/mo add-on.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                    { icon: Brain, title: "Sales Intelligence & Enrichment", desc: "Company profiles, org charts, technographic data, intent signals, and AI-powered deep research on any prospect.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: Users, title: "CRM & Sales Pipeline", desc: "Kanban pipelines, deal tracking, lead scoring, and AI-predicted close probability. No Salesforce needed.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Globe, title: "Landing Pages & Funnels", desc: "Build high-converting pages with 5 templates, custom domains, and built-in analytics. Replaces ClickFunnels.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                    { icon: MessageSquare, title: "AI Chat Widget", desc: "Embed an AI chatbot on your site that captures leads, answers questions, and books appointments automatically.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: FileText, title: "Invoicing & Proposals", desc: "Send professional invoices and proposals with e-signatures. Track views, get paid — no QuickBooks required.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: BarChart3, title: "Social Media Management", desc: "Schedule and publish to multiple platforms. AI writes your posts. Replaces Buffer or Hootsuite.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                    { icon: Star, title: "Reputation & Reviews", desc: "Monitor reviews across Google and other platforms. AI-powered response suggestions. Manage your brand.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: Layers, title: "Workflow Automation Engine", desc: "Visual n8n-style automations with triggers, conditions, and AI actions. Automate any process — no Zapier needed.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Calendar, title: "Calendar & Scheduling", desc: "Client appointment booking with availability sync. Like Calendly, but already built into your sales workflow.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                    { icon: Activity, title: "Blog & Content Builder", desc: "AI-powered blog with SEO optimization. Publish to your site, drive organic traffic, capture leads.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: Rocket, title: "Membership & Courses", desc: "Create gated content, online courses, and membership areas. Monetize your expertise directly.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
                   ].map((f, i) => (
-                    <div key={i} className="bg-[#0d1119] rounded-2xl p-8 transition-all duration-200 hover:-translate-y-1 cursor-default" style={{ border: "1px solid rgba(255,255,255,0.07)" }} data-testid={`card-feature-${i}`}>
-                      <div className="w-11 h-11 rounded-[10px] flex items-center justify-center text-xl mb-5" style={{ background: f.bg, color: f.color }}>
+                    <div key={i} className="bg-[#0d1119] rounded-2xl p-7 transition-all duration-200 hover:-translate-y-1 cursor-default" style={{ border: "1px solid rgba(255,255,255,0.07)" }} data-testid={`card-feature-${i}`}>
+                      <div className="w-11 h-11 rounded-[10px] flex items-center justify-center text-xl mb-4" style={{ background: f.bg, color: f.color }}>
                         <f.icon className="w-5 h-5" />
                       </div>
-                      <div style={syne} className="text-[16px] font-bold mb-2">{f.title}</div>
+                      <div style={syne} className="text-[15px] font-bold mb-2">{f.title}</div>
                       <div className="text-[13px] text-[#8a9abb] leading-relaxed">{f.desc}</div>
                     </div>
                   ))}
+                </div>
+
+                <div className="mt-12 p-6 rounded-2xl text-center" style={{ background: "linear-gradient(135deg, rgba(0,229,160,0.08), rgba(59,130,246,0.08))", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={syne} className="text-[20px] font-bold mb-2">Plus: A/B Testing, Documents, Google Business Profile, Community Forums, and more.</div>
+                  <div className="text-[14px] text-[#8a9abb]">Every feature is included. Every plan. No hidden upgrades.</div>
+                </div>
+              </div>
+
+              <div className="mt-24 py-16 px-6 md:px-12" data-testid="section-what-they-charge">
+                <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3 text-center">The Real Cost of "Cheaper" Tools</div>
+                <h2 style={syne} className="text-[clamp(24px,3.5vw,40px)] font-extrabold tracking-[-1.5px] mb-12 text-center max-w-[700px] mx-auto">What You'd Pay Without ArgiFlow</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-[900px] mx-auto">
+                  {[
+                    { tool: "Apollo.io", price: "$99/mo", what: "Contact data only" },
+                    { tool: "ZoomInfo", price: "$1,250/mo", what: "Company intel only" },
+                    { tool: "Instantly.ai", price: "$97/mo", what: "Cold email only" },
+                    { tool: "Smartlead", price: "$94/mo", what: "Email warmup only" },
+                    { tool: "GoHighLevel", price: "$297/mo", what: "CRM + funnels only" },
+                    { tool: "Calendly", price: "$12/mo", what: "Scheduling only" },
+                  ].map((t, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 rounded-xl" style={{ background: "#0d1119", border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div>
+                        <div className="text-[14px] font-medium text-[#eef2ff]">{t.tool}</div>
+                        <div className="text-[11px] text-[#5a6a8a]">{t.what}</div>
+                      </div>
+                      <div className="text-[14px] font-bold text-[#ef4444]">{t.price}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-8 text-center">
+                  <div className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)" }}>
+                    <span className="text-[18px] font-bold text-[#ef4444] line-through" style={syne}>$1,849+/mo</span>
+                    <ArrowRight className="w-5 h-5 text-[#5a6a8a]" />
+                    <span className="text-[22px] font-extrabold text-[#00e5a0]" style={syne}>$297/mo</span>
+                    <span className="text-[13px] text-[#8a9abb] ml-1">with ArgiFlow</span>
+                  </div>
+                  <div className="mt-4 text-[14px] text-[#8a9abb]">Save over <strong className="text-[#00e5a0]">$18,000/year</strong> — and get more features than any of them individually.</div>
                 </div>
               </div>
             </div>
 
             <div id="pricing-section" className="py-24 px-6 md:px-12 max-w-[1200px] mx-auto scroll-mt-20">
               <div className="text-[11px] font-semibold uppercase tracking-[2px] text-[#5a6a8a] mb-3">Pricing</div>
-              <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">Simple, Transparent Pricing</h2>
-              <p className="text-[16px] text-[#8a9abb] max-w-[480px] leading-relaxed">Choose the plan that fits your sales operation. Scale up anytime.</p>
+              <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">One Platform. One Price. Everything Included.</h2>
+              <p className="text-[16px] text-[#8a9abb] max-w-[520px] leading-relaxed">No per-seat charges. No credit limits. No hidden add-ons. Choose your plan and get every single tool from day one.</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-12">
                 {plans.map((p, i) => (
                   <div key={i} className={`bg-[#0d1119] rounded-[20px] p-9 relative overflow-hidden transition-transform hover:-translate-y-1 ${p.popular ? "border-[rgba(59,130,246,.4)]" : ""}`} style={{ border: p.popular ? "1px solid rgba(59,130,246,.4)" : "1px solid rgba(255,255,255,0.07)" }} data-testid={`card-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`}>
@@ -382,6 +492,19 @@ export default function LandingPage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="py-20 px-6 md:px-12 max-w-[800px] mx-auto text-center">
+              <h2 style={syne} className="text-[clamp(26px,3.5vw,40px)] font-extrabold tracking-[-1.5px] mb-5">Ready to Replace Your Entire Sales Stack?</h2>
+              <p className="text-[16px] text-[#8a9abb] leading-relaxed mb-8">Join 500+ teams who ditched 5+ subscriptions for one platform that does it all. Start free — no credit card required.</p>
+              <div className="flex items-center justify-center gap-4 flex-wrap">
+                <button onClick={() => showView("getstarted")} data-testid="button-bottom-cta" className="px-9 py-4 bg-[#00e5a0] rounded-xl text-[16px] font-bold text-[#07090f] cursor-pointer hover:bg-[#00ffb3] hover:shadow-[0_8px_32px_rgba(0,229,160,.35)] hover:-translate-y-0.5 transition-all" style={syne}>
+                  Start Free Trial
+                </button>
+                <button onClick={() => showView("demo")} data-testid="button-bottom-demo" className="px-9 py-4 rounded-xl text-[15px] font-medium text-[#eef2ff] cursor-pointer hover:border-[rgba(255,255,255,.3)] transition-all" style={{ border: "1px solid rgba(255,255,255,0.12)", background: "transparent", ...dm }}>
+                  Watch Demo First
+                </button>
               </div>
             </div>
 
