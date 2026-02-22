@@ -60,6 +60,7 @@ import ProposalsPage from "./proposals";
 import AffiliateManagementPage from "./affiliate-management";
 import BlogBuilderPage from "./blog-builder";
 import CommunitiesPage from "./communities";
+import EmailLogsPage from "./email-logs";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -234,6 +235,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/guide" component={PlatformGuidePage} />
               <Route path="/dashboard/platform-promoter" component={PlatformPromoterPage} />
               <Route path="/dashboard/email-infra" component={EmailInfrastructurePage} />
+              <Route path="/dashboard/email-logs" component={EmailLogsPage} />
               <Route path="/dashboard/sales-intelligence" component={SalesIntelligencePage} />
               <Route path="/dashboard/outreach-agent" component={OutreachAgentPage} />
               <Route path="/dashboard/ai-kpi" component={AiKpiPage} />

@@ -87,6 +87,7 @@ export function AppSidebar() {
     { title: "Sequences", icon: GitBranch, url: "/dashboard/sequences", badge: t("common.new") },
     { title: t("sidebar.emailSms"), icon: Mail, url: "/dashboard/email" },
     { title: "Email Infrastructure", icon: MailPlus, url: "/dashboard/email-infra" },
+    { title: "Email Logs", icon: Mail, url: "/dashboard/email-logs" },
     { title: t("sidebar.outreachAgent", "Outreach Agent"), icon: Target, url: "/dashboard/outreach-agent" },
     { title: "LinkedIn", icon: Linkedin, url: "/dashboard/linkedin", badge: t("common.new") },
     { title: t("sidebar.salesIntelligence", "Sales Intelligence"), icon: Search, url: "/dashboard/sales-intelligence" },

@@ -21,7 +21,7 @@ import {
 } from "../shared/instantly-schema";
 import {
   leads, appointments, notifications, agentTasks, agentConfigs,
-  userSettings,
+  userSettings, emailLogs,
 } from "../shared/schema";
 import { instantlyEngine } from "./instantly-engine";
 import nodemailer from "nodemailer";
@@ -1035,7 +1035,6 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
 
   private async sendEmail(account: any, toEmail: string, subject: string, body: string, trackOpens: boolean = true): Promise<boolean> {
     try {
-      // Add open tracking pixel
       let htmlBody = body.replace(/\n/g, "<br>");
       if (trackOpens) {
         htmlBody += `<img src="/api/pixel/open/${Date.now()}" width="1" height="1" style="display:none" />`;
@@ -1049,6 +1048,9 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
           user: account.email,
           pass: account.smtpPassword,
         },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
       });
 
       await transporter.sendMail({
@@ -1059,9 +1061,15 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
         html: htmlBody,
       });
 
+      try {
+        await db.insert(emailLogs).values({ userId: this.config?.userId || "agent", recipientEmail: toEmail, subject, provider: "smtp", source: "agent", status: "sent", sentAt: new Date() });
+      } catch {}
       return true;
     } catch (err: any) {
       console.error(`[OutreachAgent] Send failed to ${toEmail}:`, err.message);
+      try {
+        await db.insert(emailLogs).values({ userId: this.config?.userId || "agent", recipientEmail: toEmail, subject, provider: "smtp", source: "agent", status: "failed", errorMessage: err.message });
+      } catch {}
       return false;
     }
   }

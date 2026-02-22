@@ -2,7 +2,7 @@ import { db } from "./db";
 import { eq, and, sql, lte, desc } from "drizzle-orm";
 import {
   sequences, sequenceSteps, sequenceEnrollments, leads,
-  notifications, funnelDeals,
+  notifications, funnelDeals, emailLogs,
 } from "@shared/schema";
 import { storage } from "./storage";
 import nodemailer from "nodemailer";
@@ -15,6 +15,25 @@ const automationStatus = {
   sequencesStopped: 0,
   errors: 0,
 };
+
+async function logSequenceEmail(data: { userId: string; leadId?: string; recipientEmail: string; recipientName?: string; subject?: string; status: string; errorMessage?: string }) {
+  try {
+    await db.insert(emailLogs).values({
+      userId: data.userId,
+      leadId: data.leadId || null,
+      recipientEmail: data.recipientEmail,
+      recipientName: data.recipientName || null,
+      subject: data.subject || null,
+      provider: "smtp",
+      source: "sequence",
+      status: data.status,
+      errorMessage: data.errorMessage || null,
+      sentAt: data.status === "sent" ? new Date() : null,
+    });
+  } catch (err: any) {
+    console.error("[SeqEmailLog] Failed to log:", err.message);
+  }
+}
 
 async function sendSequenceEmail(
   userId: string,
@@ -29,7 +48,9 @@ async function sendSequenceEmail(
     const smtpPass = process.env.SMTP_PASSWORD;
 
     if (!smtpHost || !smtpUser || !smtpPass || !leadRecord.email) {
-      console.log(`[SeqAuto] SMTP not configured or lead has no email, skipping send`);
+      const reason = !leadRecord.email ? "Lead has no email" : "SMTP not configured";
+      console.log(`[SeqAuto] ${reason}, skipping send`);
+      await logSequenceEmail({ userId, leadId: leadRecord.id, recipientEmail: leadRecord.email || "none", recipientName: leadRecord.name, subject, status: "failed", errorMessage: reason });
       return false;
     }
 
@@ -41,6 +62,9 @@ async function sendSequenceEmail(
       port: smtpPort,
       secure: smtpPort === 465,
       auth: { user: smtpUser, pass: smtpPass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
 
     await transporter.sendMail({
@@ -51,9 +75,11 @@ async function sendSequenceEmail(
     });
 
     console.log(`[SeqAuto] Email sent to ${leadRecord.email} (${leadRecord.name})`);
+    await logSequenceEmail({ userId, leadId: leadRecord.id, recipientEmail: leadRecord.email, recipientName: leadRecord.name, subject, status: "sent" });
     return true;
   } catch (err: any) {
     console.error(`[SeqAuto] Email send error: ${err.message}`);
+    await logSequenceEmail({ userId, leadId: leadRecord.id, recipientEmail: leadRecord.email, recipientName: leadRecord.name, subject, status: "failed", errorMessage: err.message });
     return false;
   }
 }

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, sql, desc } from "drizzle-orm";
-import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals } from "@shared/schema";
+import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, emailLogs } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
@@ -59,33 +59,65 @@ function normalizePhoneNumber(phone: string | undefined | null): string {
   return phone;
 }
 
-async function sendSystemEmail(to: string, from: { email: string; name: string }, subject: string, html: string) {
+async function logEmail(data: { userId: string; leadId?: string; recipientEmail: string; recipientName?: string; subject?: string; provider: string; source: string; status: string; errorMessage?: string }) {
+  try {
+    await db.insert(emailLogs).values({
+      userId: data.userId,
+      leadId: data.leadId || null,
+      recipientEmail: data.recipientEmail,
+      recipientName: data.recipientName || null,
+      subject: data.subject || null,
+      provider: data.provider,
+      source: data.source,
+      status: data.status,
+      errorMessage: data.errorMessage || null,
+      sentAt: data.status === "sent" ? new Date() : null,
+    });
+  } catch (err: any) {
+    console.error("[EmailLog] Failed to log email:", err.message);
+  }
+}
+
+async function sendSystemEmail(to: string, from: { email: string; name: string }, subject: string, html: string, userId?: string) {
   const smtpHost = process.env.SMTP_HOST;
   const smtpUser = process.env.SMTP_USERNAME;
   const smtpPass = process.env.SMTP_PASSWORD;
   const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587;
   const sgKey = process.env.SENDGRID_API_KEY;
 
-  if (smtpHost && smtpUser && smtpPass) {
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass },
-    });
-    await transporter.sendMail({
-      from: `"${from.name}" <${from.email}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`[SystemEmail] Sent via SMTP to ${to}`);
-  } else if (sgKey) {
-    sgMail.setApiKey(sgKey);
-    await sgMail.send({ to, from, subject, html });
-    console.log(`[SystemEmail] Sent via SendGrid to ${to}`);
-  } else {
-    console.warn("No email provider configured (neither SMTP env vars nor SENDGRID_API_KEY). Cannot send system email.");
+  const logUserId = userId || "system";
+  try {
+    if (smtpHost && smtpUser && smtpPass) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: { user: smtpUser, pass: smtpPass },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+      });
+      await transporter.sendMail({
+        from: `"${from.name}" <${from.email}>`,
+        to,
+        subject,
+        html,
+      });
+      console.log(`[SystemEmail] Sent via SMTP to ${to}`);
+      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "smtp", source: "system", status: "sent" });
+    } else if (sgKey) {
+      sgMail.setApiKey(sgKey);
+      await sgMail.send({ to, from, subject, html });
+      console.log(`[SystemEmail] Sent via SendGrid to ${to}`);
+      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "sendgrid", source: "system", status: "sent" });
+    } else {
+      console.warn("No email provider configured (neither SMTP env vars nor SENDGRID_API_KEY). Cannot send system email.");
+      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "none", source: "system", status: "failed", errorMessage: "No email provider configured" });
+    }
+  } catch (err: any) {
+    const errorMsg = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send system email";
+    console.error(`[SystemEmail] Send error to ${to}:`, errorMsg);
+    await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: smtpHost ? "smtp" : "sendgrid", source: "system", status: "failed", errorMessage: errorMsg });
   }
 }
 
@@ -1209,6 +1241,9 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
           user: smtpUsername,
           pass: smtpPassword,
         },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
       });
 
       await transporter.sendMail({
@@ -1228,10 +1263,12 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
         html: htmlBody,
       });
     }
+    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: emailProvider, source: "outreach", status: "sent" });
     return { success: true };
   } catch (err: any) {
     console.error("Email send error:", err?.response?.body || err?.message || err);
     const errorMsg = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send";
+    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: emailProvider, source: "outreach", status: "failed", errorMessage: errorMsg });
     return { success: false, error: errorMsg };
   }
 }
@@ -7023,6 +7060,92 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
       res.json(tasks);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch agent tasks" });
+    }
+  });
+
+  // ---- EMAIL LOGS ----
+
+  app.get("/api/email-logs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { status, source, limit: limitParam, offset: offsetParam } = req.query;
+      let query = db.select().from(emailLogs).where(eq(emailLogs.userId, userId)).orderBy(desc(emailLogs.createdAt));
+      const rows = await query;
+      let filtered = rows;
+      if (status && typeof status === "string") {
+        filtered = filtered.filter(r => r.status === status);
+      }
+      if (source && typeof source === "string") {
+        filtered = filtered.filter(r => r.source === source);
+      }
+      const total = filtered.length;
+      const lim = parseInt(limitParam as string) || 50;
+      const off = parseInt(offsetParam as string) || 0;
+      filtered = filtered.slice(off, off + lim);
+      res.json({ logs: filtered, total });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/email-logs/stats", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const rows = await db.select().from(emailLogs).where(eq(emailLogs.userId, userId));
+      const total = rows.length;
+      const sent = rows.filter(r => r.status === "sent").length;
+      const failed = rows.filter(r => r.status === "failed").length;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const todaySent = rows.filter(r => r.status === "sent" && r.sentAt && new Date(r.sentAt) >= today).length;
+      const todayFailed = rows.filter(r => r.status === "failed" && r.createdAt && new Date(r.createdAt) >= today).length;
+      const bySource: Record<string, { sent: number; failed: number }> = {};
+      for (const r of rows) {
+        if (!bySource[r.source]) bySource[r.source] = { sent: 0, failed: 0 };
+        if (r.status === "sent") bySource[r.source].sent++;
+        if (r.status === "failed") bySource[r.source].failed++;
+      }
+      const recentErrors = rows.filter(r => r.status === "failed").slice(0, 10).map(r => ({ id: r.id, email: r.recipientEmail, error: r.errorMessage, source: r.source, time: r.createdAt }));
+      res.json({ total, sent, failed, todaySent, todayFailed, bySource, recentErrors, successRate: total > 0 ? Math.round((sent / total) * 100) : 0 });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/email-logs/:id/retry", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const logId = req.params.id;
+      const [logEntry] = await db.select().from(emailLogs).where(sql`${emailLogs.id} = ${logId} AND ${emailLogs.userId} = ${userId}`);
+      if (!logEntry) return res.status(404).json({ error: "Email log not found" });
+      if (logEntry.status === "sent") return res.json({ message: "Already sent successfully" });
+      if (!logEntry.leadId) return res.status(400).json({ error: "No lead associated, cannot retry" });
+
+      const [lead] = await db.select().from(leads).where(eq(leads.id, logEntry.leadId));
+      if (!lead) return res.status(404).json({ error: "Lead not found" });
+
+      const user = await storage.getUserById(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const settings = await storage.getUserSettings(userId);
+
+      const result = await sendOutreachEmail(lead, settings || {}, user);
+      await db.update(emailLogs).set({ retryCount: (logEntry.retryCount || 0) + 1 }).where(eq(emailLogs.id, logId));
+      if (result.success) {
+        res.json({ success: true, message: "Email resent successfully" });
+      } else {
+        res.json({ success: false, error: result.error });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/email-logs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      await db.delete(emailLogs).where(eq(emailLogs.userId, userId));
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 
