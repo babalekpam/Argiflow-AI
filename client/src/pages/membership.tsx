@@ -28,14 +28,10 @@ import {
   Trash2,
   BookOpen,
   Users,
-  DollarSign,
-  Lock,
   Globe,
-  ShieldCheck,
   Search,
   ChevronDown,
   ChevronUp,
-  Clock,
   Power,
   PowerOff,
   FileText,
@@ -48,9 +44,9 @@ type MembershipSite = {
   id: string;
   userId: string;
   name: string;
-  description: string;
-  accessLevel: string;
-  memberCount: number;
+  description: string | null;
+  domain: string | null;
+  branding: string | null;
   isActive: boolean;
   createdAt: string;
 };
@@ -60,43 +56,27 @@ type Course = {
   siteId: string;
   userId: string;
   title: string;
-  description: string;
-  price: number;
-  duration: string;
+  description: string | null;
+  thumbnailUrl: string | null;
   status: string;
-  enrollmentCount: number;
+  totalLessons: number;
+  totalEnrolled: number;
   createdAt: string;
   updatedAt: string;
 };
 
-function AccessLevelBadge({ level }: { level: string }) {
-  const styles: Record<string, { class: string; icon: typeof Globe }> = {
-    free: { class: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", icon: Globe },
-    paid: { class: "bg-blue-500/10 text-blue-400 border-blue-500/20", icon: DollarSign },
-    premium: { class: "bg-amber-500/10 text-amber-400 border-amber-500/20", icon: ShieldCheck },
-    private: { class: "bg-purple-500/10 text-purple-400 border-purple-500/20", icon: Lock },
-  };
-  const s = styles[level] || styles.free;
-  const Icon = s.icon;
-  return (
-    <Badge className={s.class} data-testid={`badge-access-${level}`}>
-      <Icon className="w-3 h-3 mr-1" />
-      {level.charAt(0).toUpperCase() + level.slice(1)}
-    </Badge>
-  );
-}
-
 function CourseStatusBadge({ status }: { status: string }) {
+  const safeStatus = status || "draft";
   const styles: Record<string, { class: string; icon: typeof FileText }> = {
     draft: { class: "bg-gray-500/10 text-gray-400 border-gray-500/20", icon: FileText },
     published: { class: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", icon: CheckCircle2 },
   };
-  const s = styles[status] || styles.draft;
+  const s = styles[safeStatus] || styles.draft;
   const Icon = s.icon;
   return (
-    <Badge className={s.class} data-testid={`badge-course-status-${status}`}>
+    <Badge className={s.class} data-testid={`badge-course-status-${safeStatus}`}>
       <Icon className="w-3 h-3 mr-1" />
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {safeStatus.charAt(0).toUpperCase() + safeStatus.slice(1)}
     </Badge>
   );
 }
@@ -104,7 +84,7 @@ function CourseStatusBadge({ status }: { status: string }) {
 function CreateSiteDialog() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", accessLevel: "free" });
+  const [form, setForm] = useState({ name: "", description: "" });
 
   const mutation = useMutation({
     mutationFn: (data: typeof form) => apiRequest("POST", "/api/membership/sites", data),
@@ -112,7 +92,7 @@ function CreateSiteDialog() {
       queryClient.invalidateQueries({ queryKey: ["/api/membership/sites"] });
       toast({ title: "Site created successfully" });
       setOpen(false);
-      setForm({ name: "", description: "", accessLevel: "free" });
+      setForm({ name: "", description: "" });
     },
     onError: (err: Error) => {
       toast({ title: "Failed to create site", description: err.message, variant: "destructive" });
@@ -152,20 +132,6 @@ function CreateSiteDialog() {
               data-testid="input-site-description"
             />
           </div>
-          <div>
-            <Label>Access Level</Label>
-            <Select value={form.accessLevel} onValueChange={(v) => set("accessLevel", v)}>
-              <SelectTrigger data-testid="select-site-access">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="free">Free</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="premium">Premium</SelectItem>
-                <SelectItem value="private">Private</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
           <Button
             className="w-full"
             onClick={() => mutation.mutate(form)}
@@ -184,22 +150,20 @@ function CreateSiteDialog() {
 function CreateCourseDialog({ siteId }: { siteId: string }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", price: "", duration: "", status: "draft" });
+  const [form, setForm] = useState({ title: "", description: "", status: "draft" });
 
   const mutation = useMutation({
     mutationFn: (data: {
       siteId: string;
       title: string;
       description: string | null;
-      price: number;
-      duration: string;
       status: string;
     }) => apiRequest("POST", "/api/membership/courses", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/membership/courses"] });
       toast({ title: "Course created" });
       setOpen(false);
-      setForm({ title: "", description: "", price: "", duration: "", status: "draft" });
+      setForm({ title: "", description: "", status: "draft" });
     },
     onError: (err: Error) => {
       toast({ title: "Failed to create course", description: err.message, variant: "destructive" });
@@ -239,28 +203,6 @@ function CreateCourseDialog({ siteId }: { siteId: string }) {
               data-testid="input-course-description"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Price ($)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.price}
-                onChange={(e) => set("price", e.target.value)}
-                placeholder="0.00"
-                data-testid="input-course-price"
-              />
-            </div>
-            <div>
-              <Label>Duration</Label>
-              <Input
-                value={form.duration}
-                onChange={(e) => set("duration", e.target.value)}
-                placeholder="4 weeks"
-                data-testid="input-course-duration"
-              />
-            </div>
-          </div>
           <div>
             <Label>Status</Label>
             <Select value={form.status} onValueChange={(v) => set("status", v)}>
@@ -280,8 +222,6 @@ function CreateCourseDialog({ siteId }: { siteId: string }) {
                 siteId,
                 title: form.title,
                 description: form.description || null,
-                price: parseFloat(form.price) || 0,
-                duration: form.duration,
                 status: form.status,
               })
             }
@@ -325,7 +265,6 @@ function SiteCard({
             <h3 className="font-semibold text-lg" data-testid={`text-site-name-${site.id}`}>
               {site.name}
             </h3>
-            <AccessLevelBadge level={site.accessLevel} />
             {site.isActive ? (
               <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                 <Power className="w-3 h-3 mr-1" />
@@ -342,10 +281,6 @@ function SiteCard({
             <p className="text-sm text-muted-foreground mt-1">{site.description}</p>
           )}
           <div className="flex items-center gap-4 mt-2 flex-wrap">
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Users className="w-3 h-3" />
-              {site.memberCount || 0} members
-            </span>
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <BookOpen className="w-3 h-3" />
               {siteCourses.length} courses
@@ -404,18 +339,12 @@ function SiteCard({
                 )}
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <span className="text-xs text-muted-foreground">
-                    <DollarSign className="w-3 h-3 inline" />
-                    {(course.price || 0).toFixed(2)}
+                    <BookOpen className="w-3 h-3 inline mr-0.5" />
+                    {course.totalLessons || 0} lessons
                   </span>
-                  {course.duration && (
-                    <span className="text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3 inline mr-0.5" />
-                      {course.duration}
-                    </span>
-                  )}
                   <span className="text-xs text-muted-foreground">
                     <Users className="w-3 h-3 inline mr-0.5" />
-                    {course.enrollmentCount || 0} enrolled
+                    {course.totalEnrolled || 0} enrolled
                   </span>
                 </div>
               </div>
@@ -498,8 +427,8 @@ export default function MembershipPage() {
 
   const isLoading = sitesLoading || coursesLoading;
 
-  const totalMembers = sites.reduce((sum, s) => sum + (s.memberCount || 0), 0);
-  const totalRevenue = courses.reduce((sum, c) => sum + (c.price || 0) * (c.enrollmentCount || 0), 0);
+  const totalEnrolled = courses.reduce((sum, c) => sum + (c.totalEnrolled || 0), 0);
+  const totalLessons = courses.reduce((sum, c) => sum + (c.totalLessons || 0), 0);
 
   const filteredSites = sites.filter((site) => {
     const matchesSearch =
@@ -508,7 +437,8 @@ export default function MembershipPage() {
       (site.description && site.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesTab =
       activeTab === "all" ||
-      site.accessLevel === activeTab;
+      (activeTab === "active" && site.isActive) ||
+      (activeTab === "inactive" && !site.isActive);
     return matchesSearch && matchesTab;
   });
 
@@ -581,21 +511,21 @@ export default function MembershipPage() {
               <Users className="w-5 h-5 text-cyan-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold" data-testid="text-total-members">{totalMembers.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Total Members</p>
+              <p className="text-2xl font-bold" data-testid="text-total-enrolled">{totalEnrolled.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Enrolled</p>
             </div>
           </div>
         </Card>
         <Card className="p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-md bg-emerald-500/10 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-emerald-400" />
+              <FileText className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold" data-testid="text-total-revenue">
-                ${totalRevenue.toLocaleString()}
+              <p className="text-2xl font-bold" data-testid="text-total-lessons">
+                {totalLessons.toLocaleString()}
               </p>
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
+              <p className="text-sm text-muted-foreground">Total Lessons</p>
             </div>
           </div>
         </Card>
@@ -605,10 +535,8 @@ export default function MembershipPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList data-testid="tabs-membership-filter">
             <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
-            <TabsTrigger value="free" data-testid="tab-free">Free</TabsTrigger>
-            <TabsTrigger value="paid" data-testid="tab-paid">Paid</TabsTrigger>
-            <TabsTrigger value="premium" data-testid="tab-premium">Premium</TabsTrigger>
-            <TabsTrigger value="private" data-testid="tab-private">Private</TabsTrigger>
+            <TabsTrigger value="active" data-testid="tab-active">Active</TabsTrigger>
+            <TabsTrigger value="inactive" data-testid="tab-inactive">Inactive</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="relative flex-1 min-w-[200px]">
