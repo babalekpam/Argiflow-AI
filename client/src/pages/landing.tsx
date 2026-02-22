@@ -661,7 +661,7 @@ export default function LandingPage() {
               </div>
               <div className="flex items-center justify-between pt-6 text-[12px] text-[#5a6a8a]" style={{ borderTop: "1px solid rgba(255,255,255,.05)" }}>
                 <span>{t("landing.footer.copyright")}</span>
-                <span className="text-[#00e5a0] text-[11px]">support@argiflow.ai</span>
+                <span className="text-[#00e5a0] text-[11px]">info@argilette.com</span>
               </div>
             </footer>
           </div>
@@ -1028,7 +1028,7 @@ export default function LandingPage() {
                   </div>
 
                   <div className="mt-6 pt-5 text-[12px] text-[#5a6a8a]" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-                    {t("landing.getstarted.questionsEmail")} <a href="mailto:support@argiflow.ai" className="text-[#00e5a0] no-underline">support@argiflow.ai</a>
+                    {t("landing.getstarted.questionsEmail")} <a href="mailto:info@argilette.com" className="text-[#00e5a0] no-underline">info@argilette.com</a>
                   </div>
                 </div>
               </div>
