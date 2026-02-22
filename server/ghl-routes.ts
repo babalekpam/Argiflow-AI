@@ -26,6 +26,16 @@ const requireAuth = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
+function parseDates(body: any, dateFields: string[]) {
+  const result = { ...body };
+  for (const field of dateFields) {
+    if (result[field] && typeof result[field] === "string") {
+      result[field] = new Date(result[field]);
+    }
+  }
+  return result;
+}
+
 export function registerGhlRoutes(app: Express) {
 
   // ============================================================
@@ -297,9 +307,11 @@ export function registerGhlRoutes(app: Express) {
   app.post("/api/invoices", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.insert(invoices).values({ ...req.body, userId }).returning();
+      const data = parseDates(req.body, ["issueDate", "dueDate", "paidAt"]);
+      const [row] = await db.insert(invoices).values({ ...data, userId }).returning();
       res.json(row);
     } catch (e: any) {
+      console.error("[Invoices] Create error:", e.message);
       res.status(500).json({ message: "Failed to create invoice" });
     }
   });
@@ -318,7 +330,20 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/invoices/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(invoices).set({ ...req.body, updatedAt: new Date() }).where(and(eq(invoices.id, req.params.id), eq(invoices.userId, userId))).returning();
+      const data = parseDates(req.body, ["issueDate", "dueDate", "paidAt"]);
+      const [row] = await db.update(invoices).set({ ...data, updatedAt: new Date() }).where(and(eq(invoices.id, req.params.id), eq(invoices.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      res.status(500).json({ message: "Failed to update invoice" });
+    }
+  });
+
+  app.patch("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const data = parseDates(req.body, ["issueDate", "dueDate", "paidAt"]);
+      const [row] = await db.update(invoices).set({ ...data, updatedAt: new Date() }).where(and(eq(invoices.id, req.params.id), eq(invoices.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -406,9 +431,11 @@ export function registerGhlRoutes(app: Express) {
   app.post("/api/social/posts", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.insert(socialPosts).values({ ...req.body, userId }).returning();
+      const data = parseDates(req.body, ["scheduledAt", "publishedAt"]);
+      const [row] = await db.insert(socialPosts).values({ ...data, userId }).returning();
       res.json(row);
     } catch (e: any) {
+      console.error("[SocialPosts] Create error:", e.message);
       res.status(500).json({ message: "Failed to create social post" });
     }
   });
@@ -427,10 +454,25 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/social/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(socialPosts).set({ ...req.body, updatedAt: new Date() }).where(and(eq(socialPosts.id, req.params.id), eq(socialPosts.userId, userId))).returning();
+      const data = parseDates(req.body, ["scheduledAt", "publishedAt"]);
+      const [row] = await db.update(socialPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(socialPosts.id, req.params.id), eq(socialPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
+      console.error("[SocialPosts] Update error:", e.message);
+      res.status(500).json({ message: "Failed to update social post" });
+    }
+  });
+
+  app.patch("/api/social/posts/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const data = parseDates(req.body, ["scheduledAt", "publishedAt"]);
+      const [row] = await db.update(socialPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(socialPosts.id, req.params.id), eq(socialPosts.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[SocialPosts] Patch error:", e.message);
       res.status(500).json({ message: "Failed to update social post" });
     }
   });
@@ -524,9 +566,11 @@ export function registerGhlRoutes(app: Express) {
   app.post("/api/reputation/reviews", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.insert(reviews).values({ ...req.body, userId }).returning();
+      const data = parseDates(req.body, ["respondedAt", "reviewDate"]);
+      const [row] = await db.insert(reviews).values({ ...data, userId }).returning();
       res.json(row);
     } catch (e: any) {
+      console.error("[Reviews] Create error:", e.message);
       res.status(500).json({ message: "Failed to create review" });
     }
   });
@@ -534,10 +578,12 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/reputation/reviews/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(reviews).set(req.body).where(and(eq(reviews.id, req.params.id), eq(reviews.userId, userId))).returning();
+      const data = parseDates(req.body, ["respondedAt", "reviewDate"]);
+      const [row] = await db.update(reviews).set(data).where(and(eq(reviews.id, req.params.id), eq(reviews.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
+      console.error("[Reviews] Update error:", e.message);
       res.status(500).json({ message: "Failed to update review" });
     }
   });
@@ -750,9 +796,11 @@ export function registerGhlRoutes(app: Express) {
   app.post("/api/calendar/events", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.insert(calendarEvents).values({ ...req.body, userId }).returning();
+      const data = parseDates(req.body, ["startTime", "endTime"]);
+      const [row] = await db.insert(calendarEvents).values({ ...data, userId }).returning();
       res.json(row);
     } catch (e: any) {
+      console.error("[CalendarEvents] Create error:", e.message);
       res.status(500).json({ message: "Failed to create calendar event" });
     }
   });
@@ -771,10 +819,12 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/calendar/events/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(calendarEvents).set({ ...req.body, updatedAt: new Date() }).where(and(eq(calendarEvents.id, req.params.id), eq(calendarEvents.userId, userId))).returning();
+      const data = parseDates(req.body, ["startTime", "endTime"]);
+      const [row] = await db.update(calendarEvents).set({ ...data, updatedAt: new Date() }).where(and(eq(calendarEvents.id, req.params.id), eq(calendarEvents.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
+      console.error("[CalendarEvents] Update error:", e.message);
       res.status(500).json({ message: "Failed to update calendar event" });
     }
   });
@@ -806,9 +856,11 @@ export function registerGhlRoutes(app: Express) {
   app.post("/api/documents", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.insert(documents).values({ ...req.body, userId }).returning();
+      const data = parseDates(req.body, ["sentAt", "signedAt"]);
+      const [row] = await db.insert(documents).values({ ...data, userId }).returning();
       res.json(row);
     } catch (e: any) {
+      console.error("[Documents] Create error:", e.message);
       res.status(500).json({ message: "Failed to create document" });
     }
   });
@@ -827,10 +879,25 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/documents/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(documents).set({ ...req.body, updatedAt: new Date() }).where(and(eq(documents.id, req.params.id), eq(documents.userId, userId))).returning();
+      const data = parseDates(req.body, ["sentAt", "signedAt"]);
+      const [row] = await db.update(documents).set({ ...data, updatedAt: new Date() }).where(and(eq(documents.id, req.params.id), eq(documents.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
+      console.error("[Documents] Update error:", e.message);
+      res.status(500).json({ message: "Failed to update document" });
+    }
+  });
+
+  app.patch("/api/documents/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const data = parseDates(req.body, ["sentAt", "signedAt"]);
+      const [row] = await db.update(documents).set({ ...data, updatedAt: new Date() }).where(and(eq(documents.id, req.params.id), eq(documents.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[Documents] Patch error:", e.message);
       res.status(500).json({ message: "Failed to update document" });
     }
   });
@@ -936,9 +1003,11 @@ export function registerGhlRoutes(app: Express) {
   app.post("/api/gbp/posts", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.insert(gbpPosts).values({ ...req.body, userId }).returning();
+      const data = parseDates(req.body, ["publishedAt"]);
+      const [row] = await db.insert(gbpPosts).values({ ...data, userId }).returning();
       res.json(row);
     } catch (e: any) {
+      console.error("[GBPPosts] Create error:", e.message);
       res.status(500).json({ message: "Failed to create GBP post" });
     }
   });
@@ -957,10 +1026,12 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/gbp/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(gbpPosts).set(req.body).where(and(eq(gbpPosts.id, req.params.id), eq(gbpPosts.userId, userId))).returning();
+      const data = parseDates(req.body, ["publishedAt"]);
+      const [row] = await db.update(gbpPosts).set(data).where(and(eq(gbpPosts.id, req.params.id), eq(gbpPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
+      console.error("[GBPPosts] Update error:", e.message);
       res.status(500).json({ message: "Failed to update GBP post" });
     }
   });
@@ -1186,6 +1257,17 @@ export function registerGhlRoutes(app: Express) {
     }
   });
 
+  app.patch("/api/ab-tests/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const [row] = await db.update(abTests).set({ ...req.body, updatedAt: new Date() }).where(and(eq(abTests.id, req.params.id), eq(abTests.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      res.status(500).json({ message: "Failed to update A/B test" });
+    }
+  });
+
   app.delete("/api/ab-tests/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
@@ -1213,9 +1295,11 @@ export function registerGhlRoutes(app: Express) {
   app.post("/api/proposals", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.insert(proposals).values({ ...req.body, userId }).returning();
+      const data = parseDates(req.body, ["validUntil", "sentAt", "acceptedAt"]);
+      const [row] = await db.insert(proposals).values({ ...data, userId }).returning();
       res.json(row);
     } catch (e: any) {
+      console.error("[Proposals] Create error:", e.message);
       res.status(500).json({ message: "Failed to create proposal" });
     }
   });
@@ -1234,10 +1318,25 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/proposals/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(proposals).set({ ...req.body, updatedAt: new Date() }).where(and(eq(proposals.id, req.params.id), eq(proposals.userId, userId))).returning();
+      const data = parseDates(req.body, ["validUntil", "sentAt", "acceptedAt"]);
+      const [row] = await db.update(proposals).set({ ...data, updatedAt: new Date() }).where(and(eq(proposals.id, req.params.id), eq(proposals.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
+      console.error("[Proposals] Update error:", e.message);
+      res.status(500).json({ message: "Failed to update proposal" });
+    }
+  });
+
+  app.patch("/api/proposals/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const data = parseDates(req.body, ["validUntil", "sentAt", "acceptedAt"]);
+      const [row] = await db.update(proposals).set({ ...data, updatedAt: new Date() }).where(and(eq(proposals.id, req.params.id), eq(proposals.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[Proposals] Patch error:", e.message);
       res.status(500).json({ message: "Failed to update proposal" });
     }
   });
@@ -1470,9 +1569,11 @@ export function registerGhlRoutes(app: Express) {
   app.post("/api/blog/posts", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.insert(blogPosts).values({ ...req.body, userId }).returning();
+      const data = parseDates(req.body, ["publishedAt"]);
+      const [row] = await db.insert(blogPosts).values({ ...data, userId }).returning();
       res.json(row);
     } catch (e: any) {
+      console.error("[BlogPosts] Create error:", e.message);
       res.status(500).json({ message: "Failed to create blog post" });
     }
   });
@@ -1491,10 +1592,12 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/blog/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(blogPosts).set({ ...req.body, updatedAt: new Date() }).where(and(eq(blogPosts.id, req.params.id), eq(blogPosts.userId, userId))).returning();
+      const data = parseDates(req.body, ["publishedAt"]);
+      const [row] = await db.update(blogPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(blogPosts.id, req.params.id), eq(blogPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
+      console.error("[BlogPosts] Update error:", e.message);
       res.status(500).json({ message: "Failed to update blog post" });
     }
   });

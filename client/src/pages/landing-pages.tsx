@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -19,7 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Layout,
   Plus,
@@ -28,20 +38,39 @@ import {
   MousePointerClick,
   Globe,
   FileEdit,
+  Search,
+  TrendingUp,
+  Rocket,
+  ExternalLink,
+  AlertTriangle,
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 type LandingPage = {
   id: string;
+  userId: string;
   name: string;
+  type: string;
   slug: string;
-  template: string;
   status: string;
-  views: number;
-  conversions: number;
+  pageContent: any;
+  settings: any;
+  seo: any;
+  customDomain: string | null;
+  totalVisits: number;
+  totalConversions: number;
   createdAt: string;
+  updatedAt: string;
 };
+
+const PAGE_TEMPLATES = [
+  { value: "blank", label: "Blank Page", description: "Start from scratch" },
+  { value: "lead_capture", label: "Lead Capture", description: "Collect leads with a conversion-optimized form" },
+  { value: "webinar", label: "Webinar Registration", description: "Drive registrations for your webinar" },
+  { value: "sales", label: "Sales Page", description: "High-converting long-form sales page" },
+  { value: "product_launch", label: "Product Launch", description: "Build hype for your next product" },
+];
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -56,91 +85,47 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function CreateLandingPageDialog() {
-  const { toast } = useToast();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", slug: "", template: "blank" });
-
-  const mutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/landing-pages", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/landing-pages"] });
-      toast({ title: "Landing page created" });
-      setOpen(false);
-      setForm({ name: "", slug: "", template: "blank" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const set = (key: string, val: string) => setForm((f) => ({ ...f, [key]: val }));
-
+function TypeBadge({ type }: { type: string }) {
+  const labels: Record<string, string> = {
+    landing_page: "Landing Page",
+    funnel: "Funnel",
+    popup: "Popup",
+  };
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button data-testid="button-create-landing-page">
-          <Plus className="w-4 h-4 mr-2" />
-          Create Page
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md" data-testid="dialog-create-landing-page">
-        <DialogHeader>
-          <DialogTitle>Create Landing Page</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Page Name *</Label>
-            <Input
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              placeholder="My Landing Page"
-              data-testid="input-landing-name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Slug *</Label>
-            <Input
-              value={form.slug}
-              onChange={(e) => set("slug", e.target.value)}
-              placeholder="my-landing-page"
-              data-testid="input-landing-slug"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Template</Label>
-            <Select value={form.template} onValueChange={(v) => set("template", v)}>
-              <SelectTrigger data-testid="select-landing-template">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="blank">Blank</SelectItem>
-                <SelectItem value="lead-capture">Lead Capture</SelectItem>
-                <SelectItem value="webinar">Webinar Registration</SelectItem>
-                <SelectItem value="sales">Sales Page</SelectItem>
-                <SelectItem value="thank-you">Thank You Page</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            className="w-full"
-            onClick={() => mutation.mutate({ ...form, status: "draft", views: 0, conversions: 0 })}
-            disabled={!form.name || !form.slug || mutation.isPending}
-            data-testid="button-save-landing-page"
-          >
-            {mutation.isPending ? "Creating..." : "Create Page"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <Badge variant="outline" className="text-xs" data-testid={`badge-type-${type}`}>
+      {labels[type] || type}
+    </Badge>
   );
 }
 
 export default function LandingPagesPage() {
   const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<"all" | "draft" | "published">("all");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<LandingPage | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    type: "landing_page",
+    slug: "",
+    template: "blank",
+  });
 
   const { data: pages, isLoading } = useQuery<LandingPage[]>({
     queryKey: ["/api/landing-pages"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/landing-pages", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/landing-pages"] });
+      toast({ title: "Landing page created successfully" });
+      setCreateOpen(false);
+      setForm({ name: "", type: "landing_page", slug: "", template: "blank" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -148,41 +133,78 @@ export default function LandingPagesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/landing-pages"] });
       toast({ title: "Landing page deleted" });
+      setDeleteTarget(null);
     },
   });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiRequest("PATCH", `/api/landing-pages/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/landing-pages"] });
+      toast({ title: "Status updated" });
+    },
+  });
+
+  const set = (key: string, val: string) => setForm((f) => ({ ...f, [key]: val }));
+
+  const autoSlug = (name: string) => {
+    set("name", name);
+    if (!form.slug || form.slug === slugify(form.name)) {
+      set("slug", slugify(name));
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="p-6 space-y-6" data-testid="landing-pages-loading">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-9 w-36" />
+        <Skeleton className="h-20 w-full" />
+        <div className="grid sm:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
-        </div>
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
   const list = pages || [];
+  const filtered = list
+    .filter((p) => tab === "all" || p.status === tab)
+    .filter((p) => !search || p.name.toLowerCase().includes(search.toLowerCase()));
+
+  const published = list.filter((p) => p.status === "published");
+  const totalVisits = list.reduce((s, p) => s + (p.totalVisits || 0), 0);
+  const totalConversions = list.reduce((s, p) => s + (p.totalConversions || 0), 0);
+  const conversionRate = totalVisits > 0 ? ((totalConversions / totalVisits) * 100).toFixed(1) : "0.0";
+
+  const tabs = [
+    { key: "all", label: "All", count: list.length },
+    { key: "draft", label: "Draft", count: list.filter((p) => p.status === "draft").length },
+    { key: "published", label: "Published", count: published.length },
+  ] as const;
 
   return (
     <div className="p-6 space-y-6" data-testid="landing-pages-page">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Layout className="w-6 h-6 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold" data-testid="text-page-title">Landing Pages</h1>
-            <p className="text-sm text-muted-foreground">Build and manage your landing pages and funnels</p>
+      <div className="rounded-md bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-md bg-primary/20 flex items-center justify-center">
+              <Layout className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold" data-testid="text-page-title">Landing Page Builder</h1>
+              <p className="text-sm text-muted-foreground">Build and manage high-converting landing pages, funnels, and popups</p>
+            </div>
           </div>
+          <Button onClick={() => setCreateOpen(true)} data-testid="button-create-landing-page">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Page
+          </Button>
         </div>
-        <CreateLandingPageDialog />
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-4 gap-4">
         <Card className="p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
@@ -200,7 +222,7 @@ export default function LandingPagesPage() {
               <Globe className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{list.filter((p) => p.status === "published").length}</p>
+              <p className="text-2xl font-bold" data-testid="text-published-count">{published.length}</p>
               <p className="text-sm text-muted-foreground">Published</p>
             </div>
           </div>
@@ -211,59 +233,269 @@ export default function LandingPagesPage() {
               <Eye className="w-5 h-5 text-sky-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{list.reduce((s, p) => s + (p.views || 0), 0)}</p>
-              <p className="text-sm text-muted-foreground">Total Views</p>
+              <p className="text-2xl font-bold" data-testid="text-total-visits">{totalVisits.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Total Visits</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-md bg-purple-500/10 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold" data-testid="text-conversion-rate">{conversionRate}%</p>
+              <p className="text-sm text-muted-foreground">Conversion Rate</p>
             </div>
           </div>
         </Card>
       </div>
 
-      {list.length === 0 ? (
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          {tabs.map((t) => (
+            <Button
+              key={t.key}
+              variant={tab === t.key ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTab(t.key)}
+              data-testid={`tab-${t.key}`}
+            >
+              {t.label} ({t.count})
+            </Button>
+          ))}
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search pages..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 w-64"
+            data-testid="input-search-pages"
+          />
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
         <Card className="p-12">
-          <div className="text-center text-muted-foreground" data-testid="text-empty-state">
-            <Layout className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p className="text-lg font-medium mb-1">No landing pages yet</p>
-            <p className="text-sm">Create your first landing page to start capturing leads</p>
+          <div className="text-center" data-testid="text-empty-state">
+            <Layout className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+            <p className="text-lg font-medium mb-1">
+              {list.length === 0 ? "No landing pages yet" : "No pages match your filters"}
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              {list.length === 0
+                ? "Create your first landing page to start capturing leads and driving conversions"
+                : "Try adjusting your search or filter criteria"}
+            </p>
+            {list.length === 0 && (
+              <Button onClick={() => setCreateOpen(true)} data-testid="button-create-first-page">
+                <Rocket className="w-4 h-4 mr-2" />
+                Create Your First Page
+              </Button>
+            )}
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {list.map((page) => (
-            <Card key={page.id} className="p-5" data-testid={`card-landing-page-${page.id}`}>
-              <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                <h3 className="font-semibold truncate" data-testid={`text-page-name-${page.id}`}>{page.name}</h3>
-                <StatusBadge status={page.status} />
-              </div>
-              <p className="text-xs text-muted-foreground mb-3">/{page.slug}</p>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                <span className="flex items-center gap-1">
-                  <Eye className="w-3.5 h-3.5" />
-                  {page.views || 0} views
-                </span>
-                <span className="flex items-center gap-1">
-                  <MousePointerClick className="w-3.5 h-3.5" />
-                  {page.conversions || 0} conversions
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">
-                  {page.template}
-                </Badge>
-                <div className="flex-1" />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => deleteMutation.mutate(page.id)}
-                  disabled={deleteMutation.isPending}
-                  data-testid={`button-delete-page-${page.id}`}
-                >
-                  <Trash2 className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <Table data-testid="table-landing-pages">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Visits</TableHead>
+                <TableHead className="text-right">Conversions</TableHead>
+                <TableHead className="text-right">Conv. Rate</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((page) => {
+                const rate = page.totalVisits > 0
+                  ? ((page.totalConversions / page.totalVisits) * 100).toFixed(1)
+                  : "0.0";
+                return (
+                  <TableRow key={page.id} data-testid={`row-page-${page.id}`}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium" data-testid={`text-page-name-${page.id}`}>{page.name}</p>
+                        <p className="text-xs text-muted-foreground">/{page.slug}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell><TypeBadge type={page.type} /></TableCell>
+                    <TableCell><StatusBadge status={page.status} /></TableCell>
+                    <TableCell className="text-right" data-testid={`text-visits-${page.id}`}>
+                      {(page.totalVisits || 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right" data-testid={`text-conversions-${page.id}`}>
+                      {(page.totalConversions || 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right">{rate}%</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {new Date(page.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        {page.status === "draft" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => statusMutation.mutate({ id: page.id, status: "published" })}
+                            data-testid={`button-publish-page-${page.id}`}
+                          >
+                            <Globe className="w-3.5 h-3.5 mr-1" />
+                            Publish
+                          </Button>
+                        )}
+                        {page.status === "published" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => statusMutation.mutate({ id: page.id, status: "draft" })}
+                            data-testid={`button-unpublish-page-${page.id}`}
+                          >
+                            <FileEdit className="w-3.5 h-3.5 mr-1" />
+                            Unpublish
+                          </Button>
+                        )}
+                        {page.status === "published" && page.slug && (
+                          <Button size="icon" variant="ghost" data-testid={`button-view-page-${page.id}`}>
+                            <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                          </Button>
+                        )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setDeleteTarget(page)}
+                          data-testid={`button-delete-page-${page.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
       )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-lg" data-testid="dialog-create-landing-page">
+          <DialogHeader>
+            <DialogTitle>Create Landing Page</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Page Name *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => autoSlug(e.target.value)}
+                placeholder="My Landing Page"
+                data-testid="input-landing-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Slug *</Label>
+              <Input
+                value={form.slug}
+                onChange={(e) => set("slug", e.target.value)}
+                placeholder="my-landing-page"
+                data-testid="input-landing-slug"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Page Type</Label>
+              <Select value={form.type} onValueChange={(v) => set("type", v)}>
+                <SelectTrigger data-testid="select-landing-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="landing_page">Landing Page</SelectItem>
+                  <SelectItem value="funnel">Funnel</SelectItem>
+                  <SelectItem value="popup">Popup</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Template</Label>
+              <div className="grid grid-cols-1 gap-2">
+                {PAGE_TEMPLATES.map((tpl) => (
+                  <div
+                    key={tpl.value}
+                    className={`p-3 rounded-md border cursor-pointer transition-colors ${
+                      form.template === tpl.value
+                        ? "border-primary bg-primary/5"
+                        : "border-border"
+                    }`}
+                    onClick={() => set("template", tpl.value)}
+                    data-testid={`template-${tpl.value}`}
+                  >
+                    <p className="text-sm font-medium">{tpl.label}</p>
+                    <p className="text-xs text-muted-foreground">{tpl.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() =>
+                createMutation.mutate({
+                  name: form.name,
+                  type: form.type,
+                  slug: form.slug,
+                  status: "draft",
+                  pageContent: { template: form.template },
+                  totalVisits: 0,
+                  totalConversions: 0,
+                })
+              }
+              disabled={!form.name || !form.slug || createMutation.isPending}
+              data-testid="button-save-landing-page"
+            >
+              {createMutation.isPending ? "Creating..." : "Create Page"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent data-testid="dialog-delete-confirmation">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Delete Landing Page
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }
