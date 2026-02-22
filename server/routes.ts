@@ -4841,12 +4841,14 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
     }
   }
 
-  // Auto lead gen is now manual-only (triggered via "Run Now" button)
-  // To re-enable automatic runs, uncomment the lines below:
-  // setTimeout(() => {
-  //   runAutoLeadGeneration();
-  //   setInterval(runAutoLeadGeneration, AUTO_LEAD_GEN_INTERVAL);
-  // }, 5 * 60 * 1000);
+  // Auto lead gen runs every 5 hours with initial delay of 5 minutes
+  setTimeout(() => {
+    runAutoLeadGeneration().catch(err => console.error("[Auto Lead Gen] Initial run error:", err));
+    setInterval(() => {
+      runAutoLeadGeneration().catch(err => console.error("[Auto Lead Gen] Scheduled run error:", err));
+    }, AUTO_LEAD_GEN_INTERVAL);
+  }, 5 * 60 * 1000);
+  console.log("[Auto Lead Gen] Scheduled to run every 5 hours. First run in 5 minutes.");
 
   // API: Get auto lead gen status & history
   app.get("/api/auto-lead-gen/status", isAuthenticated, async (req, res) => {
