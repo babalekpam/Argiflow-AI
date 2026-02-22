@@ -34,7 +34,7 @@ Do not make changes to the file `Y`.
 - **Multi-Region Support**: Distinct branding, agent catalogs, pricing, and currencies for Western and African markets.
 - **Lead Management**: Scheduling and canceling outreach for leads.
 - **Agent-to-Funnel Auto-Pipeline**: Automatic assignment of leads discovered by agents to predefined sales funnels.
-- **Voice AI Calling**: AI-powered phone calls via Twilio or Telnyx (user choice) with real-time streaming pipeline (Twilio Media Streams → Deepgram STT → Claude AI streaming → Deepgram TTS → Twilio). Falls back to TwiML Gather/Say if Deepgram not configured. WebSocket at `/api/voice/stream/:callLogId`. Telnyx webhook at `/api/telnyx/voice/:callLogId/webhook`. Users select voice provider in Settings > Integrations and provide their own API keys.
+- **Voice AI Calling**: AI-powered phone calls via Twilio with real-time streaming pipeline (Twilio Media Streams → Deepgram STT → Claude AI streaming → Deepgram TTS → Twilio). Falls back to TwiML Gather/Say if Deepgram not configured. WebSocket at `/api/voice/stream/:callLogId`.
 - **Automated Lead Generation**: Background jobs for generating specialized leads (e.g., medical billing, tax lien) using AI.
 - **Automated Follow-Up Sequences**: AI-generated, multi-step email sequences for leads, stopping on engagement.
 - **Workflow Automation Engine**: An n8n-style engine with event bus, execution, and API endpoints, supporting various action types and AI-powered workflow generation from templates.
@@ -51,8 +51,7 @@ Do not make changes to the file `Y`.
 - **Tavily**: Default web search provider for company research and AI agents. Uses advanced search with AI summaries. Platform-managed key.
 - **You.com Search API**: Alternative web search provider. Configured per-user via Settings > Integrations. Uses `https://api.ydc-index.io/v1/search` with `X-API-Key` header. User settings: `webSearchProvider` ("tavily"|"claude"|"you"), `youApiKey`.
 - **SendGrid**: Email service for system emails and user outreach campaigns.
-- **Twilio**: SMS and Voice service for text messages and AI-powered phone calls. Platform-managed via Replit Connectors.
-- **Telnyx**: Alternative voice/SMS provider. ~50% cheaper than Twilio. Users provide their own API key in Settings > Integrations. Webhook at `/api/telnyx/voice/:callLogId/webhook`.
+- **Twilio**: SMS and Voice service for text messages and AI-powered phone calls.
 - **Deepgram**: Speech-to-text (Nova-2) and text-to-speech (Aura) for real-time Voice AI streaming. Optional ELEVENLABS_API_KEY for higher quality TTS.
 - **Venmo**: Payment gateway for subscription billing.
 - **Replit AI Integrations**: Platform for integrating Anthropic Claude.

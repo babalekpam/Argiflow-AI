@@ -5479,18 +5479,6 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         const key = result.sendgridApiKey;
         result.sendgridApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
       }
-      if (result.telnyxApiKey) {
-        const key = result.telnyxApiKey;
-        result.telnyxApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
-      }
-      if (result.twilioAuthToken) {
-        const key = result.twilioAuthToken;
-        result.twilioAuthToken = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
-      }
-      if (result.twilioAccountSid) {
-        const key = result.twilioAccountSid;
-        result.twilioAccountSid = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
-      }
       const sub = await storage.getSubscriptionByUser(userId);
       const hasActiveSub = sub && (sub.status === "active" || sub.status === "trial");
       result.platformAiEnabled = !!(platformOpenAI && hasActiveSub);
@@ -5512,18 +5500,6 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (body.youApiKey && body.youApiKey.includes("...")) {
         delete body.youApiKey;
       }
-      if (body.telnyxApiKey && body.telnyxApiKey.includes("...")) {
-        delete body.telnyxApiKey;
-      }
-      if (body.twilioAuthToken && body.twilioAuthToken.includes("...")) {
-        delete body.twilioAuthToken;
-      }
-      if (body.twilioAccountSid && body.twilioAccountSid.includes("...")) {
-        delete body.twilioAccountSid;
-      }
-      if (body.sendgridApiKey && body.sendgridApiKey.includes("...")) {
-        delete body.sendgridApiKey;
-      }
       const settings = await storage.upsertSettings({ ...body, userId });
       const result = { ...settings };
       if (result.anthropicApiKey) {
@@ -5533,18 +5509,6 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (result.youApiKey) {
         const key = result.youApiKey;
         result.youApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
-      }
-      if (result.telnyxApiKey) {
-        const key = result.telnyxApiKey;
-        result.telnyxApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
-      }
-      if (result.twilioAuthToken) {
-        const key = result.twilioAuthToken;
-        result.twilioAuthToken = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
-      }
-      if (result.twilioAccountSid) {
-        const key = result.twilioAccountSid;
-        result.twilioAccountSid = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
       }
       res.json(result);
     } catch (error) {
@@ -5763,76 +5727,39 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       const twimlUrl = `${baseUrl}/api/twilio/voice/${callLog.id}/twiml`;
       const statusUrl = `${baseUrl}/api/twilio/voice/status`;
 
-      const userSettings = await storage.getUserSettings(userId);
-      const voiceProvider = userSettings?.voiceProvider || "twilio";
+      try {
+        const { getTwilioClient, getTwilioFromPhoneNumber } = await import("./twilio");
+        const client = await getTwilioClient();
+        const fromNumber = await getTwilioFromPhoneNumber();
 
-      if (voiceProvider === "telnyx") {
-        try {
-          const telnyxApiKey = userSettings?.telnyxApiKey;
-          const telnyxPhone = userSettings?.telnyxPhoneNumber;
-
-          if (!telnyxApiKey || !telnyxPhone) {
-            await storage.updateVoiceCall(callLog.id, { status: "failed", outcome: "Telnyx API key or phone number not configured" });
-            return res.status(400).json({ message: "Telnyx API key and phone number are required. Configure them in Settings > Integrations." });
-          }
-
-          const { makeTelnyxCall } = await import("./telnyx");
-          const webhookUrl = `${baseUrl}/api/telnyx/voice/${callLog.id}/webhook`;
-          const result = await makeTelnyxCall(
-            { apiKey: telnyxApiKey, phoneNumber: telnyxPhone },
-            normalizedPhone,
-            webhookUrl,
-          );
-
-          await storage.updateVoiceCall(callLog.id, {
-            twilioCallSid: result.callControlId,
-            fromNumber: telnyxPhone,
-            status: "initiated",
-            startedAt: new Date(),
-          });
-          await storage.incrementUsage(userId, "voiceCalls");
-
-          res.json({ success: true, callId: callLog.id, telnyxCallId: result.callControlId, provider: "telnyx" });
-        } catch (telnyxErr: any) {
-          console.error("Telnyx call error:", telnyxErr);
-          await storage.updateVoiceCall(callLog.id, { status: "failed", outcome: telnyxErr.message || "Telnyx error" });
-          res.status(500).json({ message: telnyxErr.message || "Failed to initiate call via Telnyx" });
+        if (!fromNumber) {
+          await storage.updateVoiceCall(callLog.id, { status: "failed", outcome: "No Twilio phone number configured" });
+          return res.status(400).json({ message: "No Twilio phone number configured" });
         }
-      } else {
-        try {
-          const { getTwilioClient, getTwilioFromPhoneNumber } = await import("./twilio");
-          const client = await getTwilioClient();
-          const fromNumber = await getTwilioFromPhoneNumber();
 
-          if (!fromNumber) {
-            await storage.updateVoiceCall(callLog.id, { status: "failed", outcome: "No Twilio phone number configured" });
-            return res.status(400).json({ message: "No Twilio phone number configured" });
-          }
+        const call = await client.calls.create({
+          url: twimlUrl,
+          from: fromNumber,
+          to: normalizedPhone,
+          statusCallback: statusUrl,
+          statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
+          statusCallbackMethod: "POST",
+          record: true,
+        });
 
-          const call = await client.calls.create({
-            url: twimlUrl,
-            from: fromNumber,
-            to: normalizedPhone,
-            statusCallback: statusUrl,
-            statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
-            statusCallbackMethod: "POST",
-            record: true,
-          });
+        await storage.updateVoiceCall(callLog.id, {
+          twilioCallSid: call.sid,
+          fromNumber,
+          status: "initiated",
+          startedAt: new Date(),
+        });
+        await storage.incrementUsage(userId, "voiceCalls");
 
-          await storage.updateVoiceCall(callLog.id, {
-            twilioCallSid: call.sid,
-            fromNumber,
-            status: "initiated",
-            startedAt: new Date(),
-          });
-          await storage.incrementUsage(userId, "voiceCalls");
-
-          res.json({ success: true, callId: callLog.id, twilioSid: call.sid, provider: "twilio" });
-        } catch (twilioErr: any) {
-          console.error("Twilio call error:", twilioErr);
-          await storage.updateVoiceCall(callLog.id, { status: "failed", outcome: twilioErr.message || "Twilio error" });
-          res.status(500).json({ message: twilioErr.message || "Failed to initiate call" });
-        }
+        res.json({ success: true, callId: callLog.id, twilioSid: call.sid });
+      } catch (twilioErr: any) {
+        console.error("Twilio call error:", twilioErr);
+        await storage.updateVoiceCall(callLog.id, { status: "failed", outcome: twilioErr.message || "Twilio error" });
+        res.status(500).json({ message: twilioErr.message || "Failed to initiate call" });
       }
     } catch (error) {
       console.error("Error initiating voice call:", error);
@@ -5999,61 +5926,6 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       res.sendStatus(200);
     } catch (error) {
       console.error("Voice status callback error:", error);
-      res.sendStatus(200);
-    }
-  });
-
-  app.post("/api/telnyx/voice/:callLogId/webhook", async (req, res) => {
-    try {
-      const { callLogId } = req.params;
-      const payload = req.body?.data;
-      if (!payload) return res.sendStatus(200);
-
-      const eventType = payload.event_type;
-      const callLog = await storage.getVoiceCallById(callLogId);
-      if (!callLog) return res.sendStatus(200);
-
-      const updateData: any = {};
-
-      const statusMap: Record<string, string> = {
-        "call.initiated": "initiated",
-        "call.answered": "in-progress",
-        "call.bridged": "in-progress",
-        "call.hangup": "completed",
-        "call.machine.detection.ended": "in-progress",
-        "call.machine.greeting.ended": "in-progress",
-      };
-
-      if (statusMap[eventType]) {
-        updateData.status = statusMap[eventType];
-      }
-
-      if (eventType === "call.hangup") {
-        const hangupCause = payload.payload?.hangup_cause;
-        updateData.endedAt = new Date();
-        if (hangupCause === "normal_clearing" || hangupCause === "originator_cancel") {
-          updateData.outcome = "completed";
-        } else {
-          updateData.outcome = hangupCause || "hangup";
-          if (hangupCause === "user_busy" || hangupCause === "no_answer" || hangupCause === "call_rejected") {
-            updateData.status = "failed";
-          }
-        }
-        if (payload.payload?.duration_secs) {
-          updateData.durationSec = Math.round(payload.payload.duration_secs);
-        }
-      }
-
-      if (Object.keys(updateData).length > 0) {
-        await storage.updateVoiceCall(callLogId, updateData);
-        if (updateData.status === "completed") {
-          workflowHooks.onVoiceCallCompleted(callLog.userId, { id: callLogId, ...updateData });
-        }
-      }
-
-      res.sendStatus(200);
-    } catch (error) {
-      console.error("Telnyx voice webhook error:", error);
       res.sendStatus(200);
     }
   });
