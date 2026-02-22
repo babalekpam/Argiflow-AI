@@ -343,45 +343,55 @@ export default function LandingPage() {
                 <h2 style={syne} className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-[-1.5px] mb-4">They Sell You Pieces. We Give You the Whole Machine.</h2>
                 <p className="text-[16px] text-[#8a9abb] max-w-[580px] leading-relaxed mb-12">Other platforms make you buy 5 subscriptions and glue them together. ArgiFlow replaces all of them — for a fraction of the cost.</p>
 
-                <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
-                  <div className="grid grid-cols-[1fr_100px_100px_100px] md:grid-cols-[1fr_120px_120px_120px] text-center" style={{ background: "#131a26" }}>
+                <div className="rounded-2xl overflow-hidden overflow-x-auto" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div className="grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center min-w-[560px]" style={{ background: "#131a26" }}>
                     <div className="p-4 text-left text-[13px] font-semibold text-[#5a6a8a]">Capability</div>
                     <div className="p-4 text-[13px] font-bold text-[#00e5a0]" style={syne}>ArgiFlow</div>
                     <div className="p-4 text-[13px] font-medium text-[#5a6a8a]">Apollo</div>
                     <div className="p-4 text-[13px] font-medium text-[#5a6a8a]">ZoomInfo</div>
+                    <div className="p-4 text-[13px] font-medium text-[#5a6a8a]">GHL</div>
                   </div>
                   {[
-                    { feat: "B2B Contact & Company Data", a: true, b: true, c: true },
-                    { feat: "Email Finder & Verification", a: true, b: true, c: true },
-                    { feat: "Multi-Channel Outreach (Email + SMS)", a: true, b: "email", c: false },
-                    { feat: "AI Voice Calling Agent", a: true, b: false, c: false },
-                    { feat: "Email Warmup & Deliverability", a: true, b: false, c: false },
-                    { feat: "CRM & Sales Pipeline", a: true, b: "basic", c: false },
-                    { feat: "Landing Pages & Funnels", a: true, b: false, c: false },
-                    { feat: "AI Chat Widget", a: true, b: false, c: false },
-                    { feat: "Invoicing & Proposals", a: true, b: false, c: false },
-                    { feat: "Social Media Management", a: true, b: false, c: false },
-                    { feat: "Reputation & Reviews", a: true, b: false, c: false },
-                    { feat: "Blog & Content Builder", a: true, b: false, c: false },
-                    { feat: "Membership & Courses", a: true, b: false, c: false },
-                    { feat: "Workflow Automation Engine", a: true, b: "basic", c: false },
-                    { feat: "Intent Data & Signals", a: true, b: true, c: true },
-                    { feat: "Org Charts & Technographics", a: true, b: false, c: true },
-                    { feat: "A/B Testing", a: true, b: false, c: false },
-                    { feat: "Calendar & Scheduling", a: true, b: false, c: false },
+                    { feat: "B2B Contact & Company Data", a: true, b: true, c: true, d: false },
+                    { feat: "Email Finder & Verification", a: true, b: true, c: true, d: false },
+                    { feat: "Intent Data & Buying Signals", a: true, b: true, c: true, d: false },
+                    { feat: "Org Charts & Technographics", a: true, b: false, c: true, d: false },
+                    { feat: "AI-Powered Deep Research", a: true, b: false, c: false, d: false },
+                    { feat: "Multi-Channel Outreach (Email + SMS)", a: true, b: "email", c: false, d: true },
+                    { feat: "AI Voice Calling Agent", a: true, b: false, c: false, d: false },
+                    { feat: "Email Warmup & Deliverability", a: true, b: false, c: false, d: "add-on" },
+                    { feat: "AI-Written Personalized Sequences", a: true, b: false, c: false, d: "basic" },
+                    { feat: "CRM & Sales Pipeline", a: true, b: "basic", c: false, d: true },
+                    { feat: "Landing Pages & Funnels", a: true, b: false, c: false, d: true },
+                    { feat: "AI Chat Widget", a: true, b: false, c: false, d: "add-on" },
+                    { feat: "Invoicing & Payments", a: true, b: false, c: false, d: true },
+                    { feat: "Proposals & E-Signatures", a: true, b: false, c: false, d: false },
+                    { feat: "Social Media Management", a: true, b: false, c: false, d: true },
+                    { feat: "Reputation & Review Management", a: true, b: false, c: false, d: true },
+                    { feat: "Blog & Content Builder", a: true, b: false, c: false, d: "basic" },
+                    { feat: "Membership Sites & Courses", a: true, b: false, c: false, d: true },
+                    { feat: "Workflow Automation Engine", a: true, b: "basic", c: false, d: true },
+                    { feat: "Calendar & Scheduling", a: true, b: false, c: false, d: true },
+                    { feat: "A/B Split Testing", a: true, b: false, c: false, d: "basic" },
+                    { feat: "Google Business Profile", a: true, b: false, c: false, d: true },
+                    { feat: "Community & Forums", a: true, b: false, c: false, d: "add-on" },
+                    { feat: "AI Agent Marketplace (40+ agents)", a: true, b: false, c: false, d: false },
+                    { feat: "Auto Lead Gen (runs 24/7)", a: true, b: false, c: false, d: false },
                   ].map((row, i) => (
-                    <div key={i} className="grid grid-cols-[1fr_100px_100px_100px] md:grid-cols-[1fr_120px_120px_120px] text-center items-center" style={{ background: i % 2 === 0 ? "#0d1119" : "#0f1420", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div key={i} className="grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center items-center min-w-[560px]" style={{ background: i % 2 === 0 ? "#0d1119" : "#0f1420", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
                       <div className="p-3 md:p-4 text-left text-[12px] md:text-[13px] text-[#c8d0e0]">{row.feat}</div>
-                      <div className="p-3 md:p-4">{row.a === true ? <Check className="w-4 h-4 text-[#00e5a0] mx-auto" /> : <span className="text-[11px] text-[#5a6a8a]">{row.a}</span>}</div>
-                      <div className="p-3 md:p-4">{row.b === true ? <Check className="w-4 h-4 text-[#3b82f6] mx-auto" /> : row.b === false ? <X className="w-4 h-4 text-[#ef4444]/40 mx-auto" /> : <span className="text-[11px] text-[#5a6a8a]">{row.b}</span>}</div>
-                      <div className="p-3 md:p-4">{row.c === true ? <Check className="w-4 h-4 text-[#3b82f6] mx-auto" /> : row.c === false ? <X className="w-4 h-4 text-[#ef4444]/40 mx-auto" /> : <span className="text-[11px] text-[#5a6a8a]">{row.c}</span>}</div>
+                      <div className="p-3 md:p-4">{row.a === true ? <Check className="w-4 h-4 text-[#00e5a0] mx-auto" /> : <span className="text-[11px] text-[#5a6a8a]">{String(row.a)}</span>}</div>
+                      <div className="p-3 md:p-4">{row.b === true ? <Check className="w-4 h-4 text-[#3b82f6] mx-auto" /> : row.b === false ? <X className="w-4 h-4 text-[#ef4444]/40 mx-auto" /> : <span className="text-[11px] text-[#5a6a8a]">{String(row.b)}</span>}</div>
+                      <div className="p-3 md:p-4">{row.c === true ? <Check className="w-4 h-4 text-[#3b82f6] mx-auto" /> : row.c === false ? <X className="w-4 h-4 text-[#ef4444]/40 mx-auto" /> : <span className="text-[11px] text-[#5a6a8a]">{String(row.c)}</span>}</div>
+                      <div className="p-3 md:p-4">{row.d === true ? <Check className="w-4 h-4 text-[#3b82f6] mx-auto" /> : row.d === false ? <X className="w-4 h-4 text-[#ef4444]/40 mx-auto" /> : <span className="text-[11px] text-[#f59e0b]">{String(row.d)}</span>}</div>
                     </div>
                   ))}
-                  <div className="grid grid-cols-[1fr_100px_100px_100px] md:grid-cols-[1fr_120px_120px_120px] text-center items-center" style={{ background: "#131a26", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div className="grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center items-center min-w-[560px]" style={{ background: "#131a26", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
                     <div className="p-4 text-left text-[13px] font-bold text-[#eef2ff]">Starting Price</div>
-                    <div className="p-4 text-[14px] font-bold text-[#00e5a0]" style={syne}>$297/mo</div>
-                    <div className="p-4 text-[13px] text-[#8a9abb]">$49-149/mo<br /><span className="text-[10px] text-[#5a6a8a]">+ credits</span></div>
-                    <div className="p-4 text-[13px] text-[#8a9abb]">$14,995/yr<br /><span className="text-[10px] text-[#5a6a8a]">per seat</span></div>
+                    <div className="p-4 text-[13px] font-bold text-[#00e5a0]" style={syne}>$297/mo</div>
+                    <div className="p-4 text-[11px] text-[#8a9abb]">$49-149/mo<br /><span className="text-[10px] text-[#5a6a8a]">+ credits</span></div>
+                    <div className="p-4 text-[11px] text-[#8a9abb]">$14,995/yr<br /><span className="text-[10px] text-[#5a6a8a]">per seat</span></div>
+                    <div className="p-4 text-[11px] text-[#8a9abb]">$297-497<br /><span className="text-[10px] text-[#5a6a8a]">+ add-ons</span></div>
                   </div>
                 </div>
 
@@ -389,7 +399,32 @@ export default function LandingPage() {
                   <Zap className="w-5 h-5 text-[#00e5a0] mt-0.5 shrink-0" />
                   <div>
                     <div className="text-[14px] font-semibold text-[#eef2ff] mb-1">The bottom line</div>
-                    <div className="text-[13px] text-[#8a9abb] leading-relaxed">With Apollo + ZoomInfo + Instantly + Smartlead + GoHighLevel, you'd pay <strong className="text-[#eef2ff]">$3,000-5,000/mo</strong> and still need to connect everything yourself. ArgiFlow gives you <strong className="text-[#00e5a0]">all of it for $297/mo</strong> — already connected, already automated, ready to go.</div>
+                    <div className="text-[13px] text-[#8a9abb] leading-relaxed">Apollo gives you data. ZoomInfo gives you intel. GoHighLevel gives you a CRM — but charges extra for AI, warmup, and chat. <strong className="text-[#eef2ff]">None of them give you everything.</strong> ArgiFlow does. One platform, <strong className="text-[#00e5a0]">$297/mo</strong>, zero add-ons — with features none of them have, like AI Voice Calling and a 40+ AI Agent marketplace.</div>
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-2xl p-7 md:p-9" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.06), rgba(239,68,68,0.04))", border: "1px solid rgba(245,158,11,0.12)" }} data-testid="section-vs-ghl">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "rgba(245,158,11,0.15)" }}>
+                      <Shield className="w-5 h-5 text-[#f59e0b]" />
+                    </div>
+                    <div style={syne} className="text-[18px] font-bold">Why ArgiFlow Beats GoHighLevel</div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { title: "GHL has no B2B data", desc: "GoHighLevel doesn't find leads for you. You still need Apollo or ZoomInfo for contact data. ArgiFlow has built-in B2B intelligence with verified emails, phones, company data, and intent signals." },
+                      { title: "GHL AI costs $497/mo extra", desc: "GoHighLevel's AI Employee (chat, voice, reviews) is a paid add-on starting at $497/mo. ArgiFlow includes AI chat, AI voice calling, and AI content — all included, no add-ons." },
+                      { title: "GHL charges per seat", desc: "Need your team on GoHighLevel? Pay per user. ArgiFlow has no per-seat pricing — your whole team gets access." },
+                      { title: "GHL can't research prospects", desc: "GoHighLevel can't tell you a company's tech stack, org chart, recent funding, or buying signals. ArgiFlow's AI-powered deep research does all of this automatically." },
+                    ].map((item, i) => (
+                      <div key={i} className="p-4 rounded-xl" style={{ background: "rgba(7,9,15,0.5)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <div className="text-[14px] font-semibold text-[#eef2ff] mb-1.5 flex items-center gap-2">
+                          <X className="w-3.5 h-3.5 text-[#ef4444] shrink-0" />
+                          {item.title}
+                        </div>
+                        <div className="text-[12px] text-[#8a9abb] leading-relaxed">{item.desc}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -403,12 +438,12 @@ export default function LandingPage() {
                   {[
                     { icon: Search, title: "B2B Lead Intelligence", desc: "Find decision-makers with verified emails, phones, company data, and buying intent — like Apollo + ZoomInfo combined.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
                     { icon: Send, title: "AI Multi-Channel Outreach", desc: "Automated email, SMS, and LinkedIn sequences — personalized by AI, sent at the perfect time. Replaces Instantly + Smartlead.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-                    { icon: Phone, title: "Voice AI Calling Agent", desc: "An AI agent that makes real phone calls, handles objections, and books meetings — 24/7. No other platform has this.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
-                    { icon: Mail, title: "Email Infrastructure", desc: "Warmup, reputation monitoring, inbox placement testing, and deliverability optimization. Built in — not a $100/mo add-on.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                    { icon: Phone, title: "Voice AI Calling Agent", desc: "An AI agent that makes real phone calls, handles objections, and books meetings — 24/7. Apollo, ZoomInfo, and GHL don't have this.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
+                    { icon: Mail, title: "Email Infrastructure", desc: "Warmup, reputation monitoring, inbox placement testing, and deliverability optimization. Built in — GHL charges extra for this.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
                     { icon: Brain, title: "Sales Intelligence & Enrichment", desc: "Company profiles, org charts, technographic data, intent signals, and AI-powered deep research on any prospect.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
                     { icon: Users, title: "CRM & Sales Pipeline", desc: "Kanban pipelines, deal tracking, lead scoring, and AI-predicted close probability. No Salesforce needed.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
                     { icon: Globe, title: "Landing Pages & Funnels", desc: "Build high-converting pages with 5 templates, custom domains, and built-in analytics. Replaces ClickFunnels.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-                    { icon: MessageSquare, title: "AI Chat Widget", desc: "Embed an AI chatbot on your site that captures leads, answers questions, and books appointments automatically.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+                    { icon: MessageSquare, title: "AI Chat Widget", desc: "Embed an AI chatbot on your site that captures leads, answers questions, and books appointments. GHL charges $497/mo for their AI add-on.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
                     { icon: FileText, title: "Invoicing & Proposals", desc: "Send professional invoices and proposals with e-signatures. Track views, get paid — no QuickBooks required.", color: "#00e5a0", bg: "rgba(0,229,160,0.12)" },
                     { icon: BarChart3, title: "Social Media Management", desc: "Schedule and publish to multiple platforms. AI writes your posts. Replaces Buffer or Hootsuite.", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
                     { icon: Star, title: "Reputation & Reviews", desc: "Monitor reviews across Google and other platforms. AI-powered response suggestions. Manage your brand.", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
@@ -440,9 +475,10 @@ export default function LandingPage() {
                   {[
                     { tool: "Apollo.io", price: "$99/mo", what: "Contact data only" },
                     { tool: "ZoomInfo", price: "$1,250/mo", what: "Company intel only" },
+                    { tool: "GoHighLevel", price: "$297/mo", what: "CRM + funnels — no B2B data" },
+                    { tool: "GHL AI Add-On", price: "$497/mo", what: "AI features cost extra" },
                     { tool: "Instantly.ai", price: "$97/mo", what: "Cold email only" },
                     { tool: "Smartlead", price: "$94/mo", what: "Email warmup only" },
-                    { tool: "GoHighLevel", price: "$297/mo", what: "CRM + funnels only" },
                     { tool: "Calendly", price: "$12/mo", what: "Scheduling only" },
                   ].map((t, i) => (
                     <div key={i} className="flex items-center justify-between p-4 rounded-xl" style={{ background: "#0d1119", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -456,12 +492,12 @@ export default function LandingPage() {
                 </div>
                 <div className="mt-8 text-center">
                   <div className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)" }}>
-                    <span className="text-[18px] font-bold text-[#ef4444] line-through" style={syne}>$1,849+/mo</span>
+                    <span className="text-[18px] font-bold text-[#ef4444] line-through" style={syne}>$2,346+/mo</span>
                     <ArrowRight className="w-5 h-5 text-[#5a6a8a]" />
                     <span className="text-[22px] font-extrabold text-[#00e5a0]" style={syne}>$297/mo</span>
                     <span className="text-[13px] text-[#8a9abb] ml-1">with ArgiFlow</span>
                   </div>
-                  <div className="mt-4 text-[14px] text-[#8a9abb]">Save over <strong className="text-[#00e5a0]">$18,000/year</strong> — and get more features than any of them individually.</div>
+                  <div className="mt-4 text-[14px] text-[#8a9abb]">Save over <strong className="text-[#00e5a0]">$24,000/year</strong> — and get more features than Apollo, ZoomInfo, and GoHighLevel combined.</div>
                 </div>
               </div>
             </div>
