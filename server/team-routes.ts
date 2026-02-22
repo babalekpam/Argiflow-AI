@@ -1,7 +1,81 @@
 import type { Express, RequestHandler } from "express";
 import { db } from "./db";
 import { eq, and, sql, count, desc } from "drizzle-orm";
-import { teamMembers, leadAssignments, leads } from "@shared/schema";
+import { teamMembers, leadAssignments, leads, users } from "@shared/schema";
+import sgMail from "@sendgrid/mail";
+import nodemailer from "nodemailer";
+
+async function sendTeamInviteEmail(
+  toEmail: string,
+  inviteeName: string | null,
+  inviterName: string,
+  inviterCompany: string,
+  role: string,
+) {
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpUser = process.env.SMTP_USERNAME;
+  const smtpPass = process.env.SMTP_PASSWORD;
+  const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587;
+  const sgKey = process.env.SENDGRID_API_KEY;
+
+  const appUrl = "https://argilette.co";
+  const greeting = inviteeName ? `Hi ${inviteeName}` : "Hi there";
+  const subject = `${inviterName} invited you to join their team on Argilette`;
+  const from = { email: smtpUser || "noreply@argilette.co", name: "Argilette" };
+
+  const html = `
+    <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1119; color: #e2e8f0; padding: 40px; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <h1 style="color: #00e5a0; font-size: 28px; margin: 0;">Argilette</h1>
+        <p style="color: #94a3b8; font-size: 14px; margin-top: 4px;">AI Automation Platform</p>
+      </div>
+      <h2 style="color: #f1f5f9; font-size: 22px; margin-bottom: 16px;">You're Invited!</h2>
+      <p style="color: #cbd5e1; font-size: 16px; line-height: 1.6;">
+        ${greeting},
+      </p>
+      <p style="color: #cbd5e1; font-size: 16px; line-height: 1.6;">
+        <strong style="color: #f1f5f9;">${inviterName}</strong> from <strong style="color: #f1f5f9;">${inviterCompany}</strong> has invited you to join their team as a <strong style="color: #00e5a0;">${role}</strong>.
+      </p>
+      <p style="color: #cbd5e1; font-size: 16px; line-height: 1.6;">
+        With Argilette, you'll have access to powerful AI-driven tools for lead generation, sales intelligence, and client acquisition.
+      </p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${appUrl}/auth" style="display: inline-block; background: linear-gradient(135deg, #00e5a0, #00b8d4); color: #0d1119; font-weight: 700; font-size: 16px; padding: 14px 36px; border-radius: 8px; text-decoration: none;">
+          Accept Invitation
+        </a>
+      </div>
+      <p style="color: #64748b; font-size: 13px; text-align: center; margin-top: 32px; border-top: 1px solid #1e293b; padding-top: 20px;">
+        If you didn't expect this invitation, you can safely ignore this email.
+      </p>
+    </div>
+  `;
+
+  try {
+    if (smtpHost && smtpUser && smtpPass) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: { user: smtpUser, pass: smtpPass },
+      });
+      await transporter.sendMail({
+        from: `"${from.name}" <${from.email}>`,
+        to: toEmail,
+        subject,
+        html,
+      });
+      console.log(`[Team] Invitation email sent via SMTP to ${toEmail}`);
+    } else if (sgKey) {
+      sgMail.setApiKey(sgKey);
+      await sgMail.send({ to: toEmail, from, subject, html });
+      console.log(`[Team] Invitation email sent via SendGrid to ${toEmail}`);
+    } else {
+      console.warn("[Team] No email provider configured — invitation email NOT sent to", toEmail);
+    }
+  } catch (err: any) {
+    console.error(`[Team] Failed to send invitation email to ${toEmail}:`, err.message);
+  }
+}
 
 const isAuthenticated: RequestHandler = (req, res, next) => {
   if (!req.session?.userId) {
@@ -80,6 +154,14 @@ export function registerTeamRoutes(app: Express) {
         })
         .returning();
 
+      const [inviter] = await db.select().from(users).where(eq(users.id, userId));
+      const inviterName = inviter
+        ? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() || inviter.email
+        : "Your colleague";
+      const inviterCompany = inviter?.companyName || "Argilette";
+
+      sendTeamInviteEmail(email, name || null, inviterName, inviterCompany, memberRole);
+
       res.json(member);
     } catch (error: any) {
       console.error("[Team] Invite member error:", error);
@@ -126,6 +208,38 @@ export function registerTeamRoutes(app: Express) {
     } catch (error: any) {
       console.error("[Team] Update member error:", error);
       res.status(500).json({ message: "Failed to update team member" });
+    }
+  });
+
+  app.post("/api/team/members/:id/resend", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { id } = req.params;
+
+      const [member] = await db
+        .select()
+        .from(teamMembers)
+        .where(sql`${teamMembers.id} = ${id} AND ${teamMembers.ownerId} = ${userId}`);
+
+      if (!member) {
+        return res.status(404).json({ message: "Team member not found" });
+      }
+      if (member.status !== "invited") {
+        return res.status(400).json({ message: "This member has already joined" });
+      }
+
+      const [inviter] = await db.select().from(users).where(eq(users.id, userId));
+      const inviterName = inviter
+        ? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() || inviter.email
+        : "Your colleague";
+      const inviterCompany = inviter?.companyName || "Argilette";
+
+      await sendTeamInviteEmail(member.email, member.name, inviterName, inviterCompany, member.role);
+
+      res.json({ success: true, message: "Invitation email resent" });
+    } catch (error: any) {
+      console.error("[Team] Resend invite error:", error);
+      res.status(500).json({ message: "Failed to resend invitation" });
     }
   });
 

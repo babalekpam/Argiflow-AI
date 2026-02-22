@@ -295,6 +295,18 @@ function MembersTab() {
     },
   });
 
+  const resendMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("POST", `/api/team/members/${id}/resend`);
+    },
+    onSuccess: () => {
+      toast({ title: "Invitation email resent" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to resend", description: error.message, variant: "destructive" });
+    },
+  });
+
   const openEditRole = (member: TeamMember) => {
     setEditMember(member);
     setEditRoleOpen(true);
@@ -364,6 +376,18 @@ function MembersTab() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {member.status === "invited" && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => resendMutation.mutate(member.id)}
+                          disabled={resendMutation.isPending}
+                          data-testid={`button-resend-invite-${member.id}`}
+                          title="Resend invitation email"
+                        >
+                          <Mail className="w-4 h-4 text-yellow-400" />
+                        </Button>
+                      )}
                       <Button
                         size="icon"
                         variant="ghost"
