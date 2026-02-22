@@ -1045,6 +1045,159 @@ export default function SettingsPage() {
               </div>
             )}
           </Card>
+          <Card className="p-5" data-testid="integration-voice-provider">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-md bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <Phone className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-sm">{t("settings.voiceProvider")}</h3>
+                  {(() => {
+                    const provider = getFieldValue("voiceProvider") || settings?.voiceProvider || "twilio";
+                    const connected = provider === "telnyx"
+                      ? !!(getFieldValue("telnyxApiKey") && getFieldValue("telnyxPhoneNumber"))
+                      : !!(getFieldValue("twilioAccountSid") || settings?.twilioAccountSid);
+                    return connected ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        {t("settings.connected")}
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {t("settings.notConnected")}
+                      </Badge>
+                    );
+                  })()}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{t("settings.voiceProviderDesc")}</p>
+              </div>
+            </div>
+            {isLoading ? (
+              <div className="space-y-3"><Skeleton className="h-9 w-full" /></div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("settings.voiceProviderType")}</Label>
+                  <Select
+                    value={getFieldValue("voiceProvider") || settings?.voiceProvider || "twilio"}
+                    onValueChange={(v) => {
+                      setFieldValue("voiceProvider", v);
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-voice-provider">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="twilio">
+                        <div className="flex items-center gap-2">
+                          <SiTwilio className="w-3.5 h-3.5" />
+                          Twilio
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="telnyx">
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3.5 h-3.5" />
+                          Telnyx
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {t("settings.voiceProviderHint")}
+                  </p>
+                </div>
+
+                {(getFieldValue("voiceProvider") || settings?.voiceProvider || "twilio") === "telnyx" ? (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("settings.telnyxApiKey")}</Label>
+                      <MaskedInput
+                        value={getFieldValue("telnyxApiKey")}
+                        onChange={(v) => setFieldValue("telnyxApiKey", v)}
+                        placeholder="KEY..."
+                        sensitive={true}
+                        testId="input-telnyxApiKey"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("settings.telnyxPhoneNumber")}</Label>
+                      <MaskedInput
+                        value={getFieldValue("telnyxPhoneNumber")}
+                        onChange={(v) => setFieldValue("telnyxPhoneNumber", v)}
+                        placeholder="+15551234567"
+                        sensitive={false}
+                        testId="input-telnyxPhoneNumber"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("settings.twilioAccountSid")}</Label>
+                      <MaskedInput
+                        value={getFieldValue("twilioAccountSid")}
+                        onChange={(v) => setFieldValue("twilioAccountSid", v)}
+                        placeholder="AC..."
+                        sensitive={true}
+                        testId="input-twilioAccountSid"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("settings.twilioAuthToken")}</Label>
+                      <MaskedInput
+                        value={getFieldValue("twilioAuthToken")}
+                        onChange={(v) => setFieldValue("twilioAuthToken", v)}
+                        placeholder="Token..."
+                        sensitive={true}
+                        testId="input-twilioAuthToken"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{t("settings.twilioPhoneNumber")}</Label>
+                      <MaskedInput
+                        value={getFieldValue("twilioPhoneNumber")}
+                        onChange={(v) => setFieldValue("twilioPhoneNumber", v)}
+                        placeholder="+15551234567"
+                        sensitive={false}
+                        testId="input-twilioPhoneNumber"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <Button
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    const provider = getFieldValue("voiceProvider") || settings?.voiceProvider || "twilio";
+                    const update: Record<string, any> = { voiceProvider: provider };
+                    if (provider === "telnyx") {
+                      update.telnyxApiKey = getFieldValue("telnyxApiKey");
+                      update.telnyxPhoneNumber = getFieldValue("telnyxPhoneNumber");
+                    } else {
+                      update.twilioAccountSid = getFieldValue("twilioAccountSid");
+                      update.twilioAuthToken = getFieldValue("twilioAuthToken");
+                      update.twilioPhoneNumber = getFieldValue("twilioPhoneNumber");
+                    }
+                    updateMutation.mutate(update as any, {
+                      onSuccess: (data) => {
+                        queryClient.setQueryData(["/api/settings"], data);
+                        setDirtyFields(new Set());
+                        toast({ title: t("settings.integrationSaved", { title: t("settings.voiceProvider") }), description: t("settings.integrationSavedDesc") });
+                      },
+                    });
+                  }}
+                  disabled={updateMutation.isPending || dirtyFields.size === 0}
+                  data-testid="button-save-voice-provider"
+                >
+                  <Save className="w-3.5 h-3.5 mr-1.5" />
+                  {updateMutation.isPending ? t("settings.saving") : t("settings.save")}
+                </Button>
+              </div>
+            )}
+          </Card>
           {integrations.map((config) => {
             const connected = isIntegrationConnected(config);
             const unsaved = hasUnsavedChanges(config);
