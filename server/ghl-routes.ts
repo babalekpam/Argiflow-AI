@@ -83,6 +83,18 @@ export function registerGhlRoutes(app: Express) {
     }
   });
 
+  app.patch("/api/landing-pages/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const [row] = await db.update(landingPages).set({ ...req.body, updatedAt: new Date() }).where(and(eq(landingPages.id, req.params.id), eq(landingPages.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[LandingPages] Patch error:", e.message);
+      res.status(500).json({ message: "Failed to update landing page" });
+    }
+  });
+
   app.delete("/api/landing-pages/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
@@ -167,6 +179,18 @@ export function registerGhlRoutes(app: Express) {
     }
   });
 
+  app.patch("/api/forms/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const [row] = await db.update(formBuilders).set({ ...req.body, updatedAt: new Date() }).where(and(eq(formBuilders.id, req.params.id), eq(formBuilders.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[Forms] Patch error:", e.message);
+      res.status(500).json({ message: "Failed to update form" });
+    }
+  });
+
   app.delete("/api/forms/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
@@ -238,6 +262,18 @@ export function registerGhlRoutes(app: Express) {
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
+      res.status(500).json({ message: "Failed to update chat widget" });
+    }
+  });
+
+  app.patch("/api/chat/widgets/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const [row] = await db.update(chatWidgets).set({ ...req.body, updatedAt: new Date() }).where(and(eq(chatWidgets.id, req.params.id), eq(chatWidgets.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[ChatWidgets] Patch error:", e.message);
       res.status(500).json({ message: "Failed to update chat widget" });
     }
   });
@@ -588,6 +624,19 @@ export function registerGhlRoutes(app: Express) {
     }
   });
 
+  app.patch("/api/reputation/reviews/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const data = parseDates(req.body, ["respondedAt"]);
+      const [row] = await db.update(reviews).set({ ...data, updatedAt: new Date() }).where(and(eq(reviews.id, req.params.id), eq(reviews.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[Reviews] Patch error:", e.message);
+      res.status(500).json({ message: "Failed to update review" });
+    }
+  });
+
   app.put("/api/reputation/reviews/:id/respond", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
@@ -829,6 +878,19 @@ export function registerGhlRoutes(app: Express) {
     }
   });
 
+  app.patch("/api/calendar/events/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const data = parseDates(req.body, ["startTime", "endTime"]);
+      const [row] = await db.update(calendarEvents).set({ ...data, updatedAt: new Date() }).where(and(eq(calendarEvents.id, req.params.id), eq(calendarEvents.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[Calendar] Patch error:", e.message);
+      res.status(500).json({ message: "Failed to update event" });
+    }
+  });
+
   app.delete("/api/calendar/events/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
@@ -1036,6 +1098,19 @@ export function registerGhlRoutes(app: Express) {
     }
   });
 
+  app.patch("/api/gbp/posts/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const data = parseDates(req.body, ["publishedAt"]);
+      const [row] = await db.update(gbpPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(gbpPosts.id, req.params.id), eq(gbpPosts.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[GBP] Patch error:", e.message);
+      res.status(500).json({ message: "Failed to update post" });
+    }
+  });
+
   app.delete("/api/gbp/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
@@ -1159,6 +1234,18 @@ export function registerGhlRoutes(app: Express) {
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
+      res.status(500).json({ message: "Failed to update course" });
+    }
+  });
+
+  app.patch("/api/membership/courses/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const [row] = await db.update(membershipCourses).set({ ...req.body, updatedAt: new Date() }).where(and(eq(membershipCourses.id, req.params.id), eq(membershipCourses.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[Membership] Patch error:", e.message);
       res.status(500).json({ message: "Failed to update course" });
     }
   });
@@ -1598,6 +1685,19 @@ export function registerGhlRoutes(app: Express) {
       res.json(row);
     } catch (e: any) {
       console.error("[BlogPosts] Update error:", e.message);
+      res.status(500).json({ message: "Failed to update blog post" });
+    }
+  });
+
+  app.patch("/api/blog/posts/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const data = parseDates(req.body, ["publishedAt"]);
+      const [row] = await db.update(blogPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(blogPosts.id, req.params.id), eq(blogPosts.userId, userId))).returning();
+      if (!row) return res.status(404).json({ message: "Not found" });
+      res.json(row);
+    } catch (e: any) {
+      console.error("[BlogPosts] Patch error:", e.message);
       res.status(500).json({ message: "Failed to update blog post" });
     }
   });
