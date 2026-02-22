@@ -32,6 +32,7 @@ import { registerAnalyticsRoutes } from "./analytics-routes";
 import { registerCrmRoutes } from "./crm-routes";
 import { registerWebhookRoutes } from "./webhook-routes";
 import { registerAgencyRoutes } from "./agency-routes";
+import { registerGhlRoutes } from "./ghl-routes";
 import { startSequenceAutomationEngine, stopSequencesForLead, stopSequencesForDeal, autoEnrollLeadInSequence, getAutomationStatus, processSequenceAutomation } from "./sequence-automation";
 
 function normalizePhoneNumber(phone: string | undefined | null): string {
@@ -7498,6 +7499,7 @@ Return a JSON array of reply strings in the same order:
   registerCrmRoutes(app);
   registerWebhookRoutes(app);
   registerAgencyRoutes(app);
+  registerGhlRoutes(app);
   registerWorkflowRoutes(app);
   startWorkflowEngine();
   startSequenceAutomationEngine();

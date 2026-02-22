@@ -43,6 +43,23 @@ import AnalyticsPage from "./analytics";
 import CrmIntegrationsPage from "./crm-integrations";
 import WebhooksPage from "./webhooks";
 import AgencyPage from "./agency";
+import LandingPagesPage from "./landing-pages";
+import FormBuilderPage from "./form-builder";
+import ChatWidgetPage from "./chat-widget";
+import InvoicingPage from "./invoicing";
+import SocialMediaPage from "./social-media";
+import ReputationPage from "./reputation";
+import WhatsAppPage from "./whatsapp";
+import MetaDmsPage from "./meta-dms";
+import CalendarSyncPage from "./calendar-sync";
+import ESignaturesPage from "./e-signatures";
+import GoogleBusinessPage from "./google-business";
+import MembershipPage from "./membership";
+import AbTestingPage from "./ab-testing";
+import ProposalsPage from "./proposals";
+import AffiliateManagementPage from "./affiliate-management";
+import BlogBuilderPage from "./blog-builder";
+import CommunitiesPage from "./communities";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -229,6 +246,23 @@ export default function DashboardLayout() {
               <Route path="/dashboard/crm-integrations" component={CrmIntegrationsPage} />
               <Route path="/dashboard/webhooks" component={WebhooksPage} />
               <Route path="/dashboard/agency" component={AgencyPage} />
+              <Route path="/dashboard/landing-pages" component={LandingPagesPage} />
+              <Route path="/dashboard/forms" component={FormBuilderPage} />
+              <Route path="/dashboard/chat-widget" component={ChatWidgetPage} />
+              <Route path="/dashboard/invoicing" component={InvoicingPage} />
+              <Route path="/dashboard/social-media" component={SocialMediaPage} />
+              <Route path="/dashboard/reputation" component={ReputationPage} />
+              <Route path="/dashboard/whatsapp" component={WhatsAppPage} />
+              <Route path="/dashboard/meta-dms" component={MetaDmsPage} />
+              <Route path="/dashboard/calendar" component={CalendarSyncPage} />
+              <Route path="/dashboard/e-signatures" component={ESignaturesPage} />
+              <Route path="/dashboard/google-business" component={GoogleBusinessPage} />
+              <Route path="/dashboard/membership" component={MembershipPage} />
+              <Route path="/dashboard/ab-testing" component={AbTestingPage} />
+              <Route path="/dashboard/proposals" component={ProposalsPage} />
+              <Route path="/dashboard/affiliates" component={AffiliateManagementPage} />
+              <Route path="/dashboard/blog" component={BlogBuilderPage} />
+              <Route path="/dashboard/communities" component={CommunitiesPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />

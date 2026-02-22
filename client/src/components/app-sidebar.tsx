@@ -47,6 +47,19 @@ import {
   GitBranch,
   Webhook,
   Link2,
+  Layout,
+  FileText,
+  Receipt,
+  Share2,
+  Star,
+  MessageCircle,
+  MessagesSquare,
+  CalendarDays,
+  PenTool,
+  MapPin,
+  FlaskConical,
+  FileSignature,
+  DollarSign,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -81,6 +94,26 @@ export function AppSidebar() {
     { title: "Intent Data", icon: Activity, url: "/dashboard/intent-data", badge: t("common.new") },
     { title: "Forum Prospector", icon: Globe, url: "/dashboard/forum-prospector", adminOnly: true },
     { title: "Platform Promoter", icon: Megaphone, url: "/dashboard/platform-promoter", adminOnly: true },
+  ];
+
+  const platformNav = [
+    { title: "Landing Pages", icon: Layout, url: "/dashboard/landing-pages", badge: t("common.new") },
+    { title: "Forms & Surveys", icon: FileText, url: "/dashboard/forms", badge: t("common.new") },
+    { title: "Chat Widget", icon: MessageSquare, url: "/dashboard/chat-widget", badge: t("common.new") },
+    { title: "Invoicing", icon: Receipt, url: "/dashboard/invoicing", badge: t("common.new") },
+    { title: "Social Media", icon: Share2, url: "/dashboard/social-media", badge: t("common.new") },
+    { title: "Reputation", icon: Star, url: "/dashboard/reputation", badge: t("common.new") },
+    { title: "WhatsApp", icon: MessageCircle, url: "/dashboard/whatsapp", badge: t("common.new") },
+    { title: "Meta DMs", icon: MessagesSquare, url: "/dashboard/meta-dms", badge: t("common.new") },
+    { title: "Calendar", icon: CalendarDays, url: "/dashboard/calendar", badge: t("common.new") },
+    { title: "E-Signatures", icon: PenTool, url: "/dashboard/e-signatures", badge: t("common.new") },
+    { title: "Google Business", icon: MapPin, url: "/dashboard/google-business", badge: t("common.new") },
+    { title: "Membership", icon: GraduationCap, url: "/dashboard/membership", badge: t("common.new") },
+    { title: "A/B Testing", icon: FlaskConical, url: "/dashboard/ab-testing", badge: t("common.new") },
+    { title: "Proposals", icon: FileSignature, url: "/dashboard/proposals", badge: t("common.new") },
+    { title: "Affiliates", icon: DollarSign, url: "/dashboard/affiliates", badge: t("common.new") },
+    { title: "Blog", icon: BookOpen, url: "/dashboard/blog", badge: t("common.new") },
+    { title: "Communities", icon: Users, url: "/dashboard/communities", badge: t("common.new") },
   ];
 
   const growthNav = [
@@ -156,6 +189,29 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {automationNav.filter(item => !item.adminOnly || isAdmin).map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.title}</span>
+                      {item.badge && (
+                        <Badge className="ml-auto text-[10px] py-0 px-1.5 bg-chart-3/10 text-chart-3 border-chart-3/20">
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Platform</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {platformNav.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
