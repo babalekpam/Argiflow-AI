@@ -1241,9 +1241,11 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
     outreachBody = outreachBody.replace(/^Subject:\s*.+\n?/im, "").trim();
   }
 
-  const outreachHasSignature = /Best regards,\s*\n.*Clara Motena/i.test(outreachBody) ||
-    /Best regards,\s*\n.*\n.*Director/i.test(outreachBody) ||
-    /Looking forward to connecting,\s*\n/i.test(outreachBody);
+  const outreachHasSignature = /Best regards,\s*\n/i.test(outreachBody) ||
+    /Looking forward to connecting,\s*\n/i.test(outreachBody) ||
+    /Warm regards,\s*\n/i.test(outreachBody) ||
+    /Kind regards,\s*\n/i.test(outreachBody) ||
+    /Sincerely,\s*\n/i.test(outreachBody);
 
   let textSignature = "";
   let htmlSignature = "";
@@ -1458,7 +1460,17 @@ LEAD GENERATION (when requested):
 3. Extract REAL contact details from web results — real names, real phone numbers, real email addresses.
 4. STRICT FORBIDDEN DATA: Never use "Prospect 1", "test@test.com", "contact1@prospect.com", or any indexed/generic placeholders. If you cannot find real data, DO NOT create the lead.
 5. EVERY lead MUST include: name (Real Person), email (Real Email), phone (Real Phone), company (Real Business), source, status="new", score, intent_signal, notes, outreach (personalized 3-5 sentence email).${bookingLink ? ` Include booking link in outreach: ${bookingLink}` : ' Include CTA: "Would you be open to a 15-minute call this week?"'}
-6. End outreach with signature using the user's actual info: Best regards, ${userName}${userCompany ? `, ${userCompany}` : ""}${userPhone ? `, ${userPhone}` : ""}
+6. End EVERY outreach email with this EXACT multi-line signature block (copy it verbatim):
+
+Best regards,
+${userName}
+${(user as any)?.jobTitle || ""}
+${userCompany}
+${userPhone ? userPhone : ""}
+${user?.website || ""}
+${bookingLink || ""}
+
+NEVER shorten, omit lines, or put signature on one line. Each field gets its own line.
 
 DECISION-MAKER TARGETING:
 - ONLY target decision makers: CEO, Founder, Owner, President, Managing Director, VP, Director, Partner, CFO, COO, CTO, CMO, Head of Department, General Manager, Principal.
@@ -5055,6 +5067,10 @@ Return ONLY the email reply text, no subject line, no markdown.`
 
       console.log(`[Auto Lead Gen] Starting run for user ${targetUser.email} — ${region} — ${searchIndustry}`);
 
+      const [autoGenSettings] = await db.select().from(userSettings).where(eq(userSettings.userId, targetUser.id));
+      const autoGenBookingLink = autoGenSettings?.calendarLink || "";
+      const autoGenPhone = autoGenSettings?.grasshopperNumber || autoGenSettings?.twilioPhoneNumber || "";
+
       const [runRecord] = await db.insert(autoLeadGenRuns).values({
         userId: targetUser.id,
         status: "running",
@@ -5128,7 +5144,17 @@ SCORING:
 - Decision maker (owner/CEO/director) found with direct contact: +25
 - Shows intent signals (hiring, complaints, RFPs): +15
 
-For EACH lead provide: name (decision maker), email, phone, company, source ("Auto Lead Gen — ${region}"), status "new", score (40-95), intent_signal (why they're a good prospect), notes (role + company details + where contact info was found), outreach (personalized 3-5 sentence email about how ${userCompanyName} can help them, ending with: Best regards, ${targetUser.firstName || ""} ${targetUser.lastName || ""}, ${userCompanyName})
+For EACH lead provide: name (decision maker), email, phone, company, source ("Auto Lead Gen — ${region}"), status "new", score (40-95), intent_signal (why they're a good prospect), notes (role + company details + where contact info was found), outreach (personalized 3-5 sentence email about how ${userCompanyName} can help them). EVERY outreach email MUST end with this EXACT multi-line signature block (copy verbatim, each field on its own line):
+
+Best regards,
+${targetUser.firstName || ""} ${targetUser.lastName || ""}
+${(targetUser as any).jobTitle || ""}
+${userCompanyName}
+${autoGenPhone}
+${targetUser.website || ""}
+${autoGenBookingLink}
+
+NEVER shorten or omit lines from the signature. Each field gets its own line.
 
 CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agent_type="lead-gen". Do NOT just describe leads — SAVE them with the tool.`;
 
