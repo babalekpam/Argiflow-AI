@@ -4583,6 +4583,7 @@ Return ONLY the email reply text, no subject line, no markdown.`
 
       const eligibleUsers: Array<{ user: any; ai: { client: Anthropic; model: string } }> = [];
       for (const user of allUsers) {
+        if (user.email === "abel@argilette.com") continue;
         const settings = await storage.getSettingsByUser(user.id);
         if (!settings?.autoLeadGenEnabled) continue;
         const sub = await storage.getSubscriptionByUser(user.id);
