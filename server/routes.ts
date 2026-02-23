@@ -9163,6 +9163,10 @@ async function ensureOwnerPassword() {
     const newHash = await hashPassword(adminPassword);
     await storage.updateUser(user.id, {
       passwordHash: newHash,
+      industry: "Revenue Cycle Management / Medical Billing",
+      companyName: "Track-Med Billing Solutions",
+      firstName: "Clara",
+      lastName: "Motena",
     });
     const settings = await storage.getSettingsByUser(user.id);
     if (settings) {
