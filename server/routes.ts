@@ -23,7 +23,7 @@ import intelligenceRoutes from "./intelligence-routes";
 import outreachAgentRoutes from "./outreach-agent-routes";
 import { intelligenceEngine } from "./intelligence-engine";
 import { registerFreeScraperRoutes } from "./free-scraper-routes";
-import { searchDDG } from "./free-scraper";
+import { searchDDG, searchBing } from "./free-scraper";
 import { registerStripeRoutes } from "./stripe-routes";
 import { registerSequenceRoutes } from "./sequences-routes";
 import { registerLinkedinRoutes } from "./linkedin-routes";
@@ -5173,6 +5173,18 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         }
       }
 
+      if (!autoGenSearchResults.trim()) {
+        try {
+          const bingResults = await searchBing(`${searchIndustry} ${region} contact`, 10);
+          if (bingResults.length > 0) {
+            autoGenSearchResults = bingResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n");
+            console.log(`[Auto Lead Gen] Bing provided ${bingResults.length} results for ${targetUser.email}`);
+          }
+        } catch (bingErr: any) {
+          console.error("[Auto Lead Gen] Bing error:", bingErr?.message);
+        }
+      }
+
       const autoGenSystemPrompt = autoGenSearchResults
         ? `Use the following web search results to find real leads with verified contact information:\n\n${autoGenSearchResults}`
         : "";
@@ -5206,6 +5218,17 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
               agent_type: { type: "string" as const },
             },
             required: ["leads"],
+          },
+        },
+        {
+          name: "web_search",
+          description: "Search the web for business information, decision makers, and contact details.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              query: { type: "string" as const },
+            },
+            required: ["query"],
           },
         },
       ];
@@ -5247,31 +5270,74 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
           (block: any) => block.type === "tool_use"
         );
 
-        const crmToolUses = toolUseBlocks.filter((t: any) => t.name !== "web_search");
         const toolResults: any[] = [];
 
-        for (const toolUse of crmToolUses) {
-          try {
-            console.log(`[Auto Lead Gen] Tool: ${toolUse.name}`);
-            const result = await executeAction(targetUser.id, toolUse.name, toolUse.input || {});
-            console.log(`[Auto Lead Gen] Result: ${result.slice(0, 150)}`);
+        for (const toolUse of toolUseBlocks) {
+          if (toolUse.name === "web_search") {
+            try {
+              let webResult = "";
+              const searchQuery = toolUse.input?.query || "";
+              if (tavilyKey2) {
+                try {
+                  const tRes = await fetch("https://api.tavily.com/search", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      api_key: tavilyKey2,
+                      query: searchQuery,
+                      search_depth: "advanced",
+                      max_results: 5,
+                      include_answer: true,
+                    }),
+                  });
+                  if (tRes.ok) {
+                    const tData = await tRes.json();
+                    webResult = [
+                      tData.answer || "",
+                      ...(tData.results || []).map((r: any) => `Source: ${r.url}\n${r.title}\n${r.content || ""}`)
+                    ].join("\n\n");
+                  }
+                } catch {}
+              }
+              if (!webResult.trim()) {
+                const ddgResults = await searchDDG(searchQuery, 8);
+                if (ddgResults.length > 0) {
+                  webResult = ddgResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n");
+                }
+              }
+              if (!webResult.trim()) {
+                const bingResults = await searchBing(searchQuery, 8);
+                if (bingResults.length > 0) {
+                  webResult = bingResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n");
+                }
+              }
+              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: webResult || "No results found." });
+            } catch (e: any) {
+              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `Search error: ${e.message}` });
+            }
+          } else {
+            try {
+              console.log(`[Auto Lead Gen] Tool: ${toolUse.name}`);
+              const result = await executeAction(targetUser.id, toolUse.name, toolUse.input || {});
+              console.log(`[Auto Lead Gen] Result: ${result.slice(0, 150)}`);
 
-            const match = result.match(/Saved (\d+) real leads/);
-            if (match) leadsGenerated += parseInt(match[1]);
+              const match = result.match(/Saved (\d+) real leads/);
+              if (match) leadsGenerated += parseInt(match[1]);
 
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: toolUse.id,
-              content: result,
-            });
-          } catch (err: any) {
-            console.error(`[Auto Lead Gen] Tool error: ${err?.message}`);
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: toolUse.id,
-              content: `ERROR: ${err?.message}`,
-              is_error: true,
-            });
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: toolUse.id,
+                content: result,
+              });
+            } catch (err: any) {
+              console.error(`[Auto Lead Gen] Tool error: ${err?.message}`);
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: toolUse.id,
+                content: `ERROR: ${err?.message}`,
+                is_error: true,
+              });
+            }
           }
         }
 
@@ -5745,6 +5811,27 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         }
       }
 
+      if (!searchResults.trim()) {
+        console.log("[MedBill Lead Gen] DDG failed too, trying Bing fallback...");
+        try {
+          const bingQueries = [
+            `${specialty} medical practice ${region} contact`,
+            `${specialty} doctor office ${region} phone email`,
+          ];
+          for (const sq of bingQueries) {
+            const bingResults = await searchBing(sq, 8);
+            if (bingResults.length > 0) {
+              searchResults += bingResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n") + "\n\n";
+            }
+          }
+          if (searchResults.trim()) {
+            console.log(`[MedBill Lead Gen] Bing provided search results`);
+          }
+        } catch (bingErr: any) {
+          console.error("[MedBill Lead Gen] Bing error:", bingErr?.message);
+        }
+      }
+
       const systemPrompt = searchResults
         ? `Use these web search results to find real medical practice leads with verified decision-maker contacts:\n\n${searchResults}`
         : "";
@@ -5834,24 +5921,39 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
           if (toolUse.name === "web_search") {
             try {
               let webResult = "";
+              const searchQ = toolUse.input?.query || "";
               if (tavilyKey) {
-                const tRes = await fetch("https://api.tavily.com/search", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    api_key: tavilyKey,
-                    query: toolUse.input?.query || "",
-                    search_depth: "advanced",
-                    max_results: 5,
-                    include_answer: true,
-                  }),
-                });
-                if (tRes.ok) {
-                  const tData = await tRes.json();
-                  webResult = [
-                    tData.answer || "",
-                    ...(tData.results || []).map((r: any) => `Source: ${r.url}\n${r.title}\n${r.content || ""}`)
-                  ].join("\n\n");
+                try {
+                  const tRes = await fetch("https://api.tavily.com/search", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      api_key: tavilyKey,
+                      query: searchQ,
+                      search_depth: "advanced",
+                      max_results: 5,
+                      include_answer: true,
+                    }),
+                  });
+                  if (tRes.ok) {
+                    const tData = await tRes.json();
+                    webResult = [
+                      tData.answer || "",
+                      ...(tData.results || []).map((r: any) => `Source: ${r.url}\n${r.title}\n${r.content || ""}`)
+                    ].join("\n\n");
+                  }
+                } catch {}
+              }
+              if (!webResult.trim()) {
+                const ddgResults = await searchDDG(searchQ, 8);
+                if (ddgResults.length > 0) {
+                  webResult = ddgResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n");
+                }
+              }
+              if (!webResult.trim()) {
+                const bingResults = await searchBing(searchQ, 8);
+                if (bingResults.length > 0) {
+                  webResult = bingResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n");
                 }
               }
               toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: webResult || "No results found." });

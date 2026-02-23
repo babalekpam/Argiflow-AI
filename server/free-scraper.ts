@@ -28,7 +28,7 @@ function makeHeaders(extra: Record<string, string> = {}): Record<string, string>
   };
 }
 
-const http = axios.create({ timeout: 12000 });
+const http = axios.create({ timeout: 30000 });
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const randDelay = () => delay(800 + Math.random() * 1200);
