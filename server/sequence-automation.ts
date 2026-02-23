@@ -79,7 +79,10 @@ async function sendSequenceEmail(
     return true;
   } catch (err: any) {
     console.error(`[SeqAuto] Email send error: ${err.message}`);
-    await logSequenceEmail({ userId, leadId: leadRecord.id, recipientEmail: leadRecord.email, recipientName: leadRecord.name, subject, status: "failed", errorMessage: err.message });
+    const isBounce = /\b(550|551|552|553|554)\b/.test(err?.responseCode?.toString() || err?.message || "") ||
+      /bounce|rejected|undeliverable|mailbox.*not found|user.*unknown|does not exist|invalid.*recipient|no such user/i.test(err.message || "");
+    const emailStatus = isBounce ? "bounced" : "failed";
+    await logSequenceEmail({ userId, leadId: leadRecord.id, recipientEmail: leadRecord.email, recipientName: leadRecord.name, subject, status: emailStatus, errorMessage: err.message });
     return false;
   }
 }

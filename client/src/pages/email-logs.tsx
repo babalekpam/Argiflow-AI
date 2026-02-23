@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Mail, CheckCircle2, XCircle, RefreshCw, BarChart3,
   ArrowUpRight, Clock, AlertTriangle, Send, Trash2, Filter,
+  MailX, ArrowLeftRight,
 } from "lucide-react";
 
 type EmailLog = {
@@ -32,11 +33,13 @@ type Stats = {
   total: number;
   sent: number;
   failed: number;
+  bounced: number;
   todaySent: number;
   todayFailed: number;
+  todayBounced: number;
   successRate: number;
-  bySource: Record<string, { sent: number; failed: number }>;
-  recentErrors: { id: string; email: string; error: string; source: string; time: string }[];
+  bySource: Record<string, { sent: number; failed: number; bounced: number }>;
+  recentErrors: { id: string; email: string; error: string; source: string; status: string; time: string }[];
 };
 
 export default function EmailLogsPage() {
@@ -99,7 +102,7 @@ export default function EmailLogsPage() {
   };
 
   const sourceLabel = (s: string) => {
-    const map: Record<string, string> = { outreach: "Outreach", sequence: "Sequence", system: "System", agent: "AI Agent" };
+    const map: Record<string, string> = { outreach: "Outreach", sequence: "Sequence", system: "System", agent: "AI Agent", "medbill-auto-outreach": "MedBill Auto", "platform-promoter": "Promoter" };
     return map[s] || s;
   };
 
@@ -125,7 +128,7 @@ export default function EmailLogsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card data-testid="stat-total-sent">
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Send className="w-3.5 h-3.5" /> Total Sent</div>
@@ -138,6 +141,13 @@ export default function EmailLogsPage() {
             <div className="flex items-center gap-2 text-red-400 text-xs mb-1"><XCircle className="w-3.5 h-3.5" /> Failed</div>
             <div className="text-2xl font-bold text-red-400">{stats?.failed ?? 0}</div>
             <div className="text-xs text-muted-foreground mt-0.5">Today: {stats?.todayFailed ?? 0}</div>
+          </CardContent>
+        </Card>
+        <Card data-testid="stat-total-bounced">
+          <CardContent className="pt-4 pb-3 px-4">
+            <div className="flex items-center gap-2 text-orange-400 text-xs mb-1"><MailX className="w-3.5 h-3.5" /> Bounced</div>
+            <div className="text-2xl font-bold text-orange-400">{stats?.bounced ?? 0}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Today: {stats?.todayBounced ?? 0}</div>
           </CardContent>
         </Card>
         <Card data-testid="stat-success-rate">
@@ -153,7 +163,7 @@ export default function EmailLogsPage() {
             {stats?.bySource && Object.entries(stats.bySource).map(([src, counts]) => (
               <div key={src} className="flex items-center justify-between text-xs mt-1">
                 <span>{sourceLabel(src)}</span>
-                <span className="text-muted-foreground">{counts.sent} sent / {counts.failed} failed</span>
+                <span className="text-muted-foreground">{counts.sent} sent / {counts.failed} fail{counts.bounced > 0 ? ` / ${counts.bounced} bounce` : ""}</span>
               </div>
             ))}
             {(!stats?.bySource || Object.keys(stats.bySource).length === 0) && <div className="text-sm text-muted-foreground">No data yet</div>}
@@ -168,14 +178,21 @@ export default function EmailLogsPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {stats.recentErrors.slice(0, 5).map((e) => (
-              <div key={e.id} className="flex items-center justify-between text-xs bg-red-500/5 rounded-lg px-3 py-2">
+              <div key={e.id} className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${e.status === "bounced" ? "bg-orange-500/5" : "bg-red-500/5"}`}>
                 <div className="flex items-center gap-2">
-                  <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  {e.status === "bounced" ? (
+                    <MailX className="w-3.5 h-3.5 text-orange-400" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  )}
                   <span className="font-medium">{e.email}</span>
+                  <Badge variant="outline" className={`text-[10px] py-0 ${e.status === "bounced" ? "text-orange-400 border-orange-500/30" : ""}`}>
+                    {e.status === "bounced" ? "Bounced" : "Failed"}
+                  </Badge>
                   <Badge variant="outline" className="text-[10px] py-0">{sourceLabel(e.source)}</Badge>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-red-400/80 max-w-[300px] truncate">{e.error}</span>
+                  <span className={`max-w-[300px] truncate ${e.status === "bounced" ? "text-orange-400/80" : "text-red-400/80"}`}>{e.error}</span>
                   <span className="text-muted-foreground">{formatTime(e.time)}</span>
                 </div>
               </div>
@@ -194,6 +211,7 @@ export default function EmailLogsPage() {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="sent">Sent</SelectItem>
             <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="bounced">Bounced</SelectItem>
           </SelectContent>
         </Select>
         <Select value={sourceFilter} onValueChange={setSourceFilter}>
@@ -206,6 +224,8 @@ export default function EmailLogsPage() {
             <SelectItem value="sequence">Sequence</SelectItem>
             <SelectItem value="system">System</SelectItem>
             <SelectItem value="agent">AI Agent</SelectItem>
+            <SelectItem value="medbill-auto-outreach">MedBill Auto</SelectItem>
+            <SelectItem value="platform-promoter">Promoter</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-xs text-muted-foreground">{logsData?.total ?? 0} results</span>
@@ -228,6 +248,8 @@ export default function EmailLogsPage() {
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {log.status === "sent" ? (
                       <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                    ) : log.status === "bounced" ? (
+                      <MailX className="w-4 h-4 text-orange-400 shrink-0" />
                     ) : (
                       <XCircle className="w-4 h-4 text-red-400 shrink-0" />
                     )}
@@ -249,7 +271,10 @@ export default function EmailLogsPage() {
                     <span className="text-xs text-muted-foreground w-[70px] text-right">
                       <Clock className="w-3 h-3 inline mr-1" />{formatTime(log.sentAt || log.createdAt)}
                     </span>
-                    {log.status === "failed" && log.leadId && (
+                    {log.status === "bounced" && (
+                      <Badge variant="outline" className="text-[10px] py-0 text-orange-400 border-orange-500/30">Bounced</Badge>
+                    )}
+                    {(log.status === "failed" || log.status === "bounced") && log.leadId && (
                       <Button
                         variant="ghost"
                         size="sm"

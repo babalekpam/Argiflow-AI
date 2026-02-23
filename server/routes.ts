@@ -1268,8 +1268,13 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
   } catch (err: any) {
     console.error("Email send error:", err?.response?.body || err?.message || err);
     const errorMsg = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send";
-    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: emailProvider, source: "outreach", status: "failed", errorMessage: errorMsg });
-    return { success: false, error: errorMsg };
+
+    const isBounce = /\b(550|551|552|553|554)\b/.test(err?.responseCode?.toString() || err?.message || "") ||
+      /bounce|rejected|undeliverable|mailbox.*not found|user.*unknown|does not exist|invalid.*recipient|no such user/i.test(errorMsg);
+
+    const emailStatus = isBounce ? "bounced" : "failed";
+    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: emailProvider, source: "outreach", status: emailStatus, errorMessage: errorMsg });
+    return { success: false, error: errorMsg, bounced: isBounce };
   }
 }
 
@@ -7570,17 +7575,20 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
       const total = rows.length;
       const sent = rows.filter(r => r.status === "sent").length;
       const failed = rows.filter(r => r.status === "failed").length;
+      const bounced = rows.filter(r => r.status === "bounced").length;
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const todaySent = rows.filter(r => r.status === "sent" && r.sentAt && new Date(r.sentAt) >= today).length;
       const todayFailed = rows.filter(r => r.status === "failed" && r.createdAt && new Date(r.createdAt) >= today).length;
-      const bySource: Record<string, { sent: number; failed: number }> = {};
+      const todayBounced = rows.filter(r => r.status === "bounced" && r.createdAt && new Date(r.createdAt) >= today).length;
+      const bySource: Record<string, { sent: number; failed: number; bounced: number }> = {};
       for (const r of rows) {
-        if (!bySource[r.source]) bySource[r.source] = { sent: 0, failed: 0 };
+        if (!bySource[r.source]) bySource[r.source] = { sent: 0, failed: 0, bounced: 0 };
         if (r.status === "sent") bySource[r.source].sent++;
         if (r.status === "failed") bySource[r.source].failed++;
+        if (r.status === "bounced") bySource[r.source].bounced++;
       }
-      const recentErrors = rows.filter(r => r.status === "failed").slice(0, 10).map(r => ({ id: r.id, email: r.recipientEmail, error: r.errorMessage, source: r.source, time: r.createdAt }));
-      res.json({ total, sent, failed, todaySent, todayFailed, bySource, recentErrors, successRate: total > 0 ? Math.round((sent / total) * 100) : 0 });
+      const recentErrors = rows.filter(r => r.status === "failed" || r.status === "bounced").slice(0, 10).map(r => ({ id: r.id, email: r.recipientEmail, error: r.errorMessage, source: r.source, status: r.status, time: r.createdAt }));
+      res.json({ total, sent, failed, bounced, todaySent, todayFailed, todayBounced, bySource, recentErrors, successRate: total > 0 ? Math.round((sent / total) * 100) : 0 });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
