@@ -3346,16 +3346,16 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
       for (const batch of batches) {
         const leadsInfo = batch.map((l, idx) =>
-          `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Notes: ${l.notes || "N/A"}, Intent: ${l.intentSignal || "N/A"}`
+          `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Notes: ${l.notes || "N/A"}, Intent: ${l.intentSignal || "N/A"}, Score: ${l.score || "N/A"}`
         ).join("\n");
 
         try {
           const isMedBillUser = (senderCompany || "").toLowerCase().includes("track-med");
           const medBillTemplateInstructions = isMedBillUser ? `
 
-## OUTREACH TEMPLATES — Use these as the basis for ALL emails. Personalize by inserting the lead's practice name, doctor name, and specialty.
+## OUTREACH TEMPLATES — Use the appropriate template based on the lead's score and intent signals.
 
-**TEMPLATE A — Free Analysis Offer:**
+**TEMPLATE A — Free Analysis Offer (for leads with score >= 60 or billing-related intent):**
 Subject: Are billing errors costing [Practice Name] money? — Free Analysis Inside
 
 Hi [Dr. Last Name / Practice Manager Name],
@@ -3369,7 +3369,7 @@ On top of that, practices that partner with us receive free access to state-of-t
 We also handle Physician Credentialing, Electronic Fund Transfer, RAC Audit Protection (MD Audit Shield), and HIPAA-compliant Document Management — so you can focus on what matters most: your patients.
 This analysis takes less than 30 minutes and could uncover thousands in recoverable revenue. Would you be open to a brief call this week to get started?
 
-**TEMPLATE B — Pain Points Version:**
+**TEMPLATE B — Pain Points Version (for leads with score >= 60 or billing-related intent):**
 Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
 
 Hi [Dr. Last Name / Practice Manager],
@@ -3385,6 +3385,19 @@ What sets us apart:
 Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
 Can we carve out 20 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
 
+**TEMPLATE C — Cold Prospect Introduction (for leads with score < 60 or no billing signals):**
+Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
+
+Hi [Dr. Last Name / Practice Manager Name],
+I hope this finds you well. My name is Clara Motena and I work with independent medical practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
+Track-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
+That's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:
+• Whether your current coding is maximizing your reimbursements
+• Where claims may be getting delayed or denied unnecessarily
+• A clear comparison of what you're collecting vs. what you could be
+We also include free Practice Management Software for practices that partner with us, plus Physician Credentialing, RAC Audit Protection, and HIPAA-compliant document management — all built in.
+There's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?
+
 ## SIGNATURE — Every email MUST end with this exact signature block:
 
 Best regards,
@@ -3396,7 +3409,8 @@ https://www.track-med.com
 https://www.tmbds.com/schedule
 
 ## RULES:
-- Alternate between Template A and Template B for variety (odd-numbered leads get A, even get B)
+- For leads with score >= 60 or billing/claims/denial-related intent signals: Alternate between Template A and Template B
+- For leads with score < 60 or no billing signals (cold prospects): Use Template C
 - Replace [Practice Name] with the lead's actual company/practice name
 - Replace [Dr. Last Name / Practice Manager Name] with the lead's actual name
 - Keep the full template content — do NOT shorten or summarize
@@ -4142,11 +4156,11 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
 
   setInterval(processScheduledOutreach, 60 * 1000);
 
-  // ---- AUTOMATED HOT LEAD ENGAGEMENT ----
-  // Automatically generates outreach + sends emails for new hot leads without manual intervention
-  // Runs every 10 minutes — finds leads with score >= 60, generates outreach if missing, sends email
+  // ---- AUTOMATED LEAD ENGAGEMENT ----
+  // Automatically generates outreach + sends emails for new leads without manual intervention
+  // Runs every 10 minutes — leads with score >= 40 get outreach generated + sent (hot/warm get Template A/B, cold get Template C)
 
-  const HOT_LEAD_MIN_SCORE = 60;
+  const HOT_LEAD_MIN_SCORE = 40;
   const HOT_LEAD_BATCH_SIZE = 5;
   const HOT_LEAD_INTERVAL = 10 * 60 * 1000;
   let autoEngageRunning = false;
@@ -4207,14 +4221,14 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
             const isMedBillUser = (senderCompany || "").toLowerCase().includes("track-med");
 
             const leadsInfo = needsOutreach.map((l, idx) =>
-              `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Notes: ${l.notes || "N/A"}, Intent: ${l.intentSignal || "N/A"}`
+              `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Notes: ${l.notes || "N/A"}, Intent: ${l.intentSignal || "N/A"}, Score: ${l.score || "N/A"}`
             ).join("\n");
 
             const medBillTemplateInstructions = isMedBillUser ? `
 
-## OUTREACH TEMPLATES — Use these as the basis for ALL emails. Personalize by inserting the lead's practice name, doctor name, and specialty.
+## OUTREACH TEMPLATES — Use the appropriate template based on the lead's score and intent signals.
 
-**TEMPLATE A — Free Analysis Offer:**
+**TEMPLATE A — Free Analysis Offer (for leads with score >= 60 or billing-related intent):**
 Subject: Are billing errors costing [Practice Name] money? — Free Analysis Inside
 
 Hi [Dr. Last Name / Practice Manager Name],
@@ -4228,7 +4242,7 @@ On top of that, practices that partner with us receive free access to state-of-t
 We also handle Physician Credentialing, Electronic Fund Transfer, RAC Audit Protection (MD Audit Shield), and HIPAA-compliant Document Management — so you can focus on what matters most: your patients.
 This analysis takes less than 30 minutes and could uncover thousands in recoverable revenue. Would you be open to a brief call this week to get started?
 
-**TEMPLATE B — Pain Points Version:**
+**TEMPLATE B — Pain Points Version (for leads with score >= 60 or billing-related intent):**
 Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
 
 Hi [Dr. Last Name / Practice Manager],
@@ -4244,6 +4258,19 @@ What sets us apart:
 Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
 Can we carve out 20 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
 
+**TEMPLATE C — Cold Prospect Introduction (for leads with score < 60 or no billing signals):**
+Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
+
+Hi [Dr. Last Name / Practice Manager Name],
+I hope this finds you well. My name is Clara Motena and I work with independent medical practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
+Track-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
+That's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:
+• Whether your current coding is maximizing your reimbursements
+• Where claims may be getting delayed or denied unnecessarily
+• A clear comparison of what you're collecting vs. what you could be
+We also include free Practice Management Software for practices that partner with us, plus Physician Credentialing, RAC Audit Protection, and HIPAA-compliant document management — all built in.
+There's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?
+
 ## SIGNATURE — Every email MUST end with this exact signature block:
 
 Best regards,
@@ -4255,7 +4282,8 @@ https://www.track-med.com
 https://www.tmbds.com/schedule
 
 ## RULES:
-- Alternate between Template A and Template B for variety (odd-numbered leads get A, even get B)
+- For leads with score >= 60 or billing/claims/denial-related intent signals: Alternate between Template A and Template B
+- For leads with score < 60 or no billing signals (cold prospects): Use Template C
 - Replace [Practice Name] with the lead's actual company/practice name
 - Replace [Dr. Last Name / Practice Manager Name] with the lead's actual name
 - Keep the full template content — do NOT shorten or summarize
@@ -4334,7 +4362,7 @@ https://www.tmbds.com/schedule
 
   setTimeout(processAutoHotLeadEngagement, 5 * 60 * 1000);
   setInterval(processAutoHotLeadEngagement, HOT_LEAD_INTERVAL);
-  console.log("[AutoEngage] Hot lead auto-engagement scheduled — runs every 10 minutes. Leads with score >= 60 get outreach generated + sent automatically.");
+  console.log("[AutoEngage] Auto-engagement scheduled — runs every 10 minutes. Leads with score >= 40 get outreach generated + sent automatically (hot/warm get Template A/B, cold prospects get Template C).");
 
   // ---- AUTOMATED FOLLOW-UP SEQUENCES ----
   // Sends escalating follow-up emails to leads until they book an appointment
@@ -5315,6 +5343,14 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} sp
 - Rural/underserved areas with limited admin staff
 - Multi-location practices without centralized billing
 
+**TIER 3 — COLD PROSPECTS (Small Practices)** — no expressed billing issues, but high potential:
+- Small practices with 1–10 providers in ${specialty}
+- Likely handling billing in-house or using outdated systems
+- Any independent/private practice — they ALL need billing help even if they don't know it yet
+- New practices, recently opened or expanding
+- Practices found in directories, Google Maps, NPI Registry without any billing-related signals
+- These get a SOFTER introductory outreach (Template C below)
+
 ## DECISION MAKER TARGETING (MANDATORY)
 - You MUST find the DECISION MAKER for each practice: Owner, CEO, Managing Partner, Practice Administrator, Office Manager, Medical Director
 - NEVER target receptionists, front desk staff, billing clerks, or assistants
@@ -5351,11 +5387,16 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} sp
 ## SCORING
 - Practice actively posting for billing help (Tier 1): score 85-95
 - Practice matching struggle profile (Tier 2): score 65-80
+- Cold prospect small practice (Tier 3): score 40-60
 - Decision maker found with direct contact: +15 bonus
 - Multiple lead signals: +10 bonus
 - Has billing-related complaints in reviews: +10 bonus
 
-For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone, company (practice name), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + practice details + where contact was found), outreach (use one of these TWO templates, alternating between leads, personalized with the lead's practice name and decision maker name):
+For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone, company (practice name), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + practice details + where contact was found + practice size if known), outreach (use the appropriate template based on the lead's tier):
+
+## TEMPLATE SELECTION RULES:
+- **Tier 1 (Hot) and Tier 2 (Warm) leads**: Alternate between Template A and Template B
+- **Tier 3 (Cold Prospect) leads**: ALWAYS use Template C — the softer introduction
 
 **TEMPLATE A — Subject: Are billing errors costing [Practice Name] money? — Free Analysis Inside**
 Hi [Dr. Last Name / Practice Manager Name],
@@ -5397,7 +5438,27 @@ Track-Med Billing Solutions
 https://www.track-med.com
 https://www.tmbds.com/schedule
 
-IMPORTANT: Include the FULL template text — do NOT shorten. Replace [Practice Name] and [Dr. Last Name] with actual lead info. Include the subject line at the top as "Subject: ..."
+**TEMPLATE C — Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]**
+Hi [Dr. Last Name / Practice Manager Name],
+I hope this finds you well. My name is Clara Motena and I work with independent ${specialty} practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
+Track-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
+That's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:
+• Whether your current coding is maximizing your reimbursements
+• Where claims may be getting delayed or denied unnecessarily
+• A clear comparison of what you're collecting vs. what you could be
+We also include free Practice Management Software for practices that partner with us, plus Physician Credentialing, RAC Audit Protection, and HIPAA-compliant document management — all built in.
+There's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?
+Best regards,
+Clara Motena
+Clients Acquisition Director
+Track-Med Billing Solutions
++1(615)482-6768
+https://www.track-med.com
+https://www.tmbds.com/schedule
+
+IMPORTANT: Include the FULL template text — do NOT shorten. Replace [Practice Name] and [Dr. Last Name] with actual lead info. Include the subject line at the top as "Subject: ...". For Tier 3 leads, ALWAYS use Template C.
+
+LEAD MIX TARGET: Aim for approximately 60% Tier 1/2 (hot/warm) and 40% Tier 3 (cold prospects). This ensures a healthy pipeline of both immediate opportunities and future prospects.
 
 CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agent_type="medical-billing". Do NOT just describe leads — SAVE them with the tool. Prioritize quality over quantity — 15 strong leads with real decision-maker contacts beat 30 weak ones.`;
 
@@ -5408,6 +5469,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
           const searchQueries = [
             `${specialty} medical practice ${region} owner contact phone email`,
             `${specialty} doctor office ${region} billing services needed`,
+            `small ${specialty} practice ${region} private independent physician office`,
           ];
           for (const sq of searchQueries) {
             const tRes = await fetch("https://api.tavily.com/search", {
