@@ -3332,12 +3332,57 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         ).join("\n");
 
         try {
+          const isMedBillUser = (senderCompany || "").toLowerCase().includes("track-med");
+          const medBillTemplateInstructions = isMedBillUser ? `
+
+## OUTREACH TEMPLATES — Use these as the basis for ALL emails. Personalize by inserting the lead's practice name, doctor name, and specialty.
+
+**TEMPLATE A — Free Analysis Offer:**
+Subject: Are billing errors costing [Practice Name] money? — Free Analysis Inside
+
+Hi [Dr. Last Name / Practice Manager Name],
+I wanted to reach out because practices like yours often leave significant revenue on the table — not from lack of patients, but from inaccurate coding, delayed claims, and missed reimbursements.
+At Track-Med Billing Solutions, we specialize in helping medical and dental practices improve cash flow and reduce billing overhead through fully personalized Revenue Cycle Management. And right now, we're offering a complimentary CPT and Billing Cost Analysis — at no cost or obligation to you.
+Here's what we'll cover:
+• A detailed review of your current billing and coding accuracy
+• Identification of revenue leakage points in your claims process
+• A clear picture of what you could be collecting vs. what you currently are
+On top of that, practices that partner with us receive free access to state-of-the-art Practice Management Software — a value-add that our clients love from day one.
+We also handle Physician Credentialing, Electronic Fund Transfer, RAC Audit Protection (MD Audit Shield), and HIPAA-compliant Document Management — so you can focus on what matters most: your patients.
+This analysis takes less than 30 minutes and could uncover thousands in recoverable revenue. Would you be open to a brief call this week to get started?
+
+**TEMPLATE B — Pain Points Version:**
+Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
+
+Hi [Dr. Last Name / Practice Manager],
+Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
+Track-Med Billing Solutions was built to fix exactly that.
+We provide end-to-end Revenue Cycle Management tailored to your specialty — from clean claim submission and payment posting to credentialing, RAC audit defense, and patient balance collections. We've helped practices significantly reduce their days in A/R and recover revenue they didn't even know they were missing.
+What sets us apart:
+✔ Personalized billing teams aligned to your specialty
+✔ Free Practice Management Software when you use our billing services
+✔ Free CPT & Billing Cost Analysis — so you see the ROI before you commit
+✔ Physician Credentialing included
+✔ HIPAA-compliant systems across the board
+Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
+Can we carve out 20 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
+
+## RULES:
+- Alternate between Template A and Template B for variety (odd-numbered leads get A, even get B)
+- Replace [Practice Name] with the lead's actual company/practice name
+- Replace [Dr. Last Name / Practice Manager Name] with the lead's actual name
+- Keep the full template content — do NOT shorten or summarize
+- MUST end with the signature block below
+` : "";
+
           const response = await outreachAi.client.messages.create({
             model: outreachAi.model,
             max_tokens: 4000,
             messages: [{
               role: "user",
-              content: `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}\n\nEach email MUST end with this EXACT signature block:\n\nBest regards,\n${senderFullName}\n${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}\n${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${bookingLink ? `${bookingLink}\n` : ""}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft with signature"}]. No markdown, no explanation.`
+              content: isMedBillUser
+                ? `Generate personalized outreach email drafts for these leads using the Track-Med templates below. Each template already includes the proper signature — do NOT add any additional signature.\n${medBillTemplateInstructions}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"full email draft including subject line and signature from template"}]. No markdown, no explanation.`
+                : `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}\n\nEach email MUST end with this EXACT signature block:\n\nBest regards,\n${senderFullName}\n${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}\n${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${bookingLink ? `${bookingLink}\n` : ""}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft with signature"}]. No markdown, no explanation.`
             }],
           });
 
@@ -5088,7 +5133,45 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} sp
 - Multiple lead signals: +10 bonus
 - Has billing-related complaints in reviews: +10 bonus
 
-For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone, company (practice name), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + practice details + where contact was found), outreach (personalized 3-5 sentence pitch about how Track-Med Billing Solutions can help with their specific billing challenges, referencing their specialty)
+For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone, company (practice name), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + practice details + where contact was found), outreach (use one of these TWO templates, alternating between leads, personalized with the lead's practice name and decision maker name):
+
+**TEMPLATE A — Subject: Are billing errors costing [Practice Name] money? — Free Analysis Inside**
+Hi [Dr. Last Name / Practice Manager Name],
+I wanted to reach out because practices like yours often leave significant revenue on the table — not from lack of patients, but from inaccurate coding, delayed claims, and missed reimbursements.
+At Track-Med Billing Solutions, we specialize in helping medical and dental practices improve cash flow and reduce billing overhead through fully personalized Revenue Cycle Management. And right now, we're offering a complimentary CPT and Billing Cost Analysis — at no cost or obligation to you.
+Here's what we'll cover:
+• A detailed review of your current billing and coding accuracy
+• Identification of revenue leakage points in your claims process
+• A clear picture of what you could be collecting vs. what you currently are
+On top of that, practices that partner with us receive free access to state-of-the-art Practice Management Software — a value-add that our clients love from day one.
+We also handle Physician Credentialing, Electronic Fund Transfer, RAC Audit Protection (MD Audit Shield), and HIPAA-compliant Document Management — so you can focus on what matters most: your patients.
+This analysis takes less than 30 minutes and could uncover thousands in recoverable revenue. Would you be open to a brief call this week to get started?
+Looking forward to connecting,
+Clara Motena
+Clients Acquisition Director
+Track-Med Billing Solutions
+https://www.track-med.com
+
+**TEMPLATE B — Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?**
+Hi [Dr. Last Name / Practice Manager],
+Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
+Track-Med Billing Solutions was built to fix exactly that.
+We provide end-to-end Revenue Cycle Management tailored to your specialty — from clean claim submission and payment posting to credentialing, RAC audit defense, and patient balance collections. We've helped practices significantly reduce their days in A/R and recover revenue they didn't even know they were missing.
+What sets us apart:
+✔ Personalized billing teams aligned to your specialty
+✔ Free Practice Management Software when you use our billing services
+✔ Free CPT & Billing Cost Analysis — so you see the ROI before you commit
+✔ Physician Credentialing included
+✔ HIPAA-compliant systems across the board
+Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
+Can we carve out 20 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
+Best,
+Clara Motena
+Clients Acquisition Director
+Track-Med Billing Solutions
+https://www.track-med.com
+
+IMPORTANT: Include the FULL template text — do NOT shorten. Replace [Practice Name] and [Dr. Last Name] with actual lead info. Include the subject line at the top as "Subject: ..."
 
 CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agent_type="medical-billing". Do NOT just describe leads — SAVE them with the tool. Prioritize quality over quantity — 15 strong leads with real decision-maker contacts beat 30 weak ones.`;
 
