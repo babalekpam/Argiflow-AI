@@ -7987,7 +7987,7 @@ Return a JSON array of reply strings in the same order:
   runPlatformPromotion().catch(err => console.error("[Platform Promoter] Initial run error:", err));
   console.log("[Platform Promoter] Scheduled to run 5 times per day (every ~4.8 hours). Manual trigger available at /api/platform-promoter/trigger");
 
-  app.get("/api/platform-promoter/status", isAdmin, async (req, res) => {
+  app.get("/api/platform-promoter/status", isAuthenticated, async (req, res) => {
     try {
       const runs = await db.select().from(platformPromotionRuns)
         .orderBy(desc(platformPromotionRuns.startedAt))
@@ -7998,7 +7998,7 @@ Return a JSON array of reply strings in the same order:
     }
   });
 
-  app.get("/api/platform-promoter/run/:id", isAdmin, async (req, res) => {
+  app.get("/api/platform-promoter/run/:id", isAuthenticated, async (req, res) => {
     try {
       const runId = parseInt(req.params.id);
       const [run] = await db.select().from(platformPromotionRuns)
@@ -8010,7 +8010,7 @@ Return a JSON array of reply strings in the same order:
     }
   });
 
-  app.post("/api/platform-promoter/trigger", isAdmin, async (req, res) => {
+  app.post("/api/platform-promoter/trigger", isAuthenticated, async (req, res) => {
     try {
       const { query } = req.body;
       runPlatformPromotion(query || undefined).catch(err =>
