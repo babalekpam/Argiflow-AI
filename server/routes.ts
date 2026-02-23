@@ -3367,12 +3367,22 @@ What sets us apart:
 Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
 Can we carve out 20 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
 
+## SIGNATURE — Every email MUST end with this exact signature block:
+
+Best regards,
+Clara Motena
+Clients Acquisition Director
+Track-Med Billing Solutions
++1(615)482-6768
+https://www.track-med.com
+https://www.tmbds.com/schedule
+
 ## RULES:
 - Alternate between Template A and Template B for variety (odd-numbered leads get A, even get B)
 - Replace [Practice Name] with the lead's actual company/practice name
 - Replace [Dr. Last Name / Practice Manager Name] with the lead's actual name
 - Keep the full template content — do NOT shorten or summarize
-- MUST end with the signature block below
+- MUST end with the EXACT signature block above — no variations
 ` : "";
 
           const response = await outreachAi.client.messages.create({
@@ -5146,11 +5156,13 @@ Here's what we'll cover:
 On top of that, practices that partner with us receive free access to state-of-the-art Practice Management Software — a value-add that our clients love from day one.
 We also handle Physician Credentialing, Electronic Fund Transfer, RAC Audit Protection (MD Audit Shield), and HIPAA-compliant Document Management — so you can focus on what matters most: your patients.
 This analysis takes less than 30 minutes and could uncover thousands in recoverable revenue. Would you be open to a brief call this week to get started?
-Looking forward to connecting,
+Best regards,
 Clara Motena
 Clients Acquisition Director
 Track-Med Billing Solutions
++1(615)482-6768
 https://www.track-med.com
+https://www.tmbds.com/schedule
 
 **TEMPLATE B — Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?**
 Hi [Dr. Last Name / Practice Manager],
@@ -5165,11 +5177,13 @@ What sets us apart:
 ✔ HIPAA-compliant systems across the board
 Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
 Can we carve out 20 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
-Best,
+Best regards,
 Clara Motena
 Clients Acquisition Director
 Track-Med Billing Solutions
++1(615)482-6768
 https://www.track-med.com
+https://www.tmbds.com/schedule
 
 IMPORTANT: Include the FULL template text — do NOT shorten. Replace [Practice Name] and [Dr. Last Name] with actual lead info. Include the subject line at the top as "Subject: ..."
 
