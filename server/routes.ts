@@ -5276,6 +5276,79 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
           message: `Found ${leadsGenerated} new ${specialty} practice leads in ${region}. Decision makers identified and ready for outreach.`,
           read: false,
         });
+
+        // ── AUTO-SEND OUTREACH to newly generated leads ──
+        try {
+          const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, targetUser.id));
+          if (settings) {
+            const runStartTime = runRecord.startedAt || new Date(Date.now() - 30 * 60 * 1000);
+            const unsentLeads = await db.select().from(leads)
+              .where(and(
+                eq(leads.userId, targetUser.id),
+                sql`${leads.outreach} IS NOT NULL AND ${leads.outreach} != ''`,
+                isNull(leads.outreachSentAt),
+                sql`${leads.email} IS NOT NULL AND ${leads.email} != ''`,
+                sql`${leads.createdAt} >= ${runStartTime}`
+              ));
+
+            if (unsentLeads.length > 0) {
+              console.log(`[MedBill Lead Gen] Auto-sending outreach to ${unsentLeads.length} new leads...`);
+              let sent = 0, failed = 0;
+              for (const lead of unsentLeads) {
+                try {
+                  const claimResult = await db.update(leads)
+                    .set({ outreachSentAt: new Date() })
+                    .where(and(eq(leads.id, lead.id), isNull(leads.outreachSentAt)))
+                    .returning({ id: leads.id });
+                  if (!claimResult.length) {
+                    console.log(`[MedBill Lead Gen] Lead ${lead.email} already claimed, skipping`);
+                    continue;
+                  }
+
+                  const result = await sendOutreachEmail(lead, settings, targetUser);
+                  if (result.success) {
+                    sent++;
+                    await db.update(leads).set({ status: "contacted" }).where(eq(leads.id, lead.id));
+                    try {
+                      await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "sent", provider: "smtp", source: "medbill-auto-outreach" });
+                    } catch {}
+                  } else {
+                    failed++;
+                    await db.update(leads).set({ outreachSentAt: null }).where(eq(leads.id, lead.id));
+                    console.warn(`[MedBill Lead Gen] Outreach failed for ${lead.email}: ${result.error}`);
+                    try {
+                      await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "medbill-auto-outreach", errorMessage: result.error });
+                    } catch {}
+                  }
+                  await new Promise(r => setTimeout(r, 3000));
+                } catch (emailErr: any) {
+                  failed++;
+                  await db.update(leads).set({ outreachSentAt: null }).where(eq(leads.id, lead.id));
+                  console.error(`[MedBill Lead Gen] Email error for ${lead.email}:`, emailErr.message);
+                  try {
+                    await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "medbill-auto-outreach", errorMessage: emailErr.message });
+                  } catch {}
+                }
+              }
+              console.log(`[MedBill Lead Gen] Auto-outreach complete: ${sent} sent, ${failed} failed`);
+              if (sent > 0) {
+                await storage.createNotification({
+                  userId: targetUser.id,
+                  type: "email",
+                  title: "Outreach Emails Sent",
+                  message: `Automatically sent ${sent} outreach email${sent > 1 ? 's' : ''} to new medical billing leads in ${region}.`,
+                  read: false,
+                });
+              }
+            } else {
+              console.log(`[MedBill Lead Gen] No unsent leads to auto-outreach`);
+            }
+          } else {
+            console.log(`[MedBill Lead Gen] No user settings found, skipping auto-outreach`);
+          }
+        } catch (outreachErr: any) {
+          console.error(`[MedBill Lead Gen] Auto-outreach error:`, outreachErr.message);
+        }
       }
     } catch (error: any) {
       console.error(`[MedBill Lead Gen] Error:`, error?.message);
