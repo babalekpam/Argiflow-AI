@@ -4239,7 +4239,7 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
 
   const HOT_LEAD_MIN_SCORE = 40;
   const HOT_LEAD_BATCH_SIZE = 5;
-  const HOT_LEAD_INTERVAL = 10 * 60 * 1000;
+  const HOT_LEAD_INTERVAL = 3 * 60 * 1000; // 3 minutes — rapid catch-up for any leads not handled by instant outreach
   let autoEngageRunning = false;
 
   async function processAutoHotLeadEngagement() {
@@ -4437,9 +4437,9 @@ https://www.tmbds.com/schedule
     }
   }
 
-  setTimeout(processAutoHotLeadEngagement, 5 * 60 * 1000);
+  setTimeout(processAutoHotLeadEngagement, 3 * 60 * 1000);
   setInterval(processAutoHotLeadEngagement, HOT_LEAD_INTERVAL);
-  console.log("[AutoEngage] Auto-engagement scheduled — runs every 10 minutes. Leads with score >= 40 get outreach generated + sent automatically (hot/warm get Template A/B, cold prospects get Template C).");
+  console.log("[AutoEngage] Auto-engagement scheduled — runs every 3 minutes as safety net. Leads with score >= 40 get outreach generated + sent automatically.");
 
   // ---- AUTOMATED FOLLOW-UP SEQUENCES ----
   // Sends escalating follow-up emails to leads until they book an appointment
@@ -5343,7 +5343,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
   });
 
   // ---- MEDICAL BILLING LEAD GEN (Hourly for abel@argilette.com) ----
-  const MEDBILL_LEAD_GEN_INTERVAL = 60 * 60 * 1000; // 1 hour
+  const MEDBILL_LEAD_GEN_INTERVAL = 20 * 60 * 1000; // 20 minutes — fast discovery for hot leads
   const MEDBILL_LEAD_GEN_BATCH = 20;
   const MEDBILL_USER_EMAIL = "abel@argilette.com";
 
@@ -5788,77 +5788,197 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
           read: false,
         });
 
-        // ── AUTO-SEND OUTREACH to newly generated leads ──
+        // ── INSTANT OUTREACH — generate + send immediately, zero delay ──
         try {
           const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, targetUser.id));
           if (settings) {
             const runStartTime = runRecord.startedAt || new Date(Date.now() - 30 * 60 * 1000);
-            const unsentLeads = await db.select().from(leads)
+            const allNewLeads = await db.select().from(leads)
               .where(and(
                 eq(leads.userId, targetUser.id),
-                sql`${leads.outreach} IS NOT NULL AND ${leads.outreach} != ''`,
                 isNull(leads.outreachSentAt),
                 sql`${leads.email} IS NOT NULL AND ${leads.email} != ''`,
                 sql`${leads.createdAt} >= ${runStartTime}`
               ));
 
-            if (unsentLeads.length > 0) {
-              console.log(`[MedBill Lead Gen] Auto-sending outreach to ${unsentLeads.length} new leads...`);
+            if (allNewLeads.length > 0) {
+              console.log(`[MedBill Instant] ${allNewLeads.length} new leads — generating outreach + sending immediately...`);
+
+              const needsOutreachGen = allNewLeads.filter(l => !l.outreach || l.outreach.trim() === "");
+              const readyToSend = allNewLeads.filter(l => l.outreach && l.outreach.trim() !== "");
+
+              if (needsOutreachGen.length > 0) {
+                console.log(`[MedBill Instant] Generating outreach for ${needsOutreachGen.length} leads without drafts...`);
+                try {
+                  const aiClient = await getAnthropicForUser(targetUser.id);
+                  const leadsInfo = needsOutreachGen.map((l, idx) =>
+                    `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email}, Score: ${l.score || 50}, Intent: ${l.intentSignal || "N/A"}, Notes: ${l.notes || "N/A"}`
+                  ).join("\n");
+
+                  const templatePrompt = `Generate personalized outreach emails for these medical billing leads using Track-Med templates.
+
+## TEMPLATE RULES:
+- Score >= 60 or billing/claims/denial intent: Use Template A or B (alternate)
+- Score < 60 or no billing signals: Use Template C (soft introduction)
+
+**TEMPLATE A — Free Analysis Offer:**
+Subject: Are billing errors costing [Practice Name] money? — Free Analysis Inside
+
+Hi [Dr. Last Name / Practice Manager Name],
+I wanted to reach out because practices like yours often leave significant revenue on the table — not from lack of patients, but from inaccurate coding, delayed claims, and missed reimbursements.
+At Track-Med Billing Solutions, we specialize in helping medical and dental practices improve cash flow and reduce billing overhead through fully personalized Revenue Cycle Management. And right now, we're offering a complimentary CPT and Billing Cost Analysis — at no cost or obligation to you.
+Here's what we'll cover:
+• A detailed review of your current billing and coding accuracy
+• Identification of revenue leakage points in your claims process
+• A clear picture of what you could be collecting vs. what you currently are
+On top of that, practices that partner with us receive free access to state-of-the-art Practice Management Software — a value-add that our clients love from day one.
+We also handle Physician Credentialing, Electronic Fund Transfer, RAC Audit Protection (MD Audit Shield), and HIPAA-compliant Document Management — so you can focus on what matters most: your patients.
+This analysis takes less than 30 minutes and could uncover thousands in recoverable revenue. Would you be open to a brief call this week to get started?
+
+**TEMPLATE B — Pain Points Version:**
+Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
+
+Hi [Dr. Last Name / Practice Manager],
+Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
+Track-Med Billing Solutions was built to fix exactly that.
+We provide end-to-end Revenue Cycle Management tailored to your specialty — from clean claim submission and payment posting to credentialing, RAC audit defense, and patient balance collections. We've helped practices significantly reduce their days in A/R and recover revenue they didn't even know they were missing.
+What sets us apart:
+✔ Personalized billing teams aligned to your specialty
+✔ Free Practice Management Software when you use our billing services
+✔ Free CPT & Billing Cost Analysis — so you see the ROI before you commit
+✔ Physician Credentialing included
+✔ HIPAA-compliant systems across the board
+Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
+Can we carve out 20 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
+
+**TEMPLATE C — Cold Introduction:**
+Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
+
+Hi [Dr. Last Name / Practice Manager Name],
+I hope this finds you well. My name is Clara Motena and I work with independent medical practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
+Track-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
+That's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:
+• Whether your current coding is maximizing your reimbursements
+• Where claims may be getting delayed or denied unnecessarily
+• A clear comparison of what you're collecting vs. what you could be
+We also include free Practice Management Software for practices that partner with us, plus Physician Credentialing, RAC Audit Protection, and HIPAA-compliant document management — all built in.
+There's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?
+
+## SIGNATURE — Every email MUST end with:
+Best regards,
+Clara Motena
+Clients Acquisition Director
+Track-Med Billing Solutions
++1(615)482-6768
+https://www.track-med.com
+https://www.tmbds.com/schedule
+
+Leads:
+${leadsInfo}
+
+Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with subject line and signature"}]. No markdown.`;
+
+                  const response = await aiClient.client.messages.create({
+                    model: aiClient.model,
+                    max_tokens: 6000,
+                    messages: [{ role: "user", content: templatePrompt }],
+                  });
+
+                  const text = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("");
+                  const jsonMatch = text.match(/\[[\s\S]*\]/);
+                  if (jsonMatch) {
+                    const drafts = JSON.parse(jsonMatch[0]);
+                    for (const draft of drafts) {
+                      const matchingLead = needsOutreachGen.find(l => l.name.toLowerCase() === draft.name?.toLowerCase());
+                      if (matchingLead && draft.outreach) {
+                        await db.update(leads).set({ outreach: draft.outreach }).where(eq(leads.id, matchingLead.id));
+                        readyToSend.push({ ...matchingLead, outreach: draft.outreach });
+                        console.log(`[MedBill Instant] Generated outreach for ${matchingLead.name} (score: ${matchingLead.score})`);
+                      }
+                    }
+                  }
+                } catch (genErr: any) {
+                  console.error(`[MedBill Instant] AI outreach generation failed:`, genErr.message);
+                  console.log(`[MedBill Instant] Using hard template fallback for ${needsOutreachGen.length} leads...`);
+                  const signature = `\n\nBest regards,\nClara Motena\nClients Acquisition Director\nTrack-Med Billing Solutions\n+1(615)482-6768\nhttps://www.track-med.com\nhttps://www.tmbds.com/schedule`;
+                  for (const lead of needsOutreachGen) {
+                    const practiceName = lead.company || lead.name;
+                    const contactName = lead.name;
+                    const isHot = (lead.score || 0) >= 60 || (lead.intentSignal || "").toLowerCase().match(/billing|claim|denial|reimburse|revenue/);
+                    let outreach: string;
+                    if (isHot) {
+                      outreach = `Subject: Are billing errors costing ${practiceName} money? -- Free Analysis Inside\n\nHi ${contactName},\n\nI wanted to reach out because practices like yours often leave significant revenue on the table -- not from lack of patients, but from inaccurate coding, delayed claims, and missed reimbursements.\n\nAt Track-Med Billing Solutions, we specialize in helping medical and dental practices improve cash flow and reduce billing overhead through fully personalized Revenue Cycle Management. And right now, we're offering a complimentary CPT and Billing Cost Analysis -- at no cost or obligation to you.\n\nHere's what we'll cover:\n- A detailed review of your current billing and coding accuracy\n- Identification of revenue leakage points in your claims process\n- A clear picture of what you could be collecting vs. what you currently are\n\nOn top of that, practices that partner with us receive free access to state-of-the-art Practice Management Software.\n\nThis analysis takes less than 30 minutes and could uncover thousands in recoverable revenue. Would you be open to a brief call this week to get started?${signature}`;
+                    } else {
+                      outreach = `Subject: A quick introduction from Track-Med Billing Solutions, ${practiceName}\n\nHi ${contactName},\n\nI hope this finds you well. My name is Clara Motena and I work with independent medical practices like ${practiceName} to help streamline their revenue cycle -- so providers can spend more time with patients and less time chasing payments.\n\nTrack-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.\n\nThat's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:\n- Whether your current coding is maximizing your reimbursements\n- Where claims may be getting delayed or denied unnecessarily\n- A clear comparison of what you're collecting vs. what you could be\n\nThere's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?${signature}`;
+                    }
+                    await db.update(leads).set({ outreach }).where(eq(leads.id, lead.id));
+                    readyToSend.push({ ...lead, outreach });
+                    console.log(`[MedBill Instant] Hard template applied for ${lead.name} (score: ${lead.score})`);
+                  }
+                }
+              }
+
               let sent = 0, failed = 0;
-              for (const lead of unsentLeads) {
+              for (const lead of readyToSend) {
                 try {
                   const claimResult = await db.update(leads)
                     .set({ outreachSentAt: new Date() })
                     .where(and(eq(leads.id, lead.id), isNull(leads.outreachSentAt)))
                     .returning({ id: leads.id });
                   if (!claimResult.length) {
-                    console.log(`[MedBill Lead Gen] Lead ${lead.email} already claimed, skipping`);
+                    console.log(`[MedBill Instant] Lead ${lead.email} already claimed, skipping`);
                     continue;
                   }
 
                   const result = await sendOutreachEmail(lead, settings, targetUser);
                   if (result.success) {
                     sent++;
-                    await db.update(leads).set({ status: "contacted" }).where(eq(leads.id, lead.id));
+                    await db.update(leads).set({
+                      status: "contacted",
+                      followUpStep: 0,
+                      followUpStatus: "active",
+                      followUpNextAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+                    }).where(eq(leads.id, lead.id));
                     try {
-                      await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "sent", provider: "smtp", source: "medbill-auto-outreach" });
+                      await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "sent", provider: "smtp", source: "medbill-instant-outreach" });
                     } catch {}
+                    console.log(`[MedBill Instant] ✅ Sent to ${lead.name} <${lead.email}> (score: ${lead.score})`);
                   } else {
                     failed++;
                     await db.update(leads).set({ outreachSentAt: null }).where(eq(leads.id, lead.id));
-                    console.warn(`[MedBill Lead Gen] Outreach failed for ${lead.email}: ${result.error}`);
+                    console.warn(`[MedBill Instant] ❌ Failed for ${lead.email}: ${result.error}`);
                     try {
-                      await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "medbill-auto-outreach", errorMessage: result.error });
+                      await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "medbill-instant-outreach", errorMessage: result.error });
                     } catch {}
                   }
-                  await new Promise(r => setTimeout(r, 3000));
+                  await new Promise(r => setTimeout(r, 2000));
                 } catch (emailErr: any) {
                   failed++;
                   await db.update(leads).set({ outreachSentAt: null }).where(eq(leads.id, lead.id));
-                  console.error(`[MedBill Lead Gen] Email error for ${lead.email}:`, emailErr.message);
+                  console.error(`[MedBill Instant] Email error for ${lead.email}:`, emailErr.message);
                   try {
-                    await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "medbill-auto-outreach", errorMessage: emailErr.message });
+                    await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "medbill-instant-outreach", errorMessage: emailErr.message });
                   } catch {}
                 }
               }
-              console.log(`[MedBill Lead Gen] Auto-outreach complete: ${sent} sent, ${failed} failed`);
+              console.log(`[MedBill Instant] Outreach complete: ${sent} sent, ${failed} failed out of ${readyToSend.length}`);
               if (sent > 0) {
                 await storage.createNotification({
                   userId: targetUser.id,
                   type: "email",
-                  title: "Outreach Emails Sent",
-                  message: `Automatically sent ${sent} outreach email${sent > 1 ? 's' : ''} to new medical billing leads in ${region}.`,
+                  title: "Instant Outreach Sent",
+                  message: `Instantly sent ${sent} outreach email${sent > 1 ? 's' : ''} to new ${specialty} leads in ${region} — zero delay from discovery to contact.`,
                   read: false,
                 });
               }
             } else {
-              console.log(`[MedBill Lead Gen] No unsent leads to auto-outreach`);
+              console.log(`[MedBill Instant] No new leads requiring outreach`);
             }
           } else {
-            console.log(`[MedBill Lead Gen] No user settings found, skipping auto-outreach`);
+            console.log(`[MedBill Instant] No user settings found, skipping outreach`);
           }
         } catch (outreachErr: any) {
-          console.error(`[MedBill Lead Gen] Auto-outreach error:`, outreachErr.message);
+          console.error(`[MedBill Instant] Auto-outreach error:`, outreachErr.message);
         }
       }
     } catch (error: any) {
@@ -5871,8 +5991,8 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
     setInterval(() => {
       runMedBillLeadGen().catch(err => console.error("[MedBill Lead Gen] Hourly run error:", err));
     }, MEDBILL_LEAD_GEN_INTERVAL);
-  }, 3 * 60 * 1000);
-  console.log("[MedBill Lead Gen] Scheduled to run every hour for abel@argilette.com. First run in 3 minutes.");
+  }, 2 * 60 * 1000);
+  console.log("[MedBill Lead Gen] Scheduled to run every 20 minutes for abel@argilette.com. First run in 2 minutes.");
 
   app.get("/api/medbill-lead-gen/status", isAuthenticated, async (req, res) => {
     try {
@@ -5888,7 +6008,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         .orderBy(desc(autoLeadGenRuns.startedAt)).limit(20);
       const totalLeads = runs.reduce((sum, r) => sum + (r.leadsGenerated || 0), 0);
       res.json({
-        intervalHours: 1,
+        intervalMinutes: 20,
         batchSize: MEDBILL_LEAD_GEN_BATCH,
         totalLeadsGenerated: totalLeads,
         runs,
