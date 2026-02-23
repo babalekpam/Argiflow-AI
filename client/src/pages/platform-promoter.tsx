@@ -24,6 +24,9 @@ import {
   ChevronDown,
   ChevronUp,
   MessageSquare,
+  Send,
+  Mail,
+  AlertCircle,
 } from "lucide-react";
 
 interface PromotionRun {
@@ -32,6 +35,7 @@ interface PromotionRun {
   searchQuery: string;
   postsFound: number | null;
   draftsGenerated: number | null;
+  emailsSent: number | null;
   results: string | null;
   errorMessage: string | null;
   startedAt: string;
@@ -46,6 +50,9 @@ interface PostResult {
   postedDate?: string;
   relevanceScore?: number;
   draftReply: string;
+  engagementStatus?: string;
+  engagedEmail?: string;
+  engagementError?: string;
 }
 
 export default function PlatformPromoterPage() {
@@ -93,6 +100,7 @@ export default function PlatformPromoterPage() {
   const runs = statusData?.runs || [];
   const totalPosts = runs.reduce((sum, r) => sum + (r.postsFound || 0), 0);
   const totalDrafts = runs.reduce((sum, r) => sum + (r.draftsGenerated || 0), 0);
+  const totalEmailsSent = runs.reduce((sum, r) => sum + (r.emailsSent || 0), 0);
   const completedRuns = runs.filter(r => r.status === "completed").length;
   const runningRun = runs.find(r => r.status === "running");
 
@@ -122,7 +130,7 @@ export default function PlatformPromoterPage() {
             Platform Promoter
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Automatically finds people searching for automation tools and drafts helpful responses mentioning ArgiFlow
+            Finds people searching for automation tools and automatically engages them with personalized outreach
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -159,12 +167,10 @@ export default function PlatformPromoterPage() {
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <CheckCircle className="w-4 h-4" />
-            Success Rate
+            <Send className="w-4 h-4" />
+            Prospects Engaged
           </div>
-          <p className="text-2xl font-bold" data-testid="text-success-rate">
-            {runs.length > 0 ? Math.round((completedRuns / runs.length) * 100) : 0}%
-          </p>
+          <p className="text-2xl font-bold" data-testid="text-total-engaged">{totalEmailsSent}</p>
         </Card>
       </div>
 
@@ -263,6 +269,12 @@ export default function PlatformPromoterPage() {
                       {run.draftsGenerated !== null && (
                         <span>{run.draftsGenerated} drafts</span>
                       )}
+                      {(run.emailsSent ?? 0) > 0 && (
+                        <span className="text-green-400 flex items-center gap-1">
+                          <Send className="w-3 h-3" />
+                          {run.emailsSent} engaged
+                        </span>
+                      )}
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {new Date(run.startedAt).toLocaleDateString()}
@@ -288,6 +300,23 @@ export default function PlatformPromoterPage() {
                                 {post.relevanceScore && (
                                   <Badge variant="outline" className="text-xs">
                                     {post.relevanceScore}% relevant
+                                  </Badge>
+                                )}
+                                {post.engagementStatus === "sent" && (
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20 text-xs">
+                                    <Mail className="w-3 h-3 mr-1" />
+                                    Engaged{post.engagedEmail ? ` — ${post.engagedEmail}` : ""}
+                                  </Badge>
+                                )}
+                                {post.engagementStatus === "failed" && (
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-400 border-red-500/20 text-xs">
+                                    <AlertCircle className="w-3 h-3 mr-1" />
+                                    Send failed
+                                  </Badge>
+                                )}
+                                {post.engagementStatus === "no_email" && (
+                                  <Badge variant="outline" className="bg-gray-500/10 text-gray-400 border-gray-500/20 text-xs">
+                                    No contact found
                                   </Badge>
                                 )}
                                 {post.postedDate && (

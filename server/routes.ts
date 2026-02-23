@@ -8031,17 +8031,158 @@ Return a JSON array of reply strings in the same order:
       const results = posts.map((post: any, idx: number) => ({
         ...post,
         draftReply: replies[idx] || "Reply could not be generated.",
+        engagementStatus: "pending",
       }));
+
+      // ── AUTO-ENGAGE: Extract contacts and send outreach ──
+      let emailsSentCount = 0;
+      try {
+        const contactExtractResponse = await promoterOpenAI.chat.completions.create({
+          model: OPENAI_MODEL,
+          max_tokens: 4096,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: "You extract business contact information from forum posts and discussions. Return JSON only." },
+            { role: "user", content: `From these forum posts about automation tools, extract any business contacts, company names, or email addresses of people who could benefit from ArgiFlow (argilette.co) — an AI-powered business automation platform.
+
+Look for:
+- Business owners mentioning their company names
+- People sharing their websites or business details
+- Usernames that hint at business ownership
+- Any email addresses mentioned
+- Company domains from URLs or signatures
+
+Posts:
+${posts.map((p: any, i: number) => `${i + 1}. "${p.title}" on ${p.platform}\nURL: ${p.url}\nSnippet: ${p.snippet}`).join("\n\n")}
+
+Return a JSON object with a "contacts" array. Each contact should have:
+- "name": Person/business name (best guess from username or post content)
+- "company": Company name if identifiable
+- "email": Email if found, or null
+- "domain": Business domain if identifiable from URL or content
+- "postIndex": Which post number (0-indexed) this contact came from
+- "context": Brief note about what they're looking for
+
+Only include contacts where you can identify at least a name and some business context. Do NOT invent emails.
+Example: {"contacts": [{"name":"John Smith","company":"Smith Marketing","email":null,"domain":"smithmarketing.com","postIndex":0,"context":"Looking for lead gen automation"}]}` },
+          ],
+        });
+
+        const contactText = contactExtractResponse.choices[0]?.message?.content || "";
+        let contacts: any[] = [];
+        try {
+          const parsed = JSON.parse(contactText);
+          contacts = parsed?.contacts || [];
+        } catch { contacts = []; }
+
+        if (contacts.length > 0) {
+          console.log(`[Platform Promoter] Found ${contacts.length} potential contacts to engage`);
+
+          const allUsers = await storage.getAllUsers();
+          const adminUser = allUsers.find((u: any) => u.email === "abel@argilette.com");
+          const [adminSettings] = adminUser ? await db.select().from(userSettings).where(eq(userSettings.userId, adminUser.id)) : [null];
+
+          if (adminUser && adminSettings) {
+            for (const contact of contacts) {
+              const postIdx = typeof contact.postIndex === "number" ? (contact.postIndex >= 1 && contact.postIndex <= posts.length ? contact.postIndex - 1 : contact.postIndex) : -1;
+
+              if (!contact.email) {
+                if (postIdx >= 0 && postIdx < results.length) {
+                  results[postIdx].engagementStatus = "no_email";
+                }
+                continue;
+              }
+
+              try {
+                const outreachContent = `Hi ${contact.name?.split(" ")[0] || "there"},
+
+I noticed you were looking into ${contact.context || "automation tools for your business"} — great timing!
+
+I wanted to share ArgiFlow (argilette.co) with you. It's an AI-powered platform that combines lead generation, automated outreach, CRM, and even AI voice calling into one tool. A lot of business owners use it to automate their entire client acquisition pipeline.
+
+Here's what makes it different:
+• AI agents that find and qualify leads 24/7
+• Automated email sequences with AI personalization
+• Built-in CRM with lead scoring
+• Voice AI that books appointments for you
+
+We offer a 15-day free trial with full Pro access — no credit card required.
+
+Would love to hear if this fits what you're looking for. Feel free to check it out at argilette.co or reply here with any questions.
+
+Best,
+The ArgiFlow Team`;
+
+                const promoterLead = {
+                  id: `promo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                  name: contact.name || "Business Owner",
+                  email: contact.email,
+                  company: contact.company || "",
+                  outreach: outreachContent,
+                };
+
+                const sendResult = await sendOutreachEmail(promoterLead, adminSettings, adminUser);
+                if (sendResult.success) {
+                  emailsSentCount++;
+                  if (postIdx >= 0 && postIdx < results.length) {
+                    results[postIdx].engagementStatus = "sent";
+                    results[postIdx].engagedEmail = contact.email;
+                  }
+                  console.log(`[Platform Promoter] Outreach sent to ${contact.email}`);
+                  try {
+                    await logEmail({ userId: adminUser.id, recipientEmail: contact.email, recipientName: contact.name, subject: `Quick question for ${contact.company || contact.name}`, status: "sent", provider: "smtp", source: "platform-promoter" });
+                  } catch {}
+                } else {
+                  if (postIdx >= 0 && postIdx < results.length) {
+                    results[postIdx].engagementStatus = "failed";
+                    results[postIdx].engagementError = sendResult.error;
+                  }
+                  console.warn(`[Platform Promoter] Failed to send to ${contact.email}: ${sendResult.error}`);
+                  try {
+                    await logEmail({ userId: adminUser.id, recipientEmail: contact.email, recipientName: contact.name, subject: `Quick question for ${contact.company || contact.name}`, status: "failed", provider: "smtp", source: "platform-promoter", errorMessage: sendResult.error });
+                  } catch {}
+                }
+                await new Promise(r => setTimeout(r, 3000));
+              } catch (engErr: any) {
+                console.error(`[Platform Promoter] Engagement error for ${contact.email}:`, engErr.message);
+                if (postIdx >= 0 && postIdx < results.length) {
+                  results[postIdx].engagementStatus = "error";
+                }
+              }
+            }
+          } else {
+            console.log(`[Platform Promoter] No admin user/settings found, skipping auto-engage`);
+          }
+        } else {
+          console.log(`[Platform Promoter] No extractable contacts found`);
+        }
+      } catch (engErr: any) {
+        console.error(`[Platform Promoter] Contact extraction error:`, engErr.message);
+      }
 
       await db.update(platformPromotionRuns).set({
         status: "completed",
         postsFound: posts.length,
         draftsGenerated: replies.length,
+        emailsSent: emailsSentCount,
         results: JSON.stringify(results),
         completedAt: new Date(),
       }).where(eq(platformPromotionRuns.id, run.id));
 
-      console.log(`[Platform Promoter] Completed — ${posts.length} posts found, ${replies.length} drafts`);
+      console.log(`[Platform Promoter] Completed — ${posts.length} posts found, ${replies.length} drafts, ${emailsSentCount} emails sent`);
+
+      if (emailsSentCount > 0) {
+        const notifUser = (await storage.getAllUsers()).find((u: any) => u.email === "abel@argilette.com");
+        if (notifUser) {
+          await storage.createNotification({
+            userId: notifUser.id,
+            type: "email",
+            title: "Platform Promoter: Outreach Sent",
+            message: `Engaged ${emailsSentCount} prospect${emailsSentCount > 1 ? 's' : ''} from forum discussions about automation tools.`,
+            read: false,
+          });
+        }
+      }
     } catch (error: any) {
       console.error("[Platform Promoter] Error:", error?.message);
       await db.update(platformPromotionRuns).set({

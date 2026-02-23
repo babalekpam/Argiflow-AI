@@ -443,6 +443,7 @@ export const platformPromotionRuns = pgTable("platform_promotion_runs", {
   status: text("status").notNull().default("pending"),
   postsFound: integer("posts_found").default(0),
   draftsGenerated: integer("drafts_generated").default(0),
+  emailsSent: integer("emails_sent").default(0),
   searchQuery: text("search_query"),
   errorMessage: text("error_message"),
   results: text("results"),
