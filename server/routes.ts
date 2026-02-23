@@ -668,7 +668,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
 
       const duplicates: string[] = [];
 
-      const _userRecord = await storage.getUser(userId);
+      const [_userRecord] = await db.select({ industry: users.industry }).from(users).where(eq(users.id, userId)).limit(1);
       const _userIsMedBilling = _userRecord && /medical billing|rcm|revenue cycle/i.test(_userRecord.industry || "");
 
       for (const lead of leadsData.slice(0, 30)) {
