@@ -7321,6 +7321,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   await ensureOwnerPassword();
   await ensureAllUsersProLifetime();
   await cleanupFakeLeads();
+  await cleanupNonMedicalLeads();
   await backfillDentalLeads();
   await backfillMedBillingFunnel();
 
@@ -9238,6 +9239,39 @@ async function cleanupFakeLeads() {
     }
   } catch (error) {
     console.error("[Startup Cleanup] Error:", error);
+  }
+}
+
+async function cleanupNonMedicalLeads() {
+  try {
+    const owner = await storage.getUserByEmail("abel@argilette.com");
+    if (!owner) return;
+    const userIsMedBilling = /medical billing|rcm|revenue cycle/i.test(owner.industry || "");
+    if (!userIsMedBilling) return;
+
+    const allLeads = await storage.getLeadsByUser(owner.id);
+    const healthcareRx = /\b(medical|medic|health|healthcare|clinic|practice|physician|doctor|dr\b|dds|dmd|dental|dentist|dent|chiropractic|chiropract|optometr|ophthalm|dermatolog|cardiol|orthoped|pediatr|ob.?gyn|urol|neurolog|oncolog|gastro|pulmon|nephrol|endocrin|rheumatol|allerg|immunol|podiatr|psychiatr|psycholog|therap|physical therapy|urgent care|walk.?in|surgery center|surgical|ambulatory|hospital|hospice|home health|nursing|assisted living|rehab|behavioral|mental health|wellness|pharma|laboratory|radiology|imaging|patholog|anesthes|pain management|family medicine|internal medicine|primary care|community health|fqhc|med\s*spa|aesthetic|cosmetic|plastic surg|oral surg|periodon|endodont|orthodont|prosthodont|smile|vision|eye\s*care|chiro|skin|laser)\b/i;
+    const nonMedicalRx = /\b(financial|finance|wealth|capital management|investment|banking|bank\s*systems|money growth|trustee|law\s*firm|lawyer|legal\s*services|real\s*estate|realty|mortgage|insure\s*financial|consulting\s*group|staffing|roofing|plumbing|hvac|restaurant|retail)\b/i;
+
+    const toDelete: { id: string; name: string; company: string }[] = [];
+    for (const lead of allLeads) {
+      const text = `${lead.company || ""} ${lead.notes || ""} ${lead.name || ""} ${lead.intentSignal || ""}`;
+      if (nonMedicalRx.test(text) && !healthcareRx.test(text)) {
+        toDelete.push({ id: lead.id, name: lead.name || "", company: lead.company || "" });
+      }
+    }
+
+    if (toDelete.length > 0) {
+      for (const lead of toDelete) {
+        await db.delete(leads).where(eq(leads.id, lead.id));
+      }
+      console.log(`[Startup Cleanup] Removed ${toDelete.length} non-medical/financial leads from CRM:`);
+      for (const r of toDelete) {
+        console.log(`  - ${r.name} (${r.company})`);
+      }
+    }
+  } catch (err) {
+    console.error("[Startup Cleanup] Error removing non-medical leads:", err);
   }
 }
 
