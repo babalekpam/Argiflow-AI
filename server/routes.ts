@@ -9255,7 +9255,7 @@ async function cleanupNonMedicalLeads() {
 
     const allLeads = await storage.getLeadsByUser(owner.id);
     const healthcareRx = /\b(medical|medic|health|healthcare|clinic|practice|physician|doctor|dr\b|dds|dmd|dental|dentist|dent|chiropractic|chiropract|optometr|ophthalm|dermatolog|cardiol|orthoped|pediatr|ob.?gyn|urol|neurolog|oncolog|gastro|pulmon|nephrol|endocrin|rheumatol|allerg|immunol|podiatr|psychiatr|psycholog|therap|physical therapy|urgent care|walk.?in|surgery center|surgical|ambulatory|hospital|hospice|home health|nursing|assisted living|rehab|behavioral|mental health|wellness|pharma|laboratory|radiology|imaging|patholog|anesthes|pain management|family medicine|internal medicine|primary care|community health|fqhc|med\s*spa|aesthetic|cosmetic|plastic surg|oral surg|periodon|endodont|orthodont|prosthodont|smile|vision|eye\s*care|chiro|skin|laser)\b/i;
-    const nonMedicalRx = /\b(financial|finance|wealth|capital management|investment|banking|bank\s*systems|money growth|trustee|law\s*firm|lawyer|legal\s*services|real\s*estate|realty|mortgage|insure\s*financial|consulting\s*group|staffing|roofing|plumbing|hvac|restaurant|retail)\b/i;
+    const nonMedicalRx = /\b(financial|finance|finserv|fin\s*tech|wealth|capital management|investment|banking|bank\s*systems|money growth|trustee|law\s*firm|lawyer|legal\s*services|real\s*estate|realty|mortgage|insure\s*financial|consulting\s*group|staffing|roofing|plumbing|hvac|restaurant|retail|procurement|community bank|first bank|pro financial|priority financial|four cities financial|abc finance|step up finance|gem financial|insure financial|agc financial)\b/i;
 
     const toDelete: { id: string; name: string; company: string }[] = [];
     for (const lead of allLeads) {
