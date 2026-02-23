@@ -1204,32 +1204,50 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
   const senderEmail = userSettings.senderEmail || process.env.SMTP_USERNAME;
   const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
 
-  const subjectLine = lead.company
+  let subjectLine = lead.company
     ? `Quick question for ${lead.company}`
     : `Quick question, ${lead.name.split(" ")[0]}`;
+  const subjectMatch = lead.outreach.match(/^Subject:\s*(.+)/im);
+  if (subjectMatch) {
+    subjectLine = subjectMatch[1].trim();
+  }
 
   const baseUrl = getBaseUrl();
-  const sigParts: string[] = [];
-  const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
-  if (fullName) sigParts.push(fullName);
-  if ((user as any).jobTitle) sigParts.push((user as any).jobTitle);
-  if (user.companyName) sigParts.push(user.companyName);
-  const phoneNum = userSettings.grasshopperNumber || userSettings.twilioPhoneNumber || "";
-  if (phoneNum) sigParts.push(phoneNum);
-  if (user.website) sigParts.push(user.website);
-  const calLink = userSettings.calendarLink || "";
-  if (calLink) sigParts.push(calLink);
 
-  const textSignature = sigParts.length > 0 ? "\n\n--\n" + sigParts.join("\n") : "";
-  const htmlSignature = sigParts.length > 0
-    ? `<br><br><div style="border-top:1px solid #e5e7eb;padding-top:12px;margin-top:16px;font-size:13px;color:#6b7280;">${sigParts.map(p => p.startsWith("http") ? `<a href="${p}" style="color:#0ea5e9;">${p}</a>` : p.startsWith("Book a call:") ? `<a href="${p.replace("Book a call: ", "")}" style="color:#0ea5e9;">${p}</a>` : p).join("<br>")}</div>`
-    : "";
+  const outreachHasSignature = /Best regards,\s*\n.*Clara Motena/i.test(outreachBody) ||
+    /Best regards,\s*\n.*\n.*Director/i.test(outreachBody) ||
+    /Looking forward to connecting,\s*\n/i.test(outreachBody);
 
-  let htmlBody = lead.outreach.replace(/\n/g, "<br>") + htmlSignature;
+  let textSignature = "";
+  let htmlSignature = "";
+
+  if (!outreachHasSignature) {
+    const sigParts: string[] = [];
+    const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+    if (fullName) sigParts.push(fullName);
+    if ((user as any).jobTitle) sigParts.push((user as any).jobTitle);
+    if (user.companyName) sigParts.push(user.companyName);
+    const phoneNum = userSettings.grasshopperNumber || userSettings.twilioPhoneNumber || "";
+    if (phoneNum) sigParts.push(phoneNum);
+    if (user.website) sigParts.push(user.website);
+    const calLink = userSettings.calendarLink || "";
+    if (calLink) sigParts.push(calLink);
+
+    textSignature = sigParts.length > 0 ? "\n\n--\n" + sigParts.join("\n") : "";
+    htmlSignature = sigParts.length > 0
+      ? `<br><br><div style="border-top:1px solid #e5e7eb;padding-top:12px;margin-top:16px;font-size:13px;color:#6b7280;">${sigParts.map(p => p.startsWith("http") ? `<a href="${p}" style="color:#0ea5e9;">${p}</a>` : p.startsWith("Book a call:") ? `<a href="${p.replace("Book a call: ", "")}" style="color:#0ea5e9;">${p}</a>` : p).join("<br>")}</div>`
+      : "";
+  }
+
+  let outreachBody = lead.outreach;
+  if (subjectMatch) {
+    outreachBody = outreachBody.replace(/^Subject:\s*.+\n?/im, "").trim();
+  }
+  let htmlBody = outreachBody.replace(/\n/g, "<br>") + htmlSignature;
   htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
   htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
 
-  const plainText = lead.outreach + textSignature;
+  const plainText = outreachBody + textSignature;
 
   try {
     if (emailProvider === "smtp") {
@@ -4123,6 +4141,200 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
   }
 
   setInterval(processScheduledOutreach, 60 * 1000);
+
+  // ---- AUTOMATED HOT LEAD ENGAGEMENT ----
+  // Automatically generates outreach + sends emails for new hot leads without manual intervention
+  // Runs every 10 minutes — finds leads with score >= 60, generates outreach if missing, sends email
+
+  const HOT_LEAD_MIN_SCORE = 60;
+  const HOT_LEAD_BATCH_SIZE = 5;
+  const HOT_LEAD_INTERVAL = 10 * 60 * 1000;
+  let autoEngageRunning = false;
+
+  async function processAutoHotLeadEngagement() {
+    if (autoEngageRunning) {
+      console.log("[AutoEngage] Skipping — previous run still in progress");
+      return;
+    }
+    autoEngageRunning = true;
+    try {
+      const allUsers = await storage.getAllUsers();
+      for (const user of allUsers) {
+        try {
+          if (!user.companyName) continue;
+          const settings = await storage.getSettingsByUser(user.id);
+          if (!settings) continue;
+
+          const hasSendCapability = !!(
+            (settings as any).senderEmail ||
+            process.env.SMTP_USERNAME
+          ) && !!(
+            ((settings as any).smtpHost && (settings as any).smtpUsername && (settings as any).smtpPassword) ||
+            (process.env.SMTP_HOST && process.env.SMTP_USERNAME && process.env.SMTP_PASSWORD) ||
+            (settings as any).sendgridApiKey
+          );
+          if (!hasSendCapability) continue;
+
+          const allLeads = await storage.getLeadsByUser(user.id);
+          const hotLeads = allLeads.filter(l =>
+            l.status === "new" &&
+            (l.score || 0) >= HOT_LEAD_MIN_SCORE &&
+            l.email &&
+            !l.outreachSentAt &&
+            !l.scheduledSendAt
+          );
+
+          if (hotLeads.length === 0) continue;
+
+          const batch = hotLeads.slice(0, HOT_LEAD_BATCH_SIZE);
+          const needsOutreach = batch.filter(l => !l.outreach || l.outreach.trim() === "");
+          const readyToSend = batch.filter(l => l.outreach && l.outreach.trim() !== "");
+
+          if (needsOutreach.length > 0) {
+            let outreachAi: { client: Anthropic; model: string };
+            try { outreachAi = await getAnthropicForUser(user.id); } catch {
+              console.log(`[AutoEngage] Skipping outreach gen for ${user.email} — no AI key`);
+              continue;
+            }
+
+            const userSettings = settings as any;
+            const bookingLink = userSettings?.calendarLink || "";
+            const senderFullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+            const senderTitle = (user as any)?.jobTitle || "";
+            const senderCompany = user.companyName || "Our company";
+            const senderPhone = userSettings?.grasshopperNumber || userSettings?.twilioPhoneNumber || "";
+            const senderWebsite = user.website || "";
+            const isMedBillUser = (senderCompany || "").toLowerCase().includes("track-med");
+
+            const leadsInfo = needsOutreach.map((l, idx) =>
+              `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Notes: ${l.notes || "N/A"}, Intent: ${l.intentSignal || "N/A"}`
+            ).join("\n");
+
+            const medBillTemplateInstructions = isMedBillUser ? `
+
+## OUTREACH TEMPLATES — Use these as the basis for ALL emails. Personalize by inserting the lead's practice name, doctor name, and specialty.
+
+**TEMPLATE A — Free Analysis Offer:**
+Subject: Are billing errors costing [Practice Name] money? — Free Analysis Inside
+
+Hi [Dr. Last Name / Practice Manager Name],
+I wanted to reach out because practices like yours often leave significant revenue on the table — not from lack of patients, but from inaccurate coding, delayed claims, and missed reimbursements.
+At Track-Med Billing Solutions, we specialize in helping medical and dental practices improve cash flow and reduce billing overhead through fully personalized Revenue Cycle Management. And right now, we're offering a complimentary CPT and Billing Cost Analysis — at no cost or obligation to you.
+Here's what we'll cover:
+• A detailed review of your current billing and coding accuracy
+• Identification of revenue leakage points in your claims process
+• A clear picture of what you could be collecting vs. what you currently are
+On top of that, practices that partner with us receive free access to state-of-the-art Practice Management Software — a value-add that our clients love from day one.
+We also handle Physician Credentialing, Electronic Fund Transfer, RAC Audit Protection (MD Audit Shield), and HIPAA-compliant Document Management — so you can focus on what matters most: your patients.
+This analysis takes less than 30 minutes and could uncover thousands in recoverable revenue. Would you be open to a brief call this week to get started?
+
+**TEMPLATE B — Pain Points Version:**
+Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
+
+Hi [Dr. Last Name / Practice Manager],
+Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
+Track-Med Billing Solutions was built to fix exactly that.
+We provide end-to-end Revenue Cycle Management tailored to your specialty — from clean claim submission and payment posting to credentialing, RAC audit defense, and patient balance collections. We've helped practices significantly reduce their days in A/R and recover revenue they didn't even know they were missing.
+What sets us apart:
+✔ Personalized billing teams aligned to your specialty
+✔ Free Practice Management Software when you use our billing services
+✔ Free CPT & Billing Cost Analysis — so you see the ROI before you commit
+✔ Physician Credentialing included
+✔ HIPAA-compliant systems across the board
+Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
+Can we carve out 20 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
+
+## SIGNATURE — Every email MUST end with this exact signature block:
+
+Best regards,
+Clara Motena
+Clients Acquisition Director
+Track-Med Billing Solutions
++1(615)482-6768
+https://www.track-med.com
+https://www.tmbds.com/schedule
+
+## RULES:
+- Alternate between Template A and Template B for variety (odd-numbered leads get A, even get B)
+- Replace [Practice Name] with the lead's actual company/practice name
+- Replace [Dr. Last Name / Practice Manager Name] with the lead's actual name
+- Keep the full template content — do NOT shorten or summarize
+- MUST end with the EXACT signature block above — no variations
+` : "";
+
+            try {
+              const prompt = isMedBillUser
+                ? `Generate personalized outreach email drafts for these leads using the Track-Med templates below. Each template already includes the proper signature — do NOT add any additional signature.\n${medBillTemplateInstructions}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"full email draft including subject line and signature from template"}]. No markdown, no explanation.`
+                : `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}\n\nEach email MUST end with this EXACT signature block:\n\nBest regards,\n${senderFullName}\n${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}\n${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${bookingLink ? `${bookingLink}\n` : ""}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft with signature"}]. No markdown, no explanation.`;
+
+              const response = await outreachAi.client.messages.create({
+                model: outreachAi.model,
+                max_tokens: 4000,
+                messages: [{ role: "user", content: prompt }],
+              });
+
+              const text = response.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map(b => b.text).join("");
+              const jsonMatch = text.match(/\[[\s\S]*\]/);
+              if (jsonMatch) {
+                const drafts = JSON.parse(jsonMatch[0]);
+                for (const draft of drafts) {
+                  const matchingLead = needsOutreach.find(l => l.name.toLowerCase() === draft.name?.toLowerCase());
+                  if (matchingLead && draft.outreach) {
+                    await storage.updateLead(matchingLead.id, { outreach: draft.outreach });
+                    readyToSend.push({ ...matchingLead, outreach: draft.outreach });
+                    console.log(`[AutoEngage] Generated outreach for ${matchingLead.name}`);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error(`[AutoEngage] Outreach generation failed for ${user.email}:`, err);
+            }
+          }
+
+          let sent = 0;
+          let failed = 0;
+          for (const lead of readyToSend) {
+            try {
+              const result = await sendOutreachEmail(lead, settings, user);
+              if (result.success) {
+                const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+                await storage.updateLead(lead.id, {
+                  outreachSentAt: new Date(),
+                  status: "warm",
+                  followUpStep: 0,
+                  followUpStatus: "active",
+                  followUpNextAt,
+                });
+                sent++;
+                console.log(`[AutoEngage] ✅ Sent to ${lead.name} (${lead.email})`);
+              } else {
+                failed++;
+                console.log(`[AutoEngage] ❌ Failed for ${lead.name}: ${result.error}`);
+              }
+              await new Promise(r => setTimeout(r, 3000));
+            } catch (err) {
+              failed++;
+              console.error(`[AutoEngage] Error sending to ${lead.name}:`, err);
+            }
+          }
+
+          if (sent > 0 || failed > 0) {
+            console.log(`[AutoEngage] ${user.email}: ${sent} sent, ${failed} failed out of ${readyToSend.length} hot leads`);
+          }
+        } catch (userErr) {
+          console.error(`[AutoEngage] Error for user ${user.id}:`, userErr);
+        }
+      }
+    } catch (error) {
+      console.error("[AutoEngage] Fatal error in auto-engagement:", error);
+    } finally {
+      autoEngageRunning = false;
+    }
+  }
+
+  setTimeout(processAutoHotLeadEngagement, 5 * 60 * 1000);
+  setInterval(processAutoHotLeadEngagement, HOT_LEAD_INTERVAL);
+  console.log("[AutoEngage] Hot lead auto-engagement scheduled — runs every 10 minutes. Leads with score >= 60 get outreach generated + sent automatically.");
 
   // ---- AUTOMATED FOLLOW-UP SEQUENCES ----
   // Sends escalating follow-up emails to leads until they book an appointment
@@ -8362,6 +8574,17 @@ The ArgiFlow Team`;
       res.json(run);
     } catch (error: any) {
       res.status(500).json({ message: "Failed to get run details" });
+    }
+  });
+
+  app.post("/api/auto-engage/trigger", isAuthenticated, async (req, res) => {
+    try {
+      processAutoHotLeadEngagement().catch(err =>
+        console.error("[AutoEngage] Manual trigger error:", err)
+      );
+      res.json({ message: "Auto hot-lead engagement triggered — processing in background" });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to trigger auto-engagement" });
     }
   });
 
