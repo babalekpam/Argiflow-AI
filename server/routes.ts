@@ -23,6 +23,7 @@ import intelligenceRoutes from "./intelligence-routes";
 import outreachAgentRoutes from "./outreach-agent-routes";
 import { intelligenceEngine } from "./intelligence-engine";
 import { registerFreeScraperRoutes } from "./free-scraper-routes";
+import { searchDDG } from "./free-scraper";
 import { registerStripeRoutes } from "./stripe-routes";
 import { registerSequenceRoutes } from "./sequences-routes";
 import { registerLinkedinRoutes } from "./linkedin-routes";
@@ -1656,7 +1657,19 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
           }
         }
 
-        if (!preSearchContext && (process.env.TAVILY_API_KEY || process.env.YOU_API_KEY)) {
+        if (!preSearchContext) {
+          console.log("[Pre-search] Paid APIs failed, trying DuckDuckGo free fallback...");
+          try {
+            const ddgResults = await searchDDG(searchQuery, 15);
+            if (ddgResults.length > 0) {
+              preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real business contacts):\n${ddgResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n")}`;
+              console.log(`[Pre-search] DuckDuckGo returned ${ddgResults.length} results`);
+            }
+          } catch (ddgErr: any) {
+            console.warn("[Pre-search] DuckDuckGo error:", ddgErr?.message);
+          }
+        }
+        if (!preSearchContext) {
           console.warn("[Pre-search] All search providers returned 0 results — AI will use web_search tool");
         }
       } catch (e: any) {
@@ -1735,10 +1748,21 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
                     const snippets = (h.snippets || []).join(" ").slice(0, 500);
                     return `Title: ${h.title || "N/A"}\nURL: ${h.url || "N/A"}\nSnippet: ${h.description || snippets || "N/A"}`;
                   });
-                  console.log(`[AI Tool] You.com search returned ${searchResults.length} results`);
+                  if (searchResults.length > 0) console.log(`[AI Tool] You.com search returned ${searchResults.length} results`);
                 }
               } catch (youErr: any) {
                 console.error(`[AI Tool] You.com search error:`, youErr?.message);
+              }
+            }
+
+            if (searchResults.length === 0) {
+              console.log(`[AI Tool] Paid search failed, trying DuckDuckGo free fallback...`);
+              try {
+                const ddgResults = await searchDDG(query, 10);
+                searchResults = ddgResults.map(r => `Title: ${r.title}\nURL: ${r.url}\nSnippet: ${r.snippet || "N/A"}`);
+                if (searchResults.length > 0) console.log(`[AI Tool] DuckDuckGo returned ${searchResults.length} results`);
+              } catch (ddgErr: any) {
+                console.error(`[AI Tool] DuckDuckGo search error:`, ddgErr?.message);
               }
             }
 
@@ -1749,7 +1773,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
 
             if (searchResults.length === 0) {
               console.warn(`[AI Tool] All search providers returned 0 results for: "${query}"`);
-              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `Web search returned no results for "${query}". The search API quota may be exhausted. Use your AI knowledge to find real businesses you know exist based on your training data. Call generate_leads with real businesses — use real company names and locations you know. Set intent_signal to "AI knowledge - verify contact info". If you cannot find verified contact details, note that in the lead for manual verification.` });
+              toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: `Web search returned no results for "${query}". Try a DIFFERENT, simpler query — e.g. just the practice type and city name like "dermatology practice Nashville" or "family medicine clinic Houston". If you've already tried multiple queries, use your AI knowledge of REAL businesses you know from your training data. Call generate_leads with real businesses — use the DECISION MAKER's real name (not the practice name), their direct email (not info@ or contact@), and their real phone number. Set source to "AI knowledge - verify contact info".` });
               continue;
             }
 
@@ -5546,6 +5570,28 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
           }
         } catch (e: any) {
           console.error("[MedBill Lead Gen] Tavily search error:", e.message);
+        }
+      }
+
+      if (!searchResults.trim()) {
+        console.log("[MedBill Lead Gen] Tavily failed, trying DuckDuckGo free fallback...");
+        try {
+          const ddgQueries = [
+            `${specialty} medical practice ${region} owner contact`,
+            `small ${specialty} practice ${region} independent physician`,
+            `${specialty} doctor office ${region} phone email`,
+          ];
+          for (const sq of ddgQueries) {
+            const ddgResults = await searchDDG(sq, 8);
+            if (ddgResults.length > 0) {
+              searchResults += ddgResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n") + "\n\n";
+            }
+          }
+          if (searchResults.trim()) {
+            console.log(`[MedBill Lead Gen] DuckDuckGo provided search results`);
+          }
+        } catch (ddgErr: any) {
+          console.error("[MedBill Lead Gen] DuckDuckGo error:", ddgErr?.message);
         }
       }
 
