@@ -1214,6 +1214,11 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
 
   const baseUrl = getBaseUrl();
 
+  let outreachBody = lead.outreach;
+  if (subjectMatch) {
+    outreachBody = outreachBody.replace(/^Subject:\s*.+\n?/im, "").trim();
+  }
+
   const outreachHasSignature = /Best regards,\s*\n.*Clara Motena/i.test(outreachBody) ||
     /Best regards,\s*\n.*\n.*Director/i.test(outreachBody) ||
     /Looking forward to connecting,\s*\n/i.test(outreachBody);
@@ -1237,11 +1242,6 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
     htmlSignature = sigParts.length > 0
       ? `<br><br><div style="border-top:1px solid #e5e7eb;padding-top:12px;margin-top:16px;font-size:13px;color:#6b7280;">${sigParts.map(p => p.startsWith("http") ? `<a href="${p}" style="color:#0ea5e9;">${p}</a>` : p.startsWith("Book a call:") ? `<a href="${p.replace("Book a call: ", "")}" style="color:#0ea5e9;">${p}</a>` : p).join("<br>")}</div>`
       : "";
-  }
-
-  let outreachBody = lead.outreach;
-  if (subjectMatch) {
-    outreachBody = outreachBody.replace(/^Subject:\s*.+\n?/im, "").trim();
   }
   let htmlBody = outreachBody.replace(/\n/g, "<br>") + htmlSignature;
   htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
