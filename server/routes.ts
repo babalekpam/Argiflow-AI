@@ -4975,7 +4975,7 @@ Return ONLY the email reply text, no subject line, no markdown.`
   // and adds them to the CRM automatically
   // ============================================================
 
-  const AUTO_LEAD_GEN_INTERVAL = 5 * 60 * 60 * 1000; // 5 hours
+  const AUTO_LEAD_GEN_INTERVAL = 30 * 60 * 1000; // 30 minutes — fast discovery for all subscribers
   const AUTO_LEAD_GEN_BATCH_SIZE = 30;
 
   const LEAD_SEARCH_REGIONS = [
@@ -4996,7 +4996,7 @@ Return ONLY the email reply text, no subject line, no markdown.`
 
       const eligibleUsers: Array<{ user: any; ai: { client: Anthropic; model: string } }> = [];
       for (const user of allUsers) {
-        if (user.email === "abel@argilette.com") continue;
+        
         const settings = await storage.getSettingsByUser(user.id);
         if (!settings?.autoLeadGenEnabled) continue;
         const sub = await storage.getSubscriptionByUser(user.id);
@@ -5105,7 +5105,19 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
           console.error("Tavily search error:", e.message);
         }
       } else {
-        console.warn("[Auto Lead Gen] No TAVILY_API_KEY — proceeding without web search");
+        console.warn("[Auto Lead Gen] No TAVILY_API_KEY — trying DuckDuckGo...");
+      }
+
+      if (!autoGenSearchResults.trim()) {
+        try {
+          const ddgResults = await searchDDG(`${userIndustry} business ${region} owner contact`, 10);
+          if (ddgResults.length > 0) {
+            autoGenSearchResults = ddgResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n");
+            console.log(`[Auto Lead Gen] DuckDuckGo provided ${ddgResults.length} results for ${targetUser.email}`);
+          }
+        } catch (ddgErr: any) {
+          console.error("[Auto Lead Gen] DuckDuckGo error:", ddgErr?.message);
+        }
       }
 
       const autoGenSystemPrompt = autoGenSearchResults
@@ -5288,19 +5300,104 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
 
       console.log(`[Auto Lead Gen] Completed for ${targetUser.email}: ${leadsGenerated} leads generated for ${region}`);
 
+      if (leadsGenerated > 0) {
+        await storage.createNotification({
+          userId: targetUser.id,
+          type: "lead",
+          title: "New Leads Discovered",
+          message: `Found ${leadsGenerated} new leads in ${region} for ${userCompanyName}. Outreach being sent now.`,
+          read: false,
+        });
+
+        try {
+          const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, targetUser.id));
+          if (settings && settings.autoLeadGenEnabled) {
+            const hasSendCapability = !!(
+              ((settings as any).senderEmail || process.env.SMTP_USERNAME) &&
+              (((settings as any).smtpHost && (settings as any).smtpUsername && (settings as any).smtpPassword) ||
+               (process.env.SMTP_HOST && process.env.SMTP_USERNAME && process.env.SMTP_PASSWORD) ||
+               (settings as any).sendgridApiKey)
+            );
+
+            if (hasSendCapability) {
+              const runSource = `Auto Lead Gen — ${region}`;
+              const runStartTime = runRecord.startedAt || new Date(Date.now() - 30 * 60 * 1000);
+              const newLeads = await db.select().from(leads)
+                .where(and(
+                  eq(leads.userId, targetUser.id),
+                  isNull(leads.outreachSentAt),
+                  sql`${leads.email} IS NOT NULL AND ${leads.email} != ''`,
+                  sql`${leads.outreach} IS NOT NULL AND ${leads.outreach} != ''`,
+                  sql`${leads.createdAt} >= ${runStartTime}`,
+                  sql`${leads.source} LIKE 'Auto Lead Gen%'`
+                ));
+
+              if (newLeads.length > 0) {
+                console.log(`[Auto Lead Gen] Instant outreach: sending to ${newLeads.length} new leads for ${targetUser.email}...`);
+                let sent = 0, failed = 0;
+                for (const lead of newLeads) {
+                  try {
+                    const claimResult = await db.update(leads)
+                      .set({ outreachSentAt: new Date() })
+                      .where(and(eq(leads.id, lead.id), isNull(leads.outreachSentAt)))
+                      .returning({ id: leads.id });
+                    if (!claimResult.length) continue;
+
+                    const result = await sendOutreachEmail(lead, settings, targetUser);
+                    if (result.success) {
+                      sent++;
+                      await db.update(leads).set({
+                        status: "contacted",
+                        followUpStep: 0,
+                        followUpStatus: "active",
+                        followUpNextAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+                      }).where(eq(leads.id, lead.id));
+                      try {
+                        await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "sent", provider: "smtp", source: "auto-lead-gen-instant" });
+                      } catch {}
+                    } else {
+                      failed++;
+                      await db.update(leads).set({ outreachSentAt: null }).where(eq(leads.id, lead.id));
+                      try {
+                        await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "auto-lead-gen-instant", errorMessage: result.error });
+                      } catch {}
+                    }
+                    await new Promise(r => setTimeout(r, 2000));
+                  } catch (emailErr: any) {
+                    failed++;
+                    await db.update(leads).set({ outreachSentAt: null }).where(eq(leads.id, lead.id));
+                  }
+                }
+                if (sent > 0) {
+                  console.log(`[Auto Lead Gen] Instant outreach: ${sent} sent, ${failed} failed for ${targetUser.email}`);
+                  await storage.createNotification({
+                    userId: targetUser.id,
+                    type: "email",
+                    title: "Instant Outreach Sent",
+                    message: `Automatically sent ${sent} outreach email${sent > 1 ? 's' : ''} to new leads in ${region}.`,
+                    read: false,
+                  });
+                }
+              }
+            }
+          }
+        } catch (outreachErr: any) {
+          console.error(`[Auto Lead Gen] Instant outreach error for ${targetUser.email}:`, outreachErr.message);
+        }
+      }
+
     } catch (error: any) {
       console.error(`[Auto Lead Gen] Error for user ${targetUser.email}:`, error?.message);
     }
   }
 
-  // Auto lead gen runs every 5 hours with initial delay of 5 minutes
   setTimeout(() => {
     runAutoLeadGeneration().catch(err => console.error("[Auto Lead Gen] Initial run error:", err));
     setInterval(() => {
       runAutoLeadGeneration().catch(err => console.error("[Auto Lead Gen] Scheduled run error:", err));
     }, AUTO_LEAD_GEN_INTERVAL);
-  }, 5 * 60 * 1000);
-  console.log("[Auto Lead Gen] Scheduled to run every 5 hours. First run in 5 minutes.");
+  }, 4 * 60 * 1000);
+  console.log("[Auto Lead Gen] Scheduled to run every 30 minutes for ALL subscribers. First run in 4 minutes.");
 
   // API: Get auto lead gen status & history
   app.get("/api/auto-lead-gen/status", isAuthenticated, async (req, res) => {
@@ -5312,7 +5409,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
       res.json({
         enabled: !!settings?.autoLeadGenEnabled,
         hasApiKey: !!(settings?.anthropicApiKey && settings.anthropicApiKey.startsWith("sk-ant-")),
-        intervalHours: 5,
+        intervalMinutes: 30,
         batchSize: AUTO_LEAD_GEN_BATCH_SIZE,
         totalLeadsGenerated: totalLeads,
         runs,
