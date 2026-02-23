@@ -5027,27 +5027,59 @@ Return ONLY the email reply text, no subject line, no markdown.`
 
       const userIndustry = targetUser.industry || "business services";
       const userCompanyName = targetUser.companyName || "our company";
+      const isMedBilling = /medical billing|rcm|revenue cycle/i.test(userIndustry);
+      const searchIndustry = isMedBilling
+        ? "healthcare providers medical practices doctors offices clinics hospitals needing medical billing RCM services"
+        : userIndustry;
 
-      console.log(`[Auto Lead Gen] Starting run for user ${targetUser.email} — ${region} — ${userIndustry}`);
+      console.log(`[Auto Lead Gen] Starting run for user ${targetUser.email} — ${region} — ${searchIndustry}`);
 
       const [runRecord] = await db.insert(autoLeadGenRuns).values({
         userId: targetUser.id,
         status: "running",
-        searchQueries: `${region}: ${userIndustry}`,
+        searchQueries: `${region}: ${searchIndustry}`,
         startedAt: new Date(),
       }).returning();
 
       const userAnthropicClient = userAi.client;
       const userModelName = userAi.model;
 
-      const autoGenPrompt = `You are an automated lead hunter for ${userCompanyName} (industry: ${userIndustry}). Your ONLY job is to find ${AUTO_LEAD_GEN_BATCH_SIZE} REAL businesses in ${region} that could be potential clients.
+      const medBillingContext = isMedBilling ? `
+INDUSTRY FOCUS: Medical Billing & Revenue Cycle Management (RCM) ONLY.
+You are finding HEALTHCARE PROVIDERS who need medical billing and RCM services — these are your BUYERS.
 
-TASK: Find ${AUTO_LEAD_GEN_BATCH_SIZE} businesses in ${region} that match the user's target market for ${userIndustry}.
+TARGET PROSPECTS (who to find):
+- Medical practices, physician offices, doctor's offices
+- Specialty clinics (dermatology, cardiology, orthopedics, pediatrics, OB/GYN, etc.)
+- Urgent care centers, walk-in clinics
+- Outpatient surgery centers, ambulatory surgical centers
+- Small hospitals, community health centers, FQHCs
+- Mental health / behavioral health practices
+- Physical therapy, chiropractic, dental offices
+- Home health agencies, hospice providers
+- Independent physician groups, medical groups
+
+DO NOT TARGET (these are competitors, not buyers):
+- Other medical billing companies
+- RCM service providers
+- Healthcare IT companies that sell billing software
+- Insurance companies, payers, clearinghouses
+
+SEARCH TERMS TO USE:
+- "medical practice ${region} contact", "doctor office ${region} phone email"
+- "physician ${region} practice owner", "clinic ${region} owner director"
+- "healthcare provider ${region} contact information"
+- "new medical practice ${region}", "physician opening practice ${region}"
+` : "";
+
+      const autoGenPrompt = `You are an automated lead hunter for ${userCompanyName} (industry: ${userIndustry}). Your ONLY job is to find ${AUTO_LEAD_GEN_BATCH_SIZE} REAL businesses in ${region} that could be potential clients.
+${medBillingContext}
+TASK: Find ${AUTO_LEAD_GEN_BATCH_SIZE} businesses in ${region} that match the user's target market for ${searchIndustry}.
 
 CRITICAL: Find businesses that would BUY from ${userCompanyName}, NOT competitors who sell similar services.
 
 SEARCH STRATEGY:
-1. Use web_search to find REAL businesses related to ${userIndustry} in ${region}:
+1. Use web_search to find REAL businesses related to ${searchIndustry} in ${region}:
    - Search "[industry keyword] ${region}" and "[business type] ${region} contact"
 2. For each business found, do follow-up searches for the DECISION MAKER (Owner, CEO, Director):
    - "[business name] owner" or "[business name] CEO" or "[business name] director"
@@ -5057,7 +5089,7 @@ SEARCH STRATEGY:
 4. ONLY save businesses where you found REAL, verified contact information
 
 DECISION MAKER TARGETING:
-- Target: CEO, Founder, Owner, President, Director, VP, Partner, Managing Director
+- Target: CEO, Founder, Owner, President, Director, VP, Partner, Managing Director${isMedBilling ? ", Practice Administrator, Office Manager, Billing Manager" : ""}
 - NEVER target receptionists, front desk staff, assistants, or coordinators
 
 CONTACT INFO RULES (MANDATORY):
@@ -5069,7 +5101,7 @@ CONTACT INFO RULES (MANDATORY):
 - Each lead MUST have BOTH a real phone number AND a real email from actual webpages — leads missing either are REJECTED
 
 SCORING:
-- Business actively looking for services like ${userIndustry}: score 85+
+- Business actively looking for services like ${searchIndustry}: score 85+
 - New business (< 1 year old): score 75+
 - Small business (< 50 employees): score 70+
 - Decision maker (owner/CEO/director) found with direct contact: +25
@@ -5088,7 +5120,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               api_key: tavilyKey2,
-              query: `${userIndustry} business ${region} owner CEO contact phone email`,
+              query: `${searchIndustry} ${region} owner CEO contact phone email`,
               search_depth: "advanced",
               max_results: 10,
               include_answer: true,
@@ -5110,7 +5142,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
 
       if (!autoGenSearchResults.trim()) {
         try {
-          const ddgResults = await searchDDG(`${userIndustry} business ${region} owner contact`, 10);
+          const ddgResults = await searchDDG(`${searchIndustry} ${region} owner contact`, 10);
           if (ddgResults.length > 0) {
             autoGenSearchResults = ddgResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n");
             console.log(`[Auto Lead Gen] DuckDuckGo provided ${ddgResults.length} results for ${targetUser.email}`);
