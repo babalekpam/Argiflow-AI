@@ -426,11 +426,12 @@ export default function SalesFunnelsPage() {
 
   const syncPipelineMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/leads/sync-funnel-stages");
+      const res = await apiRequest("POST", "/api/leads/sync-funnel-stages", { funnelId: selectedFunnelId });
       return res.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       if (selectedFunnelId) {
         queryClient.invalidateQueries({ queryKey: ["/api/funnels", selectedFunnelId, "deals"] });
         queryClient.invalidateQueries({ queryKey: ["/api/funnels", selectedFunnelId, "stages"] });

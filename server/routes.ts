@@ -2,8 +2,8 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, sql, desc } from "drizzle-orm";
-import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, emailLogs } from "@shared/schema";
+import { eq, and, sql, desc } from "drizzle-orm";
+import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnels, emailLogs } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
@@ -3631,12 +3631,20 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
   app.post("/api/leads/sync-funnel-stages", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const funnelInfo = await findOrCreateAgentFunnel(userId, "medical-billing");
-      if (!funnelInfo) {
-        return res.status(500).json({ message: "No sales pipeline found" });
+      const requestedFunnelId = req.body.funnelId as string | undefined;
+
+      let targetFunnelId: string;
+      if (requestedFunnelId) {
+        const funnel = await db.select().from(funnels).where(and(eq(funnels.id, requestedFunnelId), eq(funnels.userId, userId))).limit(1);
+        if (!funnel.length) return res.status(404).json({ message: "Funnel not found" });
+        targetFunnelId = requestedFunnelId;
+      } else {
+        const funnelInfo = await findOrCreateAgentFunnel(userId, "medical-billing");
+        if (!funnelInfo) return res.status(500).json({ message: "No sales pipeline found" });
+        targetFunnelId = funnelInfo.funnelId;
       }
 
-      const stages = await storage.getFunnelStages(funnelInfo.funnelId);
+      const stages = await storage.getFunnelStages(targetFunnelId);
       const stageMap: Record<string, string> = {};
       for (const s of stages) {
         stageMap[s.name.toLowerCase().replace(/\s+/g, "")] = s.id;
@@ -3653,7 +3661,7 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
       const contactedLeads = allLeads.filter(l => l.outreachSentAt);
       const hotLeads = allLeads.filter(l => l.status === "hot" && l.outreachSentAt);
 
-      const existingDeals = await storage.getFunnelDeals(funnelInfo.funnelId);
+      const existingDeals = await storage.getFunnelDeals(targetFunnelId);
       const existingEmails = new Set(existingDeals.map(d => (d.contactEmail || "").toLowerCase().trim()).filter(Boolean));
 
       let added = 0;
@@ -3675,7 +3683,7 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
 
         const targetStage = lead.status === "hot" ? qualifiedStageId : contactedStageId;
         await storage.createFunnelDeal({
-          funnelId: funnelInfo.funnelId,
+          funnelId: targetFunnelId,
           stageId: targetStage,
           userId,
           contactName: lead.name || "",
@@ -3687,10 +3695,38 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
         added++;
       }
 
+      const proposalStageId = stageMap["proposalsent"] || stages[3]?.id;
+      const wonStageId = stageMap["closedwon"] || stages[4]?.id;
+      const allLeadEmails = new Set(allLeads.map(l => (l.email || "").toLowerCase().trim()).filter(Boolean));
+      let createdInCrm = 0;
+      const refreshedDeals = await storage.getFunnelDeals(targetFunnelId);
+      for (const deal of refreshedDeals) {
+        const dealEmail = (deal.contactEmail || "").toLowerCase().trim();
+        if (!dealEmail || allLeadEmails.has(dealEmail)) continue;
+
+        let crmStatus = "new";
+        if (deal.stageId === contactedStageId) crmStatus = "contacted";
+        else if (deal.stageId === qualifiedStageId) crmStatus = "qualified";
+        else if (deal.stageId === proposalStageId) crmStatus = "proposal";
+        else if (deal.stageId === wonStageId) crmStatus = "won";
+
+        await storage.createLead({
+          userId,
+          name: deal.contactName || "",
+          email: deal.contactEmail || "",
+          source: "sales-funnel",
+          status: crmStatus,
+          score: crmStatus === "won" ? 100 : crmStatus === "proposal" ? 80 : crmStatus === "qualified" ? 60 : crmStatus === "contacted" ? 40 : 0,
+        });
+        allLeadEmails.add(dealEmail);
+        createdInCrm++;
+      }
+
       res.json({
-        message: `Synced pipeline: ${added} new deals added, ${moved} deals moved to correct stage`,
+        message: `Synced pipeline: ${added} deals added to funnel, ${moved} deals moved, ${createdInCrm} leads created in CRM`,
         added,
         moved,
+        createdInCrm,
         totalContactedLeads: contactedLeads.length,
         totalHotLeads: hotLeads.length,
       });
