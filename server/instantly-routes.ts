@@ -1004,7 +1004,7 @@ router.delete("/email-templates/:id", async (req, res) => {
 // INSTANTLY ANALYTICS DASHBOARD
 // ============================================================
 
-router.get("/instantly/dashboard", async (req, res) => {
+router.get("/analytics/dashboard", async (req, res) => {
   try {
     const userId = getUserId(req);
 

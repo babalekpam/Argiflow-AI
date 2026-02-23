@@ -1259,7 +1259,7 @@ function DfySetupTab() {
 
 function AnalyticsTab() {
   const { data: dashboard, isLoading } = useQuery<any>({
-    queryKey: ["/api/instantly/instantly/dashboard"],
+    queryKey: ["/api/instantly/analytics/dashboard"],
   });
 
   if (isLoading) return <LoadingCards count={6} />;
