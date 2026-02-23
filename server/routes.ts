@@ -668,6 +668,9 @@ async function executeAction(userId: string, action: string, params: any): Promi
 
       const duplicates: string[] = [];
 
+      const _userRecord = await storage.getUser(userId);
+      const _userIsMedBilling = _userRecord && /medical billing|rcm|revenue cycle/i.test(_userRecord.industry || "");
+
       for (const lead of leadsData.slice(0, 30)) {
         if (isFakeName(lead.name)) {
           skipped.push(lead.name || "unnamed");
@@ -693,6 +696,24 @@ async function executeAction(userId: string, action: string, params: any): Promi
           skipped.push(`${lead.name || "unnamed"} (competitor — billing company)`);
           console.warn(`[Lead Filter] Rejected COMPETITOR billing company: "${lead.company}"`);
           continue;
+        }
+
+        if (_userIsMedBilling) {
+          const companyText = `${lead.company || ""} ${lead.notes || ""} ${lead.intent_signal || lead.intentSignal || ""}`.toLowerCase();
+          const isHealthcareRelated = /\b(medical|medic|health|healthcare|clinic|practice|physician|doctor|dr\b|dds|dmd|dental|dentist|dent|chiropractic|chiropract|optometr|ophthalm|dermatolog|cardiol|orthoped|pediatr|ob.?gyn|urol|neurolog|oncolog|gastro|pulmon|nephrol|endocrin|rheumatol|allerg|immunol|podiatr|psychiatr|psycholog|therap|physical therapy|pt\b|ot\b|speech|urgent care|walk.?in|surgery center|surgical|ambulatory|hospital|hospice|home health|nursing|assisted living|rehab|behavioral|mental health|wellness|pharma|laboratory|lab\b|radiology|imaging|patholog|anesthes|pain management|family medicine|internal medicine|primary care|community health|fqhc|veteran|va\b|med\s*spa|aesthetic|cosmetic|plastic surg|oral surg|periodon|endodont|orthodont|prosthodont)\b/.test(companyText);
+          if (!isHealthcareRelated) {
+            if (isBillingCompetitor(lead.company, lead.notes)) {
+              skipped.push(`${lead.name || "unnamed"} (competitor — billing company)`);
+              console.warn(`[Lead Filter] Rejected COMPETITOR for med-billing user: "${lead.company}"`);
+              continue;
+            }
+            const isNonMedical = /\b(capital management|financial|investment|wealth|insurance agency|accounting firm|law firm|legal|attorney|real estate|realty|mortgage|construction|roofing|plumbing|hvac|electric|landscap|auto\s*(body|repair|shop)|restaurant|cafe|bar\b|hotel|motel|retail|clothing|fashion|jewelry|salon\b|barbershop|grooming|pet\b|veterinar|cleaning|janitorial|marketing agency|advertising|consulting group|staffing|recruiting|logistics|transport|freight|warehouse|manufactur|wholesale|distribution|tech startup|software company|it services|web design|seo agency)\b/.test(companyText);
+            if (isNonMedical) {
+              skipped.push(`${lead.name || "unnamed"} (not healthcare — ${lead.company})`);
+              console.warn(`[Lead Filter] Rejected non-healthcare lead for med-billing user: "${lead.company}"`);
+              continue;
+            }
+          }
         }
         const hasRealEmail = lead.email && lead.email.trim().length > 3 && lead.email.includes("@") && lead.email.includes(".");
         const hasRealPhone = lead.phone && lead.phone.replace(/\D/g, '').length >= 10;
