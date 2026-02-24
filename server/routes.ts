@@ -751,6 +751,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
           email: lead.email || "",
           phone: normalizePhoneNumber(lead.phone),
           company: lead.company || "",
+          address: lead.address || "",
           source: standardSource || lead.source || "Web Research",
           status: lead.status || "new",
           score: lead.score || randomInt(50, 85),
@@ -1461,7 +1462,7 @@ LEAD GENERATION (when requested):
 2. Intent-based prospecting: find companies actively seeking services (RFPs, job listings, forum posts, competitor complaints). Score: 80-100 active seekers, 60-79 intent signals, 40-59 profile match only.
 3. Extract REAL contact details from web results — real names, real phone numbers, real email addresses.
 4. STRICT FORBIDDEN DATA: Never use "Prospect 1", "test@test.com", "contact1@prospect.com", or any indexed/generic placeholders. If you cannot find real data, DO NOT create the lead.
-5. EVERY lead MUST include: name (Real Person), email (Real Email), phone (Real Phone), company (Real Business), source, status="new", score, intent_signal, notes, outreach (personalized 3-5 sentence email).${bookingLink ? ` Include booking link in outreach: ${bookingLink}` : ' Include CTA: "Would you be open to a 15-minute call this week?"'}
+5. EVERY lead MUST include: name (Real Person), email (Real Email), phone (Real Phone), company (Real Business), address (Physical street address, city, state, zip), source, status="new", score, intent_signal, notes, outreach (personalized 3-5 sentence email).${bookingLink ? ` Include booking link in outreach: ${bookingLink}` : ' Include CTA: "Would you be open to a 15-minute call this week?"'}
 6. End EVERY outreach email with this EXACT multi-line signature block (copy it verbatim):
 
 Best regards,
@@ -1544,6 +1545,7 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
                 email: { type: "string", description: "Real email from website/directory" },
                 phone: { type: "string", description: "Real phone from website/directory" },
                 company: { type: "string", description: "Company name" },
+                address: { type: "string", description: "Physical address of the practice/business (street, city, state, zip). Extract from search results." },
                 source: { type: "string", description: "Where found: Web Research, Google, LinkedIn, etc." },
                 status: { type: "string", description: "Must be 'new'" },
                 score: { type: "number", description: "1-100 based on intent signals" },
@@ -4073,12 +4075,17 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
               }
             }
 
+            if (result.address) {
+              updates.address = result.address;
+              changed = true;
+            }
+
             if (changed) {
               const enrichNote = `[DECISION MAKER FOUND ${new Date().toLocaleDateString()}] ${result.title || ""} — ${result.source || "web search"} (${result.confidence} confidence). ${result.notes || ""}`;
               updates.notes = lead.notes ? `${enrichNote}\n\n${lead.notes}` : enrichNote;
               await storage.updateLead(lead.id, updates);
               enrichmentProgress.enriched++;
-              console.log(`[DM-ENRICH] Updated ${lead.company}: name=${updates.name || "unchanged"}, email=${updates.email || "unchanged"}, phone=${updates.phone || "unchanged"}`);
+              console.log(`[DM-ENRICH] Updated ${lead.company}: name=${updates.name || "unchanged"}, email=${updates.email || "unchanged"}, phone=${updates.phone || "unchanged"}, address=${updates.address || "unchanged"}`);
             } else {
               enrichmentProgress.failed++;
             }
@@ -4155,11 +4162,16 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
         }
       }
 
+      if (result.address && result.address !== lead.address) {
+        updates.address = result.address;
+        changed = true;
+      }
+
       if (changed) {
         const enrichNote = `[DECISION MAKER FOUND ${new Date().toLocaleDateString()}] ${result.title || ""} — ${result.source || "web search"} (${result.confidence} confidence). ${result.notes || ""}`;
         updates.notes = lead.notes ? `${enrichNote}\n\n${lead.notes}` : enrichNote;
         await storage.updateLead(lead.id, updates);
-        console.log(`[DM-ENRICH] Updated ${lead.company}: name=${updates.name || "unchanged"}, email=${updates.email || "unchanged"}, phone=${updates.phone || "unchanged"}`);
+        console.log(`[DM-ENRICH] Updated ${lead.company}: name=${updates.name || "unchanged"}, email=${updates.email || "unchanged"}, phone=${updates.phone || "unchanged"}, address=${updates.address || "unchanged"}`);
       }
 
       res.json({ message: changed ? "Decision maker found and lead updated" : "Decision maker search completed — no better data found", result, updated: changed, updates: changed ? updates : null });
@@ -4250,12 +4262,17 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
               }
             }
 
+            if (result.address) {
+              updates.address = result.address;
+              changed = true;
+            }
+
             if (changed) {
               const enrichNote = `[DECISION MAKER FOUND ${new Date().toLocaleDateString()}] ${result.title || ""} — ${result.source || "web search"} (${result.confidence} confidence). ${result.notes || ""}`;
               updates.notes = lead.notes ? `${enrichNote}\n\n${lead.notes}` : enrichNote;
               await storage.updateLead(lead.id, updates);
               enrichmentProgress.enriched++;
-              console.log(`[DM-ENRICH] Updated ${lead.company}: name=${updates.name || "unchanged"}, email=${updates.email || "unchanged"}, phone=${updates.phone || "unchanged"}`);
+              console.log(`[DM-ENRICH] Updated ${lead.company}: name=${updates.name || "unchanged"}, email=${updates.email || "unchanged"}, phone=${updates.phone || "unchanged"}, address=${updates.address || "unchanged"}`);
             } else {
               enrichmentProgress.failed++;
             }
@@ -5196,7 +5213,7 @@ SCORING:
 - Decision maker (owner/CEO/director) found with direct contact: +25
 - Shows intent signals (hiring, complaints, RFPs): +15
 
-For EACH lead provide: name (decision maker), email, phone, company, source ("Auto Lead Gen — ${region}"), status "new", score (40-95), intent_signal (why they're a good prospect), notes (role + company details + where contact info was found), outreach (personalized 3-5 sentence email about how ${userCompanyName} can help them). EVERY outreach email MUST end with this EXACT multi-line signature block (copy verbatim, each field on its own line):
+For EACH lead provide: name (decision maker), email, phone, company, address (physical street address, city, state, zip — extract from Google Maps, Yelp, BBB, or website), source ("Auto Lead Gen — ${region}"), status "new", score (40-95), intent_signal (why they're a good prospect), notes (role + company details + where contact info was found), outreach (personalized 3-5 sentence email about how ${userCompanyName} can help them). EVERY outreach email MUST end with this EXACT multi-line signature block (copy verbatim, each field on its own line):
 
 Best regards,
 ${targetUser.firstName || ""} ${targetUser.lastName || ""}
@@ -5293,6 +5310,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                     email: { type: "string" as const },
                     phone: { type: "string" as const },
                     company: { type: "string" as const },
+                    address: { type: "string" as const, description: "Physical address of the business (street, city, state, zip)" },
                     source: { type: "string" as const },
                     status: { type: "string" as const },
                     score: { type: "number" as const },
@@ -5776,7 +5794,7 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} sp
 - Multiple lead signals: +10 bonus
 - Has billing-related complaints in reviews: +10 bonus
 
-For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone, company (practice name), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + practice details + where contact was found + practice size if known), outreach (use the appropriate template based on the lead's tier):
+For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone, company (practice name), address (physical street address, city, state, zip — extract from Google Maps, Yelp, or website), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + practice details + where contact was found + practice size if known), outreach (use the appropriate template based on the lead's tier):
 
 ## TEMPLATE SELECTION RULES:
 - **Tier 1 (Hot) and Tier 2 (Warm) leads**: Alternate between Template A and Template B
@@ -5950,6 +5968,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                     email: { type: "string" as const },
                     phone: { type: "string" as const },
                     company: { type: "string" as const, description: "Practice name" },
+                    address: { type: "string" as const, description: "Physical address of the practice (street, city, state, zip)" },
                     source: { type: "string" as const },
                     status: { type: "string" as const },
                     score: { type: "number" as const },
@@ -6091,7 +6110,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         currentMessages.push({ role: "assistant", content: response.content as any });
         currentMessages.push({
           role: "user",
-          content: `You MUST now call the generate_leads tool with all the medical practice leads you found. Each lead needs the DECISION MAKER name (Owner, CEO, Administrator), email, phone, company (practice name), source "MedBill Lead Gen", status "new", score, intent_signal, notes (title + specialty), outreach. Use agent_type="medical-billing". NEVER fabricate contacts. Skip leads without real verified contact info.`,
+          content: `You MUST now call the generate_leads tool with all the medical practice leads you found. Each lead needs the DECISION MAKER name (Owner, CEO, Administrator), email, phone, company (practice name), address (physical street address, city, state, zip), source "MedBill Lead Gen", status "new", score, intent_signal, notes (title + specialty), outreach. Use agent_type="medical-billing". NEVER fabricate contacts. Skip leads without real verified contact info.`,
         });
 
         let retryResp = await medBillClaudeCall({
@@ -8414,6 +8433,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
                         email: { type: "string", description: "Real email address found via web search" },
                         phone: { type: "string", description: "Real phone number" },
                         company: { type: "string", description: "Real company or property name" },
+                        address: { type: "string", description: "Physical address of the business (street, city, state, zip)" },
                         source: { type: "string" },
                         status: { type: "string" },
                         score: { type: "number" },

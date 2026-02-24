@@ -1031,18 +1031,19 @@ SCORING GUIDE:
     email: string | null;
     phone: string | null;
     linkedinUrl: string | null;
+    address: string | null;
     confidence: string;
     notes: string;
     source: string;
   }> {
     try {
       const company = data.company;
-      if (!company) return { name: null, title: null, email: null, phone: null, linkedinUrl: null, confidence: "low", notes: "No company provided", source: "" };
+      if (!company) return { name: null, title: null, email: null, phone: null, linkedinUrl: null, address: null, confidence: "low", notes: "No company provided", source: "" };
 
       const searches: Promise<any>[] = [
-        tavilySearchRaw(`"${company}" owner OR CEO OR founder OR physician OR "managing partner" OR director contact`).catch(() => null),
-        tavilySearchRaw(`"${company}" practice owner dentist doctor chiropractor email phone`).catch(() => null),
-        tavilySearchRaw(`"${company}" team leadership about us staff`).catch(() => null),
+        tavilySearchRaw(`"${company}" owner OR CEO OR founder OR physician OR "managing partner" OR director contact address`).catch(() => null),
+        tavilySearchRaw(`"${company}" practice owner dentist doctor chiropractor email phone address`).catch(() => null),
+        tavilySearchRaw(`"${company}" team leadership about us staff location`).catch(() => null),
       ];
 
       const searchResults = await Promise.all(searches);
@@ -1058,7 +1059,7 @@ SCORING GUIDE:
       }
 
       if (allContent.length === 0) {
-        return { name: null, title: null, email: null, phone: null, linkedinUrl: null, confidence: "low", notes: "No web results found", source: "" };
+        return { name: null, title: null, email: null, phone: null, linkedinUrl: null, address: null, confidence: "low", notes: "No web results found", source: "" };
       }
 
       const searchContent = allContent.join("\n\n---\n\n");
@@ -1083,6 +1084,7 @@ INSTRUCTIONS:
 5. Extract their REAL email and phone from search results — NEVER fabricate
 6. If you can find a personal/direct email (like firstname@domain.com), prefer that over info@ or contact@ emails
 7. If the current contact IS already the decision maker, confirm and enhance their info
+8. Find the PHYSICAL ADDRESS of the practice/business — street address, city, state, zip code
 
 Return JSON:
 {
@@ -1091,12 +1093,13 @@ Return JSON:
   "email": "their email from search results, or null if not found",
   "phone": "their phone from search results, or null if not found",
   "linkedinUrl": "LinkedIn URL if found, or null",
+  "address": "Full physical address (e.g., 123 Main St, Suite 200, Chicago, IL 60601), or null if not found",
   "confidence": "high (found in multiple sources) | medium (found in one source) | low (inferred/uncertain)",
   "notes": "How you identified this person as the decision maker",
   "source": "Primary URL where found"
 }
 
-CRITICAL: Only return data you actually found in the search results. Use null for anything you cannot verify. Never return phone numbers with 555. Never fabricate emails.`
+CRITICAL: Only return data you actually found in the search results. Use null for anything you cannot verify. Never return phone numbers with 555. Never fabricate emails. Never fabricate addresses.`
       );
 
       return {
@@ -1105,13 +1108,14 @@ CRITICAL: Only return data you actually found in the search results. Use null fo
         email: result.email && result.email !== "null" ? result.email : null,
         phone: result.phone && result.phone !== "null" ? result.phone : null,
         linkedinUrl: result.linkedinUrl && result.linkedinUrl !== "null" ? result.linkedinUrl : null,
+        address: result.address && result.address !== "null" ? result.address : null,
         confidence: result.confidence || "low",
         notes: result.notes || "",
         source: result.source || allSources[0] || "",
       };
     } catch (err: any) {
       console.error("[Intelligence] Find decision maker error:", err.message);
-      return { name: null, title: null, email: null, phone: null, linkedinUrl: null, confidence: "low", notes: `Error: ${err.message}`, source: "" };
+      return { name: null, title: null, email: null, phone: null, linkedinUrl: null, address: null, confidence: "low", notes: `Error: ${err.message}`, source: "" };
     }
   }
 

@@ -68,6 +68,7 @@ import {
   Microscope,
   Zap,
   UserSearch,
+  MapPin,
 } from "lucide-react";
 import type { Lead, Business, EmailReply } from "@shared/schema";
 import { useState, useEffect, useMemo } from "react";
@@ -369,6 +370,12 @@ function LeadCard({
               <span className="flex items-center gap-1" data-testid={`text-lead-phone-${lead.id}`}>
                 <Phone className="w-3 h-3" />
                 {lead.phone}
+              </span>
+            )}
+            {lead.address && (
+              <span className="flex items-center gap-1" data-testid={`text-lead-address-${lead.id}`}>
+                <MapPin className="w-3 h-3" />
+                {lead.address}
               </span>
             )}
           </div>
