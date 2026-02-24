@@ -36,6 +36,8 @@ import { registerAgencyRoutes } from "./agency-routes";
 import { registerGhlRoutes } from "./ghl-routes";
 import { startSequenceAutomationEngine, stopSequencesForLead, stopSequencesForDeal, autoEnrollLeadInSequence, getAutomationStatus, processSequenceAutomation } from "./sequence-automation";
 
+let tavilyRateLimitedUntil = 0;
+
 function normalizePhoneNumber(phone: string | undefined | null): string {
   if (!phone) return "";
   const digits = phone.replace(/\D/g, '');
@@ -1657,41 +1659,36 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
         const searchQuery = `${userMessage.slice(0, 100)} ${industryContext} contact phone email`;
         let preSearchResults: any[] = [];
 
-        if (process.env.TAVILY_API_KEY) {
-          const tRes = await fetch("https://api.tavily.com/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ api_key: process.env.TAVILY_API_KEY, query: searchQuery, search_depth: "advanced", max_results: 15, include_answer: true }),
-          });
-          const tData = await tRes.json() as any;
-          if (tRes.ok && !tData.detail) {
-            preSearchResults = tData.results || [];
-            if (preSearchResults.length > 0) {
-              preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real business contacts):\n${tData.answer || ""}\n${preSearchResults.map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`).join("\n\n")}`;
+        if (process.env.TAVILY_API_KEY && Date.now() > tavilyRateLimitedUntil) {
+          try {
+            const tRes = await fetch("https://api.tavily.com/search", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ api_key: process.env.TAVILY_API_KEY, query: searchQuery, search_depth: "advanced", max_results: 15, include_answer: true }),
+              signal: AbortSignal.timeout(15000),
+            });
+            const tData = await tRes.json() as any;
+            if (tRes.ok && !tData.detail) {
+              preSearchResults = tData.results || [];
+              if (preSearchResults.length > 0) {
+                preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real business contacts):\n${tData.answer || ""}\n${preSearchResults.map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`).join("\n\n")}`;
+              }
+            } else {
+              console.warn("[Pre-search] Tavily error:", JSON.stringify(tData.detail || tData).slice(0, 200));
+              if (tRes.status === 429 || tRes.status === 432) {
+                tavilyRateLimitedUntil = Date.now() + 30 * 60 * 1000;
+                console.log("[Pre-search] Tavily rate-limited — skipping for 30 min");
+              }
             }
-          } else {
-            console.warn("[Pre-search] Tavily error:", JSON.stringify(tData.detail || tData).slice(0, 200));
+          } catch (tavErr: any) {
+            console.warn("[Pre-search] Tavily fetch error:", tavErr?.message);
           }
-        }
-
-        if (preSearchResults.length === 0 && process.env.YOU_API_KEY) {
-          console.log("[Pre-search] Trying You.com as fallback...");
-          const youRes = await fetch(`https://api.ydc-index.io/search?query=${encodeURIComponent(searchQuery)}`, {
-            headers: { "X-API-Key": process.env.YOU_API_KEY, "Accept": "application/json" },
-            signal: AbortSignal.timeout(10000),
-          });
-          if (youRes.ok) {
-            const youData = await youRes.json() as any;
-            const hits = youData.hits || youData.results || [];
-            if (hits.length > 0) {
-              preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real business contacts):\n${hits.slice(0, 15).map((h: any) => `Source: ${h.url || "N/A"}\nTitle: ${h.title || "N/A"}\n${h.description || (h.snippets || []).join(" ") || ""}`).join("\n\n")}`;
-              console.log(`[Pre-search] You.com returned ${hits.length} results`);
-            }
-          }
+        } else if (process.env.TAVILY_API_KEY) {
+          console.log("[Pre-search] Tavily rate-limited — using fallbacks");
         }
 
         if (!preSearchContext) {
-          console.log("[Pre-search] Paid APIs failed, trying DuckDuckGo free fallback...");
+          console.log("[Pre-search] Trying DuckDuckGo...");
           try {
             const ddgResults = await searchDDG(searchQuery, 15);
             if (ddgResults.length > 0) {
@@ -1700,6 +1697,19 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
             }
           } catch (ddgErr: any) {
             console.warn("[Pre-search] DuckDuckGo error:", ddgErr?.message);
+          }
+        }
+
+        if (!preSearchContext) {
+          console.log("[Pre-search] Trying Bing...");
+          try {
+            const bingResults = await searchBing(searchQuery, 15);
+            if (bingResults.length > 0) {
+              preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real business contacts):\n${bingResults.map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.snippet || ""}`).join("\n\n")}`;
+              console.log(`[Pre-search] Bing returned ${bingResults.length} results`);
+            }
+          } catch (bingErr: any) {
+            console.warn("[Pre-search] Bing error:", bingErr?.message);
           }
         }
         if (!preSearchContext) {
@@ -1747,28 +1757,61 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
             const youApiKey = process.env.YOU_API_KEY;
             let searchResults: string[] = [];
 
-            if (tavilyKey) {
-              const searchRes = await fetch("https://api.tavily.com/search", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  api_key: tavilyKey,
-                  query,
-                  search_depth: "advanced",
-                  max_results: 10,
-                  include_raw_content: false,
-                }),
-              });
-              const searchData = await searchRes.json() as any;
-              if (!searchRes.ok || searchData.detail) {
-                console.error(`[AI Tool] Tavily API error (${searchRes.status}):`, JSON.stringify(searchData.detail || searchData).slice(0, 300));
-              } else {
-                searchResults = (searchData.results || []).map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nSnippet: ${r.content?.slice(0, 500)}`);
+            if (tavilyKey && Date.now() > tavilyRateLimitedUntil) {
+              try {
+                const searchRes = await fetch("https://api.tavily.com/search", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    api_key: tavilyKey,
+                    query,
+                    search_depth: "advanced",
+                    max_results: 10,
+                    include_raw_content: false,
+                  }),
+                  signal: AbortSignal.timeout(15000),
+                });
+                const searchData = await searchRes.json() as any;
+                if (!searchRes.ok || searchData.detail) {
+                  console.error(`[AI Tool] Tavily API error (${searchRes.status}):`, JSON.stringify(searchData.detail || searchData).slice(0, 300));
+                  if (searchRes.status === 429 || searchRes.status === 432) {
+                    tavilyRateLimitedUntil = Date.now() + 30 * 60 * 1000;
+                    console.log(`[AI Tool] Tavily rate-limited — skipping for 30 minutes`);
+                  }
+                } else {
+                  searchResults = (searchData.results || []).map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nSnippet: ${r.content?.slice(0, 500)}`);
+                }
+              } catch (tavErr: any) {
+                console.error(`[AI Tool] Tavily error:`, tavErr?.message);
+              }
+            } else if (tavilyKey && Date.now() <= tavilyRateLimitedUntil) {
+              console.log(`[AI Tool] Tavily rate-limited — skipping, using fallbacks`);
+            }
+
+            if (searchResults.length === 0) {
+              console.log(`[AI Tool] Trying DuckDuckGo search...`);
+              try {
+                const ddgResults = await searchDDG(query, 10);
+                searchResults = ddgResults.map(r => `Title: ${r.title}\nURL: ${r.url}\nSnippet: ${r.snippet || "N/A"}`);
+                if (searchResults.length > 0) console.log(`[AI Tool] DuckDuckGo returned ${searchResults.length} results`);
+              } catch (ddgErr: any) {
+                console.error(`[AI Tool] DuckDuckGo search error:`, ddgErr?.message);
+              }
+            }
+
+            if (searchResults.length === 0) {
+              console.log(`[AI Tool] DuckDuckGo failed, trying Bing...`);
+              try {
+                const bingResults = await searchBing(query, 10);
+                searchResults = bingResults.map(r => `Title: ${r.title}\nURL: ${r.url}\nSnippet: ${r.snippet || "N/A"}`);
+                if (searchResults.length > 0) console.log(`[AI Tool] Bing returned ${searchResults.length} results`);
+              } catch (bingErr: any) {
+                console.error(`[AI Tool] Bing search error:`, bingErr?.message);
               }
             }
 
             if (searchResults.length === 0 && youApiKey) {
-              console.log(`[AI Tool] Tavily failed/empty, trying You.com search...`);
+              console.log(`[AI Tool] Trying You.com search...`);
               try {
                 const youRes = await fetch(`https://api.ydc-index.io/search?query=${encodeURIComponent(query)}`, {
                   headers: { "X-API-Key": youApiKey, "Accept": "application/json" },
@@ -1785,17 +1828,6 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
                 }
               } catch (youErr: any) {
                 console.error(`[AI Tool] You.com search error:`, youErr?.message);
-              }
-            }
-
-            if (searchResults.length === 0) {
-              console.log(`[AI Tool] Paid search failed, trying DuckDuckGo free fallback...`);
-              try {
-                const ddgResults = await searchDDG(query, 10);
-                searchResults = ddgResults.map(r => `Title: ${r.title}\nURL: ${r.url}\nSnippet: ${r.snippet || "N/A"}`);
-                if (searchResults.length > 0) console.log(`[AI Tool] DuckDuckGo returned ${searchResults.length} results`);
-              } catch (ddgErr: any) {
-                console.error(`[AI Tool] DuckDuckGo search error:`, ddgErr?.message);
               }
             }
 
@@ -5160,7 +5192,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
 
       const tavilyKey2 = process.env.TAVILY_API_KEY;
       let autoGenSearchResults = "";
-      if (tavilyKey2) {
+      if (tavilyKey2 && Date.now() > tavilyRateLimitedUntil) {
         try {
           const tRes = await fetch("https://api.tavily.com/search", {
             method: "POST",
@@ -5172,6 +5204,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
               max_results: 10,
               include_answer: true,
             }),
+            signal: AbortSignal.timeout(15000),
           });
           if (tRes.ok) {
             const tData = await tRes.json();
@@ -5179,10 +5212,19 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
               tData.answer || "",
               ...(tData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
             ].join("\n\n");
+          } else {
+            const errData = await tRes.json().catch(() => ({})) as any;
+            console.error(`[Auto Lead Gen] Tavily error (${tRes.status}):`, JSON.stringify(errData).slice(0, 200));
+            if (tRes.status === 429 || tRes.status === 432) {
+              tavilyRateLimitedUntil = Date.now() + 30 * 60 * 1000;
+              console.log(`[Auto Lead Gen] Tavily rate-limited — skipping for 30 min`);
+            }
           }
         } catch (e: any) {
           console.error("Tavily search error:", e.message);
         }
+      } else if (tavilyKey2) {
+        console.log("[Auto Lead Gen] Tavily rate-limited — using fallbacks");
       } else {
         console.warn("[Auto Lead Gen] No TAVILY_API_KEY — trying DuckDuckGo...");
       }
@@ -5303,7 +5345,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
             try {
               let webResult = "";
               const searchQuery = toolUse.input?.query || "";
-              if (tavilyKey2) {
+              if (tavilyKey2 && Date.now() > tavilyRateLimitedUntil) {
                 try {
                   const tRes = await fetch("https://api.tavily.com/search", {
                     method: "POST",
@@ -5315,6 +5357,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                       max_results: 5,
                       include_answer: true,
                     }),
+                    signal: AbortSignal.timeout(15000),
                   });
                   if (tRes.ok) {
                     const tData = await tRes.json();
@@ -5322,6 +5365,8 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                       tData.answer || "",
                       ...(tData.results || []).map((r: any) => `Source: ${r.url}\n${r.title}\n${r.content || ""}`)
                     ].join("\n\n");
+                  } else if (tRes.status === 429 || tRes.status === 432) {
+                    tavilyRateLimitedUntil = Date.now() + 30 * 60 * 1000;
                   }
                 } catch {}
               }
@@ -5783,7 +5828,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
 
       const tavilyKey = process.env.TAVILY_API_KEY;
       let searchResults = "";
-      if (tavilyKey) {
+      if (tavilyKey && Date.now() > tavilyRateLimitedUntil) {
         try {
           const searchQueries = [
             `${specialty} medical practice ${region} owner contact phone email`,
@@ -5801,6 +5846,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                 max_results: 8,
                 include_answer: true,
               }),
+              signal: AbortSignal.timeout(15000),
             });
             if (tRes.ok) {
               const tData = await tRes.json();
@@ -5808,11 +5854,17 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                 tData.answer || "",
                 ...(tData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
               ].join("\n\n") + "\n\n";
+            } else if (tRes.status === 429 || tRes.status === 432) {
+              tavilyRateLimitedUntil = Date.now() + 30 * 60 * 1000;
+              console.log(`[MedBill Lead Gen] Tavily rate-limited — skipping for 30 min`);
+              break;
             }
           }
         } catch (e: any) {
           console.error("[MedBill Lead Gen] Tavily search error:", e.message);
         }
+      } else if (tavilyKey) {
+        console.log("[MedBill Lead Gen] Tavily rate-limited — using fallbacks");
       }
 
       if (!searchResults.trim()) {
@@ -5948,7 +6000,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
             try {
               let webResult = "";
               const searchQ = toolUse.input?.query || "";
-              if (tavilyKey) {
+              if (tavilyKey && Date.now() > tavilyRateLimitedUntil) {
                 try {
                   const tRes = await fetch("https://api.tavily.com/search", {
                     method: "POST",
@@ -5960,6 +6012,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                       max_results: 5,
                       include_answer: true,
                     }),
+                    signal: AbortSignal.timeout(15000),
                   });
                   if (tRes.ok) {
                     const tData = await tRes.json();
@@ -5967,6 +6020,8 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                       tData.answer || "",
                       ...(tData.results || []).map((r: any) => `Source: ${r.url}\n${r.title}\n${r.content || ""}`)
                     ].join("\n\n");
+                  } else if (tRes.status === 429 || tRes.status === 432) {
+                    tavilyRateLimitedUntil = Date.now() + 30 * 60 * 1000;
                   }
                 } catch {}
               }
