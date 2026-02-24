@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { searchBing, searchDDG, scrapeWebsite } from "./free-scraper";
 
 const OPENAI_MODEL = "gpt-4o";
 const OPENAI_MODEL_FAST = "gpt-4o-mini";
@@ -65,6 +66,7 @@ async function youSearchRaw(query: string): Promise<any> {
   try {
     const response = await fetch(`https://api.ydc-index.io/search?query=${encodeURIComponent(query)}`, {
       headers: { "X-API-Key": apiKey },
+      signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) return null;
     const data = await response.json();
@@ -78,11 +80,49 @@ async function youSearchRaw(query: string): Promise<any> {
   } catch { return null; }
 }
 
+async function freeWebSearch(query: string): Promise<any> {
+  try {
+    const bingResults = await searchBing(query, 10);
+    if (bingResults.length > 0) {
+      console.log(`[Intelligence] Bing free search returned ${bingResults.length} results for "${query.substring(0, 50)}..."`);
+      return {
+        results: bingResults.map(r => ({
+          title: r.title,
+          url: r.url,
+          content: r.snippet,
+        })),
+      };
+    }
+    const ddgResults = await searchDDG(query, 10);
+    if (ddgResults.length > 0) {
+      console.log(`[Intelligence] DDG free search returned ${ddgResults.length} results for "${query.substring(0, 50)}..."`);
+      return {
+        results: ddgResults.map(r => ({
+          title: r.title,
+          url: r.url,
+          content: r.snippet,
+        })),
+      };
+    }
+    return null;
+  } catch (e: any) {
+    console.warn(`[Intelligence] Free web search error: ${e.message}`);
+    return null;
+  }
+}
+
+let tavilySkipUntil = 0;
+
 async function tavilySearchRaw(query: string): Promise<any> {
   const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) {
-    console.warn("[Intelligence] Tavily API key not configured, trying You.com fallback");
-    return youSearchRaw(query);
+  const now = Date.now();
+  if (!apiKey || now < tavilySkipUntil) {
+    if (now < tavilySkipUntil) {
+      console.warn("[Intelligence] Tavily rate-limited, skipping to fallbacks");
+    }
+    const youResult = await youSearchRaw(query);
+    if (youResult && youResult.results?.length > 0) return youResult;
+    return freeWebSearch(query);
   }
   try {
     const response = await fetch("https://api.tavily.com/search", {
@@ -95,15 +135,25 @@ async function tavilySearchRaw(query: string): Promise<any> {
         max_results: 10,
         include_answer: true,
       }),
+      signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) {
-      console.warn(`[Intelligence] Tavily search failed (${response.status}), trying You.com fallback`);
-      return youSearchRaw(query);
+      if (response.status === 429 || response.status === 432) {
+        tavilySkipUntil = now + 30 * 60 * 1000;
+        console.warn(`[Intelligence] Tavily rate-limited (${response.status}), skipping for 30 min`);
+      } else {
+        console.warn(`[Intelligence] Tavily search failed (${response.status})`);
+      }
+      const youResult = await youSearchRaw(query);
+      if (youResult && youResult.results?.length > 0) return youResult;
+      return freeWebSearch(query);
     }
     return response.json();
   } catch (e: any) {
-    console.warn(`[Intelligence] Tavily error: ${e.message}, trying You.com fallback`);
-    return youSearchRaw(query);
+    console.warn(`[Intelligence] Tavily error: ${e.message}, trying fallbacks`);
+    const youResult = await youSearchRaw(query);
+    if (youResult && youResult.results?.length > 0) return youResult;
+    return freeWebSearch(query);
   }
 }
 
@@ -1055,6 +1105,33 @@ SCORING GUIDE:
         for (const r of (sr.results || [])) {
           allContent.push(`Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`);
           allSources.push(r.url);
+        }
+      }
+
+      const skipDomains = ["linkedin.com", "facebook.com", "yelp.com", "google.com", "bbb.org", "bing.com", "yellowpages.com", "wikipedia.org", "healthgrades.com", "vitals.com", "zocdoc.com", "npi.io", "youtube.com"];
+      const companyDomains = allSources
+        .filter(u => u && !skipDomains.some(sd => u.includes(sd)))
+        .map(u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } })
+        .filter(d => d && d.length > 3 && d.includes("."));
+      const uniqueDomains = [...new Set(companyDomains)].slice(0, 2);
+
+      for (const domain of uniqueDomains) {
+        try {
+          const siteData = await scrapeWebsite(domain);
+          if (siteData) {
+            const parts: string[] = [`[Website Scrape: ${domain}]`];
+            if (siteData.name) parts.push(`Business Name: ${siteData.name}`);
+            if (siteData.email) parts.push(`Email: ${siteData.email}`);
+            if (siteData.phone) parts.push(`Phone: ${siteData.phone}`);
+            if (siteData.address) parts.push(`Address: ${siteData.address}`);
+            if (siteData.description) parts.push(`Description: ${siteData.description}`);
+            if (parts.length > 1) {
+              allContent.push(parts.join("\n"));
+              console.log(`[Intelligence] Website scrape ${domain}: address=${siteData.address || 'none'}, email=${siteData.email || 'none'}`);
+            }
+          }
+        } catch (e: any) {
+          console.warn(`[Intelligence] Website scrape ${domain} failed: ${e.message}`);
         }
       }
 
