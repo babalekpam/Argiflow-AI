@@ -6370,6 +6370,39 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
     "base64"
   );
 
+  const BOT_UA_PATTERNS = [
+    "googlebot", "bingbot", "slurp", "duckduckbot", "baiduspider",
+    "yandexbot", "facebot", "ia_archiver", "mj12bot", "semrushbot",
+    "ahrefsbot", "dotbot", "petalbot", "bytespider",
+    "barracuda", "proofpoint", "mimecast", "fireeye", "forcepoint",
+    "symantec", "mcafee", "sophos", "trendmicro", "fortinet",
+    "cisco", "ironport", "messagelabs", "spamhaus", "returnpath",
+    "validity", "250ok", "mailgun", "postmark", "sparkpost",
+    "urldefense", "safelinks", "protection.outlook",
+    "bot", "crawler", "spider", "scan", "check", "monitor",
+    "wget", "curl", "python-requests", "node-fetch", "axios",
+    "headlesschrome", "phantomjs", "selenium",
+  ];
+  const GOOGLE_IP_PREFIXES = [
+    "66.249.", "74.125.", "209.85.", "216.239.", "64.233.",
+    "72.14.", "108.177.", "142.250.", "172.217.", "173.194.",
+  ];
+  const KNOWN_SCANNER_IPS = ["81.161.59.17", "54.198.58.157", "51.54.38.120"];
+
+  function isEmailBotEvent(ua: string, ip: string): boolean {
+    if (!ua || ua.length < 20) return true;
+    if (BOT_UA_PATTERNS.some(p => ua.includes(p))) return true;
+    if (GOOGLE_IP_PREFIXES.some(p => ip.startsWith(p))) return true;
+    if (KNOWN_SCANNER_IPS.includes(ip)) return true;
+    return false;
+  }
+
+  function isEmailBot(req: any): boolean {
+    const ua = (req.headers["user-agent"] || "").toLowerCase();
+    const ip = ((req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim());
+    return isEmailBotEvent(ua, ip);
+  }
+
   function calculateEngagement(opens: number, clicks: number): { score: number; level: string; nextStep: string } {
     let score = 0;
     if (opens >= 1) score += 20;
@@ -6407,6 +6440,8 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
     });
     res.send(TRACKING_PIXEL);
 
+    if (isEmailBot(req)) return;
+
     try {
       const lead = await storage.getLeadById(req.params.leadId);
       if (lead) {
@@ -6443,18 +6478,22 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
   });
 
   app.get("/t/c/:leadId", async (req, res) => {
-    try {
-      const url = req.query.url as string;
-      let safeUrl: string | null = null;
-      if (url) {
-        try {
-          const parsed = new URL(url);
-          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-            safeUrl = parsed.toString();
-          }
-        } catch {}
-      }
+    const url = req.query.url as string;
+    let safeUrl: string | null = null;
+    if (url) {
+      try {
+        const parsed = new URL(url);
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+          safeUrl = parsed.toString();
+        }
+      } catch {}
+    }
 
+    if (isEmailBot(req)) {
+      return res.redirect(302, safeUrl || "https://argilette.co");
+    }
+
+    try {
       const lead = await storage.getLeadById(req.params.leadId);
       if (lead) {
         const newClicks = (lead.emailClicks || 0) + 1;
@@ -6624,21 +6663,36 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
       let updated = 0;
 
       for (const lead of sentLeads) {
-        const opens = lead.emailOpens || 0;
-        const clicks = lead.emailClicks || 0;
-        if (opens === 0 && clicks === 0) continue;
+        const events = await storage.getEmailEventsByLead(lead.id);
+        if (events.length === 0) continue;
 
-        const { score, level, nextStep } = calculateEngagement(opens, clicks);
+        const realEvents = events.filter(e => {
+          const ua = (e.userAgent || "").toLowerCase();
+          const ip = (e.ipAddress || "");
+          return !isEmailBotEvent(ua, ip);
+        });
+        const realOpens = realEvents.filter(e => e.eventType === "open").length;
+        const realClicks = realEvents.filter(e => e.eventType === "click").length;
+
+        const { score, level, nextStep } = calculateEngagement(realOpens, realClicks);
         const statusUpdate: any = {
+          emailOpens: realOpens,
+          emailClicks: realClicks,
           engagementScore: score,
           engagementLevel: level,
           nextStep,
         };
-        if (!lead.lastEngagedAt) {
+        if (!lead.lastEngagedAt && (realOpens > 0 || realClicks > 0)) {
           statusUpdate.lastEngagedAt = lead.outreachSentAt || new Date();
         }
-        if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
-        else if (level === "warm" && lead.status === "new") statusUpdate.status = "warm";
+        if (realOpens === 0 && realClicks === 0) {
+          statusUpdate.lastEngagedAt = null;
+          if (lead.status === "hot" || lead.status === "warm") statusUpdate.status = "new";
+        } else if (level === "hot" && lead.status !== "qualified") {
+          statusUpdate.status = "hot";
+        } else if (level === "warm" && lead.status === "new") {
+          statusUpdate.status = "warm";
+        }
         await storage.updateLead(lead.id, statusUpdate);
         updated++;
       }
