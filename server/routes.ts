@@ -1712,6 +1712,26 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
             console.warn("[Pre-search] Bing error:", bingErr?.message);
           }
         }
+        if (!preSearchContext && process.env.YOU_API_KEY) {
+          console.log("[Pre-search] Trying You.com...");
+          try {
+            const youRes = await fetch(`https://api.ydc-index.io/search?query=${encodeURIComponent(searchQuery)}`, {
+              headers: { "X-API-Key": process.env.YOU_API_KEY, "Accept": "application/json" },
+              signal: AbortSignal.timeout(10000),
+            });
+            if (youRes.ok) {
+              const youData = await youRes.json() as any;
+              const hits = youData.hits || youData.results || [];
+              if (hits.length > 0) {
+                preSearchContext = `\n\nPRE-LOADED WEB SEARCH RESULTS (use these to extract real business contacts):\n${hits.slice(0, 15).map((h: any) => `Source: ${h.url || "N/A"}\nTitle: ${h.title || "N/A"}\n${h.description || (h.snippets || []).join(" ") || ""}`).join("\n\n")}`;
+                console.log(`[Pre-search] You.com returned ${hits.length} results`);
+              }
+            }
+          } catch (youErr: any) {
+            console.warn("[Pre-search] You.com error:", youErr?.message);
+          }
+        }
+
         if (!preSearchContext) {
           console.warn("[Pre-search] All search providers returned 0 results — AI will use web_search tool");
         }
