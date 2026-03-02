@@ -1398,7 +1398,7 @@ Use this knowledge when advising the client. Reference their actual services, pr
   const medBillChatBlock = isMedBillChatUser ? `
 
 TRACK-MED BILLING SOLUTIONS — SPECIAL INSTRUCTIONS:
-You are acting as Clara Motena, Clients Acquisition Director at Track-Med Billing Solutions.
+You are acting as Clara Motena, Client Acquisition Director at Track-Med Billing Solutions.
 When asked to find medical practices or leads, you MUST:
 1. Use web_search to find REAL practices — search for "[specialty] practice [city/state]", "small medical practice [region]", "independent physician office [area]", "private dental practice [location]", etc.
 2. Do MULTIPLE searches (3-5) targeting different specialties, locations, and directories (Healthgrades, Zocdoc, Google Maps results, state medical board, BBB).
@@ -1409,54 +1409,52 @@ When asked to find medical practices or leads, you MUST:
    - Score >= 60 (hot/warm): Alternate between Template A (Free Analysis Offer) and Template B (Pain Points Version)
    - Score < 60 (cold prospect): Use Template C (Soft Introduction)
 
-TEMPLATE A — Subject: Free Prior Authorization AI + Billing Solutions for [Practice Name] — Limited Offer
-Hi [Dr. Last Name / Practice Manager Name],
-What if you could cut your prior authorization time by 90% AND stop losing revenue to denied claims and billing errors — at the same time?
-At Track-Med Billing Solutions, we've been helping practices like [Practice Name] streamline their entire revenue cycle. And right now, we're offering something we've never done before:
-Sign up for our billing services and get 90 FREE days of ARGILETTE MedAuth — our enterprise AI Prior Authorization platform (a $2,700+ value).
-Here's what that means for your practice, starting day one:
-Track-Med Billing Solutions handles your revenue cycle end-to-end:
-• Clean claim submission and payment posting
+TEMPLATE A — Subject: Billing Solutions + Free AI Prior Auth Platform for [Practice Name]
+Dear Dr. [Last Name],
+I'm reaching out because practices like [Practice Name] often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
+At Track-Med Billing Solutions, we address both — and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
+
+What Track-Med Delivers:
+• End-to-end revenue cycle management (claims, posting, denials, appeals)
 • Credentialing and RAC audit defense
 • Patient balance collections
-• Denial management and appeals
-• Complimentary CPT and Billing Cost Analysis
-• Free Practice Management Software included for all partners
-ARGILETTE MedAuth (90 days free) transforms your prior authorizations:
-• AI Denial Risk Scoring catches issues BEFORE you submit — practices see approval rates jump from 68% to 91%
-• AI Appeal Generator that has recovered $12,000+ in denied claims for a single practice
-• Prior auth time drops from 3+ hours/day to under 30 minutes
-• Real-time payer intelligence for UnitedHealthcare, Aetna, BCBS, Cigna, and more
-• Setup takes 8 minutes — your staff learns it in one afternoon
-• Fully HIPAA compliant with end-to-end encryption
-Most practices don't realize how much revenue they're leaving on the table between billing errors and prior auth denials. We fix both — and you can see the results before you pay a dime for MedAuth.
-Would you be open to a quick 10-minute call this week? I'd love to show you exactly how much [Practice Name] could recover.
+• Complimentary CPT and billing cost analysis
+• Practice management software included at no additional cost
+
+What MedAuth Adds to Your Workflow:
+• AI Denial Risk Scoring — Identifies issues before submission; clients report approval rates improving from 68% to 91%
+• AI Appeal Generator — One practice recovered over $12,000 in denied claims
+• Time savings — Prior auth time reduced from 3+ hours to under 30 minutes daily
+• Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
+• 8-minute setup, HIPAA-compliant, end-to-end encryption
+
+Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
+You can schedule directly here: https://www.tmbds.com/schedule
 Best regards,
 Clara Motena
-Clients Acquisition Director
+Client Acquisition Director
 Track-Med Billing Solutions
-+1(615)482-6768
++1 (615) 482-6768
 https://www.track-med.com
-https://www.tmbds.com/schedule
-P.S. — The 90-day free MedAuth access starts the moment you sign up. No credit card required for the trial. Try it at https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
 
 TEMPLATE C — Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
-Hi [Dr. Last Name / Practice Manager Name],
+Dear Dr. [Last Name],
 I hope this finds you well. My name is Clara Motena and I work with independent [specialty] practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
-Track-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
-That's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:
+At Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
+That's why we're offering a complimentary CPT & billing cost analysis — at no cost or obligation. In less than 30 minutes, we can show you:
 • Whether your current coding is maximizing your reimbursements
 • Where claims may be getting delayed or denied unnecessarily
 • A clear comparison of what you're collecting vs. what you could be
-We also include Free Practice Management Software for partners, Physician Credentialing, RAC Audit Protection, and HIPAA-compliant document management — all built in. Plus, practices that sign up now get 90 FREE days of ARGILETTE MedAuth, our AI Prior Authorization platform.
-There's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?
+We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
+Would you be open to a brief conversation this week? You can schedule directly here: https://www.tmbds.com/schedule
 Best regards,
 Clara Motena
-Clients Acquisition Director
+Client Acquisition Director
 Track-Med Billing Solutions
-+1(615)482-6768
++1 (615) 482-6768
 https://www.track-med.com
-https://www.tmbds.com/schedule
+P.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app — no credit card required.
 
 ABSOLUTE RULE: When asked to find practices or leads, NEVER give advice or recommendations on "how to find them." YOU must search, find, and SAVE them using the tools. The user is paying for you to DO the work, not to tell them how to do it themselves.
 ` : "";
@@ -3536,71 +3534,73 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 ## OUTREACH TEMPLATES — Use the appropriate template based on the lead's score and intent signals.
 
 **TEMPLATE A — MedAuth Bundle Offer (for leads with score >= 60 or billing-related intent):**
-Subject: Free Prior Authorization AI + Billing Solutions for [Practice Name] — Limited Offer
+Subject: Billing Solutions + Free AI Prior Auth Platform for [Practice Name]
 
-Hi [Dr. Last Name / Practice Manager Name],
-What if you could cut your prior authorization time by 90% AND stop losing revenue to denied claims and billing errors — at the same time?
-At Track-Med Billing Solutions, we've been helping practices like [Practice Name] streamline their entire revenue cycle. And right now, we're offering something we've never done before:
-Sign up for our billing services and get 90 FREE days of ARGILETTE MedAuth — our enterprise AI Prior Authorization platform (a $2,700+ value).
-Here's what that means for your practice, starting day one:
-Track-Med Billing Solutions handles your revenue cycle end-to-end:
-• Clean claim submission and payment posting
+Dear Dr. [Last Name],
+I'm reaching out because practices like [Practice Name] often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
+At Track-Med Billing Solutions, we address both — and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
+
+What Track-Med Delivers:
+• End-to-end revenue cycle management (claims, posting, denials, appeals)
 • Credentialing and RAC audit defense
 • Patient balance collections
-• Denial management and appeals
-• Complimentary CPT and Billing Cost Analysis
-• Free Practice Management Software included for all partners
-ARGILETTE MedAuth (90 days free) transforms your prior authorizations:
-• AI Denial Risk Scoring catches issues BEFORE you submit — practices see approval rates jump from 68% to 91%
-• AI Appeal Generator that has recovered $12,000+ in denied claims for a single practice
-• Prior auth time drops from 3+ hours/day to under 30 minutes
-• Real-time payer intelligence for UnitedHealthcare, Aetna, BCBS, Cigna, and more
-• Setup takes 8 minutes — your staff learns it in one afternoon
-• Fully HIPAA compliant with end-to-end encryption
-Most practices don't realize how much revenue they're leaving on the table between billing errors and prior auth denials. We fix both — and you can see the results before you pay a dime for MedAuth.
-Would you be open to a quick 10-minute call this week? I'd love to show you exactly how much [Practice Name] could recover.
+• Complimentary CPT and billing cost analysis
+• Practice management software included at no additional cost
 
-P.S. — The 90-day free MedAuth access starts the moment you sign up. No credit card required for the trial. Try it at https://medauth-complete.vercel.app
+What MedAuth Adds to Your Workflow:
+• AI Denial Risk Scoring — Identifies issues before submission; clients report approval rates improving from 68% to 91%
+• AI Appeal Generator — One practice recovered over $12,000 in denied claims
+• Time savings — Prior auth time reduced from 3+ hours to under 30 minutes daily
+• Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
+• 8-minute setup, HIPAA-compliant, end-to-end encryption
+
+Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
+You can schedule directly here: https://www.tmbds.com/schedule
+
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
 
 **TEMPLATE B — Pain Points + MedAuth Version (for leads with score >= 60 or billing-related intent):**
 Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
 
-Hi [Dr. Last Name / Practice Manager],
+Dear Dr. [Last Name],
 Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
-Track-Med Billing Solutions was built to fix exactly that.
-We provide end-to-end Revenue Cycle Management tailored to your specialty — from clean claim submission and payment posting to credentialing, RAC audit defense, and patient balance collections. We've helped practices significantly reduce their days in A/R and recover revenue they didn't even know they were missing.
-What sets us apart:
-✔ Personalized billing teams aligned to your specialty
-✔ Free Practice Management Software when you use our billing services
-✔ Free CPT & Billing Cost Analysis — so you see the ROI before you commit
-✔ Physician Credentialing included
-✔ HIPAA-compliant systems across the board
-✔ 90 FREE days of ARGILETTE MedAuth — our AI Prior Authorization platform that cuts prior auth time from 3+ hours/day to under 30 minutes and boosts approval rates from 68% to 91%
-Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
-Can we carve out 10 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
+At Track-Med Billing Solutions, we address all of these — and we're currently offering new partners 90 days of complimentary access to ARGILETTE MedAuth, our AI-powered prior authorization platform (valued at $2,700+).
 
-P.S. — Try ARGILETTE MedAuth free at https://medauth-complete.vercel.app — no credit card required.
+What sets us apart:
+✔ End-to-end revenue cycle management tailored to your specialty
+✔ Complimentary CPT & billing cost analysis — so you see the ROI before you commit
+✔ Practice management software included at no additional cost
+✔ Credentialing and RAC audit defense
+✔ HIPAA-compliant systems across the board
+✔ 90 days of ARGILETTE MedAuth — AI prior authorization that cuts auth time from 3+ hours to under 30 minutes and boosts approval rates from 68% to 91%
+
+Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
+You can schedule directly here: https://www.tmbds.com/schedule
+
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
 
 **TEMPLATE C — Cold Prospect Introduction (for leads with score < 60 or no billing signals):**
 Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
 
-Hi [Dr. Last Name / Practice Manager Name],
-I hope this finds you well. My name is Clara Motena and I work with independent medical practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
-Track-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
-That's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:
+Dear Dr. [Last Name],
+I hope this finds you well. My name is Clara Motena and I work with independent practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
+At Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
+That's why we're offering a complimentary CPT & billing cost analysis — at no cost or obligation. In less than 30 minutes, we can show you:
 • Whether your current coding is maximizing your reimbursements
 • Where claims may be getting delayed or denied unnecessarily
 • A clear comparison of what you're collecting vs. what you could be
-We also include Free Practice Management Software for partners, Physician Credentialing, RAC Audit Protection, and HIPAA-compliant document management — all built in. Plus, practices that sign up now get 90 FREE days of ARGILETTE MedAuth, our AI Prior Authorization platform.
-There's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?
+We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
+Would you be open to a brief conversation this week? You can schedule directly here: https://www.tmbds.com/schedule
+
+P.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app — no credit card required.
 
 ## SIGNATURE — Every email MUST end with this exact signature block:
 
 Best regards,
 Clara Motena
-Clients Acquisition Director
+Client Acquisition Director
 Track-Med Billing Solutions
-+1(615)482-6768
++1 (615) 482-6768
 https://www.track-med.com
 https://www.tmbds.com/schedule
 
@@ -3608,7 +3608,8 @@ https://www.tmbds.com/schedule
 - For leads with score >= 60 or billing/claims/denial-related intent signals: Alternate between Template A and Template B
 - For leads with score < 60 or no billing signals (cold prospects): Use Template C
 - Replace [Practice Name] with the lead's actual company/practice name
-- Replace [Dr. Last Name / Practice Manager Name] with the lead's actual name
+- Replace [Dr. Last Name] with the lead's actual last name (use full name if last name unknown)
+- Adapt the opening line to match the lead's specialty (e.g. "chiropractic practices", "dental practices", "medical practices")
 - Keep the full template content — do NOT shorten or summarize
 - MUST end with the EXACT signature block above — no variations
 ` : "";
@@ -4440,71 +4441,73 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
 ## OUTREACH TEMPLATES — Use the appropriate template based on the lead's score and intent signals.
 
 **TEMPLATE A — MedAuth Bundle Offer (for leads with score >= 60 or billing-related intent):**
-Subject: Free Prior Authorization AI + Billing Solutions for [Practice Name] — Limited Offer
+Subject: Billing Solutions + Free AI Prior Auth Platform for [Practice Name]
 
-Hi [Dr. Last Name / Practice Manager Name],
-What if you could cut your prior authorization time by 90% AND stop losing revenue to denied claims and billing errors — at the same time?
-At Track-Med Billing Solutions, we've been helping practices like [Practice Name] streamline their entire revenue cycle. And right now, we're offering something we've never done before:
-Sign up for our billing services and get 90 FREE days of ARGILETTE MedAuth — our enterprise AI Prior Authorization platform (a $2,700+ value).
-Here's what that means for your practice, starting day one:
-Track-Med Billing Solutions handles your revenue cycle end-to-end:
-• Clean claim submission and payment posting
+Dear Dr. [Last Name],
+I'm reaching out because practices like [Practice Name] often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
+At Track-Med Billing Solutions, we address both — and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
+
+What Track-Med Delivers:
+• End-to-end revenue cycle management (claims, posting, denials, appeals)
 • Credentialing and RAC audit defense
 • Patient balance collections
-• Denial management and appeals
-• Complimentary CPT and Billing Cost Analysis
-• Free Practice Management Software included for all partners
-ARGILETTE MedAuth (90 days free) transforms your prior authorizations:
-• AI Denial Risk Scoring catches issues BEFORE you submit — practices see approval rates jump from 68% to 91%
-• AI Appeal Generator that has recovered $12,000+ in denied claims for a single practice
-• Prior auth time drops from 3+ hours/day to under 30 minutes
-• Real-time payer intelligence for UnitedHealthcare, Aetna, BCBS, Cigna, and more
-• Setup takes 8 minutes — your staff learns it in one afternoon
-• Fully HIPAA compliant with end-to-end encryption
-Most practices don't realize how much revenue they're leaving on the table between billing errors and prior auth denials. We fix both — and you can see the results before you pay a dime for MedAuth.
-Would you be open to a quick 10-minute call this week? I'd love to show you exactly how much [Practice Name] could recover.
+• Complimentary CPT and billing cost analysis
+• Practice management software included at no additional cost
 
-P.S. — The 90-day free MedAuth access starts the moment you sign up. No credit card required for the trial. Try it at https://medauth-complete.vercel.app
+What MedAuth Adds to Your Workflow:
+• AI Denial Risk Scoring — Identifies issues before submission; clients report approval rates improving from 68% to 91%
+• AI Appeal Generator — One practice recovered over $12,000 in denied claims
+• Time savings — Prior auth time reduced from 3+ hours to under 30 minutes daily
+• Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
+• 8-minute setup, HIPAA-compliant, end-to-end encryption
+
+Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
+You can schedule directly here: https://www.tmbds.com/schedule
+
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
 
 **TEMPLATE B — Pain Points + MedAuth Version (for leads with score >= 60 or billing-related intent):**
 Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
 
-Hi [Dr. Last Name / Practice Manager],
+Dear Dr. [Last Name],
 Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
-Track-Med Billing Solutions was built to fix exactly that.
-We provide end-to-end Revenue Cycle Management tailored to your specialty — from clean claim submission and payment posting to credentialing, RAC audit defense, and patient balance collections. We've helped practices significantly reduce their days in A/R and recover revenue they didn't even know they were missing.
-What sets us apart:
-✔ Personalized billing teams aligned to your specialty
-✔ Free Practice Management Software when you use our billing services
-✔ Free CPT & Billing Cost Analysis — so you see the ROI before you commit
-✔ Physician Credentialing included
-✔ HIPAA-compliant systems across the board
-✔ 90 FREE days of ARGILETTE MedAuth — our AI Prior Authorization platform that cuts prior auth time from 3+ hours/day to under 30 minutes and boosts approval rates from 68% to 91%
-Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
-Can we carve out 10 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
+At Track-Med Billing Solutions, we address all of these — and we're currently offering new partners 90 days of complimentary access to ARGILETTE MedAuth, our AI-powered prior authorization platform (valued at $2,700+).
 
-P.S. — Try ARGILETTE MedAuth free at https://medauth-complete.vercel.app — no credit card required.
+What sets us apart:
+✔ End-to-end revenue cycle management tailored to your specialty
+✔ Complimentary CPT & billing cost analysis — so you see the ROI before you commit
+✔ Practice management software included at no additional cost
+✔ Credentialing and RAC audit defense
+✔ HIPAA-compliant systems across the board
+✔ 90 days of ARGILETTE MedAuth — AI prior authorization that cuts auth time from 3+ hours to under 30 minutes and boosts approval rates from 68% to 91%
+
+Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
+You can schedule directly here: https://www.tmbds.com/schedule
+
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
 
 **TEMPLATE C — Cold Prospect Introduction (for leads with score < 60 or no billing signals):**
 Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
 
-Hi [Dr. Last Name / Practice Manager Name],
-I hope this finds you well. My name is Clara Motena and I work with independent medical practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
-Track-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
-That's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:
+Dear Dr. [Last Name],
+I hope this finds you well. My name is Clara Motena and I work with independent practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
+At Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
+That's why we're offering a complimentary CPT & billing cost analysis — at no cost or obligation. In less than 30 minutes, we can show you:
 • Whether your current coding is maximizing your reimbursements
 • Where claims may be getting delayed or denied unnecessarily
 • A clear comparison of what you're collecting vs. what you could be
-We also include Free Practice Management Software for partners, Physician Credentialing, RAC Audit Protection, and HIPAA-compliant document management — all built in. Plus, practices that sign up now get 90 FREE days of ARGILETTE MedAuth, our AI Prior Authorization platform.
-There's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?
+We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
+Would you be open to a brief conversation this week? You can schedule directly here: https://www.tmbds.com/schedule
+
+P.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app — no credit card required.
 
 ## SIGNATURE — Every email MUST end with this exact signature block:
 
 Best regards,
 Clara Motena
-Clients Acquisition Director
+Client Acquisition Director
 Track-Med Billing Solutions
-+1(615)482-6768
++1 (615) 482-6768
 https://www.track-med.com
 https://www.tmbds.com/schedule
 
@@ -4512,7 +4515,8 @@ https://www.tmbds.com/schedule
 - For leads with score >= 60 or billing/claims/denial-related intent signals: Alternate between Template A and Template B
 - For leads with score < 60 or no billing signals (cold prospects): Use Template C
 - Replace [Practice Name] with the lead's actual company/practice name
-- Replace [Dr. Last Name / Practice Manager Name] with the lead's actual name
+- Replace [Dr. Last Name] with the lead's actual last name (use full name if last name unknown)
+- Adapt the opening line to match the lead's specialty (e.g. "chiropractic practices", "dental practices", "medical practices")
 - Keep the full template content — do NOT shorten or summarize
 - MUST end with the EXACT signature block above — no variations
 ` : "";
@@ -5848,79 +5852,77 @@ For EACH lead provide: name (DECISION MAKER name, not practice name), email, pho
 - **Tier 1 (Hot) and Tier 2 (Warm) leads**: Alternate between Template A and Template B
 - **Tier 3 (Cold Prospect) leads**: ALWAYS use Template C — the softer introduction
 
-**TEMPLATE A — Subject: Free Prior Authorization AI + Billing Solutions for [Practice Name] — Limited Offer**
-Hi [Dr. Last Name / Practice Manager Name],
-What if you could cut your prior authorization time by 90% AND stop losing revenue to denied claims and billing errors — at the same time?
-At Track-Med Billing Solutions, we've been helping practices like [Practice Name] streamline their entire revenue cycle. And right now, we're offering something we've never done before:
-Sign up for our billing services and get 90 FREE days of ARGILETTE MedAuth — our enterprise AI Prior Authorization platform (a $2,700+ value).
-Here's what that means for your practice, starting day one:
-Track-Med Billing Solutions handles your revenue cycle end-to-end:
-• Clean claim submission and payment posting
+**TEMPLATE A — Subject: Billing Solutions + Free AI Prior Auth Platform for [Practice Name]**
+Dear Dr. [Last Name],
+I'm reaching out because ${specialty} practices like [Practice Name] often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
+At Track-Med Billing Solutions, we address both — and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
+
+What Track-Med Delivers:
+• End-to-end revenue cycle management (claims, posting, denials, appeals)
 • Credentialing and RAC audit defense
 • Patient balance collections
-• Denial management and appeals
-• Complimentary CPT and Billing Cost Analysis
-• Free Practice Management Software included for all partners
-ARGILETTE MedAuth (90 days free) transforms your prior authorizations:
-• AI Denial Risk Scoring catches issues BEFORE you submit — practices see approval rates jump from 68% to 91%
-• AI Appeal Generator that has recovered $12,000+ in denied claims for a single practice
-• Prior auth time drops from 3+ hours/day to under 30 minutes
-• Real-time payer intelligence for UnitedHealthcare, Aetna, BCBS, Cigna, and more
-• Setup takes 8 minutes — your staff learns it in one afternoon
-• Fully HIPAA compliant with end-to-end encryption
-Most practices don't realize how much revenue they're leaving on the table between billing errors and prior auth denials. We fix both — and you can see the results before you pay a dime for MedAuth.
-Would you be open to a quick 10-minute call this week? I'd love to show you exactly how much [Practice Name] could recover.
+• Complimentary CPT and billing cost analysis
+• Practice management software included at no additional cost
+
+What MedAuth Adds to Your Workflow:
+• AI Denial Risk Scoring — Identifies issues before submission; clients report approval rates improving from 68% to 91%
+• AI Appeal Generator — One practice recovered over $12,000 in denied claims
+• Time savings — Prior auth time reduced from 3+ hours to under 30 minutes daily
+• Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
+• 8-minute setup, HIPAA-compliant, end-to-end encryption
+
+Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
+You can schedule directly here: https://www.tmbds.com/schedule
 Best regards,
 Clara Motena
-Clients Acquisition Director
+Client Acquisition Director
 Track-Med Billing Solutions
-+1(615)482-6768
++1 (615) 482-6768
 https://www.track-med.com
-https://www.tmbds.com/schedule
-P.S. — The 90-day free MedAuth access starts the moment you sign up. No credit card required for the trial. Try it at https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
 
 **TEMPLATE B — Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?**
-Hi [Dr. Last Name / Practice Manager],
+Dear Dr. [Last Name],
 Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
-Track-Med Billing Solutions was built to fix exactly that.
-We provide end-to-end Revenue Cycle Management tailored to your specialty — from clean claim submission and payment posting to credentialing, RAC audit defense, and patient balance collections. We've helped practices significantly reduce their days in A/R and recover revenue they didn't even know they were missing.
+At Track-Med Billing Solutions, we address all of these — and we're currently offering new partners 90 days of complimentary access to ARGILETTE MedAuth, our AI-powered prior authorization platform (valued at $2,700+).
+
 What sets us apart:
-✔ Personalized billing teams aligned to your specialty
-✔ Free Practice Management Software when you use our billing services
-✔ Free CPT & Billing Cost Analysis — so you see the ROI before you commit
-✔ Physician Credentialing included
+✔ End-to-end revenue cycle management tailored to your specialty
+✔ Complimentary CPT & billing cost analysis — so you see the ROI before you commit
+✔ Practice management software included at no additional cost
+✔ Credentialing and RAC audit defense
 ✔ HIPAA-compliant systems across the board
-✔ 90 FREE days of ARGILETTE MedAuth — our AI Prior Authorization platform that cuts prior auth time from 3+ hours/day to under 30 minutes and boosts approval rates from 68% to 91%
-Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
-Can we carve out 10 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
+✔ 90 days of ARGILETTE MedAuth — AI prior authorization that cuts auth time from 3+ hours to under 30 minutes and boosts approval rates from 68% to 91%
+
+Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
+You can schedule directly here: https://www.tmbds.com/schedule
 Best regards,
 Clara Motena
-Clients Acquisition Director
+Client Acquisition Director
 Track-Med Billing Solutions
-+1(615)482-6768
++1 (615) 482-6768
 https://www.track-med.com
-https://www.tmbds.com/schedule
-P.S. — Try ARGILETTE MedAuth free at https://medauth-complete.vercel.app — no credit card required.
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
 
 **TEMPLATE C — Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]**
-Hi [Dr. Last Name / Practice Manager Name],
+Dear Dr. [Last Name],
 I hope this finds you well. My name is Clara Motena and I work with independent ${specialty} practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
-Track-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
-That's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:
+At Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
+That's why we're offering a complimentary CPT & billing cost analysis — at no cost or obligation. In less than 30 minutes, we can show you:
 • Whether your current coding is maximizing your reimbursements
 • Where claims may be getting delayed or denied unnecessarily
 • A clear comparison of what you're collecting vs. what you could be
-We also include Free Practice Management Software for partners, Physician Credentialing, RAC Audit Protection, and HIPAA-compliant document management — all built in. Plus, practices that sign up now get 90 FREE days of ARGILETTE MedAuth, our AI Prior Authorization platform.
-There's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?
+We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
+Would you be open to a brief conversation this week? You can schedule directly here: https://www.tmbds.com/schedule
 Best regards,
 Clara Motena
-Clients Acquisition Director
+Client Acquisition Director
 Track-Med Billing Solutions
-+1(615)482-6768
++1 (615) 482-6768
 https://www.track-med.com
-https://www.tmbds.com/schedule
+P.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app — no credit card required.
 
-IMPORTANT: Include the FULL template text — do NOT shorten. Replace [Practice Name] and [Dr. Last Name] with actual lead info. Include the subject line at the top as "Subject: ...". For Tier 3 leads, ALWAYS use Template C.
+IMPORTANT: Include the FULL template text — do NOT shorten. Replace [Practice Name] and [Dr. Last Name] with actual lead info. Include the subject line at the top as "Subject: ...". For Tier 3 leads, ALWAYS use Template C. Adapt the opening line to match the lead's specialty.
 
 LEAD MIX TARGET: Aim for approximately 60% Tier 1/2 (hot/warm) and 40% Tier 3 (cold prospects). This ensures a healthy pipeline of both immediate opportunities and future prospects.
 
@@ -6256,70 +6258,72 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
 - Score < 60 or no billing signals: Use Template C (soft introduction)
 
 **TEMPLATE A — MedAuth Bundle Offer:**
-Subject: Free Prior Authorization AI + Billing Solutions for [Practice Name] — Limited Offer
+Subject: Billing Solutions + Free AI Prior Auth Platform for [Practice Name]
 
-Hi [Dr. Last Name / Practice Manager Name],
-What if you could cut your prior authorization time by 90% AND stop losing revenue to denied claims and billing errors — at the same time?
-At Track-Med Billing Solutions, we've been helping practices like [Practice Name] streamline their entire revenue cycle. And right now, we're offering something we've never done before:
-Sign up for our billing services and get 90 FREE days of ARGILETTE MedAuth — our enterprise AI Prior Authorization platform (a $2,700+ value).
-Here's what that means for your practice, starting day one:
-Track-Med Billing Solutions handles your revenue cycle end-to-end:
-• Clean claim submission and payment posting
+Dear Dr. [Last Name],
+I'm reaching out because practices like [Practice Name] often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
+At Track-Med Billing Solutions, we address both — and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
+
+What Track-Med Delivers:
+• End-to-end revenue cycle management (claims, posting, denials, appeals)
 • Credentialing and RAC audit defense
 • Patient balance collections
-• Denial management and appeals
-• Complimentary CPT and Billing Cost Analysis
-• Free Practice Management Software included for all partners
-ARGILETTE MedAuth (90 days free) transforms your prior authorizations:
-• AI Denial Risk Scoring catches issues BEFORE you submit — practices see approval rates jump from 68% to 91%
-• AI Appeal Generator that has recovered $12,000+ in denied claims for a single practice
-• Prior auth time drops from 3+ hours/day to under 30 minutes
-• Real-time payer intelligence for UnitedHealthcare, Aetna, BCBS, Cigna, and more
-• Setup takes 8 minutes — your staff learns it in one afternoon
-• Fully HIPAA compliant with end-to-end encryption
-Most practices don't realize how much revenue they're leaving on the table between billing errors and prior auth denials. We fix both — and you can see the results before you pay a dime for MedAuth.
-Would you be open to a quick 10-minute call this week? I'd love to show you exactly how much [Practice Name] could recover.
+• Complimentary CPT and billing cost analysis
+• Practice management software included at no additional cost
 
-P.S. — The 90-day free MedAuth access starts the moment you sign up. No credit card required for the trial. Try it at https://medauth-complete.vercel.app
+What MedAuth Adds to Your Workflow:
+• AI Denial Risk Scoring — Identifies issues before submission; clients report approval rates improving from 68% to 91%
+• AI Appeal Generator — One practice recovered over $12,000 in denied claims
+• Time savings — Prior auth time reduced from 3+ hours to under 30 minutes daily
+• Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
+• 8-minute setup, HIPAA-compliant, end-to-end encryption
+
+Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
+You can schedule directly here: https://www.tmbds.com/schedule
+
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
 
 **TEMPLATE B — Pain Points + MedAuth Version:**
 Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
 
-Hi [Dr. Last Name / Practice Manager],
+Dear Dr. [Last Name],
 Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
-Track-Med Billing Solutions was built to fix exactly that.
-We provide end-to-end Revenue Cycle Management tailored to your specialty — from clean claim submission and payment posting to credentialing, RAC audit defense, and patient balance collections. We've helped practices significantly reduce their days in A/R and recover revenue they didn't even know they were missing.
-What sets us apart:
-✔ Personalized billing teams aligned to your specialty
-✔ Free Practice Management Software when you use our billing services
-✔ Free CPT & Billing Cost Analysis — so you see the ROI before you commit
-✔ Physician Credentialing included
-✔ HIPAA-compliant systems across the board
-✔ 90 FREE days of ARGILETTE MedAuth — our AI Prior Authorization platform that cuts prior auth time from 3+ hours/day to under 30 minutes and boosts approval rates from 68% to 91%
-Our free analysis alone gives you a detailed breakdown of any revenue loss due to coding or billing errors. No pressure, no commitment — just real data about your practice's financial health.
-Can we carve out 10 minutes this week? I'd love to show you what we're seeing in practices similar to yours.
+At Track-Med Billing Solutions, we address all of these — and we're currently offering new partners 90 days of complimentary access to ARGILETTE MedAuth, our AI-powered prior authorization platform (valued at $2,700+).
 
-P.S. — Try ARGILETTE MedAuth free at https://medauth-complete.vercel.app — no credit card required.
+What sets us apart:
+✔ End-to-end revenue cycle management tailored to your specialty
+✔ Complimentary CPT & billing cost analysis — so you see the ROI before you commit
+✔ Practice management software included at no additional cost
+✔ Credentialing and RAC audit defense
+✔ HIPAA-compliant systems across the board
+✔ 90 days of ARGILETTE MedAuth — AI prior authorization that cuts auth time from 3+ hours to under 30 minutes and boosts approval rates from 68% to 91%
+
+Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
+You can schedule directly here: https://www.tmbds.com/schedule
+
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
 
 **TEMPLATE C — Cold Introduction:**
 Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
 
-Hi [Dr. Last Name / Practice Manager Name],
-I hope this finds you well. My name is Clara Motena and I work with independent medical practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
-Track-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
-That's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:
+Dear Dr. [Last Name],
+I hope this finds you well. My name is Clara Motena and I work with independent practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
+At Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
+That's why we're offering a complimentary CPT & billing cost analysis — at no cost or obligation. In less than 30 minutes, we can show you:
 • Whether your current coding is maximizing your reimbursements
 • Where claims may be getting delayed or denied unnecessarily
 • A clear comparison of what you're collecting vs. what you could be
-We also include Free Practice Management Software for partners, Physician Credentialing, RAC Audit Protection, and HIPAA-compliant document management — all built in. Plus, practices that sign up now get 90 FREE days of ARGILETTE MedAuth, our AI Prior Authorization platform.
-There's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?
+We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
+Would you be open to a brief conversation this week? You can schedule directly here: https://www.tmbds.com/schedule
+
+P.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app — no credit card required.
 
 ## SIGNATURE — Every email MUST end with:
 Best regards,
 Clara Motena
-Clients Acquisition Director
+Client Acquisition Director
 Track-Med Billing Solutions
-+1(615)482-6768
++1 (615) 482-6768
 https://www.track-med.com
 https://www.tmbds.com/schedule
 
@@ -6350,16 +6354,16 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
                 } catch (genErr: any) {
                   console.error(`[MedBill Instant] AI outreach generation failed:`, genErr.message);
                   console.log(`[MedBill Instant] Using hard template fallback for ${needsOutreachGen.length} leads...`);
-                  const signature = `\n\nBest regards,\nClara Motena\nClients Acquisition Director\nTrack-Med Billing Solutions\n+1(615)482-6768\nhttps://www.track-med.com\nhttps://www.tmbds.com/schedule`;
+                  const signature = `\n\nBest regards,\nClara Motena\nClient Acquisition Director\nTrack-Med Billing Solutions\n+1 (615) 482-6768\nhttps://www.track-med.com\nhttps://www.tmbds.com/schedule`;
                   for (const lead of needsOutreachGen) {
                     const practiceName = lead.company || lead.name;
                     const contactName = lead.name;
                     const isHot = (lead.score || 0) >= 60 || (lead.intentSignal || "").toLowerCase().match(/billing|claim|denial|reimburse|revenue/);
                     let outreach: string;
                     if (isHot) {
-                      outreach = `Subject: Free Prior Authorization AI + Billing Solutions for ${practiceName} -- Limited Offer\n\nHi ${contactName},\n\nWhat if you could cut your prior authorization time by 90% AND stop losing revenue to denied claims and billing errors -- at the same time?\n\nAt Track-Med Billing Solutions, we've been helping practices like ${practiceName} streamline their entire revenue cycle. And right now, we're offering something we've never done before:\n\nSign up for our billing services and get 90 FREE days of ARGILETTE MedAuth -- our enterprise AI Prior Authorization platform (a $2,700+ value).\n\nHere's what that means for your practice, starting day one:\n\nTrack-Med Billing Solutions handles your revenue cycle end-to-end:\n- Clean claim submission and payment posting\n- Credentialing and RAC audit defense\n- Patient balance collections\n- Denial management and appeals\n- Complimentary CPT and Billing Cost Analysis\n- Free Practice Management Software included for all partners\n\nARGILETTE MedAuth (90 days free) transforms your prior authorizations:\n- AI Denial Risk Scoring catches issues BEFORE you submit -- practices see approval rates jump from 68% to 91%\n- AI Appeal Generator that has recovered $12,000+ in denied claims for a single practice\n- Prior auth time drops from 3+ hours/day to under 30 minutes\n- Real-time payer intelligence for UnitedHealthcare, Aetna, BCBS, Cigna, and more\n- Setup takes 8 minutes -- your staff learns it in one afternoon\n- Fully HIPAA compliant with end-to-end encryption\n\nMost practices don't realize how much revenue they're leaving on the table between billing errors and prior auth denials. We fix both -- and you can see the results before you pay a dime for MedAuth.\n\nWould you be open to a quick 10-minute call this week? I'd love to show you exactly how much ${practiceName} could recover.${signature}\n\nP.S. -- The 90-day free MedAuth access starts the moment you sign up. No credit card required for the trial. Try it at https://medauth-complete.vercel.app`;
+                      outreach = `Subject: Billing Solutions + Free AI Prior Auth Platform for ${practiceName}\n\nDear ${contactName},\n\nI'm reaching out because practices like ${practiceName} often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.\n\nAt Track-Med Billing Solutions, we address both -- and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).\n\nWhat Track-Med Delivers:\n- End-to-end revenue cycle management (claims, posting, denials, appeals)\n- Credentialing and RAC audit defense\n- Patient balance collections\n- Complimentary CPT and billing cost analysis\n- Practice management software included at no additional cost\n\nWhat MedAuth Adds to Your Workflow:\n- AI Denial Risk Scoring -- Identifies issues before submission; clients report approval rates improving from 68% to 91%\n- AI Appeal Generator -- One practice recovered over $12,000 in denied claims\n- Time savings -- Prior auth time reduced from 3+ hours to under 30 minutes daily\n- Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)\n- 8-minute setup, HIPAA-compliant, end-to-end encryption\n\nWould you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact ${practiceName}'s bottom line -- with no obligation.\n\nYou can schedule directly here: https://www.tmbds.com/schedule${signature}\n\nP.S. The 90-day MedAuth access begins immediately upon signing -- no credit card required. Preview it here: https://medauth-complete.vercel.app`;
                     } else {
-                      outreach = `Subject: A quick introduction from Track-Med Billing Solutions, ${practiceName}\n\nHi ${contactName},\n\nI hope this finds you well. My name is Clara Motena and I work with independent medical practices like ${practiceName} to help streamline their revenue cycle -- so providers can spend more time with patients and less time chasing payments.\n\nTrack-Med Billing Solutions provides fully personalized medical billing and Revenue Cycle Management, and we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.\n\nThat's why we're offering a free, no-obligation CPT & Billing Cost Analysis. In less than 30 minutes, we can show you:\n- Whether your current coding is maximizing your reimbursements\n- Where claims may be getting delayed or denied unnecessarily\n- A clear comparison of what you're collecting vs. what you could be\n\nWe also include Free Practice Management Software for partners, Physician Credentialing, RAC Audit Protection, and HIPAA-compliant document management -- all built in. Plus, practices that sign up now get 90 FREE days of ARGILETTE MedAuth, our AI Prior Authorization platform.\n\nThere's absolutely no cost or commitment to see what we find. Would you be open to a brief conversation this week?${signature}`;
+                      outreach = `Subject: A quick introduction from Track-Med Billing Solutions, ${practiceName}\n\nDear ${contactName},\n\nI hope this finds you well. My name is Clara Motena and I work with independent practices like ${practiceName} to help streamline their revenue cycle -- so providers can spend more time with patients and less time chasing payments.\n\nAt Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.\n\nThat's why we're offering a complimentary CPT & billing cost analysis -- at no cost or obligation. In less than 30 minutes, we can show you:\n- Whether your current coding is maximizing your reimbursements\n- Where claims may be getting delayed or denied unnecessarily\n- A clear comparison of what you're collecting vs. what you could be\n\nWe also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.\n\nWould you be open to a brief conversation this week? You can schedule directly here: https://www.tmbds.com/schedule${signature}\n\nP.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app -- no credit card required.`;
                     }
                     await db.update(leads).set({ outreach }).where(eq(leads.id, lead.id));
                     readyToSend.push({ ...lead, outreach });

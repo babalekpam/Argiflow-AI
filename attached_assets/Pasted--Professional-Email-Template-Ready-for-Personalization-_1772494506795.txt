@@ -1,0 +1,58 @@
+# Professional Email Template (Ready for Personalization)
+
+---
+
+**Subject:** Prior Authorization + Billing Partnership for [Practice Name]
+
+---
+
+Dear Dr. [Last Name],
+
+I'm reaching out because chiropractic practices like yours often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
+
+At Track-Med Billing Solutions, we address both—and we're currently offering new partners **90 days of complimentary access** to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
+
+#### What Track-Med Delivers
+
+- End-to-end revenue cycle management (claims, posting, denials, appeals)
+- Credentialing and RAC audit defense
+- Patient balance collections
+- Complimentary CPT and billing cost analysis
+- Practice management software included at no additional cost
+
+#### What MedAuth Adds to Your Workflow
+
+- **AI Denial Risk Scoring** — Identifies issues before submission; clients report approval rates improving from 68% to 91%
+- **AI Appeal Generator** — One practice recovered over $12,000 in denied claims
+- **Time savings** — Prior auth time reduced from 3+ hours to under 30 minutes daily
+- Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
+- 8-minute setup, HIPAA-compliant, end-to-end encryption
+
+#### Next Step
+
+Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line—with no obligation.
+
+You can schedule directly here: [tmbds.com/schedule](https://www.tmbds.com/schedule)
+
+Best regards,
+
+**Clara Motena**
+Client Acquisition Director
+Track-Med Billing Solutions
++1 (615) 482-6768
+[track-med.com](https://www.track-med.com)
+
+---
+
+**P.S.** The 90-day MedAuth access begins immediately upon signing—no credit card required. Preview it here: [medauth-complete.vercel.app](https://medauth-complete.vercel.app)
+
+---
+
+#### Personalization Fields for Your Agent
+
+| Placeholder | What to Insert |
+|-------------|----------------|
+| `[Practice Name]` | Full practice name (e.g., "Summit Chiropractic") |
+| `[Last Name]` | Doctor's surname only |
+
+Your agent can simply find and replace these two fields before sending. The template is ready to go!
