@@ -7598,6 +7598,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   await ensureAllUsersProLifetime();
   // Auto-cleanup disabled — was deleting real production leads on every restart
   // Use admin panel endpoints for manual cleanup if needed
+  await restoreLeadsFromFunnel();
   await backfillDentalLeads();
   await backfillMedBillingFunnel();
 
@@ -9553,6 +9554,75 @@ async function cleanupNonMedicalLeads() {
     }
   } catch (err) {
     console.error("[Startup Cleanup] Error removing non-medical leads:", err);
+  }
+}
+
+async function restoreLeadsFromFunnel() {
+  try {
+    const owner = await storage.getUserByEmail("abel@argilette.com");
+    if (!owner) return;
+
+    const allFunnels = await storage.getFunnelsByUser(owner.id);
+    if (!allFunnels.length) return;
+
+    const existingLeads = await storage.getLeadsByUser(owner.id);
+    const existingEmails = new Set(existingLeads.map((l: any) => l.email?.toLowerCase()).filter(Boolean));
+    const existingNames = new Set(existingLeads.map((l: any) => l.name?.toLowerCase()).filter(Boolean));
+
+    let restored = 0;
+    for (const funnel of allFunnels) {
+      const deals = await storage.getFunnelDeals(funnel.id);
+      const stages = await storage.getFunnelStages(funnel.id);
+      const stageMap = new Map(stages.map((s: any) => [s.id, s.name]));
+
+      for (const deal of deals) {
+        const email = (deal.contactEmail || "").toLowerCase().trim();
+        const name = (deal.contactName || "").trim();
+        if (!name) continue;
+
+        const nameKey = name.toLowerCase();
+        if (existingEmails.has(email) && email) continue;
+        if (existingNames.has(nameKey)) continue;
+
+        const stageName = stageMap.get(deal.stageId) || "";
+        let status = "new";
+        if (/contacted/i.test(stageName)) status = "contacted";
+        else if (/qualified/i.test(stageName)) status = "qualified";
+        else if (/proposal/i.test(stageName)) status = "proposal";
+        else if (/closed|won/i.test(stageName)) status = "won";
+
+        const nameParts = name.split(" - ");
+        const leadName = nameParts[0].trim();
+        const company = nameParts.length > 1 ? nameParts.slice(1).join(" - ").trim() : "";
+
+        let score = 50;
+        if (status === "contacted") score = 65;
+        else if (status === "qualified") score = 80;
+        else if (status === "proposal") score = 85;
+        else if (status === "won") score = 95;
+
+        await storage.createLead({
+          userId: owner.id,
+          name: leadName,
+          email: email || "",
+          phone: "",
+          company,
+          source: "restored-from-funnel",
+          status: status === "won" ? "converted" : status === "qualified" ? "warm" : status,
+          score,
+          notes: `Restored from ${funnel.name} pipeline (${stageName} stage)`,
+        });
+        existingEmails.add(email);
+        existingNames.add(nameKey);
+        restored++;
+      }
+    }
+
+    if (restored > 0) {
+      console.log(`[Restore] Restored ${restored} leads from funnel deals back into CRM`);
+    }
+  } catch (error) {
+    console.error("[Restore] Error restoring leads from funnel:", error);
   }
 }
 
