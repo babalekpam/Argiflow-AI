@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, or, ilike } from "drizzle-orm";
 import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnels, emailLogs } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
@@ -7985,6 +7985,28 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
     } catch (error) {
       console.error("[Cleanup] Error:", error);
       res.status(500).json({ message: "Failed to cleanup fake leads" });
+    }
+  });
+
+  app.post("/api/admin/cleanup-tax-lien-leads", isAdmin, async (_req, res) => {
+    try {
+      const taxLeads = await db.delete(leads).where(or(
+        ilike(leads.source, "%tax%lien%"),
+        ilike(leads.name, "%tax%lien%"),
+        ilike(leads.intentSignal, "%tax%lien%"),
+        ilike(leads.notes, "%tax%lien%"),
+        ilike(leads.company, "%tax%lien%")
+      )).returning({ id: leads.id, name: leads.name });
+
+      const taxDeals = await db.delete(funnelDeals).where(
+        ilike(funnelDeals.contactName, "%tax%lien%")
+      ).returning({ id: funnelDeals.id, contactName: funnelDeals.contactName });
+
+      console.log(`[Cleanup] Removed ${taxLeads.length} tax lien leads and ${taxDeals.length} tax lien deals`);
+      res.json({ success: true, removedLeads: taxLeads.length, removedDeals: taxDeals.length, leads: taxLeads.map(l => l.name), deals: taxDeals.map(d => d.contactName) });
+    } catch (error) {
+      console.error("[Cleanup] Tax lien cleanup error:", error);
+      res.status(500).json({ message: "Failed to cleanup tax lien leads" });
     }
   });
 
