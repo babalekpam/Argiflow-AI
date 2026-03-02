@@ -7677,6 +7677,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   // Auto-cleanup disabled — was deleting real production leads on every restart
   // Use admin panel endpoints for manual cleanup if needed
   await restoreLeadsFromFunnel();
+  await cleanupTaxLienLeads();
   await backfillDentalLeads();
   await backfillMedBillingFunnel();
 
@@ -9604,6 +9605,32 @@ async function backfillMedBillingFunnel() {
     }
   } catch (err) {
     console.error("[Startup] Error backfilling funnel:", err);
+  }
+}
+
+async function cleanupTaxLienLeads() {
+  try {
+    const deletedLeads = await db.delete(leads).where(or(
+      ilike(leads.source, "%tax%lien%"),
+      ilike(leads.name, "%tax%lien%"),
+      ilike(leads.name, "%lien hunter%"),
+      ilike(leads.intentSignal, "%tax%lien%"),
+      ilike(leads.notes, "%tax%lien%"),
+      ilike(leads.company, "%tax%lien%")
+    )).returning({ id: leads.id, name: leads.name });
+
+    const deletedDeals = await db.delete(funnelDeals).where(or(
+      ilike(funnelDeals.contactName, "%tax%lien%"),
+      ilike(funnelDeals.contactName, "%lien hunter%")
+    )).returning({ id: funnelDeals.id, contactName: funnelDeals.contactName });
+
+    if (deletedLeads.length > 0 || deletedDeals.length > 0) {
+      console.log(`[Cleanup] Removed ${deletedLeads.length} tax lien leads and ${deletedDeals.length} tax lien funnel deals`);
+      for (const l of deletedLeads) console.log(`  Lead: ${l.name}`);
+      for (const d of deletedDeals) console.log(`  Deal: ${d.contactName}`);
+    }
+  } catch (error) {
+    console.error("[Cleanup] Tax lien cleanup error:", error);
   }
 }
 
