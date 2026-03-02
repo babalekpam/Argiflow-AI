@@ -7596,8 +7596,8 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   await seedSuperAdmin();
   await ensureOwnerPassword();
   await ensureAllUsersProLifetime();
-  await cleanupFakeLeads();
-  await cleanupNonMedicalLeads();
+  // Auto-cleanup disabled — was deleting real production leads on every restart
+  // Use admin panel endpoints for manual cleanup if needed
   await backfillDentalLeads();
   await backfillMedBillingFunnel();
 
