@@ -561,6 +561,50 @@ export async function autoAddToFunnelDirect(userId: string, agentType: string, s
 }
 
 // ============================================================
+// LEAD VALIDATION HELPERS (used across routes, AutoEngage, outreach gen)
+// ============================================================
+
+function isFakeName(name: string): boolean {
+  if (!name) return true;
+  const lower = name.toLowerCase().trim();
+  if (/^(prospect|lead|contact|test|debug|fresh lead|alpha lead|real person)\s*/i.test(lower)) return true;
+  if (/hunter (lead|prospect)/i.test(lower)) return true;
+  if (/^unknown$/i.test(lower)) return true;
+  if (/^(sample|example|dummy|placeholder|fake|lorem|john doe|jane doe)\b/i.test(lower)) return true;
+  if (/lead\s*#/i.test(lower)) return true;
+  if (/^[a-z]\s*\d+$/i.test(lower)) return true;
+  if (/lead gen agent/i.test(lower)) return true;
+  return false;
+}
+
+function isFakeEmail(email: string): boolean {
+  if (!email) return false;
+  const lower = email.toLowerCase().trim();
+  if (/contact\d+@prospect/i.test(lower)) return true;
+  if (/prospect-[a-z0-9]+\.com/i.test(lower)) return true;
+  if (/@(example|test|fake|placeholder|dummy|sample|mailinator|tempmail|guerrillamail)\./i.test(lower)) return true;
+  if (/^(test|fake|dummy|placeholder|sample|noreply|no-reply)@/i.test(lower)) return true;
+  if (/^(prospect|lead|debug|fresh|alpha)[\d_@]/i.test(lower)) return true;
+  if (/\+1555|5550{4}/i.test(lower)) return true;
+  const namePart = lower.split("@")[0];
+  const domainPart = lower.split("@")[1] || "";
+  if (/^(dr|doctor|john|jane|robert|jessica|amanda|henry|maria|kevin|brian|sarah|steven|nick|jake|tina|laura|karen)[\._]/.test(namePart) && /^[a-z]+(practice|clinic|care|med|medical|health|surgery)\.(com|org|net)$/.test(domainPart)) return true;
+  return false;
+}
+
+function isFakePhone(phone: string): boolean {
+  if (!phone) return false;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 0) return false;
+  const last10 = digits.slice(-10);
+  if (last10.length >= 10 && /^.{3}555/.test(last10)) return true;
+  if (/^(\d)\1{6,}$/.test(digits)) return true;
+  if (/^(1234|0000|9999)/.test(digits)) return true;
+  if (digits.length < 10) return true;
+  return false;
+}
+
+// ============================================================
 // CRM ACTION EXECUTOR (called by Claude via tool_use)
 // ============================================================
 
@@ -585,42 +629,6 @@ async function executeAction(userId: string, action: string, params: any): Promi
         if (isDecisionMaker) return false;
         const gatekeeperEmails = /^(info|contact|office|admin|hello|support|reception|frontdesk|appointments?|scheduling|billing|general|team|staff|help|enquir|inquir|mail)@/i;
         if (gatekeeperEmails.test(emailLower)) return true;
-        return false;
-      };
-      const isFakeName = (name: string) => {
-        if (!name) return true;
-        const lower = name.toLowerCase().trim();
-        if (/^(prospect|lead|contact|test|debug|fresh lead|alpha lead|real person)\s*/i.test(lower)) return true;
-        if (/hunter (lead|prospect)/i.test(lower)) return true;
-        if (/^unknown$/i.test(lower)) return true;
-        if (/^(sample|example|dummy|placeholder|fake|lorem|john doe|jane doe)\b/i.test(lower)) return true;
-        if (/lead\s*#/i.test(lower)) return true;
-        if (/^[a-z]\s*\d+$/i.test(lower)) return true;
-        return false;
-      };
-      const isFakeEmail = (email: string) => {
-        if (!email) return false;
-        const lower = email.toLowerCase().trim();
-        if (/contact\d+@prospect/i.test(lower)) return true;
-        if (/prospect-[a-z0-9]+\.com/i.test(lower)) return true;
-        if (/@(example|test|fake|placeholder|dummy|sample|mailinator|tempmail|guerrillamail)\./i.test(lower)) return true;
-        if (/^(test|fake|dummy|placeholder|sample|noreply|no-reply)@/i.test(lower)) return true;
-        if (/^(prospect|lead|debug|fresh|alpha)[\d_@]/i.test(lower)) return true;
-        if (/\+1555|5550{4}/i.test(lower)) return true;
-        const namePart = lower.split("@")[0];
-        const domainPart = lower.split("@")[1] || "";
-        if (/^(dr|doctor|john|jane|robert|jessica|amanda|henry|maria|kevin|brian|sarah|steven|nick|jake|tina|laura|karen)[\._]/.test(namePart) && /^[a-z]+(practice|clinic|care|med|medical|health|surgery)\.(com|org|net)$/.test(domainPart)) return true;
-        return false;
-      };
-      const isFakePhone = (phone: string) => {
-        if (!phone) return false;
-        const digits = phone.replace(/\D/g, '');
-        if (digits.length === 0) return false;
-        const last10 = digits.slice(-10);
-        if (last10.length >= 10 && /^.{3}555/.test(last10)) return true;
-        if (/^(\d)\1{6,}$/.test(digits)) return true;
-        if (/^(1234|0000|9999)/.test(digits)) return true;
-        if (digits.length < 10) return true;
         return false;
       };
 
