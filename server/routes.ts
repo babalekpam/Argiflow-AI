@@ -9762,18 +9762,45 @@ async function repairSentLeads() {
     const owner = await storage.getUserByEmail("abel@argilette.com");
     if (!owner) return;
     const allLeads = await storage.getLeadsByUser(owner.id);
-    let repaired = 0;
+    let repairedSent = 0;
+    let repairedEngagement = 0;
     const sentAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
     for (const lead of allLeads) {
       if (lead.outreach && lead.outreach.trim() !== "" && !lead.outreachSentAt) {
         const updates: any = { outreachSentAt: sentAt, followUpStep: 0, followUpStatus: "active", followUpNextAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) };
         if (lead.status === "new") updates.status = "warm";
         await storage.updateLead(lead.id, updates);
-        repaired++;
+        repairedSent++;
+      }
+
+      const events = await storage.getEmailEventsByLead(lead.id);
+      if (events.length > 0) {
+        const realOpens = events.filter(e => e.eventType === "open").length;
+        const realClicks = events.filter(e => e.eventType === "click").length;
+        if (realOpens !== (lead.emailOpens || 0) || realClicks !== (lead.emailClicks || 0)) {
+          let score = 0;
+          if (realOpens >= 1) score += 25;
+          if (realOpens >= 2) score += 15;
+          if (realOpens >= 3) score += 10;
+          if (realClicks >= 1) score += 35;
+          if (realClicks >= 2) score += 15;
+          score = Math.min(score, 100);
+          let level = "none";
+          let nextStep = "Wait for engagement or try a different channel (SMS/call)";
+          if (score >= 40) { level = "hot"; nextStep = "Schedule a call immediately — this lead is highly engaged"; }
+          else if (score >= 25) { level = "warm"; nextStep = "Send a follow-up email with a case study or booking link"; }
+          else if (score >= 10) { level = "interested"; nextStep = "Send a value-add follow-up in 2-3 days"; }
+          const engUpdate: any = { emailOpens: realOpens, emailClicks: realClicks, engagementScore: score, engagementLevel: level, nextStep };
+          if (realOpens > 0 || realClicks > 0) engUpdate.lastEngagedAt = events[events.length - 1].createdAt;
+          if (level === "hot" && lead.status !== "qualified") engUpdate.status = "hot";
+          else if (level === "warm" && lead.status === "new") engUpdate.status = "warm";
+          await storage.updateLead(lead.id, engUpdate);
+          repairedEngagement++;
+        }
       }
     }
-    if (repaired > 0) {
-      console.log(`[Repair] Fixed ${repaired} leads — restored outreachSentAt timestamps`);
+    if (repairedSent > 0 || repairedEngagement > 0) {
+      console.log(`[Repair] Fixed ${repairedSent} sent timestamps, ${repairedEngagement} engagement scores from email events`);
     }
   } catch (error) {
     console.error("[Repair] Error repairing sent leads:", error);
