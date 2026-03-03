@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, sql, desc, or, ilike } from "drizzle-orm";
+import { eq, and, sql, desc, or, ilike, isNull } from "drizzle-orm";
 import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnels, emailLogs } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
@@ -3429,14 +3429,19 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     try {
       const userId = req.session.userId!;
       const allLeads = await storage.getLeadsByUser(userId);
-      const unsent = allLeads.filter(l => l.outreach && l.email && !l.outreachSentAt);
+      const user = await storage.getUserById(userId);
+      const unsent = allLeads.filter(l =>
+        l.outreach && l.email && !l.outreachSentAt &&
+        !isFakeName(l.name || "") &&
+        !isFakeEmail(l.email || "") &&
+        !(l.email || "").toLowerCase().includes((user?.email || "").toLowerCase())
+      );
 
       if (unsent.length === 0) {
         return res.status(400).json({ message: "No unsent outreach emails to send" });
       }
 
       const settings = await storage.getSettingsByUser(userId);
-      const user = await storage.getUserById(userId);
 
       if (!user?.companyName) {
         return res.status(400).json({ message: "Company identity required. Go to Settings > Company Profile and enter your company name before sending outreach." });
@@ -3463,10 +3468,16 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
       const existing = bulkSendStatus.get(userId);
       if (existing && existing.status === "processing") {
-        return res.json({ status: "processing", sent: existing.sent, failed: existing.failed, total: existing.total });
+        const startedAt = (existing as any).startedAt || 0;
+        const staleMinutes = (Date.now() - startedAt) / 60000;
+        if (staleMinutes < 30) {
+          return res.json({ status: "processing", sent: existing.sent, failed: existing.failed, total: existing.total });
+        }
+        console.log(`[Bulk Send] Clearing stale processing state (${Math.round(staleMinutes)} min old)`);
+        bulkSendStatus.delete(userId);
       }
 
-      bulkSendStatus.set(userId, { status: "processing", sent: 0, failed: 0, total: unsent.length, errors: [] });
+      bulkSendStatus.set(userId, { status: "processing", sent: 0, failed: 0, total: unsent.length, errors: [], startedAt: Date.now() } as any);
       res.json({ status: "processing", sent: 0, failed: 0, total: unsent.length, message: `Sending ${unsent.length} emails in the background...` });
 
       setImmediate(() => {
@@ -3505,8 +3516,10 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return;
       }
       const allLeads = await storage.getLeadsByUser(userId);
-      const needsOutreach = regenerateAll ? allLeads.filter(l => l.status === "new") : allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
       const user = await storage.getUserById(userId);
+      const userEmail = (user?.email || "").toLowerCase();
+      const filterFakes = (l: any) => !isFakeName(l.name || "") && !isFakeEmail(l.email || "") && !(l.email || "").toLowerCase().includes(userEmail);
+      const needsOutreach = (regenerateAll ? allLeads.filter(l => l.status === "new") : allLeads.filter(l => !l.outreach || l.outreach.trim() === "")).filter(filterFakes);
       const userSettings = await storage.getSettingsByUser(userId);
       const bookingLink = userSettings?.calendarLink || "";
       const senderFullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
@@ -3663,10 +3676,16 @@ https://www.tmbds.com/schedule
 
     const existing = outreachGenerationStatus.get(userId);
     if (existing && existing.status === "processing") {
-      return res.json({ message: "Already generating drafts...", total: existing.total, status: "processing" });
+      const startedAt = (existing as any).startedAt || 0;
+      const staleMinutes = (Date.now() - startedAt) / 60000;
+      if (staleMinutes < 15) {
+        return res.json({ message: "Already generating drafts...", total: existing.total, generated: existing.generated || 0, status: "processing" });
+      }
+      console.log(`[Outreach Gen] Clearing stale processing state (${Math.round(staleMinutes)} min old)`);
+      outreachGenerationStatus.delete(userId);
     }
 
-    outreachGenerationStatus.set(userId, { status: "processing", generated: 0, total: targetLeads.length });
+    outreachGenerationStatus.set(userId, { status: "processing", generated: 0, total: targetLeads.length, startedAt: Date.now() } as any);
     res.json({ message: `${regenerateAll ? "Regenerating" : "Generating"} drafts for ${targetLeads.length} leads...`, total: targetLeads.length, status: "processing" });
 
     setImmediate(() => {
@@ -4407,7 +4426,10 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
             (l.score || 0) >= HOT_LEAD_MIN_SCORE &&
             l.email &&
             !l.outreachSentAt &&
-            !l.scheduledSendAt
+            !l.scheduledSendAt &&
+            !isFakeName(l.name || "") &&
+            !isFakeEmail(l.email || "") &&
+            !(l.email || "").toLowerCase().includes(user.email.toLowerCase())
           );
 
           if (hotLeads.length === 0) continue;
@@ -7682,6 +7704,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   // Use admin panel endpoints for manual cleanup if needed
   await restoreLeadsFromFunnel();
   await cleanupTaxLienLeads();
+  await cleanupFakeGeneratedLeads();
   await backfillDentalLeads();
   await backfillMedBillingFunnel();
 
@@ -9635,6 +9658,26 @@ async function cleanupTaxLienLeads() {
     }
   } catch (error) {
     console.error("[Cleanup] Tax lien cleanup error:", error);
+  }
+}
+
+async function cleanupFakeGeneratedLeads() {
+  try {
+    const deletedLeads = await db.delete(leads).where(
+      or(
+        ilike(leads.name, "%Lead Gen Agent Lead%"),
+        ilike(leads.name, "%Lead #%"),
+        ilike(leads.name, "%Prospect %"),
+        sql`${leads.email} ~* 'contact\\d+@prospect-'`,
+        sql`${leads.email} ~* '@prospect-[a-z0-9]+\\.com$'`
+      )
+    ).returning({ id: leads.id, name: leads.name, email: leads.email });
+    if (deletedLeads.length > 0) {
+      console.log(`[Cleanup] Removed ${deletedLeads.length} fake AI-generated leads`);
+      for (const l of deletedLeads) console.log(`  Fake lead: ${l.name} (${l.email})`);
+    }
+  } catch (error) {
+    console.error("[Cleanup] Fake lead cleanup error:", error);
   }
 }
 
