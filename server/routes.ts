@@ -7735,12 +7735,19 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   await seedSuperAdmin();
   await ensureOwnerPassword();
   await ensureAllUsersProLifetime();
-  await restoreLeadsFromFunnel();
-  await cleanupTaxLienLeads();
-  await cleanupFakeGeneratedLeads();
-  await repairSentLeads();
-  await backfillDentalLeads();
-  await backfillMedBillingFunnel();
+
+  setImmediate(async () => {
+    try {
+      await restoreLeadsFromFunnel();
+      await cleanupTaxLienLeads();
+      await cleanupFakeGeneratedLeads();
+      await repairSentLeads();
+      await backfillDentalLeads();
+      await backfillMedBillingFunnel();
+    } catch (err) {
+      console.error("[Startup] Deferred tasks error:", err);
+    }
+  });
 
   app.post("/api/admin/login", async (req, res) => {
     try {
