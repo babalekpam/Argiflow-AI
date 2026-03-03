@@ -7731,13 +7731,11 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
 
   // ---- ADMIN ----
 
-  await clearOldSeedData();
+  // clearOldSeedData DISABLED — was deleting ALL production leads, appointments, agents on every deploy
   await seedSuperAdmin();
   await ensureOwnerPassword();
   await ensureAllUsersProLifetime();
-  // Auto-cleanup disabled — was deleting real production leads on every restart
-  // Use admin panel endpoints for manual cleanup if needed
-  // restoreLeadsFromFunnel disabled — was creating duplicate leads without outreach data
+  await restoreLeadsFromFunnel();
   await cleanupTaxLienLeads();
   await cleanupFakeGeneratedLeads();
   await repairSentLeads();
