@@ -8024,6 +8024,69 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
     }
   });
 
+  app.post("/api/admin/trigger-bulk-outreach", isAdmin, async (req, res) => {
+    try {
+      const owner = await storage.getUserByEmail("abel@argilette.com");
+      if (!owner) return res.status(404).json({ message: "Owner not found" });
+      const userId = owner.id;
+      const settings = await storage.getSettingsByUser(userId);
+      const allLeads = await storage.getLeadsByUser(userId);
+      const userEmail = owner.email.toLowerCase();
+
+      const validLeads = allLeads.filter(l =>
+        l.email &&
+        !isFakeName(l.name || "") &&
+        !isFakeEmail(l.email || "") &&
+        !(l.email || "").toLowerCase().includes(userEmail)
+      );
+
+      const needsOutreach = validLeads.filter(l => !l.outreach || l.outreach.trim() === "");
+      const readyToSend = validLeads.filter(l => l.outreach && l.outreach.trim() !== "" && !l.outreachSentAt);
+
+      console.log(`[Admin Bulk] ${validLeads.length} valid leads, ${needsOutreach.length} need outreach gen, ${readyToSend.length} ready to send`);
+
+      if (needsOutreach.length > 0) {
+        outreachGenerationStatus.set(userId, { status: "processing", generated: 0, total: needsOutreach.length, startedAt: Date.now() } as any);
+        setImmediate(() => {
+          processOutreachGeneration(userId, false).then(() => {
+            console.log(`[Admin Bulk] Outreach generation complete, now triggering send...`);
+            const sendAllLeads = async () => {
+              const refreshed = await storage.getLeadsByUser(userId);
+              const toSend = refreshed.filter(l =>
+                l.outreach && l.outreach.trim() !== "" && l.email && !l.outreachSentAt &&
+                !isFakeName(l.name || "") && !isFakeEmail(l.email || "") &&
+                !(l.email || "").toLowerCase().includes(userEmail)
+              );
+              if (toSend.length > 0) {
+                bulkSendStatus.set(userId, { status: "processing", sent: 0, failed: 0, total: toSend.length, errors: [], startedAt: Date.now() } as any);
+                await processBulkOutreachSend(userId, toSend, settings, owner);
+              }
+            };
+            sendAllLeads().catch(err => console.error("[Admin Bulk] Send error:", err));
+          }).catch(err => console.error("[Admin Bulk] Gen error:", err));
+        });
+      } else if (readyToSend.length > 0) {
+        bulkSendStatus.set(userId, { status: "processing", sent: 0, failed: 0, total: readyToSend.length, errors: [], startedAt: Date.now() } as any);
+        setImmediate(() => {
+          processBulkOutreachSend(userId, readyToSend, settings, owner).catch(err =>
+            console.error("[Admin Bulk] Send error:", err)
+          );
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Processing: ${needsOutreach.length} leads need outreach generated, ${readyToSend.length} ready to send immediately`,
+        totalValid: validLeads.length,
+        needsOutreach: needsOutreach.length,
+        readyToSend: readyToSend.length
+      });
+    } catch (error) {
+      console.error("[Admin Bulk] Error:", error);
+      res.status(500).json({ message: "Failed to trigger bulk outreach" });
+    }
+  });
+
   app.post("/api/admin/cleanup-tax-lien-leads", isAdmin, async (_req, res) => {
     try {
       const taxLeads = await db.delete(leads).where(or(
