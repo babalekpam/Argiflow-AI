@@ -6611,20 +6611,19 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
 
   function calculateEngagement(opens: number, clicks: number): { score: number; level: string; nextStep: string } {
     let score = 0;
-    if (opens >= 1) score += 20;
-    if (opens >= 2) score += 10;
+    if (opens >= 1) score += 25;
+    if (opens >= 2) score += 15;
     if (opens >= 3) score += 10;
-    if (clicks >= 1) score += 30;
+    if (clicks >= 1) score += 35;
     if (clicks >= 2) score += 15;
-    if (clicks >= 3) score += 10;
     score = Math.min(score, 100);
 
     let level: string;
     let nextStep: string;
-    if (score >= 60) {
+    if (score >= 40) {
       level = "hot";
       nextStep = "Schedule a call immediately — this lead is highly engaged";
-    } else if (score >= 30) {
+    } else if (score >= 25) {
       level = "warm";
       nextStep = "Send a follow-up email with a case study or booking link";
     } else if (score >= 10) {
@@ -6783,6 +6782,22 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
       const userId = req.session.userId!;
       const allLeads = await storage.getLeadsByUser(userId);
       const sentLeads = allLeads.filter(l => l.outreachSentAt);
+
+      for (const lead of sentLeads) {
+        if ((lead.emailOpens || 0) > 0 || (lead.emailClicks || 0) > 0) {
+          const { score, level, nextStep } = calculateEngagement(lead.emailOpens || 0, lead.emailClicks || 0);
+          if (lead.engagementLevel !== level || lead.engagementScore !== score) {
+            const statusUpdate: any = { engagementScore: score, engagementLevel: level, nextStep };
+            if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
+            else if (level === "warm" && lead.status === "new") statusUpdate.status = "warm";
+            await storage.updateLead(lead.id, statusUpdate);
+            lead.engagementLevel = level;
+            lead.engagementScore = score;
+            if (statusUpdate.status) lead.status = statusUpdate.status;
+          }
+        }
+      }
+
       const totalSent = sentLeads.length;
       const totalOpens = sentLeads.reduce((sum, l) => sum + (l.emailOpens || 0), 0);
       const totalClicks = sentLeads.reduce((sum, l) => sum + (l.emailClicks || 0), 0);
