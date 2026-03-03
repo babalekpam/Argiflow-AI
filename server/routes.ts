@@ -7740,6 +7740,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   await restoreLeadsFromFunnel();
   await cleanupTaxLienLeads();
   await cleanupFakeGeneratedLeads();
+  await repairSentLeads();
   await backfillDentalLeads();
   await backfillMedBillingFunnel();
 
@@ -8022,6 +8023,29 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       res.json(updated);
     } catch (error) {
       res.status(500).json({ message: "Failed to update subscription" });
+    }
+  });
+
+  app.post("/api/admin/repair-sent-leads", isAdmin, async (req, res) => {
+    try {
+      const owner = await storage.getUserByEmail("abel@argilette.com");
+      if (!owner) return res.status(404).json({ message: "Owner not found" });
+      const allLeads = await storage.getLeadsByUser(owner.id);
+      let repaired = 0;
+      const sentAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      for (const lead of allLeads) {
+        if (lead.outreach && lead.outreach.trim() !== "" && !lead.outreachSentAt) {
+          const updates: any = { outreachSentAt: sentAt, followUpStep: 0, followUpStatus: "active", followUpNextAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) };
+          if (lead.status === "new") updates.status = "warm";
+          await storage.updateLead(lead.id, updates);
+          repaired++;
+        }
+      }
+      console.log(`[Repair] Fixed ${repaired} leads — restored outreachSentAt`);
+      res.json({ success: true, repaired, total: allLeads.length });
+    } catch (error) {
+      console.error("[Repair] Error:", error);
+      res.status(500).json({ message: "Failed to repair leads" });
     }
   });
 
@@ -9730,6 +9754,29 @@ async function backfillMedBillingFunnel() {
     }
   } catch (err) {
     console.error("[Startup] Error backfilling funnel:", err);
+  }
+}
+
+async function repairSentLeads() {
+  try {
+    const owner = await storage.getUserByEmail("abel@argilette.com");
+    if (!owner) return;
+    const allLeads = await storage.getLeadsByUser(owner.id);
+    let repaired = 0;
+    const sentAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    for (const lead of allLeads) {
+      if (lead.outreach && lead.outreach.trim() !== "" && !lead.outreachSentAt) {
+        const updates: any = { outreachSentAt: sentAt, followUpStep: 0, followUpStatus: "active", followUpNextAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) };
+        if (lead.status === "new") updates.status = "warm";
+        await storage.updateLead(lead.id, updates);
+        repaired++;
+      }
+    }
+    if (repaired > 0) {
+      console.log(`[Repair] Fixed ${repaired} leads — restored outreachSentAt timestamps`);
+    }
+  } catch (error) {
+    console.error("[Repair] Error repairing sent leads:", error);
   }
 }
 
