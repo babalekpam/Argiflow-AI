@@ -7737,7 +7737,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   await ensureAllUsersProLifetime();
   // Auto-cleanup disabled — was deleting real production leads on every restart
   // Use admin panel endpoints for manual cleanup if needed
-  await restoreLeadsFromFunnel();
+  // restoreLeadsFromFunnel disabled — was creating duplicate leads without outreach data
   await cleanupTaxLienLeads();
   await cleanupFakeGeneratedLeads();
   await repairSentLeads();
@@ -9766,7 +9766,11 @@ async function repairSentLeads() {
     let repairedEngagement = 0;
     const sentAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
     for (const lead of allLeads) {
-      if (lead.outreach && lead.outreach.trim() !== "" && !lead.outreachSentAt) {
+      const hasOutreach = lead.outreach && lead.outreach.trim() !== "";
+      const wasContacted = lead.status === "contacted" || lead.status === "warm" || lead.status === "hot" || lead.status === "qualified" || lead.status === "converted";
+      const isRestoredFromFunnel = (lead.source || "").includes("restored-from-funnel");
+
+      if (!lead.outreachSentAt && (hasOutreach || wasContacted || isRestoredFromFunnel)) {
         const updates: any = { outreachSentAt: sentAt, followUpStep: 0, followUpStatus: "active", followUpNextAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) };
         if (lead.status === "new") updates.status = "warm";
         await storage.updateLead(lead.id, updates);
