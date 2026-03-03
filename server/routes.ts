@@ -5172,6 +5172,16 @@ Return ONLY the email reply text, no subject line, no markdown.`
 
   async function runAutoLeadGeneration() {
     try {
+      const owner = await storage.getUserByEmail("abel@argilette.com");
+      if (owner) {
+        const existingLeads = await storage.getLeadsByUser(owner.id);
+        const unsentCount = existingLeads.filter(l => !l.outreachSentAt && l.outreach && l.outreach.trim() !== "").length;
+        if (unsentCount >= 20) {
+          console.log(`[Auto Lead Gen] Skipping — ${unsentCount} unsent leads already queued`);
+          return;
+        }
+      }
+
       const allUsers = await storage.getAllUsers();
       if (allUsers.length === 0) {
         console.log("[Auto Lead Gen] No users found, skipping");
@@ -5667,7 +5677,6 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                       } catch {}
                     } else {
                       failed++;
-                      await db.update(leads).set({ outreachSentAt: null }).where(eq(leads.id, lead.id));
                       try {
                         await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "auto-lead-gen-instant", errorMessage: result.error });
                       } catch {}
@@ -5675,7 +5684,6 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                     await new Promise(r => setTimeout(r, 2000));
                   } catch (emailErr: any) {
                     failed++;
-                    await db.update(leads).set({ outreachSentAt: null }).where(eq(leads.id, lead.id));
                   }
                 }
                 if (sent > 0) {
@@ -5775,6 +5783,13 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
       const targetUser = allUsers.find((u: any) => u.email === MEDBILL_USER_EMAIL);
       if (!targetUser) {
         console.log("[MedBill Lead Gen] Target user not found, skipping");
+        return;
+      }
+
+      const existingLeads = await storage.getLeadsByUser(targetUser.id);
+      const unsentCount = existingLeads.filter(l => !l.outreachSentAt && l.outreach && l.outreach.trim() !== "").length;
+      if (unsentCount >= 20) {
+        console.log(`[MedBill Lead Gen] Skipping — ${unsentCount} unsent leads already queued`);
         return;
       }
 
@@ -6429,7 +6444,6 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
                     console.log(`[MedBill Instant] ✅ Sent to ${lead.name} <${lead.email}> (score: ${lead.score})`);
                   } else {
                     failed++;
-                    await db.update(leads).set({ outreachSentAt: null }).where(eq(leads.id, lead.id));
                     console.warn(`[MedBill Instant] ❌ Failed for ${lead.email}: ${result.error}`);
                     try {
                       await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "medbill-instant-outreach", errorMessage: result.error });
@@ -6438,7 +6452,6 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
                   await new Promise(r => setTimeout(r, 2000));
                 } catch (emailErr: any) {
                   failed++;
-                  await db.update(leads).set({ outreachSentAt: null }).where(eq(leads.id, lead.id));
                   console.error(`[MedBill Instant] Email error for ${lead.email}:`, emailErr.message);
                   try {
                     await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "medbill-instant-outreach", errorMessage: emailErr.message });
@@ -6908,7 +6921,6 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
         }
         if (realOpens === 0 && realClicks === 0) {
           statusUpdate.lastEngagedAt = null;
-          if (lead.status === "hot" || lead.status === "warm") statusUpdate.status = "new";
         } else if (level === "hot" && lead.status !== "qualified") {
           statusUpdate.status = "hot";
         } else if (level === "warm" && lead.status === "new") {
