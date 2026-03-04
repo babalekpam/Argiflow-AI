@@ -564,9 +564,13 @@ export async function autoAddToFunnelDirect(userId: string, agentType: string, s
 // LEAD VALIDATION HELPERS (used across routes, AutoEngage, outreach gen)
 // ============================================================
 
+const INTERNAL_TEAM_NAMES = ["clara motena", "abel", "track-med", "argilette", "argiflow"];
+const INTERNAL_TEAM_EMAILS = ["clara@track-med.com", "clara.motena@track-med.com", "abel@argilette.com", "info@argilette.com", "info@track-med.com"];
+
 function isFakeName(name: string): boolean {
   if (!name) return true;
   const lower = name.toLowerCase().trim();
+  if (INTERNAL_TEAM_NAMES.some(n => lower === n || lower.startsWith(n + " "))) return true;
   if (/^(prospect|lead|contact|test|debug|fresh lead|alpha lead|real person)\s*/i.test(lower)) return true;
   if (/hunter (lead|prospect)/i.test(lower)) return true;
   if (/^unknown$/i.test(lower)) return true;
@@ -580,6 +584,8 @@ function isFakeName(name: string): boolean {
 function isFakeEmail(email: string): boolean {
   if (!email) return false;
   const lower = email.toLowerCase().trim();
+  if (INTERNAL_TEAM_EMAILS.some(e => lower === e)) return true;
+  if (/@(track-med\.com|argilette\.com|argiflow\.com|tmbds\.com)$/i.test(lower)) return true;
   if (/contact\d+@prospect/i.test(lower)) return true;
   if (/prospect-[a-z0-9]+\.com/i.test(lower)) return true;
   if (/@(example|test|fake|placeholder|dummy|sample|mailinator|tempmail|guerrillamail)\./i.test(lower)) return true;
