@@ -4671,27 +4671,28 @@ RULES:
     if (!lead.email || !emailBody) {
       return { success: false, error: "No email or follow-up body" };
     }
-    if (!user?.companyName || !userSettings?.senderEmail) {
-      return { success: false, error: "Missing company/sender config" };
+    const effectiveSenderEmail = userSettings?.senderEmail || process.env.SMTP_USERNAME;
+    if (!user?.companyName || !effectiveSenderEmail) {
+      return { success: false, error: `Missing company/sender config (company=${user?.companyName}, sender=${effectiveSenderEmail})` };
     }
 
-    const smtpHost = userSettings.smtpHost || process.env.SMTP_HOST;
-    const smtpUsername = userSettings.smtpUsername || process.env.SMTP_USERNAME;
-    const smtpPassword = userSettings.smtpPassword || process.env.SMTP_PASSWORD;
-    const smtpPort = userSettings.smtpPort || (process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587);
-    const smtpSecure = userSettings.smtpSecure ?? false;
+    const smtpHost = userSettings?.smtpHost || process.env.SMTP_HOST;
+    const smtpUsername = userSettings?.smtpUsername || process.env.SMTP_USERNAME;
+    const smtpPassword = userSettings?.smtpPassword || process.env.SMTP_PASSWORD;
+    const smtpPort = userSettings?.smtpPort || (process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587);
+    const smtpSecure = userSettings?.smtpSecure ?? false;
 
     const hasSmtp = !!(smtpHost && smtpUsername && smtpPassword);
-    const hasSendgrid = !!userSettings.sendgridApiKey;
+    const hasSendgrid = !!userSettings?.sendgridApiKey;
     const hasSmtpEnvVars = !!(process.env.SMTP_HOST && process.env.SMTP_USERNAME && process.env.SMTP_PASSWORD);
 
-    let emailProvider = userSettings.emailProvider || "sendgrid";
+    let emailProvider = userSettings?.emailProvider || "sendgrid";
     if (hasSmtpEnvVars || hasSmtp) emailProvider = "smtp";
 
     if (emailProvider === "smtp" && !hasSmtp) return { success: false, error: "SMTP settings incomplete" };
     if (emailProvider !== "smtp" && !hasSendgrid) return { success: false, error: "No email provider configured" };
 
-    const senderEmail = userSettings.senderEmail;
+    const senderEmail = effectiveSenderEmail;
     const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
     const firstName = lead.name.split(" ")[0];
     const subjectLine = step === 1
@@ -4706,10 +4707,10 @@ RULES:
     if (fFullName) fSigParts.push(fFullName);
     if ((user as any).jobTitle) fSigParts.push((user as any).jobTitle);
     if (user.companyName) fSigParts.push(user.companyName);
-    const fPhone = userSettings.grasshopperNumber || userSettings.twilioPhoneNumber || "";
+    const fPhone = userSettings?.grasshopperNumber || userSettings?.twilioPhoneNumber || "";
     if (fPhone) fSigParts.push(fPhone);
     if (user.website) fSigParts.push(user.website);
-    const fCalLink = userSettings.calendarLink || "";
+    const fCalLink = userSettings?.calendarLink || "";
     if (fCalLink) fSigParts.push(fCalLink);
 
     const fTextSig = fSigParts.length > 0 ? "\n\n--\n" + fSigParts.join("\n") : "";
@@ -4734,7 +4735,7 @@ RULES:
           text: fPlainText, html: htmlBody,
         });
       } else {
-        sgMail.setApiKey(userSettings.sendgridApiKey);
+        sgMail.setApiKey(userSettings?.sendgridApiKey);
         await sgMail.send({
           to: lead.email,
           from: { email: senderEmail, name: senderName },
@@ -4742,9 +4743,11 @@ RULES:
         });
       }
       console.log(`[FOLLOW-UP] Step ${step} sent to ${lead.name} (${lead.email})`);
+      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: emailProvider, source: "follow-up", status: "sent" });
       return { success: true };
     } catch (err: any) {
       console.error(`[FOLLOW-UP] Send failed for ${lead.name}:`, err?.message);
+      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: emailProvider, source: "follow-up", status: "failed", errorMessage: err?.message });
       return { success: false, error: err?.message || "Send failed" };
     }
   }
@@ -4792,11 +4795,15 @@ RULES:
             continue;
           }
 
-          const settings = await storage.getSettingsByUser(lead.userId);
+          const settings = await storage.getSettingsByUser(lead.userId) || {} as any;
           const user = await storage.getUserById(lead.userId);
-          if (!user || !settings?.senderEmail) {
-            console.warn(`[FOLLOW-UP] Skipping ${lead.name}: missing user/sender config`);
+          const hasSenderFallback = !!(settings?.senderEmail || process.env.SMTP_USERNAME);
+          if (!user || !hasSenderFallback) {
+            console.warn(`[FOLLOW-UP] Skipping ${lead.name}: missing user/sender config (senderEmail=${settings?.senderEmail}, SMTP_USERNAME=${process.env.SMTP_USERNAME ? 'SET' : 'UNSET'})`);
             continue;
+          }
+          if (!settings.senderEmail && process.env.SMTP_USERNAME) {
+            settings.senderEmail = process.env.SMTP_USERNAME;
           }
 
           let followUpAi: { client: Anthropic; model: string } | undefined;
@@ -4840,6 +4847,7 @@ RULES:
     }
   }
 
+  console.log("[FOLLOW-UP] Follow-up processor started — checking every 5 minutes (3 steps: day 2 gentle, day 4 value, day 6 final)");
   setInterval(processFollowUpSequences, 5 * 60 * 1000);
   setTimeout(processFollowUpSequences, 2 * 60 * 1000);
 
