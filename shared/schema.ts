@@ -1514,6 +1514,7 @@ export const supplierProducts = pgTable("supplier_products", {
   margin: real("margin"),
   aiNotes: text("ai_notes"),
   imageUrl: text("image_url"),
+  images: text("images").array().default(sql`'{}'::text[]`),
   status: text("status").default("imported"),
   createdAt: timestamp("created_at").defaultNow(),
 });

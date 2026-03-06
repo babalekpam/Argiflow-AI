@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Loader2, Globe, ArrowRight, Star, Check, Mail, Phone, MapPin, Zap, ShieldCheck, Users, BarChart3, Heart, Sparkles } from "lucide-react";
@@ -221,7 +222,54 @@ type Product = {
   supplierPrice: number;
   suggestedRetailPrice: number | null;
   imageUrl: string | null;
+  images: string[] | null;
 };
+
+function ProductImageCarousel({ images, alt }: { images: string[]; alt: string }) {
+  const [current, setCurrent] = useState(0);
+  if (images.length === 0) {
+    return (
+      <div className="aspect-square bg-slate-800 flex items-center justify-center">
+        <Globe className="w-12 h-12 text-slate-700" />
+      </div>
+    );
+  }
+  if (images.length === 1) {
+    return (
+      <div className="aspect-square bg-slate-800 overflow-hidden">
+        <img src={images[0]} alt={alt} className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+  return (
+    <div className="relative aspect-square bg-slate-800 overflow-hidden group/carousel">
+      <img src={images[current]} alt={`${alt} ${current + 1}`} className="w-full h-full object-cover transition-opacity duration-300" />
+      <button
+        onClick={(e) => { e.stopPropagation(); setCurrent(c => (c - 1 + images.length) % images.length); }}
+        className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity text-xs"
+        data-testid="button-prev-image"
+      >
+        ‹
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); setCurrent(c => (c + 1) % images.length); }}
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity text-xs"
+        data-testid="button-next-image"
+      >
+        ›
+      </button>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+        {images.map((_, i) => (
+          <button
+            key={i}
+            onClick={(e) => { e.stopPropagation(); setCurrent(i); }}
+            className={`w-1.5 h-1.5 rounded-full transition-all ${i === current ? "bg-white w-3" : "bg-white/50"}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function ProductsGrid({ products }: { products: Product[] }) {
   if (!products || products.length === 0) return null;
@@ -233,33 +281,28 @@ function ProductsGrid({ products }: { products: Product[] }) {
           <p className="text-blue-200/60 text-lg">Browse our catalog</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map(p => (
-            <div key={p.id} className="rounded-xl bg-slate-900/60 border border-slate-800 overflow-hidden hover:border-blue-500/30 transition-all group" data-testid={`product-card-${p.id}`}>
-              {p.imageUrl ? (
-                <div className="aspect-square bg-slate-800 overflow-hidden">
-                  <img src={p.imageUrl} alt={p.productName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                </div>
-              ) : (
-                <div className="aspect-square bg-slate-800 flex items-center justify-center">
-                  <Globe className="w-12 h-12 text-slate-700" />
-                </div>
-              )}
-              <div className="p-4 space-y-2">
-                <h3 className="font-semibold text-white text-sm line-clamp-2">{p.productName}</h3>
-                {p.description && (
-                  <p className="text-xs text-slate-400 line-clamp-2">{p.description}</p>
-                )}
-                <div className="flex items-center justify-between pt-2">
-                  <span className="text-lg font-bold text-blue-400">
-                    ${(p.suggestedRetailPrice != null && p.suggestedRetailPrice > 0 ? p.suggestedRetailPrice : (p.supplierPrice || 0)).toFixed(2)}
-                  </span>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs">
-                    View Details
-                  </Button>
+          {products.map(p => {
+            const allImages = (p.images && p.images.length > 0) ? p.images : (p.imageUrl ? [p.imageUrl] : []);
+            return (
+              <div key={p.id} className="rounded-xl bg-slate-900/60 border border-slate-800 overflow-hidden hover:border-blue-500/30 transition-all group" data-testid={`product-card-${p.id}`}>
+                <ProductImageCarousel images={allImages} alt={p.productName} />
+                <div className="p-4 space-y-2">
+                  <h3 className="font-semibold text-white text-sm line-clamp-2">{p.productName}</h3>
+                  {p.description && (
+                    <p className="text-xs text-slate-400 line-clamp-2">{p.description}</p>
+                  )}
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-lg font-bold text-blue-400">
+                      ${(p.suggestedRetailPrice != null && p.suggestedRetailPrice > 0 ? p.suggestedRetailPrice : (p.supplierPrice || 0)).toFixed(2)}
+                    </span>
+                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs">
+                      View Details
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

@@ -10767,13 +10767,14 @@ Consider: category competition levels, psychological pricing (e.g. $29.99 not $3
   app.post("/api/sites/:id/products", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const { productName, description, category, supplierPrice, suggestedRetailPrice, imageUrl } = req.body;
+      const { productName, description, category, supplierPrice, suggestedRetailPrice, imageUrl, images } = req.body;
       if (!productName || !supplierPrice) {
         return res.status(400).json({ message: "Product name and price are required" });
       }
       const cost = parseFloat(supplierPrice) || 0;
       const retail = parseFloat(suggestedRetailPrice) || cost * 1.5;
       const margin = cost > 0 ? Math.round(((retail - cost) / retail) * 1000) / 10 : 0;
+      const imgArray = Array.isArray(images) ? images.filter((u: string) => u && typeof u === "string").slice(0, 5) : [];
 
       const [product] = await db.insert(supplierProducts).values({
         userId,
@@ -10785,7 +10786,8 @@ Consider: category competition levels, psychological pricing (e.g. $29.99 not $3
         supplierPrice: cost,
         suggestedRetailPrice: retail,
         margin,
-        imageUrl: imageUrl || null,
+        imageUrl: imgArray[0] || imageUrl || null,
+        images: imgArray,
         status: "active",
       }).returning();
 
@@ -10798,12 +10800,18 @@ Consider: category competition levels, psychological pricing (e.g. $29.99 not $3
   app.put("/api/sites/:id/products/:productId", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const { productName, description, category, supplierPrice, suggestedRetailPrice, imageUrl } = req.body;
+      const { productName, description, category, supplierPrice, suggestedRetailPrice, imageUrl, images } = req.body;
       const updates: any = { };
       if (productName !== undefined) updates.productName = productName;
       if (description !== undefined) updates.description = description;
       if (category !== undefined) updates.category = category;
-      if (imageUrl !== undefined) updates.imageUrl = imageUrl;
+      if (images !== undefined) {
+        const imgArray = Array.isArray(images) ? images.filter((u: string) => u && typeof u === "string").slice(0, 5) : [];
+        updates.images = imgArray;
+        updates.imageUrl = imgArray[0] || imageUrl || null;
+      } else if (imageUrl !== undefined) {
+        updates.imageUrl = imageUrl;
+      }
       if (supplierPrice !== undefined) {
         updates.supplierPrice = parseFloat(supplierPrice) || 0;
       }

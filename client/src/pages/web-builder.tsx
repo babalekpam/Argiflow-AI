@@ -202,7 +202,7 @@ export default function WebBuilderPage() {
   const [selectedSupplier, setSelectedSupplier] = useState("AliExpress");
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<SupplierProduct | null>(null);
-  const [productForm, setProductForm] = useState({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", imageUrl: "" });
+  const [productForm, setProductForm] = useState({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", images: [""] as string[] });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -347,7 +347,7 @@ export default function WebBuilderPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sites", editingSite?.id, "products"] });
       setProductDialogOpen(false);
       setEditingProduct(null);
-      setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", imageUrl: "" });
+      setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", images: [""] });
       toast({ title: "Product added" });
     },
     onError: (err: any) => {
@@ -364,7 +364,7 @@ export default function WebBuilderPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sites", editingSite?.id, "products"] });
       setProductDialogOpen(false);
       setEditingProduct(null);
-      setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", imageUrl: "" });
+      setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", images: [""] });
       toast({ title: "Product updated" });
     },
     onError: (err: any) => {
@@ -912,13 +912,14 @@ export default function WebBuilderPage() {
                         className="p-2.5 rounded-lg border border-border/50 bg-secondary/20 group cursor-pointer hover:border-blue-500/30 transition-all"
                         onClick={() => {
                           setEditingProduct(p);
+                          const existingImages = (p as any).images?.length ? (p as any).images : (p.imageUrl ? [p.imageUrl] : [""]);
                           setProductForm({
                             productName: p.productName,
                             description: p.description || "",
                             category: p.category || "General",
                             supplierPrice: String(p.supplierPrice || ""),
                             suggestedRetailPrice: String(p.suggestedRetailPrice || ""),
-                            imageUrl: p.imageUrl || "",
+                            images: existingImages.length ? existingImages : [""],
                           });
                           setProductDialogOpen(true);
                         }}
@@ -1168,7 +1169,7 @@ export default function WebBuilderPage() {
         setProductDialogOpen(open);
         if (!open) {
           setEditingProduct(null);
-          setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", imageUrl: "" });
+          setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", images: [""] });
         }
       }}>
         <DialogContent className="max-w-md">
@@ -1196,22 +1197,60 @@ export default function WebBuilderPage() {
               />
             </div>
             <div>
-              <Label className="text-xs">Image URL</Label>
-              <Input
-                value={productForm.imageUrl}
-                onChange={e => setProductForm(f => ({ ...f, imageUrl: e.target.value }))}
-                placeholder="https://example.com/product-image.jpg"
-                data-testid="input-product-image"
-              />
-              {productForm.imageUrl && (
-                <div className="mt-2 relative w-20 h-20 rounded-lg overflow-hidden bg-secondary">
-                  <img
-                    src={productForm.imageUrl}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).src = ""; }}
-                  />
-                </div>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-xs">Product Images (up to 5)</Label>
+                <span className="text-[10px] text-muted-foreground">{productForm.images.filter(u => u.trim()).length}/5</span>
+              </div>
+              <div className="space-y-2">
+                {productForm.images.map((url, idx) => (
+                  <div key={idx} className="flex items-start gap-2">
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        value={url}
+                        onChange={e => {
+                          const updated = [...productForm.images];
+                          updated[idx] = e.target.value;
+                          setProductForm(f => ({ ...f, images: updated }));
+                        }}
+                        placeholder={`Image URL ${idx + 1}`}
+                        className="text-xs h-8"
+                        data-testid={`input-product-image-${idx}`}
+                      />
+                      {url.trim() && (
+                        <div className="w-16 h-16 rounded-md overflow-hidden bg-secondary border border-border/50">
+                          <img src={url} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        </div>
+                      )}
+                    </div>
+                    {productForm.images.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        onClick={() => {
+                          const updated = productForm.images.filter((_, i) => i !== idx);
+                          setProductForm(f => ({ ...f, images: updated.length ? updated : [""] }));
+                        }}
+                        data-testid={`button-remove-image-${idx}`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {productForm.images.length < 5 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-2 text-xs h-7"
+                  onClick={() => setProductForm(f => ({ ...f, images: [...f.images, ""] }))}
+                  data-testid="button-add-image-slot"
+                >
+                  <Plus className="w-3 h-3 mr-1" /> Add Another Image
+                </Button>
               )}
             </div>
             <div>
@@ -1262,10 +1301,13 @@ export default function WebBuilderPage() {
                   toast({ title: "Name and cost price are required", variant: "destructive" });
                   return;
                 }
+                const cleanImages = productForm.images.filter(u => u.trim()).slice(0, 5);
                 const payload = {
                   ...productForm,
                   supplierPrice: parseFloat(productForm.supplierPrice) || 0,
                   suggestedRetailPrice: productForm.suggestedRetailPrice ? parseFloat(productForm.suggestedRetailPrice) : undefined,
+                  images: cleanImages,
+                  imageUrl: cleanImages[0] || undefined,
                 };
                 if (editingProduct) {
                   updateProductMutation.mutate({ productId: editingProduct.id, payload });
