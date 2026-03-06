@@ -15,6 +15,7 @@ import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import VerifyEmailPage from "@/pages/verify-email";
 import PublicLandingPage from "@/pages/public-landing-page";
+import PublicSitePage from "@/pages/public-site";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/discovery" component={DiscoveryPage} />
       <Route path="/p/:slug" component={PublicLandingPage} />
+      <Route path="/site/:slug" component={PublicSitePage} />
       <Route path="/dashboard/lp/:slug" component={PublicLandingPage} />
       <Route path="/dashboard" component={DashboardLayout} />
       <Route path="/dashboard/:rest*" component={DashboardLayout} />

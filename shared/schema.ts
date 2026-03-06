@@ -1485,6 +1485,7 @@ export const sites = pgTable("sites", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
+  slug: text("slug"),
   url: text("url"),
   status: text("status").default("draft"),
   visitors: integer("visitors").default(0),

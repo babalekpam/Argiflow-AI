@@ -10420,8 +10420,58 @@ ENGAGEMENT RULES:
   app.post("/api/sites/:id/publish", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      await db.update(sites).set({ status: "live", updatedAt: new Date() }).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
-      res.json({ ok: true, status: "live" });
+      const [site] = await db.select().from(sites).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
+      if (!site) return res.status(404).json({ message: "Site not found" });
+
+      let slug = site.slug;
+      if (!slug) {
+        slug = site.name
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-|-$/g, "")
+          .slice(0, 60);
+        if (!slug) slug = site.id.slice(0, 8);
+        const existing = await db.select({ id: sites.id }).from(sites).where(eq(sites.slug, slug));
+        if (existing.length > 0 && existing[0].id !== site.id) {
+          slug = `${slug}-${site.id.slice(0, 6)}`;
+        }
+      }
+
+      const host = req.get("host") || "argilette.co";
+      const protocol = req.protocol || "https";
+      const siteUrl = `${protocol}://${host}/site/${slug}`;
+
+      await db.update(sites).set({
+        status: "live",
+        slug,
+        url: siteUrl,
+        updatedAt: new Date(),
+      }).where(eq(sites.id, site.id));
+
+      res.json({ ok: true, status: "live", slug, url: siteUrl });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/public/sites/:slug", async (req, res) => {
+    try {
+      const [site] = await db.select().from(sites).where(
+        and(eq(sites.slug, req.params.slug), eq(sites.status, "live"))
+      );
+      if (!site) return res.status(404).json({ message: "Site not found" });
+
+      await db.update(sites).set({ visitors: (site.visitors || 0) + 1 }).where(eq(sites.id, site.id));
+
+      res.json({
+        name: site.name,
+        slug: site.slug,
+        blocks: site.blocks,
+        template: site.template,
+        pages: site.pages,
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

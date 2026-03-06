@@ -59,6 +59,7 @@ import {
 type SiteData = {
   id: string;
   name: string;
+  slug: string | null;
   url: string | null;
   status: string;
   visitors: number;
@@ -267,11 +268,20 @@ export default function WebBuilderPage() {
 
   const publishMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("POST", `/api/sites/${id}/publish`);
+      const res = await apiRequest("POST", `/api/sites/${id}/publish`);
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sites"] });
-      toast({ title: "Published", description: "Your site is now live" });
+      if (data?.url) {
+        toast({
+          title: "Published!",
+          description: `Your site is live at: ${data.url}`,
+          duration: 10000,
+        });
+      } else {
+        toast({ title: "Published", description: "Your site is now live" });
+      }
     },
   });
 
@@ -483,7 +493,18 @@ export default function WebBuilderPage() {
                         {site.status}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-3">Template: {site.template} · {site.visitors} visitors</p>
+                    <p className="text-xs text-muted-foreground mb-1">Template: {site.template} · {site.visitors} visitors</p>
+                    {site.status === "live" && site.slug && (
+                      <a
+                        href={`/site/${site.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 mb-2 truncate"
+                        data-testid={`link-live-url-${site.id}`}
+                      >
+                        <ExternalLink className="w-3 h-3 shrink-0" /> /site/{site.slug}
+                      </a>
+                    )}
                     <div className="flex gap-2">
                       <Button variant="default" size="sm" className="flex-1 text-xs" onClick={() => openEditor(site)} data-testid={`button-edit-site-${site.id}`}>
                         Edit
@@ -668,6 +689,17 @@ export default function WebBuilderPage() {
             {publishMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Upload className="w-3.5 h-3.5 mr-1" />}
             Publish
           </Button>
+          {editingSite?.status === "live" && editingSite?.slug && (
+            <a
+              href={`/site/${editingSite.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 ml-1"
+              data-testid="link-view-live-site"
+            >
+              <ExternalLink className="w-3 h-3" /> View Live
+            </a>
+          )}
         </div>
       </div>
 
