@@ -11,9 +11,32 @@ export const CREDIT_COSTS: Record<string, number> = {
   email_sequence: 30,
 };
 
+const UNLIMITED_EMAILS = ["abel@argilette.com"];
+
+async function isUnlimitedUser(userId: string): Promise<boolean> {
+  try {
+    const result = await db.execute(
+      sql`SELECT email FROM users WHERE id = ${userId}`
+    );
+    const email = (result.rows?.[0] as any)?.email;
+    return email && UNLIMITED_EMAILS.includes(email.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 export async function deductCredits(userId: string, action: string): Promise<{ success: boolean; remaining: number; error?: string }> {
   const cost = CREDIT_COSTS[action];
   if (!cost) return { success: true, remaining: 0 };
+
+  if (await isUnlimitedUser(userId)) {
+    await db.insert(creditsLedger).values({
+      userId,
+      action,
+      creditsUsed: 0,
+    });
+    return { success: true, remaining: 999999 };
+  }
 
   try {
     const result = await db.execute(
@@ -59,6 +82,7 @@ export async function refundCredits(userId: string, action: string): Promise<voi
 }
 
 export async function getCreditsBalance(userId: string): Promise<number> {
+  if (await isUnlimitedUser(userId)) return 999999;
   try {
     const result = await db.execute(
       sql`SELECT COALESCE(credits, 3000) as credits FROM users WHERE id = ${userId}`
