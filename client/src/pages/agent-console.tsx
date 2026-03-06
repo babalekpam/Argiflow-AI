@@ -34,6 +34,7 @@ const AGENT_META: Record<string, { icon: any; color: string; bgColor: string; pl
 
 const CATEGORY_COLORS: Record<string, string> = {
   Intelligence: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  Prospecting: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   Outreach: "bg-violet-500/10 text-violet-500 border-violet-500/20",
   CRM: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
 };
