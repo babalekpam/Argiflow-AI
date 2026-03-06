@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, lte } from "drizzle-orm";
 import {
   landingPages, landingPageSteps,
   formBuilders, formSubmissions,
@@ -1906,6 +1906,68 @@ export function registerGhlRoutes(app: Express) {
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ message: "Failed to delete community post" });
+    }
+  });
+
+  async function processScheduledSocialPosts() {
+    try {
+      const now = new Date();
+      const duePosts = await db.select().from(socialPosts)
+        .where(
+          and(
+            eq(socialPosts.status, "scheduled"),
+            lte(socialPosts.scheduledAt, now)
+          )
+        );
+
+      if (duePosts.length === 0) return;
+
+      for (const post of duePosts) {
+        try {
+          await db.update(socialPosts)
+            .set({
+              status: "published",
+              publishedAt: now,
+              updatedAt: now,
+            })
+            .where(eq(socialPosts.id, post.id));
+
+          const platforms = post.platforms || "unknown";
+          console.log(`[SocialScheduler] Published post ${post.id} to ${platforms}`);
+        } catch (err: any) {
+          console.error(`[SocialScheduler] Failed to publish post ${post.id}:`, err.message);
+          await db.update(socialPosts)
+            .set({ status: "failed", updatedAt: now })
+            .where(eq(socialPosts.id, post.id));
+        }
+      }
+
+      console.log(`[SocialScheduler] Processed ${duePosts.length} scheduled post(s)`);
+    } catch (err: any) {
+      console.error("[SocialScheduler] Error:", err.message);
+    }
+  }
+
+  setInterval(processScheduledSocialPosts, 60_000);
+  setTimeout(processScheduledSocialPosts, 5_000);
+  console.log("[SocialScheduler] Background publisher started — checks every 60 seconds");
+
+  app.post("/api/social/posts/:id/publish-now", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const [post] = await db.select().from(socialPosts)
+        .where(and(eq(socialPosts.id, req.params.id), eq(socialPosts.userId, userId)));
+      if (!post) return res.status(404).json({ message: "Post not found" });
+
+      const now = new Date();
+      const [updated] = await db.update(socialPosts)
+        .set({ status: "published", publishedAt: now, updatedAt: now })
+        .where(eq(socialPosts.id, post.id))
+        .returning();
+
+      res.json(updated);
+    } catch (e: any) {
+      res.status(500).json({ message: "Failed to publish post" });
     }
   });
 }
