@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, sql, desc, or, ilike, isNull } from "drizzle-orm";
-import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnels, emailLogs, sites, pipelineSnapshots, agentRuns } from "@shared/schema";
+import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
@@ -10047,6 +10047,290 @@ The ArgiFlow Team`;
     try {
       const userId = req.session!.userId!;
       await db.delete(sites).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/sites/ai-generate", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { description, siteType } = req.body;
+      if (!description || typeof description !== "string" || description.trim().length < 5) {
+        return res.status(400).json({ message: "Please describe what you want to build (at least 5 characters)" });
+      }
+
+      const { deductCredits } = await import("./credits");
+      const deducted = await deductCredits(userId, "agent_run");
+      if (!deducted.success) return res.status(402).json({ message: deducted.error || "Insufficient credits" });
+
+      let generated: any;
+      try {
+        const OpenAI = (await import("openai")).default;
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          temperature: 0.7,
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert website builder AI. Given a user description, generate a complete website structure.
+Return ONLY valid JSON with this exact format:
+{
+  "name": "Site name",
+  "template": "saas|agency|portfolio|ecommerce|blog|blank",
+  "colorScheme": { "primary": "#hex", "accent": "#hex", "bg": "#hex" },
+  "blocks": [
+    {
+      "id": "b1",
+      "type": "hero|features|pricing|testimonial|cta|contact|faq|gallery|video|footer|products|about|stats|team",
+      "label": "Section display name",
+      "height": 180,
+      "content": {
+        "heading": "Main heading text",
+        "subheading": "Supporting text",
+        "buttonText": "CTA button text",
+        "items": [{"title":"...","description":"...","icon":"..."}]
+      }
+    }
+  ],
+  "pages": ["Home", "About", "Contact"],
+  "seoTitle": "SEO page title",
+  "seoDescription": "Meta description for the site"
+}
+Generate 5-8 blocks. Make the content specific, professional, and tailored to the user's business.
+If it's e-commerce, include product grid blocks. If it's a service business, include service/features blocks.
+Use compelling copy — not placeholder text.`
+            },
+            {
+              role: "user",
+              content: `Build me a website: ${description}${siteType ? ` (Type: ${siteType})` : ""}`
+            }
+          ],
+          response_format: { type: "json_object" },
+        });
+        const raw = completion.choices[0]?.message?.content || "{}";
+        try { generated = JSON.parse(raw); } catch { generated = { name: "My Site", template: "blank", blocks: [], pages: ["Home"] }; }
+      } catch (aiErr: any) {
+        const { refundCredits } = await import("./credits");
+        await refundCredits(userId, "agent_run");
+        return res.status(500).json({ message: `AI generation failed: ${aiErr.message}` });
+      }
+
+      const result = await db.insert(sites).values({
+        userId,
+        name: generated.name || "AI Generated Site",
+        template: generated.template || "blank",
+        blocks: JSON.stringify(generated.blocks || []),
+        pages: JSON.stringify(generated.pages || ["Home"]),
+      }).returning();
+
+      res.json({ site: result[0], generated });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/sites/:id/products", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const products = await db.select().from(supplierProducts)
+        .where(and(eq(supplierProducts.siteId, req.params.id), eq(supplierProducts.userId, userId)))
+        .orderBy(desc(supplierProducts.createdAt));
+      res.json({ products });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/sites/:id/import-supplier", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { supplierName, searchQuery } = req.body;
+      if (!supplierName || !searchQuery) {
+        return res.status(400).json({ message: "Supplier name and search query are required" });
+      }
+
+      const { deductCredits, refundCredits } = await import("./credits");
+      const deducted = await deductCredits(userId, "lead_enrich");
+      if (!deducted.success) return res.status(402).json({ message: deducted.error || "Insufficient credits" });
+
+      const supplierUrls: Record<string, string> = {
+        "AliExpress": "https://aliexpress.com",
+        "Amazon": "https://amazon.com",
+        "Alibaba": "https://alibaba.com",
+        "CJ Dropshipping": "https://cjdropshipping.com",
+        "Walmart": "https://walmart.com",
+        "Temu": "https://temu.com",
+        "DHgate": "https://dhgate.com",
+        "Made-in-China": "https://made-in-china.com",
+      };
+
+      let products: any[];
+      try {
+        const OpenAI = (await import("openai")).default;
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          temperature: 0.6,
+          messages: [
+            {
+              role: "system",
+              content: `You are an e-commerce product research specialist. Given a supplier and search query, generate a realistic product catalog.
+Return ONLY valid JSON with a "products" array of 8-12 products:
+{"products": [
+  {
+    "productName": "Product name",
+    "category": "Electronics|Fashion|Home & Garden|Beauty|Sports|Toys|Automotive|Health|Food|Office|Pet|Baby",
+    "supplierPrice": 12.99,
+    "suggestedRetailPrice": 29.99,
+    "margin": 56.7,
+    "imageUrl": "",
+    "aiNotes": "Brief note on demand, competition, or selling tips"
+  }
+]}
+Make prices realistic for ${supplierName}. Suggested retail prices should follow standard e-commerce margins:
+- Electronics: 30-50% margin
+- Fashion/Accessories: 50-80% margin
+- Home goods: 40-60% margin
+- Beauty/Health: 60-80% margin
+- Toys/Games: 40-60% margin
+Include specific, searchable product names (not generic). Each product should have a unique and helpful AI note about market positioning.`
+            },
+            {
+              role: "user",
+              content: `Search ${supplierName} for: ${searchQuery}`
+            }
+          ],
+          response_format: { type: "json_object" },
+        });
+
+        const raw = completion.choices[0]?.message?.content || "{}";
+        try {
+          const parsed = JSON.parse(raw);
+          products = Array.isArray(parsed) ? parsed : (parsed.products || []);
+        } catch { products = []; }
+      } catch (aiErr: any) {
+        await refundCredits(userId, "lead_enrich");
+        return res.status(500).json({ message: `Product import failed: ${aiErr.message}` });
+      }
+
+      const inserted = [];
+      for (const p of products) {
+        const [row] = await db.insert(supplierProducts).values({
+          userId,
+          siteId: req.params.id,
+          supplierName,
+          supplierUrl: supplierUrls[supplierName] || null,
+          productName: p.productName || "Unnamed Product",
+          category: p.category || "General",
+          supplierPrice: Number(p.supplierPrice) || 0,
+          suggestedRetailPrice: Number(p.suggestedRetailPrice) || 0,
+          margin: Number(p.margin) || 0,
+          aiNotes: p.aiNotes || null,
+          imageUrl: p.imageUrl || null,
+        }).returning();
+        inserted.push(row);
+      }
+
+      res.json({ products: inserted, count: inserted.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/sites/:id/ai-pricing", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const existingProducts = await db.select().from(supplierProducts)
+        .where(and(eq(supplierProducts.siteId, req.params.id), eq(supplierProducts.userId, userId)));
+
+      if (existingProducts.length === 0) {
+        return res.status(400).json({ message: "No products to analyze. Import products first." });
+      }
+
+      const { deductCredits, refundCredits } = await import("./credits");
+      const deducted = await deductCredits(userId, "intent_scan");
+      if (!deducted.success) return res.status(402).json({ message: deducted.error || "Insufficient credits" });
+
+      const productSummary = existingProducts.map(p => ({
+        id: p.id,
+        name: p.productName,
+        category: p.category,
+        supplierPrice: p.supplierPrice,
+        currentRetail: p.suggestedRetailPrice,
+        currentMargin: p.margin,
+      }));
+
+      let optimized: any[];
+      try {
+        const OpenAI = (await import("openai")).default;
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          temperature: 0.4,
+          messages: [
+            {
+              role: "system",
+              content: `You are an e-commerce pricing strategist. Analyze these products and optimize pricing for maximum profit while staying competitive.
+Return ONLY valid JSON with a "products" array matching the input products by id:
+{"products": [
+  {
+    "id": "product-id",
+    "suggestedRetailPrice": 34.99,
+    "margin": 62.3,
+    "category": "Optimized category",
+    "aiNotes": "Pricing rationale: competitive analysis, demand level, recommended bundle/upsell opportunities, seasonal considerations"
+  }
+]}
+Consider: category competition levels, psychological pricing (e.g. $29.99 not $30), minimum viable margins (never below 25%), bundle opportunities, premium positioning for unique items.`
+            },
+            {
+              role: "user",
+              content: `Optimize pricing for these ${existingProducts.length} products:\n${JSON.stringify(productSummary, null, 2)}`
+            }
+          ],
+          response_format: { type: "json_object" },
+        });
+
+        const raw = completion.choices[0]?.message?.content || "{}";
+        try {
+          const parsed = JSON.parse(raw);
+          optimized = Array.isArray(parsed) ? parsed : (parsed.products || parsed.optimized || []);
+        } catch { optimized = []; }
+      } catch (aiErr: any) {
+        await refundCredits(userId, "intent_scan");
+        return res.status(500).json({ message: `Pricing analysis failed: ${aiErr.message}` });
+      }
+
+      for (const opt of optimized) {
+        if (opt.id) {
+          await db.update(supplierProducts).set({
+            suggestedRetailPrice: Number(opt.suggestedRetailPrice) || undefined,
+            margin: Number(opt.margin) || undefined,
+            category: opt.category || undefined,
+            aiNotes: opt.aiNotes || undefined,
+          }).where(and(eq(supplierProducts.id, opt.id), eq(supplierProducts.userId, userId)));
+        }
+      }
+
+      const updated = await db.select().from(supplierProducts)
+        .where(and(eq(supplierProducts.siteId, req.params.id), eq(supplierProducts.userId, userId)))
+        .orderBy(desc(supplierProducts.createdAt));
+
+      res.json({ products: updated, optimized: optimized.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/sites/:id/products/:productId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      await db.delete(supplierProducts).where(
+        and(eq(supplierProducts.id, req.params.productId), eq(supplierProducts.userId, userId))
+      );
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

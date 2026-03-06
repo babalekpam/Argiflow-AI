@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -15,10 +16,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Globe,
   Plus,
   Trash2,
-  Eye,
   ArrowUp,
   ArrowDown,
   Monitor,
@@ -36,8 +43,17 @@ import {
   Columns,
   Minus,
   ChevronRight,
-  ExternalLink,
   Loader2,
+  Sparkles,
+  ShoppingCart,
+  Package,
+  DollarSign,
+  TrendingUp,
+  Search,
+  BarChart3,
+  Zap,
+  X,
+  ExternalLink,
 } from "lucide-react";
 
 type SiteData = {
@@ -57,7 +73,37 @@ type Block = {
   type: string;
   label: string;
   height: number;
+  content?: {
+    heading?: string;
+    subheading?: string;
+    buttonText?: string;
+    items?: Array<{ title: string; description: string; icon?: string }>;
+  };
 };
+
+type SupplierProduct = {
+  id: string;
+  productName: string;
+  category: string;
+  supplierName: string;
+  supplierPrice: number;
+  suggestedRetailPrice: number;
+  margin: number;
+  aiNotes: string | null;
+  imageUrl: string | null;
+  status: string;
+};
+
+const SUPPLIERS = [
+  { id: "AliExpress", label: "AliExpress", color: "text-red-500", desc: "Global dropshipping" },
+  { id: "Amazon", label: "Amazon", color: "text-amber-500", desc: "Wholesale & FBA" },
+  { id: "Alibaba", label: "Alibaba", color: "text-orange-500", desc: "Bulk manufacturing" },
+  { id: "CJ Dropshipping", label: "CJ Dropshipping", color: "text-blue-500", desc: "Auto-fulfillment" },
+  { id: "Walmart", label: "Walmart", color: "text-sky-500", desc: "Retail arbitrage" },
+  { id: "Temu", label: "Temu", color: "text-orange-400", desc: "Budget products" },
+  { id: "DHgate", label: "DHgate", color: "text-green-500", desc: "Wholesale lots" },
+  { id: "Made-in-China", label: "Made-in-China", color: "text-rose-500", desc: "Factory direct" },
+];
 
 const TEMPLATES = [
   { id: "blank", label: "Blank Canvas", icon: "⬜", desc: "Start from scratch" },
@@ -126,21 +172,70 @@ const DEFAULT_BLOCKS: Record<string, Block[]> = {
   ],
 };
 
+function MarginBadge({ margin }: { margin: number }) {
+  const color = margin >= 60 ? "text-emerald-500" : margin >= 40 ? "text-amber-500" : "text-red-500";
+  const bg = margin >= 60 ? "bg-emerald-500/10" : margin >= 40 ? "bg-amber-500/10" : "bg-red-500/10";
+  return (
+    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${color} ${bg}`} data-testid="badge-margin">
+      {margin.toFixed(1)}%
+    </span>
+  );
+}
+
 export default function WebBuilderPage() {
   const [view, setView] = useState<"gallery" | "editor">("gallery");
   const [editingSite, setEditingSite] = useState<SiteData | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selBlock, setSelBlock] = useState<string | null>(null);
   const [device, setDevice] = useState("desktop");
-  const [tab, setTab] = useState<"sections" | "elements">("sections");
+  const [sideTab, setSideTab] = useState<"sections" | "elements" | "suppliers" | "products">("sections");
   const [createOpen, setCreateOpen] = useState(false);
+  const [createMode, setCreateMode] = useState<"template" | "ai">("ai");
   const [newName, setNewName] = useState("New Site");
   const [newTemplate, setNewTemplate] = useState("blank");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiSiteType, setAiSiteType] = useState("general");
+  const [supplierSearch, setSupplierSearch] = useState("");
+  const [selectedSupplier, setSelectedSupplier] = useState("AliExpress");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery<{ sites: SiteData[] }>({
     queryKey: ["/api/sites"],
+  });
+
+  const { data: productsData } = useQuery<{ products: SupplierProduct[] }>({
+    queryKey: ["/api/sites", editingSite?.id, "products"],
+    enabled: !!editingSite?.id,
+    queryFn: async () => {
+      const res = await fetch(`/api/sites/${editingSite!.id}/products`, { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  const aiGenerateMutation = useMutation({
+    mutationFn: async (payload: { description: string; siteType?: string }) => {
+      const res = await apiRequest("POST", "/api/sites/ai-generate", payload);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sites"] });
+      const site = data.site;
+      const gen = data.generated;
+      const genBlocks = gen?.blocks || [];
+      setBlocks(genBlocks);
+      setEditingSite(site);
+      setView("editor");
+      setCreateOpen(false);
+      setAiPrompt("");
+      toast({
+        title: "Website generated!",
+        description: `"${site.name}" created with ${genBlocks.length} sections. You can now customize it.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Generation failed", description: err.message, variant: "destructive" });
+    },
   });
 
   const createMutation = useMutation({
@@ -161,8 +256,8 @@ export default function WebBuilderPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async ({ id, blocks, name }: { id: string; blocks: Block[]; name?: string }) => {
-      return apiRequest("POST", `/api/sites/${id}/save`, { blocks, name });
+    mutationFn: async ({ id, blocks }: { id: string; blocks: Block[] }) => {
+      return apiRequest("POST", `/api/sites/${id}/save`, { blocks });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sites"] });
@@ -188,6 +283,51 @@ export default function WebBuilderPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sites"] });
       setView("gallery");
       setEditingSite(null);
+    },
+  });
+
+  const importSupplierMutation = useMutation({
+    mutationFn: async (payload: { supplierName: string; searchQuery: string }) => {
+      const res = await apiRequest("POST", `/api/sites/${editingSite!.id}/import-supplier`, payload);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sites", editingSite?.id, "products"] });
+      setSupplierSearch("");
+      toast({
+        title: "Products imported",
+        description: `${data.count} products found from ${selectedSupplier} with AI-optimized pricing`,
+      });
+      setSideTab("products");
+    },
+    onError: (err: any) => {
+      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const aiPricingMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/sites/${editingSite!.id}/ai-pricing`, {});
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sites", editingSite?.id, "products"] });
+      toast({
+        title: "Pricing optimized",
+        description: `AI re-analyzed ${data.optimized} products for maximum profit margins`,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Pricing analysis failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      return apiRequest("DELETE", `/api/sites/${editingSite!.id}/products/${productId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sites", editingSite?.id, "products"] });
     },
   });
 
@@ -225,14 +365,16 @@ export default function WebBuilderPage() {
   };
 
   const sites = data?.sites || [];
+  const products = productsData?.products || [];
   const selBlockObj = blocks.find(b => b.id === selBlock);
+  const isEcommerce = editingSite?.template === "ecommerce";
 
   if (isLoading) {
     return (
       <div className="p-6 space-y-6" data-testid="page-web-builder">
         <Skeleton className="h-8 w-48" />
         <div className="grid grid-cols-3 gap-4">
-          {[1,2,3].map(i => <Skeleton key={i} className="h-48" />)}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-48" />)}
         </div>
       </div>
     );
@@ -244,94 +386,230 @@ export default function WebBuilderPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold" data-testid="text-web-builder-title">Website Builder</h1>
-            <p className="text-muted-foreground mt-1 text-sm">Create and manage your websites with the visual builder</p>
+            <p className="text-muted-foreground mt-1 text-sm">Describe your vision and let AI build it, or start from a template</p>
           </div>
-          <Button onClick={() => setCreateOpen(true)} data-testid="button-create-site">
-            <Plus className="w-4 h-4 mr-1.5" /> New Site
+          <Button onClick={() => { setCreateOpen(true); setCreateMode("ai"); }} data-testid="button-create-site">
+            <Sparkles className="w-4 h-4 mr-1.5" /> New Site
           </Button>
         </div>
+
+        <Card className="p-6 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent" data-testid="card-ai-quick-build">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Sparkles className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-sm mb-1">AI Quick Build</h3>
+              <p className="text-xs text-muted-foreground mb-3">Describe your business and what you need. AI will design and build your entire website in seconds.</p>
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="e.g. I'm launching an online store selling handmade jewelry. I need a modern, elegant site with product showcase, about us story, and easy checkout..."
+                  value={aiPrompt}
+                  onChange={e => setAiPrompt(e.target.value)}
+                  className="min-h-[80px] text-sm flex-1"
+                  data-testid="input-ai-quick-prompt"
+                />
+              </div>
+              <div className="flex items-center gap-3 mt-3">
+                <Select value={aiSiteType} onValueChange={setAiSiteType}>
+                  <SelectTrigger className="w-40 h-8 text-xs" data-testid="select-site-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="ecommerce">E-commerce Store</SelectItem>
+                    <SelectItem value="saas">SaaS Product</SelectItem>
+                    <SelectItem value="agency">Agency/Services</SelectItem>
+                    <SelectItem value="portfolio">Portfolio</SelectItem>
+                    <SelectItem value="blog">Blog/Media</SelectItem>
+                    <SelectItem value="restaurant">Restaurant</SelectItem>
+                    <SelectItem value="medical">Medical/Health</SelectItem>
+                    <SelectItem value="education">Education</SelectItem>
+                    <SelectItem value="nonprofit">Non-Profit</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={() => {
+                    if (aiPrompt.trim().length < 5) {
+                      toast({ title: "Too short", description: "Please describe what you want to build", variant: "destructive" });
+                      return;
+                    }
+                    aiGenerateMutation.mutate({ description: aiPrompt, siteType: aiSiteType });
+                  }}
+                  disabled={aiGenerateMutation.isPending}
+                  data-testid="button-ai-quick-generate"
+                >
+                  {aiGenerateMutation.isPending ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Building...</>
+                  ) : (
+                    <><Sparkles className="w-4 h-4 mr-1.5" /> Generate Website</>
+                  )}
+                </Button>
+              </div>
+              {aiGenerateMutation.isPending && (
+                <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                  <div className="flex items-center gap-2 text-xs text-primary">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    AI is designing your website structure, writing copy, and optimizing layout...
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
 
         {sites.length === 0 ? (
           <Card className="p-12 text-center">
             <Globe className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No sites yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">Create your first website using one of our templates</p>
-            <Button onClick={() => setCreateOpen(true)} data-testid="button-create-first-site">
-              <Plus className="w-4 h-4 mr-1.5" /> Create Site
+            <p className="text-sm text-muted-foreground mb-4">Use AI Quick Build above or create from a template</p>
+            <Button variant="outline" onClick={() => { setCreateOpen(true); setCreateMode("template"); }} data-testid="button-create-from-template">
+              <Plus className="w-4 h-4 mr-1.5" /> Start from Template
             </Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sites.map(site => (
-              <Card key={site.id} className="overflow-hidden hover:shadow-md transition-all" data-testid={`card-site-${site.id}`}>
-                <div className="h-32 bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center border-b border-border/50">
-                  <Globe className="w-8 h-8 text-muted-foreground/30" />
-                </div>
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-sm truncate" data-testid={`text-site-name-${site.id}`}>{site.name}</h3>
-                    <Badge className={site.status === "live" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-secondary text-muted-foreground"}>
-                      {site.status}
-                    </Badge>
+          <div>
+            <h3 className="font-semibold text-sm mb-3">Your Sites ({sites.length})</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sites.map(site => (
+                <Card key={site.id} className="overflow-hidden hover:shadow-md transition-all" data-testid={`card-site-${site.id}`}>
+                  <div className="h-32 bg-gradient-to-br from-secondary to-secondary/50 flex items-center justify-center border-b border-border/50">
+                    <Globe className="w-8 h-8 text-muted-foreground/30" />
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Template: {site.template} · {site.visitors} visitors</p>
-                  <div className="flex gap-2">
-                    <Button variant="default" size="sm" className="flex-1 text-xs" onClick={() => openEditor(site)} data-testid={`button-edit-site-${site.id}`}>
-                      Edit
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => deleteMutation.mutate(site.id)} data-testid={`button-delete-site-${site.id}`}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold text-sm truncate" data-testid={`text-site-name-${site.id}`}>{site.name}</h3>
+                      <Badge className={site.status === "live" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-secondary text-muted-foreground"}>
+                        {site.status}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">Template: {site.template} · {site.visitors} visitors</p>
+                    <div className="flex gap-2">
+                      <Button variant="default" size="sm" className="flex-1 text-xs" onClick={() => openEditor(site)} data-testid={`button-edit-site-${site.id}`}>
+                        Edit
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => deleteMutation.mutate(site.id)} data-testid={`button-delete-site-${site.id}`}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))}
+            </div>
           </div>
         )}
 
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Create New Site</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">Site Name</label>
-                <Input
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  placeholder="My Website"
-                  data-testid="input-site-name"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Template</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {TEMPLATES.map(t => (
-                    <div
-                      key={t.id}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${newTemplate === t.id ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20" : "border-border hover:border-primary/20"}`}
-                      onClick={() => setNewTemplate(t.id)}
-                      data-testid={`template-${t.id}`}
-                    >
-                      <div className="text-xl mb-1">{t.icon}</div>
-                      <p className="text-xs font-semibold">{t.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{t.desc}</p>
-                    </div>
-                  ))}
+            <div className="flex gap-2 mb-4">
+              <Button
+                variant={createMode === "ai" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setCreateMode("ai")}
+                data-testid="button-mode-ai"
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" /> AI Build
+              </Button>
+              <Button
+                variant={createMode === "template" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setCreateMode("template")}
+                data-testid="button-mode-template"
+              >
+                <Layout className="w-3.5 h-3.5 mr-1.5" /> From Template
+              </Button>
+            </div>
+
+            {createMode === "ai" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Describe your website</label>
+                  <Textarea
+                    value={aiPrompt}
+                    onChange={e => setAiPrompt(e.target.value)}
+                    placeholder="I need a professional website for my dental practice. It should have appointment booking, services list, team bios, patient testimonials, and insurance information..."
+                    className="min-h-[120px] text-sm"
+                    data-testid="input-ai-description"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Site Type</label>
+                  <Select value={aiSiteType} onValueChange={setAiSiteType}>
+                    <SelectTrigger data-testid="select-ai-site-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="ecommerce">E-commerce Store</SelectItem>
+                      <SelectItem value="saas">SaaS Product</SelectItem>
+                      <SelectItem value="agency">Agency/Services</SelectItem>
+                      <SelectItem value="portfolio">Portfolio</SelectItem>
+                      <SelectItem value="blog">Blog/Media</SelectItem>
+                      <SelectItem value="restaurant">Restaurant</SelectItem>
+                      <SelectItem value="medical">Medical/Health</SelectItem>
+                      <SelectItem value="education">Education</SelectItem>
+                      <SelectItem value="nonprofit">Non-Profit</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Site Name</label>
+                  <Input
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    placeholder="My Website"
+                    data-testid="input-site-name"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Template</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TEMPLATES.map(t => (
+                      <div
+                        key={t.id}
+                        className={`p-3 rounded-lg border cursor-pointer transition-all ${newTemplate === t.id ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20" : "border-border hover:border-primary/20"}`}
+                        onClick={() => setNewTemplate(t.id)}
+                        data-testid={`template-${t.id}`}
+                      >
+                        <div className="text-xl mb-1">{t.icon}</div>
+                        <p className="text-xs font-semibold">{t.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{t.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
-              <Button
-                onClick={() => createMutation.mutate({ name: newName, template: newTemplate })}
-                disabled={createMutation.isPending}
-                data-testid="button-confirm-create-site"
-              >
-                {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
-                Create
-              </Button>
+              <Button variant="ghost" onClick={() => setCreateOpen(false)} data-testid="button-cancel-create">Cancel</Button>
+              {createMode === "ai" ? (
+                <Button
+                  onClick={() => aiGenerateMutation.mutate({ description: aiPrompt, siteType: aiSiteType })}
+                  disabled={aiGenerateMutation.isPending || aiPrompt.trim().length < 5}
+                  data-testid="button-confirm-ai-generate"
+                >
+                  {aiGenerateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Sparkles className="w-4 h-4 mr-1.5" />}
+                  Generate
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => createMutation.mutate({ name: newName, template: newTemplate })}
+                  disabled={createMutation.isPending}
+                  data-testid="button-confirm-create-site"
+                >
+                  {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
+                  Create
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -348,6 +626,11 @@ export default function WebBuilderPage() {
           <Badge className={editingSite?.status === "live" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-secondary text-muted-foreground"}>
             {editingSite?.status}
           </Badge>
+          {isEcommerce && products.length > 0 && (
+            <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">
+              <Package className="w-3 h-3 mr-1" /> {products.length} products
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <div className="flex border border-border rounded-lg overflow-hidden">
@@ -389,42 +672,231 @@ export default function WebBuilderPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-56 shrink-0 border-r border-border/50 overflow-y-auto bg-card">
-          <div className="flex border-b border-border/50">
-            {(["sections", "elements"] as const).map(t => (
+        <div className="w-60 shrink-0 border-r border-border/50 overflow-y-auto bg-card flex flex-col">
+          <div className="flex border-b border-border/50 flex-wrap">
+            {(["sections", "elements", ...(isEcommerce ? ["suppliers", "products"] as const : [])] as const).map(t => (
               <button
                 key={t}
-                onClick={() => setTab(t)}
-                className={`flex-1 px-3 py-2 text-xs font-semibold capitalize ${tab === t ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+                onClick={() => setSideTab(t as any)}
+                className={`flex-1 px-2 py-2 text-[11px] font-semibold capitalize ${sideTab === t ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
                 data-testid={`tab-${t}`}
               >
-                {t}
+                {t === "suppliers" ? "Import" : t === "products" ? `Products${products.length ? ` (${products.length})` : ""}` : t}
               </button>
             ))}
           </div>
-          <div className="p-3 space-y-1.5">
-            {tab === "sections" ? SECTIONS.map(sec => (
-              <button
-                key={sec.id}
-                onClick={() => addSection(sec)}
-                className="w-full flex items-center gap-2.5 p-2.5 rounded-lg text-left hover:bg-secondary transition-colors"
-                data-testid={`add-section-${sec.id}`}
-              >
-                <sec.icon className={`w-4 h-4 ${sec.color}`} />
-                <span className="text-xs font-medium">{sec.label}</span>
-                <Plus className="w-3 h-3 text-muted-foreground ml-auto" />
-              </button>
-            )) : ELEMENTS.map(el => (
-              <button
-                key={el.label}
-                className="w-full flex items-center gap-2.5 p-2.5 rounded-lg text-left hover:bg-secondary transition-colors"
-                data-testid={`add-element-${el.label.toLowerCase()}`}
-              >
-                <el.icon className={`w-4 h-4 ${el.color}`} />
-                <span className="text-xs font-medium">{el.label}</span>
-                <Plus className="w-3 h-3 text-muted-foreground ml-auto" />
-              </button>
-            ))}
+
+          <div className="flex-1 overflow-y-auto">
+            {sideTab === "sections" && (
+              <div className="p-3 space-y-1.5">
+                {SECTIONS.map(sec => (
+                  <button
+                    key={sec.id}
+                    onClick={() => addSection(sec)}
+                    className="w-full flex items-center gap-2.5 p-2.5 rounded-lg text-left hover:bg-secondary transition-colors"
+                    data-testid={`add-section-${sec.id}`}
+                  >
+                    <sec.icon className={`w-4 h-4 ${sec.color}`} />
+                    <span className="text-xs font-medium">{sec.label}</span>
+                    <Plus className="w-3 h-3 text-muted-foreground ml-auto" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {sideTab === "elements" && (
+              <div className="p-3 space-y-1.5">
+                {ELEMENTS.map(el => (
+                  <button
+                    key={el.label}
+                    className="w-full flex items-center gap-2.5 p-2.5 rounded-lg text-left hover:bg-secondary transition-colors"
+                    data-testid={`add-element-${el.label.toLowerCase()}`}
+                  >
+                    <el.icon className={`w-4 h-4 ${el.color}`} />
+                    <span className="text-xs font-medium">{el.label}</span>
+                    <Plus className="w-3 h-3 text-muted-foreground ml-auto" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {sideTab === "suppliers" && (
+              <div className="p-3 space-y-3">
+                <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                  <p className="text-[10px] text-blue-400 font-medium mb-1">Connect Suppliers</p>
+                  <p className="text-[10px] text-muted-foreground">Search products from major suppliers. AI will suggest optimal pricing.</p>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium mb-1.5 block">Supplier</label>
+                  <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                    <SelectTrigger className="h-8 text-xs" data-testid="select-supplier">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPLIERS.map(s => (
+                        <SelectItem key={s.id} value={s.id}>
+                          <span className="flex items-center gap-2">
+                            <ShoppingCart className={`w-3 h-3 ${s.color}`} />
+                            {s.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium mb-1.5 block">Search Products</label>
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={supplierSearch}
+                      onChange={e => setSupplierSearch(e.target.value)}
+                      placeholder="e.g. wireless earbuds"
+                      className="h-8 text-xs flex-1"
+                      data-testid="input-supplier-search"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
+                  className="w-full text-xs"
+                  onClick={() => {
+                    if (!supplierSearch.trim()) {
+                      toast({ title: "Enter a search query", variant: "destructive" });
+                      return;
+                    }
+                    importSupplierMutation.mutate({
+                      supplierName: selectedSupplier,
+                      searchQuery: supplierSearch,
+                    });
+                  }}
+                  disabled={importSupplierMutation.isPending}
+                  data-testid="button-import-products"
+                >
+                  {importSupplierMutation.isPending ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Importing...</>
+                  ) : (
+                    <><Search className="w-3.5 h-3.5 mr-1" /> Find & Import</>
+                  )}
+                </Button>
+
+                <div className="border-t border-border/50 pt-3">
+                  <p className="text-[10px] font-medium text-muted-foreground mb-2">Supported Suppliers</p>
+                  <div className="space-y-1">
+                    {SUPPLIERS.map(s => (
+                      <div key={s.id} className="flex items-center gap-2 p-1.5 rounded text-[10px]" data-testid={`supplier-${s.id}`}>
+                        <ShoppingCart className={`w-3 h-3 ${s.color}`} />
+                        <span className="font-medium">{s.label}</span>
+                        <span className="text-muted-foreground ml-auto">{s.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {sideTab === "products" && (
+              <div className="p-3 space-y-3">
+                {products.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => aiPricingMutation.mutate()}
+                    disabled={aiPricingMutation.isPending}
+                    data-testid="button-optimize-pricing"
+                  >
+                    {aiPricingMutation.isPending ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Analyzing...</>
+                    ) : (
+                      <><BarChart3 className="w-3.5 h-3.5 mr-1" /> AI Optimize Pricing</>
+                    )}
+                  </Button>
+                )}
+
+                {products.length === 0 ? (
+                  <div className="text-center py-6">
+                    <Package className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">No products imported yet</p>
+                    <Button variant="link" size="sm" className="text-xs mt-1" onClick={() => setSideTab("suppliers")} data-testid="button-go-import">
+                      Import from suppliers →
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {products.map(p => (
+                      <div key={p.id} className="p-2.5 rounded-lg border border-border/50 bg-secondary/20 group" data-testid={`product-${p.id}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium truncate">{p.productName}</p>
+                            <p className="text-[10px] text-muted-foreground">{p.category} · {p.supplierName}</p>
+                          </div>
+                          <button
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteProductMutation.mutate(p.id)}
+                            data-testid={`button-delete-product-${p.id}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground">Cost:</span>
+                            <span className="text-xs font-mono font-bold">${p.supplierPrice.toFixed(2)}</span>
+                          </div>
+                          <TrendingUp className="w-3 h-3 text-muted-foreground" />
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground">Sell:</span>
+                            <span className="text-xs font-mono font-bold text-emerald-500">${p.suggestedRetailPrice?.toFixed(2) || "—"}</span>
+                          </div>
+                          <MarginBadge margin={p.margin || 0} />
+                        </div>
+                        {p.aiNotes && (
+                          <p className="text-[10px] text-muted-foreground/70 mt-1.5 line-clamp-2">{p.aiNotes}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {products.length > 0 && (
+                  <div className="border-t border-border/50 pt-3">
+                    <div className="p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                      <div className="flex items-center gap-2 mb-1">
+                        <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-[11px] font-semibold text-emerald-500">Profit Summary</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div>
+                          <span className="text-muted-foreground">Avg Cost:</span>
+                          <span className="font-mono font-bold ml-1">
+                            ${(products.reduce((s, p) => s + p.supplierPrice, 0) / products.length).toFixed(2)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Avg Sell:</span>
+                          <span className="font-mono font-bold text-emerald-500 ml-1">
+                            ${(products.reduce((s, p) => s + (p.suggestedRetailPrice || 0), 0) / products.length).toFixed(2)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Avg Margin:</span>
+                          <span className="font-mono font-bold ml-1">
+                            {(products.reduce((s, p) => s + (p.margin || 0), 0) / products.length).toFixed(1)}%
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Products:</span>
+                          <span className="font-mono font-bold ml-1">{products.length}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -444,6 +916,7 @@ export default function WebBuilderPage() {
               blocks.map(block => {
                 const isSel = selBlock === block.id;
                 const secMeta = SECTIONS.find(s => s.id === block.type);
+                const content = block.content;
                 return (
                   <div
                     key={block.id}
@@ -453,20 +926,40 @@ export default function WebBuilderPage() {
                     data-testid={`block-${block.id}`}
                   >
                     <div className="flex items-center justify-center h-full p-6" style={{ minHeight: block.height }}>
-                      <div className="text-center">
+                      <div className="text-center max-w-lg">
                         {secMeta && <secMeta.icon className={`w-6 h-6 ${secMeta.color} mx-auto mb-2 opacity-30`} />}
-                        <p className="text-xs text-muted-foreground">{block.label}</p>
+                        {content?.heading ? (
+                          <>
+                            <h3 className="text-lg font-bold mb-1">{content.heading}</h3>
+                            {content.subheading && <p className="text-xs text-muted-foreground mb-2">{content.subheading}</p>}
+                            {content.buttonText && (
+                              <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs rounded-md">{content.buttonText}</span>
+                            )}
+                            {content.items && content.items.length > 0 && (
+                              <div className="grid grid-cols-2 gap-2 mt-3 text-left">
+                                {content.items.slice(0, 4).map((item, i) => (
+                                  <div key={i} className="p-2 rounded bg-secondary/30 border border-border/30">
+                                    <p className="text-[11px] font-semibold">{item.title}</p>
+                                    <p className="text-[10px] text-muted-foreground line-clamp-2">{item.description}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">{block.label}</p>
+                        )}
                       </div>
                     </div>
                     {isSel && (
                       <div className="absolute top-2 right-2 flex gap-1">
-                        <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={e => { e.stopPropagation(); moveBlock(block.id, "up"); }}>
+                        <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={e => { e.stopPropagation(); moveBlock(block.id, "up"); }} data-testid={`button-move-up-${block.id}`}>
                           <ArrowUp className="w-3 h-3" />
                         </Button>
-                        <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={e => { e.stopPropagation(); moveBlock(block.id, "dn"); }}>
+                        <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={e => { e.stopPropagation(); moveBlock(block.id, "dn"); }} data-testid={`button-move-down-${block.id}`}>
                           <ArrowDown className="w-3 h-3" />
                         </Button>
-                        <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={e => { e.stopPropagation(); removeBlock(block.id); }}>
+                        <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={e => { e.stopPropagation(); removeBlock(block.id); }} data-testid={`button-remove-${block.id}`}>
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
@@ -478,7 +971,8 @@ export default function WebBuilderPage() {
             )}
             <div
               className="h-16 border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-all"
-              onClick={() => setTab("sections")}
+              onClick={() => setSideTab("sections")}
+              data-testid="button-add-section-canvas"
             >
               <span className="text-xs text-muted-foreground">+ Add Section</span>
             </div>
@@ -503,6 +997,36 @@ export default function WebBuilderPage() {
                   data-testid="input-block-name"
                 />
               </div>
+              {selBlockObj.content?.heading && (
+                <div>
+                  <label className="text-xs font-medium mb-1 block">Heading</label>
+                  <Input
+                    defaultValue={selBlockObj.content.heading}
+                    className="text-xs"
+                    onBlur={e => {
+                      setBlocks(prev => prev.map(b =>
+                        b.id === selBlockObj.id ? { ...b, content: { ...b.content, heading: e.target.value } } : b
+                      ));
+                    }}
+                    data-testid="input-block-heading"
+                  />
+                </div>
+              )}
+              {selBlockObj.content?.subheading && (
+                <div>
+                  <label className="text-xs font-medium mb-1 block">Subheading</label>
+                  <Textarea
+                    defaultValue={selBlockObj.content.subheading}
+                    className="text-xs min-h-[60px]"
+                    onBlur={e => {
+                      setBlocks(prev => prev.map(b =>
+                        b.id === selBlockObj.id ? { ...b, content: { ...b.content, subheading: e.target.value } } : b
+                      ));
+                    }}
+                    data-testid="input-block-subheading"
+                  />
+                </div>
+              )}
               <div>
                 <label className="text-xs font-medium mb-1.5 block">Background</label>
                 <div className="flex gap-1.5">
@@ -512,7 +1036,7 @@ export default function WebBuilderPage() {
                 </div>
               </div>
               <div className="pt-2 border-t border-border/50 space-y-2">
-                <Button variant="default" size="sm" className="w-full text-xs">Edit Content</Button>
+                <Button variant="default" size="sm" className="w-full text-xs" data-testid="button-edit-content">Edit Content</Button>
                 <Button variant="destructive" size="sm" className="w-full text-xs" onClick={() => removeBlock(selBlockObj.id)} data-testid="button-remove-block">
                   Remove Section
                 </Button>

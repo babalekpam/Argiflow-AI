@@ -1499,6 +1499,27 @@ export const insertSiteSchema = createInsertSchema(sites).omit({ id: true, creat
 export type Site = typeof sites.$inferSelect;
 export type InsertSite = z.infer<typeof insertSiteSchema>;
 
+export const supplierProducts = pgTable("supplier_products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  siteId: varchar("site_id").notNull(),
+  supplierName: text("supplier_name").notNull(),
+  supplierUrl: text("supplier_url"),
+  productName: text("product_name").notNull(),
+  category: text("category"),
+  supplierPrice: real("supplier_price").notNull(),
+  suggestedRetailPrice: real("suggested_retail_price"),
+  margin: real("margin"),
+  aiNotes: text("ai_notes"),
+  imageUrl: text("image_url"),
+  status: text("status").default("imported"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSupplierProductSchema = createInsertSchema(supplierProducts).omit({ id: true, createdAt: true });
+export type SupplierProduct = typeof supplierProducts.$inferSelect;
+export type InsertSupplierProduct = z.infer<typeof insertSupplierProductSchema>;
+
 export * from "./workflow-schema";
 export * from "./instantly-schema";
 export * from "./intelligence-schema";
