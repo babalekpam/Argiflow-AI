@@ -7758,7 +7758,6 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       await repairSentLeads();
       await backfillDentalLeads();
       await backfillMedBillingFunnel();
-      await fixMislabeledLeads();
     } catch (err) {
       console.error("[Startup] Deferred tasks error:", err);
     }
@@ -10078,48 +10077,3 @@ async function ensureAllUsersProLifetime() {
   }
 }
 
-async function fixMislabeledLeads() {
-  try {
-    const fixed1 = await db.update(leads)
-      .set({
-        name: "Dr. Max Carlin",
-        email: "max@vibrantlifedallas.com",
-        phone: "(945) 220-5228",
-      })
-      .where(
-        and(
-          eq(leads.company, "Vibrant Life Chiropractic"),
-          eq(leads.name, "Clara Motena")
-        )
-      )
-      .returning({ id: leads.id, name: leads.name });
-
-    if (fixed1.length > 0) {
-      console.log(`[Fix] Corrected Vibrant Life lead: Clara Motena → Dr. Max Carlin (${fixed1.length} row(s))`);
-    }
-
-    const selfLeads = await db.select({ id: leads.id, name: leads.name, email: leads.email })
-      .from(leads)
-      .where(
-        and(
-          eq(leads.name, "Clara Motena"),
-          sql`${leads.email} ILIKE '%track-med%' OR ${leads.email} ILIKE '%argilette%'`
-        )
-      );
-
-    for (const sl of selfLeads) {
-      await db.delete(leads).where(eq(leads.id, sl.id));
-      console.log(`[Fix] Deleted self-referencing lead: ${sl.name} (${sl.email})`);
-    }
-
-    const allClaraLeads = await db.select({ id: leads.id, company: leads.company, email: leads.email })
-      .from(leads)
-      .where(eq(leads.name, "Clara Motena"));
-
-    if (allClaraLeads.length > 0) {
-      console.log(`[Fix] Warning: ${allClaraLeads.length} remaining leads named "Clara Motena": ${allClaraLeads.map(l => l.company || l.email).join(", ")}`);
-    }
-  } catch (err: any) {
-    console.error("[Fix] Error fixing mislabeled leads:", err.message);
-  }
-}
