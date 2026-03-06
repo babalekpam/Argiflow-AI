@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -29,6 +29,9 @@ export const users = pgTable("users", {
   region: varchar("region").default("western"),
   country: varchar("country"),
   onboardingCompleted: timestamp("onboarding_completed"),
+  credits: integer("credits").default(3000),
+  llmProvider: varchar("llm_provider").default("openai"),
+  llmModel: varchar("llm_model"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

@@ -60,6 +60,8 @@ import {
   FlaskConical,
   FileSignature,
   DollarSign,
+  Cpu,
+  Coins,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -127,6 +129,8 @@ export function AppSidebar() {
     { title: t("sidebar.resources"), icon: Library, url: "/dashboard/resources", adminOnly: true },
     { title: "Growth Guide", icon: BookOpen, url: "/dashboard/guide", adminOnly: true },
     { title: t("sidebar.demosInstall"), icon: Wand2, url: "/dashboard/demos", adminOnly: true },
+    { title: "AI Providers", icon: Cpu, url: "/dashboard/ai-providers", badge: t("common.new") },
+    { title: "Credits & Billing", icon: Coins, url: "/dashboard/credits", badge: t("common.new") },
     { title: t("sidebar.settings"), icon: Settings, url: "/dashboard/settings" },
   ];
 

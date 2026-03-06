@@ -1390,6 +1390,97 @@ export const insertEmailLogSchema = createInsertSchema(emailLogs).omit({ id: tru
 export type EmailLog = typeof emailLogs.$inferSelect;
 export type InsertEmailLog = z.infer<typeof insertEmailLogSchema>;
 
+// ============================================================
+// Credits System
+// ============================================================
+export const creditsLedger = pgTable("credits_ledger", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  action: text("action").notNull(),
+  creditsUsed: integer("credits_used").notNull(),
+  provider: text("provider"),
+  model: text("model"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCreditsLedgerSchema = createInsertSchema(creditsLedger).omit({ id: true, createdAt: true });
+export type CreditsLedger = typeof creditsLedger.$inferSelect;
+export type InsertCreditsLedger = z.infer<typeof insertCreditsLedgerSchema>;
+
+// ============================================================
+// Intent Watchlist Signals (domain monitoring buying signals)
+// ============================================================
+export const intentWatchlistSignals = pgTable("intent_watchlist_signals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  company: text("company").notNull(),
+  domain: text("domain").notNull(),
+  signal: text("signal").notNull(),
+  strength: text("strength").notNull().default("MED"),
+  score: integer("score").default(50),
+  source: text("source").default("manual"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertIntentWatchlistSignalSchema = createInsertSchema(intentWatchlistSignals).omit({ id: true, createdAt: true });
+export type IntentWatchlistSignal = typeof intentWatchlistSignals.$inferSelect;
+export type InsertIntentWatchlistSignal = z.infer<typeof insertIntentWatchlistSignalSchema>;
+
+// ============================================================
+// Monitored Domains (intent watchlist)
+// ============================================================
+export const monitoredDomains = pgTable("monitored_domains", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  domain: text("domain").notNull(),
+  company: text("company"),
+  active: boolean("active").default(true),
+  addedAt: timestamp("added_at").defaultNow(),
+});
+
+export const insertMonitoredDomainSchema = createInsertSchema(monitoredDomains).omit({ id: true, addedAt: true });
+export type MonitoredDomain = typeof monitoredDomains.$inferSelect;
+export type InsertMonitoredDomain = z.infer<typeof insertMonitoredDomainSchema>;
+
+// ============================================================
+// Pipeline Snapshots (funnel stats over time)
+// ============================================================
+export const pipelineSnapshots = pgTable("pipeline_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  found: integer("found").default(0),
+  enriched: integer("enriched").default(0),
+  contacted: integer("contacted").default(0),
+  replied: integer("replied").default(0),
+  meeting: integer("meeting").default(0),
+  closed: integer("closed").default(0),
+  snappedAt: timestamp("snapped_at").defaultNow(),
+});
+
+export const insertPipelineSnapshotSchema = createInsertSchema(pipelineSnapshots).omit({ id: true, snappedAt: true });
+export type PipelineSnapshot = typeof pipelineSnapshots.$inferSelect;
+export type InsertPipelineSnapshot = z.infer<typeof insertPipelineSnapshotSchema>;
+
+// ============================================================
+// Agent Runs (AI agent execution history)
+// ============================================================
+export const agentRuns = pgTable("agent_runs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  agentId: text("agent_id").notNull(),
+  agentName: text("agent_name"),
+  prompt: text("prompt"),
+  output: text("output"),
+  provider: text("provider"),
+  model: text("model"),
+  status: text("status").default("completed"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAgentRunSchema = createInsertSchema(agentRuns).omit({ id: true, createdAt: true });
+export type AgentRun = typeof agentRuns.$inferSelect;
+export type InsertAgentRun = z.infer<typeof insertAgentRunSchema>;
+
 export * from "./workflow-schema";
 export * from "./instantly-schema";
 export * from "./intelligence-schema";

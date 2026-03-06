@@ -61,6 +61,8 @@ import AffiliateManagementPage from "./affiliate-management";
 import BlogBuilderPage from "./blog-builder";
 import CommunitiesPage from "./communities";
 import EmailLogsPage from "./email-logs";
+import AiProvidersPage from "./ai-providers";
+import CreditsPage from "./credits";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -265,6 +267,8 @@ export default function DashboardLayout() {
               <Route path="/dashboard/affiliates" component={AffiliateManagementPage} />
               <Route path="/dashboard/blog" component={BlogBuilderPage} />
               <Route path="/dashboard/communities" component={CommunitiesPage} />
+              <Route path="/dashboard/ai-providers" component={AiProvidersPage} />
+              <Route path="/dashboard/credits" component={CreditsPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />

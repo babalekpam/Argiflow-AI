@@ -9615,6 +9615,305 @@ The ArgiFlow Team`;
 
   fixIncorrectLifetimeTrials().catch(err => console.error("Trial fix error:", err));
 
+  // ============================================================
+  // MULTI-LLM ROUTER + CREDITS + INTENT WATCHLIST + AGENT RUNS
+  // ============================================================
+
+  const { callLLM: callMultiLLM, getProviderList, getActiveConfig: getActiveLLMConfig } = await import("./llm-router");
+  const { deductCredits, refundCredits, getCreditsBalance, getCreditHistory, CREDIT_COSTS } = await import("./credits");
+  const { intentWatchlistSignals, monitoredDomains, creditsLedger, agentRuns, pipelineSnapshots } = await import("@shared/schema");
+
+  app.get("/api/llm/providers", isAuthenticated, async (req, res) => {
+    try {
+      const providers = getProviderList();
+      let active = null;
+      try { active = getActiveLLMConfig(); } catch {}
+      res.json({
+        providers,
+        active: active ? { providerId: active.providerId, name: active.name, model: active.model } : null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/credits/balance", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const balance = await getCreditsBalance(userId);
+      res.json({ credits: balance, costs: CREDIT_COSTS });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/credits/history", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const history = await getCreditHistory(userId);
+      res.json({ history });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/intent-watchlist/signals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const filter = req.query.filter as string || "ALL";
+
+      let conditions = [eq(intentWatchlistSignals.userId, userId)];
+      if (filter !== "ALL") {
+        conditions.push(eq(intentWatchlistSignals.strength, filter));
+      }
+
+      const signals = await db
+        .select()
+        .from(intentWatchlistSignals)
+        .where(and(...conditions))
+        .orderBy(desc(intentWatchlistSignals.createdAt))
+        .limit(50);
+
+      res.json({ signals });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/intent-watchlist/stats", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+
+      const [sigResult, domResult] = await Promise.all([
+        db.select({
+          active: sql<number>`count(*)::int`,
+          high: sql<number>`count(*) filter (where ${intentWatchlistSignals.strength} = 'HIGH')::int`,
+          avgScore: sql<number>`round(avg(${intentWatchlistSignals.score}))::int`,
+        }).from(intentWatchlistSignals).where(eq(intentWatchlistSignals.userId, userId)),
+        db.select({
+          monitored: sql<number>`count(*)::int`,
+        }).from(monitoredDomains).where(and(eq(monitoredDomains.userId, userId), eq(monitoredDomains.active, true))),
+      ]);
+
+      const s = sigResult[0] || { active: 0, high: 0, avgScore: 0 };
+      const d = domResult[0] || { monitored: 0 };
+      res.json({ monitored: d.monitored, active: s.active, hotToday: s.high, avgScore: s.avgScore || 0 });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/intent-watchlist/sources", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const result = await db.select({
+        label: intentWatchlistSignals.source,
+        count: sql<number>`count(*)::int`,
+      }).from(intentWatchlistSignals)
+        .where(eq(intentWatchlistSignals.userId, userId))
+        .groupBy(intentWatchlistSignals.source)
+        .orderBy(sql`count(*) desc`);
+      res.json({ sources: result });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/intent-watchlist/monitor", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { domain } = req.body;
+      if (!domain) return res.status(400).json({ message: "domain required" });
+
+      const creditResult = await deductCredits(userId, "intent_scan");
+      if (!creditResult.success) {
+        return res.status(402).json({ message: creditResult.error, required: CREDIT_COSTS.intent_scan });
+      }
+
+      await db.insert(monitoredDomains).values({
+        userId,
+        domain: domain.trim().toLowerCase(),
+        company: domain.split(".")[0].replace(/^\w/, (c: string) => c.toUpperCase()),
+      });
+
+      let signal = "Recently added to watchlist — monitoring started";
+      let strength = "MED";
+      let score = 50;
+
+      try {
+        const { text } = await callMultiLLM({
+          system: `You are a B2B intent analyst. Given a company domain, generate a plausible initial intent signal JSON:
+            { "signal": "1-sentence description of likely buying signal", "strength": "HIGH|MED|LOW", "score": 0-100 }
+            Base this on the domain name and typical company behavior.
+            Respond ONLY with valid JSON, no markdown.`,
+          userMessage: `Analyze domain: ${domain}`,
+          maxTokens: 150,
+        });
+
+        const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+        signal = parsed.signal || signal;
+        strength = parsed.strength || strength;
+        score = parseInt(parsed.score) || score;
+      } catch (e: any) {
+        console.warn("[Intent] LLM analysis error (non-fatal):", e.message);
+      }
+
+      const company = domain.split(".")[0].replace(/^\w/, (c: string) => c.toUpperCase());
+
+      const [inserted] = await db.insert(intentWatchlistSignals).values({
+        userId,
+        company,
+        domain,
+        signal,
+        strength,
+        score,
+        source: "watchlist",
+      }).returning();
+
+      res.json({ ok: true, signal: inserted, creditsRemaining: creditResult.remaining });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/intent-watchlist/signals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { company, domain, signal, strength = "MED", score = 50, source = "manual" } = req.body;
+      if (!company || !domain || !signal) return res.status(400).json({ message: "company, domain, signal required" });
+
+      const [inserted] = await db.insert(intentWatchlistSignals).values({
+        userId, company, domain, signal, strength, score: parseInt(score), source,
+      }).returning();
+
+      res.status(201).json({ signal: inserted });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/intent-watchlist/signals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      await db.delete(intentWatchlistSignals)
+        .where(and(eq(intentWatchlistSignals.id, req.params.id), eq(intentWatchlistSignals.userId, userId)));
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  const BUILT_IN_AGENTS = [
+    { id: "scout", name: "Lead Scout", category: "Intelligence", system: "You are Lead Scout, an expert B2B lead research specialist. Find, qualify, and score leads that match the user's ideal customer profile. Be specific, practical, and structured. Output leads in a clear numbered list." },
+    { id: "writer", name: "Cold Email Writer", category: "Outreach", system: "You are an expert cold email copywriter. Write personalized, non-spammy cold emails that feel human and get replies. Use the AIDA framework. No more than 150 words. One clear CTA." },
+    { id: "reply", name: "Reply Analyzer", category: "Outreach", system: "You are a sales reply intelligence specialist. Analyze the provided email reply: classify intent (INTERESTED/OBJECTION/UNSUBSCRIBE/NOT_NOW/REFERRAL), rate warmth 1-10, draft the ideal response, suggest next action." },
+    { id: "intent", name: "Intent Monitor", category: "Intelligence", system: "You are a B2B intent data analyst. Analyze publicly available signals for buying intent: signal strength (HIGH/MED/LOW), specific indicators, best outreach window, recommended approach." },
+    { id: "booker", name: "Meeting Booker", category: "CRM", system: "You are a meeting booking specialist. Craft messages that convert interested prospects into booked calls. Propose 2-3 time slots, include calendar link placeholder, under 80 words." },
+    { id: "forum", name: "Forum Prospector", category: "Intelligence", system: "You are a forum prospecting specialist. Find subreddits/LinkedIn groups, generate search queries, identify prospect posts, create authentic DM templates." },
+  ];
+
+  app.get("/api/agent-console/catalog", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+
+      const statsResult = await db.select({
+        agentId: agentRuns.agentId,
+        runs: sql<number>`count(*)::int`,
+        rate: sql<number>`round(avg(case when ${agentRuns.status}='completed' then 100.0 else 0 end), 1)`,
+        lastRun: sql<string>`max(${agentRuns.createdAt})`,
+      }).from(agentRuns)
+        .where(eq(agentRuns.userId, userId))
+        .groupBy(agentRuns.agentId);
+
+      const statsMap: Record<string, any> = {};
+      statsResult.forEach(r => { statsMap[r.agentId] = r; });
+
+      const agents = BUILT_IN_AGENTS.map(a => ({
+        id: a.id,
+        name: a.name,
+        category: a.category,
+        runs: statsMap[a.id]?.runs || 0,
+        rate: statsMap[a.id]?.rate || 100,
+        lastRun: statsMap[a.id]?.lastRun || null,
+      }));
+
+      res.json({ agents });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/agent-console/:id/run", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { id } = req.params;
+      const { prompt } = req.body;
+
+      if (!prompt?.trim()) return res.status(400).json({ message: "prompt is required" });
+
+      const agent = BUILT_IN_AGENTS.find(a => a.id === id);
+      if (!agent) return res.status(404).json({ message: `Agent "${id}" not found` });
+
+      const creditResult = await deductCredits(userId, "agent_run");
+      if (!creditResult.success) {
+        return res.status(402).json({ message: creditResult.error, required: CREDIT_COSTS.agent_run });
+      }
+
+      let llmResult;
+      try {
+        llmResult = await callMultiLLM({
+          system: agent.system,
+          userMessage: prompt,
+          maxTokens: 800,
+        });
+      } catch (llmErr: any) {
+        await refundCredits(userId, "agent_run");
+        return res.status(500).json({ message: `LLM call failed: ${llmErr.message}` });
+      }
+
+      await db.insert(agentRuns).values({
+        userId,
+        agentId: agent.id,
+        agentName: agent.name,
+        prompt,
+        output: llmResult.text,
+        provider: llmResult.provider,
+        model: llmResult.model,
+        status: "completed",
+      });
+
+      res.json({
+        output: llmResult.text,
+        provider: llmResult.provider,
+        model: llmResult.model,
+        creditsRemaining: creditResult.remaining,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/agent-console/:id/runs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const result = await db.select({
+        id: agentRuns.id,
+        prompt: agentRuns.prompt,
+        output: agentRuns.output,
+        provider: agentRuns.provider,
+        model: agentRuns.model,
+        status: agentRuns.status,
+        createdAt: agentRuns.createdAt,
+      }).from(agentRuns)
+        .where(and(eq(agentRuns.userId, userId), eq(agentRuns.agentId, req.params.id)))
+        .orderBy(desc(agentRuns.createdAt))
+        .limit(20);
+      res.json({ runs: result });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return httpServer;
 }
 
