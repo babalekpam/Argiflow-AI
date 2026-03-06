@@ -85,6 +85,7 @@ export function AppSidebar() {
   const automationNav = [
     { title: t("sidebar.agentCatalog"), icon: Boxes, url: "/dashboard/agent-catalog" },
     { title: t("sidebar.aiAgentsNav"), icon: Bot, url: "/dashboard/ai-agents", badge: t("common.live") },
+    { title: "Agent Console", icon: Zap, url: "/dashboard/agent-console", badge: t("common.new") },
     { title: t("sidebar.voiceAi"), icon: Phone, url: "/dashboard/voice-ai" },
     { title: "Sequences", icon: GitBranch, url: "/dashboard/sequences", badge: t("common.new") },
     { title: t("sidebar.emailSms"), icon: Mail, url: "/dashboard/email" },
@@ -100,6 +101,7 @@ export function AppSidebar() {
   ];
 
   const platformNav = [
+    { title: "Website Builder", icon: Globe, url: "/dashboard/website-builder", badge: t("common.new") },
     { title: "Landing Pages", icon: Layout, url: "/dashboard/landing-pages", badge: t("common.new") },
     { title: "Forms & Surveys", icon: FileText, url: "/dashboard/forms", badge: t("common.new") },
     { title: "Chat Widget", icon: MessageSquare, url: "/dashboard/chat-widget", badge: t("common.new") },

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, sql, desc, or, ilike, isNull } from "drizzle-orm";
-import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnels, emailLogs } from "@shared/schema";
+import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnels, emailLogs, sites, pipelineSnapshots, agentRuns } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
@@ -9909,6 +9909,145 @@ The ArgiFlow Team`;
         .orderBy(desc(agentRuns.createdAt))
         .limit(20);
       res.json({ runs: result });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════
+  //  ENHANCED DASHBOARD STATS
+  // ══════════════════════════════════════════════════════
+  app.get("/api/dashboard/enhanced-stats", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+
+      const [allLeads, pipeline, agentStats, recentRuns] = await Promise.all([
+        db.select().from(leads).where(eq(leads.userId, userId)),
+        db.select().from(pipelineSnapshots).where(eq(pipelineSnapshots.userId, userId)).orderBy(desc(pipelineSnapshots.snappedAt)).limit(1),
+        db.select({
+          agentId: agentRuns.agentId,
+          agentName: agentRuns.agentName,
+          runs: sql<number>`count(*)::int`,
+          rate: sql<number>`round(avg(case when ${agentRuns.status}='completed' then 100 else 0 end),1)`,
+          lastRun: sql<string>`max(${agentRuns.createdAt})`,
+        }).from(agentRuns).where(eq(agentRuns.userId, userId)).groupBy(agentRuns.agentId, agentRuns.agentName).orderBy(sql`count(*) desc`).limit(6),
+        db.select().from(agentRuns).where(eq(agentRuns.userId, userId)).orderBy(desc(agentRuns.createdAt)).limit(8),
+      ]);
+
+      const leadCount = allLeads.length;
+      const hotLeads = allLeads.filter((l: any) => l.score >= 70).length;
+      const snap = pipeline[0];
+
+      const pipelineStages = snap ? [
+        { label: "Found", count: snap.found, pct: 100, color: "#4B6CF7" },
+        { label: "Enriched", count: snap.enriched, pct: snap.found ? Math.round((snap.enriched / snap.found) * 100) : 0, color: "#6366F1" },
+        { label: "Contacted", count: snap.contacted, pct: snap.found ? Math.round((snap.contacted / snap.found) * 100) : 0, color: "#7B5BFB" },
+        { label: "Replied", count: snap.replied, pct: snap.found ? Math.round((snap.replied / snap.found) * 100) : 0, color: "#0691A1" },
+        { label: "Meeting", count: snap.meeting, pct: snap.found ? Math.round((snap.meeting / snap.found) * 100) : 0, color: "#0DAD74" },
+        { label: "Closed", count: snap.closed, pct: snap.found ? Math.round((snap.closed / snap.found) * 100) : 0, color: "#059669" },
+      ] : [];
+
+      const activity = recentRuns.map((r: any) => ({
+        text: r.prompt ? `${r.agentName}: "${r.prompt.slice(0, 70)}${r.prompt.length > 70 ? "…" : ""}"` : `${r.agentName} completed`,
+        time: r.createdAt,
+        status: r.status,
+      }));
+
+      const agentHealth = agentStats.map((a: any) => ({
+        name: a.agentName || a.agentId,
+        status: "active",
+        runs: a.runs,
+        rate: parseFloat(a.rate) || 0,
+        lastRun: a.lastRun,
+      }));
+
+      res.json({
+        leads_total: leadCount,
+        hot_leads: hotLeads,
+        pipeline_stages: pipelineStages,
+        activity,
+        agent_health: agentHealth,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/dashboard/pipeline", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { found = 0, enriched = 0, contacted = 0, replied = 0, meeting = 0, closed = 0 } = req.body;
+      await db.insert(pipelineSnapshots).values({ userId, found, enriched, contacted, replied, meeting, closed });
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════
+  //  SITES / WEB BUILDER
+  // ══════════════════════════════════════════════════════
+  app.get("/api/sites", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const result = await db.select().from(sites).where(eq(sites.userId, userId)).orderBy(desc(sites.updatedAt));
+      res.json({ sites: result });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/sites", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { template = "blank", name = "New Site" } = req.body;
+      const result = await db.insert(sites).values({ userId, name, template }).returning();
+      res.status(201).json({ site: result[0] });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/sites/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const result = await db.select().from(sites).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
+      if (!result[0]) return res.status(404).json({ message: "Site not found" });
+      res.json({ site: result[0] });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/sites/:id/save", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { blocks, name } = req.body;
+      const updates: any = { updatedAt: new Date() };
+      if (blocks) updates.blocks = JSON.stringify(blocks);
+      if (name) updates.name = name;
+      await db.update(sites).set(updates).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/sites/:id/publish", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      await db.update(sites).set({ status: "live", updatedAt: new Date() }).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
+      res.json({ ok: true, status: "live" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/sites/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      await db.delete(sites).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
+      res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

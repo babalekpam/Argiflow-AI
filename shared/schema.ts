@@ -1481,6 +1481,24 @@ export const insertAgentRunSchema = createInsertSchema(agentRuns).omit({ id: tru
 export type AgentRun = typeof agentRuns.$inferSelect;
 export type InsertAgentRun = z.infer<typeof insertAgentRunSchema>;
 
+export const sites = pgTable("sites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  url: text("url"),
+  status: text("status").default("draft"),
+  visitors: integer("visitors").default(0),
+  blocks: text("blocks").default("[]"),
+  pages: text("pages").default('["Home"]'),
+  template: text("template").default("blank"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSiteSchema = createInsertSchema(sites).omit({ id: true, createdAt: true, updatedAt: true });
+export type Site = typeof sites.$inferSelect;
+export type InsertSite = z.infer<typeof insertSiteSchema>;
+
 export * from "./workflow-schema";
 export * from "./instantly-schema";
 export * from "./intelligence-schema";
