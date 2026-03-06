@@ -77,6 +77,21 @@ interface CallLLMParams {
   model?: string;
 }
 
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url, options);
+    if (res.status === 429 && attempt < maxRetries) {
+      const retryAfter = res.headers.get("retry-after");
+      const waitMs = retryAfter ? Math.min(parseFloat(retryAfter) * 1000, 30000) : Math.min(1000 * Math.pow(2, attempt), 15000);
+      console.log(`[LLM-Router] Rate limited (429), retrying in ${(waitMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})`);
+      await new Promise(r => setTimeout(r, waitMs));
+      continue;
+    }
+    return res;
+  }
+  throw new Error("Rate limit exceeded after maximum retries");
+}
+
 export async function callLLM({ system, userMessage, maxTokens = 800, providerId, apiKey, model }: CallLLMParams) {
   let cfg: any;
 
@@ -90,7 +105,7 @@ export async function callLLM({ system, userMessage, maxTokens = 800, providerId
   }
 
   if (cfg.format === "anthropic") {
-    const res = await fetch(`${cfg.baseUrl}/v1/messages`, {
+    const res = await fetchWithRetry(`${cfg.baseUrl}/v1/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -116,7 +131,7 @@ export async function callLLM({ system, userMessage, maxTokens = 800, providerId
     const messages: any[] = [];
     if (system) messages.push({ role: "system", content: system });
     messages.push({ role: "user", content: userMessage });
-    const res = await fetch(`${cfg.baseUrl}/v1/chat/completions`, {
+    const res = await fetchWithRetry(`${cfg.baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -139,7 +154,7 @@ export async function callLLM({ system, userMessage, maxTokens = 800, providerId
       generationConfig: { maxOutputTokens: maxTokens },
     };
     if (system) body.systemInstruction = { parts: [{ text: system }] };
-    const res = await fetch(endpoint, {
+    const res = await fetchWithRetry(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

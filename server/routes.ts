@@ -229,12 +229,27 @@ class OpenAIAnthropicWrapper {
       }
 
       try {
-        const openaiResponse = await this.openai.chat.completions.create({
-          model: this.defaultModel,
-          max_tokens: max_tokens || 4096,
-          messages: openaiMessages,
-          ...(openaiTools ? { tools: openaiTools } : {}),
-        });
+        let openaiResponse: any;
+        for (let _retry = 0; _retry < 3; _retry++) {
+          try {
+            openaiResponse = await this.openai.chat.completions.create({
+              model: this.defaultModel,
+              max_tokens: max_tokens || 4096,
+              messages: openaiMessages,
+              ...(openaiTools ? { tools: openaiTools } : {}),
+            });
+            break;
+          } catch (retryErr: any) {
+            if (retryErr?.status === 429 && _retry < 2) {
+              const wait = Math.min(1000 * Math.pow(2, _retry + 1), 15000);
+              console.log(`[OpenAI-Wrapper] Rate limited (429), retry ${_retry + 1}/3 in ${wait / 1000}s`);
+              await new Promise(r => setTimeout(r, wait));
+              continue;
+            }
+            throw retryErr;
+          }
+        }
+        if (!openaiResponse) throw new Error("OpenAI request failed after retries");
 
         const choice = openaiResponse.choices[0];
         const content: any[] = [];
@@ -4628,8 +4643,9 @@ https://www.tmbds.com/schedule
   }
 
   setTimeout(processAutoHotLeadEngagement, 3 * 60 * 1000);
-  setInterval(processAutoHotLeadEngagement, HOT_LEAD_INTERVAL);
-  console.log("[AutoEngage] Auto-engagement scheduled — runs every 3 minutes as safety net. Leads with score >= 40 get outreach generated + sent automatically.");
+  const ADJUSTED_HOT_LEAD_INTERVAL = 10 * 60 * 1000;
+  setInterval(processAutoHotLeadEngagement, ADJUSTED_HOT_LEAD_INTERVAL);
+  console.log("[AutoEngage] Auto-engagement scheduled — runs every 10 minutes. Leads with score >= 40 get outreach generated + sent automatically.");
 
   // ---- AUTOMATED FOLLOW-UP SEQUENCES ----
   // Sends escalating follow-up emails to leads until they book an appointment
@@ -4853,8 +4869,8 @@ RULES:
     }
   }
 
-  console.log("[FOLLOW-UP] Follow-up processor started — checking every 5 minutes (3 steps: day 2 gentle, day 4 value, day 6 final)");
-  setInterval(processFollowUpSequences, 5 * 60 * 1000);
+  console.log("[FOLLOW-UP] Follow-up processor started — checking every 15 minutes (3 steps: day 2 gentle, day 4 value, day 6 final)");
+  setInterval(processFollowUpSequences, 15 * 60 * 1000);
   setTimeout(processFollowUpSequences, 2 * 60 * 1000);
 
   // ============================================================
@@ -5138,7 +5154,7 @@ Return ONLY the email reply text, no subject line, no markdown.`
     }
   }
 
-  setInterval(checkInboxAndReply, 2 * 60 * 1000);
+  setInterval(checkInboxAndReply, 10 * 60 * 1000);
   setTimeout(checkInboxAndReply, 30 * 1000);
 
   app.get("/api/inbox-monitor/status", isAuthenticated, (_req, res) => {
@@ -5173,7 +5189,7 @@ Return ONLY the email reply text, no subject line, no markdown.`
   // and adds them to the CRM automatically
   // ============================================================
 
-  const AUTO_LEAD_GEN_INTERVAL = 30 * 60 * 1000; // 30 minutes — fast discovery for all subscribers
+  const AUTO_LEAD_GEN_INTERVAL = 60 * 60 * 1000; // 60 minutes — conserve API quota
   const AUTO_LEAD_GEN_BATCH_SIZE = 30;
 
   const LEAD_SEARCH_REGIONS = [
@@ -5729,7 +5745,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
       runAutoLeadGeneration().catch(err => console.error("[Auto Lead Gen] Scheduled run error:", err));
     }, AUTO_LEAD_GEN_INTERVAL);
   }, 4 * 60 * 1000);
-  console.log("[Auto Lead Gen] Scheduled to run every 30 minutes for ALL subscribers. First run in 4 minutes.");
+  console.log("[Auto Lead Gen] Scheduled to run every 60 minutes for ALL subscribers. First run in 4 minutes.");
 
   // API: Get auto lead gen status & history
   app.get("/api/auto-lead-gen/status", isAuthenticated, async (req, res) => {
@@ -5772,7 +5788,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
   });
 
   // ---- MEDICAL BILLING LEAD GEN (Hourly for abel@argilette.com) ----
-  const MEDBILL_LEAD_GEN_INTERVAL = 20 * 60 * 1000; // 20 minutes — fast discovery for hot leads
+  const MEDBILL_LEAD_GEN_INTERVAL = 45 * 60 * 1000; // 45 minutes — conserve API quota
   const MEDBILL_LEAD_GEN_BATCH = 20;
   const MEDBILL_USER_EMAIL = "abel@argilette.com";
 
@@ -6503,7 +6519,7 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
       runMedBillLeadGen().catch(err => console.error("[MedBill Lead Gen] Hourly run error:", err));
     }, MEDBILL_LEAD_GEN_INTERVAL);
   }, 2 * 60 * 1000);
-  console.log("[MedBill Lead Gen] Scheduled to run every 20 minutes for abel@argilette.com. First run in 2 minutes.");
+  console.log("[MedBill Lead Gen] Scheduled to run every 45 minutes for abel@argilette.com. First run in 2 minutes.");
 
   app.get("/api/medbill-lead-gen/status", isAuthenticated, async (req, res) => {
     try {
@@ -9525,13 +9541,12 @@ The ArgiFlow Team`;
     }
   }
 
-  // Background: run 5 times per day (every 4.8 hours)
-  const PLATFORM_PROMOTER_INTERVAL = Math.round((24 / 5) * 60 * 60 * 1000);
+  const PLATFORM_PROMOTER_INTERVAL = 8 * 60 * 60 * 1000;
   setInterval(() => {
     runPlatformPromotion().catch(err => console.error("[Platform Promoter] Scheduler error:", err));
   }, PLATFORM_PROMOTER_INTERVAL);
   runPlatformPromotion().catch(err => console.error("[Platform Promoter] Initial run error:", err));
-  console.log("[Platform Promoter] Scheduled to run 5 times per day (every ~4.8 hours). Manual trigger available at /api/platform-promoter/trigger");
+  console.log("[Platform Promoter] Scheduled to run 3 times per day (every ~8 hours). Manual trigger available at /api/platform-promoter/trigger");
 
   app.get("/api/platform-promoter/status", isAuthenticated, async (req, res) => {
     try {
