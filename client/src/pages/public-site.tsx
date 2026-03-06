@@ -213,7 +213,60 @@ function GenericBlock({ block }: { block: Block }) {
   );
 }
 
-function SiteRenderer({ blocks }: { blocks: Block[] }) {
+type Product = {
+  id: string;
+  productName: string;
+  description: string | null;
+  category: string;
+  supplierPrice: number;
+  suggestedRetailPrice: number | null;
+  imageUrl: string | null;
+};
+
+function ProductsGrid({ products }: { products: Product[] }) {
+  if (!products || products.length === 0) return null;
+  return (
+    <section className="py-20 px-6 bg-slate-950" data-testid="section-products">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Our Products</h2>
+          <p className="text-blue-200/60 text-lg">Browse our catalog</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {products.map(p => (
+            <div key={p.id} className="rounded-xl bg-slate-900/60 border border-slate-800 overflow-hidden hover:border-blue-500/30 transition-all group" data-testid={`product-card-${p.id}`}>
+              {p.imageUrl ? (
+                <div className="aspect-square bg-slate-800 overflow-hidden">
+                  <img src={p.imageUrl} alt={p.productName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                </div>
+              ) : (
+                <div className="aspect-square bg-slate-800 flex items-center justify-center">
+                  <Globe className="w-12 h-12 text-slate-700" />
+                </div>
+              )}
+              <div className="p-4 space-y-2">
+                <h3 className="font-semibold text-white text-sm line-clamp-2">{p.productName}</h3>
+                {p.description && (
+                  <p className="text-xs text-slate-400 line-clamp-2">{p.description}</p>
+                )}
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-lg font-bold text-blue-400">
+                    ${(p.suggestedRetailPrice != null && p.suggestedRetailPrice > 0 ? p.suggestedRetailPrice : (p.supplierPrice || 0)).toFixed(2)}
+                  </span>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs">
+                    View Details
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SiteRenderer({ blocks, products }: { blocks: Block[]; products: Product[] }) {
   return (
     <>
       {blocks.map((block, i) => {
@@ -229,6 +282,7 @@ function SiteRenderer({ blocks }: { blocks: Block[] }) {
           default: return <GenericBlock key={i} block={block} />;
         }
       })}
+      <ProductsGrid products={products} />
     </>
   );
 }
@@ -291,7 +345,7 @@ export default function PublicSitePage() {
       </nav>
 
       {blocks.length > 0 ? (
-        <SiteRenderer blocks={blocks} />
+        <SiteRenderer blocks={blocks} products={data.products || []} />
       ) : (
         <div className="py-32 text-center">
           <p className="text-slate-400">This site is being set up.</p>

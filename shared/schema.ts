@@ -1507,6 +1507,7 @@ export const supplierProducts = pgTable("supplier_products", {
   supplierName: text("supplier_name").notNull(),
   supplierUrl: text("supplier_url"),
   productName: text("product_name").notNull(),
+  description: text("description"),
   category: text("category"),
   supplierPrice: real("supplier_price").notNull(),
   suggestedRetailPrice: real("suggested_retail_price"),

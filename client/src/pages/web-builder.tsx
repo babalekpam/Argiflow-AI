@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -85,6 +86,7 @@ type Block = {
 type SupplierProduct = {
   id: string;
   productName: string;
+  description: string | null;
   category: string;
   supplierName: string;
   supplierPrice: number;
@@ -198,6 +200,9 @@ export default function WebBuilderPage() {
   const [aiSiteType, setAiSiteType] = useState("general");
   const [supplierSearch, setSupplierSearch] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState("AliExpress");
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<SupplierProduct | null>(null);
+  const [productForm, setProductForm] = useState({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", imageUrl: "" });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -210,6 +215,7 @@ export default function WebBuilderPage() {
     enabled: !!editingSite?.id,
     queryFn: async () => {
       const res = await fetch(`/api/sites/${editingSite!.id}/products`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load products");
       return res.json();
     },
   });
@@ -329,6 +335,40 @@ export default function WebBuilderPage() {
     },
     onError: (err: any) => {
       toast({ title: "Pricing analysis failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const addProductMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await apiRequest("POST", `/api/sites/${editingSite!.id}/products`, payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sites", editingSite?.id, "products"] });
+      setProductDialogOpen(false);
+      setEditingProduct(null);
+      setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", imageUrl: "" });
+      toast({ title: "Product added" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to add product", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ productId, payload }: { productId: string; payload: any }) => {
+      const res = await apiRequest("PUT", `/api/sites/${editingSite!.id}/products/${productId}`, payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sites", editingSite?.id, "products"] });
+      setProductDialogOpen(false);
+      setEditingProduct(null);
+      setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", imageUrl: "" });
+      toast({ title: "Product updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to update product", description: err.message, variant: "destructive" });
     },
   });
 
@@ -831,47 +871,88 @@ export default function WebBuilderPage() {
 
             {sideTab === "products" && (
               <div className="p-3 space-y-3">
-                {products.length > 0 && (
+                <div className="flex gap-1.5">
                   <Button
-                    variant="outline"
                     size="sm"
-                    className="w-full text-xs"
-                    onClick={() => aiPricingMutation.mutate()}
-                    disabled={aiPricingMutation.isPending}
-                    data-testid="button-optimize-pricing"
+                    className="flex-1 text-xs"
+                    onClick={() => {
+                      setEditingProduct(null);
+                      setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", imageUrl: "" });
+                      setProductDialogOpen(true);
+                    }}
+                    data-testid="button-add-product"
                   >
-                    {aiPricingMutation.isPending ? (
-                      <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Analyzing...</>
-                    ) : (
-                      <><BarChart3 className="w-3.5 h-3.5 mr-1" /> AI Optimize Pricing</>
-                    )}
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Product
                   </Button>
-                )}
+                  {products.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => aiPricingMutation.mutate()}
+                      disabled={aiPricingMutation.isPending}
+                      data-testid="button-optimize-pricing"
+                    >
+                      {aiPricingMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
+                    </Button>
+                  )}
+                </div>
 
                 {products.length === 0 ? (
                   <div className="text-center py-6">
                     <Package className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground">No products imported yet</p>
-                    <Button variant="link" size="sm" className="text-xs mt-1" onClick={() => setSideTab("suppliers")} data-testid="button-go-import">
-                      Import from suppliers →
-                    </Button>
+                    <p className="text-xs text-muted-foreground">No products yet</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Add your own or import from suppliers</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {products.map(p => (
-                      <div key={p.id} className="p-2.5 rounded-lg border border-border/50 bg-secondary/20 group" data-testid={`product-${p.id}`}>
-                        <div className="flex items-start justify-between gap-2">
+                      <div
+                        key={p.id}
+                        className="p-2.5 rounded-lg border border-border/50 bg-secondary/20 group cursor-pointer hover:border-blue-500/30 transition-all"
+                        onClick={() => {
+                          setEditingProduct(p);
+                          setProductForm({
+                            productName: p.productName,
+                            description: p.description || "",
+                            category: p.category || "General",
+                            supplierPrice: String(p.supplierPrice || ""),
+                            suggestedRetailPrice: String(p.suggestedRetailPrice || ""),
+                            imageUrl: p.imageUrl || "",
+                          });
+                          setProductDialogOpen(true);
+                        }}
+                        data-testid={`product-${p.id}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {p.imageUrl ? (
+                            <img
+                              src={p.imageUrl}
+                              alt={p.productName}
+                              className="w-10 h-10 rounded object-cover shrink-0 bg-secondary"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center shrink-0">
+                              <Package className="w-4 h-4 text-muted-foreground/30" />
+                            </div>
+                          )}
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium truncate">{p.productName}</p>
+                            <div className="flex items-start justify-between gap-1">
+                              <p className="text-xs font-medium truncate">{p.productName}</p>
+                              <button
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                                onClick={(e) => { e.stopPropagation(); deleteProductMutation.mutate(p.id); }}
+                                data-testid={`button-delete-product-${p.id}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
                             <p className="text-[10px] text-muted-foreground">{p.category} · {p.supplierName}</p>
+                            {p.description && (
+                              <p className="text-[10px] text-muted-foreground/70 line-clamp-1 mt-0.5">{p.description}</p>
+                            )}
                           </div>
-                          <button
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                            onClick={() => deleteProductMutation.mutate(p.id)}
-                            data-testid={`button-delete-product-${p.id}`}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
                         </div>
                         <div className="flex items-center gap-3 mt-2">
                           <div className="flex items-center gap-1">
@@ -1082,6 +1163,125 @@ export default function WebBuilderPage() {
           )}
         </div>
       </div>
+
+      <Dialog open={productDialogOpen} onOpenChange={(open) => {
+        setProductDialogOpen(open);
+        if (!open) {
+          setEditingProduct(null);
+          setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", imageUrl: "" });
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingProduct ? "Edit Product" : "Add Product"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs">Product Name *</Label>
+              <Input
+                value={productForm.productName}
+                onChange={e => setProductForm(f => ({ ...f, productName: e.target.value }))}
+                placeholder="e.g. Wireless Bluetooth Earbuds"
+                data-testid="input-product-name"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Description</Label>
+              <Textarea
+                value={productForm.description}
+                onChange={e => setProductForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Describe your product — features, benefits, what makes it special..."
+                rows={3}
+                data-testid="input-product-description"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Image URL</Label>
+              <Input
+                value={productForm.imageUrl}
+                onChange={e => setProductForm(f => ({ ...f, imageUrl: e.target.value }))}
+                placeholder="https://example.com/product-image.jpg"
+                data-testid="input-product-image"
+              />
+              {productForm.imageUrl && (
+                <div className="mt-2 relative w-20 h-20 rounded-lg overflow-hidden bg-secondary">
+                  <img
+                    src={productForm.imageUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).src = ""; }}
+                  />
+                </div>
+              )}
+            </div>
+            <div>
+              <Label className="text-xs">Category</Label>
+              <Select value={productForm.category} onValueChange={v => setProductForm(f => ({ ...f, category: v }))}>
+                <SelectTrigger data-testid="select-product-category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["General", "Electronics", "Fashion", "Home & Garden", "Beauty", "Sports", "Toys", "Automotive", "Health", "Food", "Office", "Pet", "Baby", "Services"].map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Cost Price ($) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={productForm.supplierPrice}
+                  onChange={e => setProductForm(f => ({ ...f, supplierPrice: e.target.value }))}
+                  placeholder="0.00"
+                  data-testid="input-product-cost"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Retail Price ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={productForm.suggestedRetailPrice}
+                  onChange={e => setProductForm(f => ({ ...f, suggestedRetailPrice: e.target.value }))}
+                  placeholder="Auto-calculated"
+                  data-testid="input-product-retail"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProductDialogOpen(false)} data-testid="button-cancel-product">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!productForm.productName.trim() || !productForm.supplierPrice) {
+                  toast({ title: "Name and cost price are required", variant: "destructive" });
+                  return;
+                }
+                const payload = {
+                  ...productForm,
+                  supplierPrice: parseFloat(productForm.supplierPrice) || 0,
+                  suggestedRetailPrice: productForm.suggestedRetailPrice ? parseFloat(productForm.suggestedRetailPrice) : undefined,
+                };
+                if (editingProduct) {
+                  updateProductMutation.mutate({ productId: editingProduct.id, payload });
+                } else {
+                  addProductMutation.mutate(payload);
+                }
+              }}
+              disabled={addProductMutation.isPending || updateProductMutation.isPending}
+              data-testid="button-save-product"
+            >
+              {(addProductMutation.isPending || updateProductMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+              {editingProduct ? "Update Product" : "Add Product"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

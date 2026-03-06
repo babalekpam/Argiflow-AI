@@ -10465,12 +10465,17 @@ ENGAGEMENT RULES:
 
       await db.update(sites).set({ visitors: (site.visitors || 0) + 1 }).where(eq(sites.id, site.id));
 
+      const siteProducts = await db.select().from(supplierProducts)
+        .where(eq(supplierProducts.siteId, site.id))
+        .orderBy(desc(supplierProducts.createdAt));
+
       res.json({
         name: site.name,
         slug: site.slug,
         blocks: site.blocks,
         template: site.template,
         pages: site.pages,
+        products: siteProducts,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -10754,6 +10759,70 @@ Consider: category competition levels, psychological pricing (e.g. $29.99 not $3
         .orderBy(desc(supplierProducts.createdAt));
 
       res.json({ products: updated, optimized: optimized.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/sites/:id/products", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { productName, description, category, supplierPrice, suggestedRetailPrice, imageUrl } = req.body;
+      if (!productName || !supplierPrice) {
+        return res.status(400).json({ message: "Product name and price are required" });
+      }
+      const cost = parseFloat(supplierPrice) || 0;
+      const retail = parseFloat(suggestedRetailPrice) || cost * 1.5;
+      const margin = cost > 0 ? Math.round(((retail - cost) / retail) * 1000) / 10 : 0;
+
+      const [product] = await db.insert(supplierProducts).values({
+        userId,
+        siteId: req.params.id,
+        supplierName: "Manual",
+        productName,
+        description: description || null,
+        category: category || "General",
+        supplierPrice: cost,
+        suggestedRetailPrice: retail,
+        margin,
+        imageUrl: imageUrl || null,
+        status: "active",
+      }).returning();
+
+      res.json({ product });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/sites/:id/products/:productId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session!.userId!;
+      const { productName, description, category, supplierPrice, suggestedRetailPrice, imageUrl } = req.body;
+      const updates: any = { };
+      if (productName !== undefined) updates.productName = productName;
+      if (description !== undefined) updates.description = description;
+      if (category !== undefined) updates.category = category;
+      if (imageUrl !== undefined) updates.imageUrl = imageUrl;
+      if (supplierPrice !== undefined) {
+        updates.supplierPrice = parseFloat(supplierPrice) || 0;
+      }
+      if (suggestedRetailPrice !== undefined) {
+        updates.suggestedRetailPrice = parseFloat(suggestedRetailPrice) || 0;
+      }
+      if (updates.supplierPrice !== undefined || updates.suggestedRetailPrice !== undefined) {
+        const cost = updates.supplierPrice ?? 0;
+        const retail = updates.suggestedRetailPrice ?? 0;
+        if (retail > 0) updates.margin = Math.round(((retail - cost) / retail) * 1000) / 10;
+      }
+
+      const [product] = await db.update(supplierProducts)
+        .set(updates)
+        .where(and(eq(supplierProducts.id, req.params.productId), eq(supplierProducts.userId, userId)))
+        .returning();
+
+      if (!product) return res.status(404).json({ message: "Product not found" });
+      res.json({ product });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
