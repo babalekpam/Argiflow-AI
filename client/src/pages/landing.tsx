@@ -2,6 +2,12 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import botHeroImg from "@assets/generated_images/bot-hero.png";
+import botLeadScoutImg from "@assets/generated_images/bot-lead-scout.png";
+import botEmailWriterImg from "@assets/generated_images/bot-email-writer.png";
+import botVoiceCallerImg from "@assets/generated_images/bot-voice-caller.png";
+import botAnalyticsImg from "@assets/generated_images/bot-analytics.png";
+import botTeamImg from "@assets/generated_images/bot-team.png";
 import {
   Search, Send, Phone, Target, TrendingUp, ArrowRight, Check,
   Play, Shield, Clock, Sparkles, MessageSquare, Headphones, Brain,
@@ -262,51 +268,59 @@ export default function LandingPage() {
             <div className="absolute top-40 left-0 w-[400px] h-[400px] rounded-full bg-gradient-to-br from-blue-100/30 to-transparent blur-3xl pointer-events-none" />
 
             <div className="relative pt-32 pb-20 px-6 max-w-[1100px] mx-auto">
-              <div className="max-w-[720px]">
-                <div className="anim-up inline-flex items-center gap-2 text-[12px] font-semibold text-indigo-600 uppercase tracking-widest px-4 py-2 rounded-full bg-indigo-50 border border-indigo-100 mb-6">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {t("landing.hero.engineBadge")}
-                </div>
-                <div className="anim-up-d1 inline-flex items-center gap-2 text-[12px] font-semibold text-amber-700 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-100 mb-8 ml-2">
-                  <Shield className="w-3.5 h-3.5" />
-                  {t("landing.hero.replacesBadge")}
-                </div>
-                <h1 className="anim-up-d1 text-[clamp(36px,5.5vw,64px)] font-extrabold leading-[1.08] tracking-tight mb-6">
-                  {t("landing.hero.titleStop")}{" "}
-                  <span className="text-red-400 line-through decoration-2 decoration-red-300">{t("landing.hero.title5Tools")}</span>{" "}
-                  <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 bg-clip-text text-transparent">{t("landing.hero.titleGetEverything")}</span>{" "}
-                  {t("landing.hero.titleIn")} <span className="text-indigo-600">{t("landing.hero.titleOne")}</span>
-                </h1>
-                <p className="anim-up-d2 text-lg text-slate-500 font-normal leading-relaxed mb-4 max-w-[560px]">
-                  {t("landing.hero.descFull")}
-                </p>
-                <p className="anim-up-d2 text-[15px] text-indigo-600 font-medium mb-10">
-                  {t("landing.hero.oneLogin")} <strong>{t("landing.hero.freeTrialBold")}</strong> {t("landing.hero.oneLoginEnd")}
-                </p>
-                <div className="anim-up-d3 flex items-center gap-3 flex-wrap">
-                  <button onClick={() => showView("getstarted")} data-testid="button-start-trial" className="px-8 py-3.5 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all cursor-pointer">
-                    {t("landing.hero.ctaTrial")}
-                  </button>
-                  <button onClick={() => showView("demo")} data-testid="button-watch-demo" className="px-8 py-3.5 rounded-xl text-[15px] font-medium text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-2">
-                    <Play className="w-4 h-4 text-indigo-500" />
-                    {t("landing.hero.ctaDemo")}
-                  </button>
-                </div>
-                <div className="anim-up-d4 flex items-center gap-4 mt-10">
-                  <div className="flex -space-x-2">
-                    {["bg-indigo-500", "bg-emerald-500", "bg-amber-500", "bg-rose-400", "bg-slate-400"].map((c, i) => (
-                      <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-white ${c}`}>
-                        {["JM", "SK", "AT", "RC", "LP"][i]}
-                      </div>
-                    ))}
+              <div className="flex items-center gap-8 lg:gap-12">
+                <div className="max-w-[720px] flex-1">
+                  <div className="anim-up inline-flex items-center gap-2 text-[12px] font-semibold text-indigo-600 uppercase tracking-widest px-4 py-2 rounded-full bg-indigo-50 border border-indigo-100 mb-6">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {t("landing.hero.engineBadge")}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-0.5 mb-0.5">
-                      {[1,2,3,4,5].map(i => <Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />)}
+                  <div className="anim-up-d1 inline-flex items-center gap-2 text-[12px] font-semibold text-amber-700 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-100 mb-8 ml-2">
+                    <Shield className="w-3.5 h-3.5" />
+                    {t("landing.hero.replacesBadge")}
+                  </div>
+                  <h1 className="anim-up-d1 text-[clamp(36px,5.5vw,64px)] font-extrabold leading-[1.08] tracking-tight mb-6">
+                    {t("landing.hero.titleStop")}{" "}
+                    <span className="text-red-400 line-through decoration-2 decoration-red-300">{t("landing.hero.title5Tools")}</span>{" "}
+                    <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 bg-clip-text text-transparent">{t("landing.hero.titleGetEverything")}</span>{" "}
+                    {t("landing.hero.titleIn")} <span className="text-indigo-600">{t("landing.hero.titleOne")}</span>
+                  </h1>
+                  <p className="anim-up-d2 text-lg text-slate-500 font-normal leading-relaxed mb-4 max-w-[560px]">
+                    {t("landing.hero.descFull")}
+                  </p>
+                  <p className="anim-up-d2 text-[15px] text-indigo-600 font-medium mb-10">
+                    {t("landing.hero.oneLogin")} <strong>{t("landing.hero.freeTrialBold")}</strong> {t("landing.hero.oneLoginEnd")}
+                  </p>
+                  <div className="anim-up-d3 flex items-center gap-3 flex-wrap">
+                    <button onClick={() => showView("getstarted")} data-testid="button-start-trial" className="px-8 py-3.5 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all cursor-pointer">
+                      {t("landing.hero.ctaTrial")}
+                    </button>
+                    <button onClick={() => showView("demo")} data-testid="button-watch-demo" className="px-8 py-3.5 rounded-xl text-[15px] font-medium text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-2">
+                      <Play className="w-4 h-4 text-indigo-500" />
+                      {t("landing.hero.ctaDemo")}
+                    </button>
+                  </div>
+                  <div className="anim-up-d4 flex items-center gap-4 mt-10">
+                    <div className="flex -space-x-2">
+                      {["bg-indigo-500", "bg-emerald-500", "bg-amber-500", "bg-rose-400", "bg-slate-400"].map((c, i) => (
+                        <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-white ${c}`}>
+                          {["JM", "SK", "AT", "RC", "LP"][i]}
+                        </div>
+                      ))}
                     </div>
-                    <span className="text-[13px] text-slate-400">
-                      {t("landing.hero.trustedBy")} <strong className="text-slate-600">500+</strong> {t("landing.hero.savingTeams")}
-                    </span>
+                    <div>
+                      <div className="flex items-center gap-0.5 mb-0.5">
+                        {[1,2,3,4,5].map(i => <Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />)}
+                      </div>
+                      <span className="text-[13px] text-slate-400">
+                        {t("landing.hero.trustedBy")} <strong className="text-slate-600">500+</strong> {t("landing.hero.savingTeams")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden lg:block flex-shrink-0 anim-up-d3" data-testid="img-hero-bot">
+                  <div className="relative">
+                    <div className="absolute -inset-6 bg-gradient-to-br from-indigo-200/30 via-violet-200/20 to-transparent rounded-full blur-2xl" />
+                    <img src={botHeroImg} alt="ArgiFlow AI Assistant" className="w-[340px] h-[340px] object-contain relative z-10 drop-shadow-xl" style={{ animation: "float 4s ease-in-out infinite" }} />
                   </div>
                 </div>
               </div>
@@ -414,6 +428,41 @@ export default function LandingPage() {
               </div>
             </div>
 
+            <div className="py-20 px-6 max-w-[1100px] mx-auto" data-testid="section-ai-agents">
+              <div className="text-center mb-12">
+                <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-indigo-600 uppercase tracking-widest px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 mb-4">
+                  <Bot className="w-3.5 h-3.5" />
+                  AI-Powered Workforce
+                </span>
+                <h2 className="text-[clamp(24px,3.5vw,40px)] font-extrabold tracking-tight mb-3">Meet Your AI Agents</h2>
+                <p className="text-base text-slate-400 max-w-[520px] mx-auto leading-relaxed">Each agent is purpose-built to handle a specific part of your sales pipeline — working 24/7 so you don't have to.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                  { img: botLeadScoutImg, name: "Lead Scout", desc: "Discovers and qualifies high-value prospects from multiple data sources", icon: Search, color: "from-indigo-500 to-blue-500" },
+                  { img: botEmailWriterImg, name: "Email Writer", desc: "Crafts personalized cold emails and follow-up sequences that convert", icon: Mail, color: "from-violet-500 to-purple-500" },
+                  { img: botVoiceCallerImg, name: "Voice Caller", desc: "Makes AI-powered phone calls with natural conversation and booking", icon: PhoneCall, color: "from-emerald-500 to-teal-500" },
+                  { img: botAnalyticsImg, name: "Analytics Brain", desc: "Monitors intent signals, tracks engagement, and optimizes campaigns", icon: BarChart3, color: "from-amber-500 to-orange-500" },
+                ].map((agent, i) => (
+                  <div key={i} className="group rounded-2xl bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-lg transition-all overflow-hidden" data-testid={`card-agent-${i}`}>
+                    <div className="relative h-48 bg-gradient-to-br from-slate-50 to-indigo-50/50 flex items-center justify-center overflow-hidden">
+                      <div className={`absolute inset-0 bg-gradient-to-br ${agent.color} opacity-[0.03]`} />
+                      <img src={agent.img} alt={agent.name} className="w-36 h-36 object-contain drop-shadow-lg" />
+                    </div>
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${agent.color} flex items-center justify-center`}>
+                          <agent.icon className="w-3.5 h-3.5 text-white" />
+                        </div>
+                        <span className="text-[15px] font-semibold text-slate-900">{agent.name}</span>
+                      </div>
+                      <p className="text-[13px] text-slate-400 leading-relaxed">{agent.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="py-16 px-6 max-w-[1100px] mx-auto" data-testid="section-what-they-charge">
               <div className="text-center mb-10">
                 <span className="inline-flex items-center text-[11px] font-semibold text-slate-500 uppercase tracking-widest px-3 py-1.5 rounded-full bg-slate-50 border border-slate-100 mb-4">{t("landing.costs.badge")}</span>
@@ -511,19 +560,24 @@ export default function LandingPage() {
             </div>
 
             <div className="py-20 px-6 max-w-[1100px] mx-auto">
-              <div className="rounded-3xl p-12 md:p-16 text-center bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-700 relative overflow-hidden">
+              <div className="rounded-3xl p-12 md:p-16 bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-700 relative overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.1),transparent_50%)] pointer-events-none" />
-                <div className="relative z-10">
-                  <h2 className="text-[clamp(24px,3.5vw,40px)] font-extrabold tracking-tight text-white mb-4">{t("landing.cta2.title")}</h2>
-                  <p className="text-base text-indigo-100 leading-relaxed mb-8 max-w-[480px] mx-auto">{t("landing.cta2.desc")}</p>
-                  <div className="flex items-center justify-center gap-3 flex-wrap">
-                    <button onClick={() => showView("getstarted")} data-testid="button-bottom-cta" className="px-8 py-3.5 rounded-xl text-[15px] font-semibold text-indigo-700 bg-white hover:bg-indigo-50 shadow-lg transition-all cursor-pointer">
-                      {t("landing.hero.ctaTrial")}
-                    </button>
-                    <button onClick={() => showView("demo")} data-testid="button-bottom-demo" className="px-8 py-3.5 rounded-xl text-[15px] font-medium text-white border border-white/30 hover:bg-white/10 transition-all cursor-pointer flex items-center gap-2">
-                      <Play className="w-4 h-4" />
-                      {t("landing.cta2.ctaDemoFirst")}
-                    </button>
+                <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+                  <div className="hidden md:block flex-shrink-0" data-testid="img-cta-bots">
+                    <img src={botTeamImg} alt="AI Agent Team" className="w-[260px] object-contain drop-shadow-2xl opacity-90" style={{ animation: "float 5s ease-in-out infinite" }} />
+                  </div>
+                  <div className="text-center md:text-left flex-1">
+                    <h2 className="text-[clamp(24px,3.5vw,40px)] font-extrabold tracking-tight text-white mb-4">{t("landing.cta2.title")}</h2>
+                    <p className="text-base text-indigo-100 leading-relaxed mb-8 max-w-[480px]">{t("landing.cta2.desc")}</p>
+                    <div className="flex items-center gap-3 flex-wrap justify-center md:justify-start">
+                      <button onClick={() => showView("getstarted")} data-testid="button-bottom-cta" className="px-8 py-3.5 rounded-xl text-[15px] font-semibold text-indigo-700 bg-white hover:bg-indigo-50 shadow-lg transition-all cursor-pointer">
+                        {t("landing.hero.ctaTrial")}
+                      </button>
+                      <button onClick={() => showView("demo")} data-testid="button-bottom-demo" className="px-8 py-3.5 rounded-xl text-[15px] font-medium text-white border border-white/30 hover:bg-white/10 transition-all cursor-pointer flex items-center gap-2">
+                        <Play className="w-4 h-4" />
+                        {t("landing.cta2.ctaDemoFirst")}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
