@@ -74,13 +74,13 @@ export function AppSidebar() {
 
   const mainNav = [
     { title: t("sidebar.overview"), icon: LayoutDashboard, url: "/dashboard" },
+    { title: "Visitor Tracking", icon: Eye, url: "/dashboard/visitor-tracking", badge: t("common.new") },
     { title: t("sidebar.strategy"), icon: Sparkles, url: "/dashboard/strategy", badge: t("common.brandTag") },
     { title: t("sidebar.leadsCrm"), icon: Users, url: "/dashboard/leads" },
     { title: t("sidebar.salesFunnels"), icon: Filter, url: "/dashboard/funnels" },
     { title: t("sidebar.appointments"), icon: Calendar, url: "/dashboard/appointments" },
     { title: "AI Performance", icon: BarChart3, url: "/dashboard/ai-kpi" },
     { title: "Analytics", icon: Activity, url: "/dashboard/analytics", badge: t("common.new") },
-    { title: "Visitor Tracking", icon: Eye, url: "/dashboard/visitor-tracking", badge: t("common.new") },
     { title: "Team", icon: UsersRound, url: "/dashboard/team", badge: t("common.new") },
   ];
 
