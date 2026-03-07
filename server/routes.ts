@@ -5220,7 +5220,7 @@ Return ONLY the email reply text, no subject line, no markdown.`
 
       const eligibleUsers: Array<{ user: any; ai: { client: Anthropic; model: string } }> = [];
       for (const user of allUsers) {
-        
+        if (user.email === "abel@argilette.com") continue;
         const settings = await storage.getSettingsByUser(user.id);
         if (!settings?.autoLeadGenEnabled) continue;
         const sub = await storage.getSubscriptionByUser(user.id);
@@ -11169,7 +11169,8 @@ async function restoreLeadsFromFunnel() {
 
     const existingLeads = await storage.getLeadsByUser(owner.id);
     const existingEmails = new Set(existingLeads.map((l: any) => l.email?.toLowerCase()).filter(Boolean));
-    const existingNames = new Set(existingLeads.map((l: any) => l.name?.toLowerCase()).filter(Boolean));
+    const existingNames = new Set(existingLeads.map((l: any) => l.name?.toLowerCase().trim()).filter(Boolean));
+    const existingCompanies = new Set(existingLeads.map((l: any) => l.company?.toLowerCase().trim()).filter(Boolean));
 
     let restored = 0;
     for (const funnel of allFunnels) {
@@ -11182,9 +11183,12 @@ async function restoreLeadsFromFunnel() {
         const name = (deal.contactName || "").trim();
         if (!name) continue;
 
-        const nameKey = name.toLowerCase();
+        const nameKey = name.toLowerCase().trim();
+        const dealFullKey = (deal.contactName || "").toLowerCase().trim();
         if (existingEmails.has(email) && email) continue;
         if (existingNames.has(nameKey)) continue;
+        if (existingNames.has(dealFullKey)) continue;
+        if (existingCompanies.has(nameKey)) continue;
 
         const stageName = stageMap.get(deal.stageId) || "";
         let status = "new";
@@ -11216,6 +11220,8 @@ async function restoreLeadsFromFunnel() {
         });
         existingEmails.add(email);
         existingNames.add(nameKey);
+        existingNames.add(dealFullKey);
+        if (company) existingCompanies.add(company.toLowerCase().trim());
         restored++;
       }
     }
