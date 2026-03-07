@@ -1466,7 +1466,7 @@ Client Acquisition Director
 Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
 
 TEMPLATE C — Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
 Dear Dr. [Last Name],
@@ -1484,7 +1484,7 @@ Client Acquisition Director
 Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
-P.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app — no credit card required.
+P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
 
 ABSOLUTE RULE: When asked to find practices or leads, NEVER give advice or recommendations on "how to find them." YOU must search, find, and SAVE them using the tools. The user is paying for you to DO the work, not to tell them how to do it themselves.
 ` : "";
@@ -3605,7 +3605,7 @@ What MedAuth Adds to Your Workflow:
 Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
 
 
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
 
 **TEMPLATE B — Pain Points + MedAuth Version (for leads with score >= 60 or billing-related intent):**
 Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
@@ -3625,7 +3625,7 @@ What sets us apart:
 Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
 
 
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
 
 **TEMPLATE C — Cold Prospect Introduction (for leads with score < 60 or no billing signals):**
 Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
@@ -3640,7 +3640,7 @@ That's why we're offering a complimentary CPT & billing cost analysis — at no 
 We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
 Would you be open to a brief conversation this week? 
 
-P.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app — no credit card required.
+P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
 
 ## SIGNATURE — Every email MUST end with this exact signature block:
 
@@ -4520,7 +4520,7 @@ What MedAuth Adds to Your Workflow:
 Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
 
 
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
 
 **TEMPLATE B — Pain Points + MedAuth Version (for leads with score >= 60 or billing-related intent):**
 Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
@@ -4540,7 +4540,7 @@ What sets us apart:
 Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
 
 
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
 
 **TEMPLATE C — Cold Prospect Introduction (for leads with score < 60 or no billing signals):**
 Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
@@ -4555,7 +4555,7 @@ That's why we're offering a complimentary CPT & billing cost analysis — at no 
 We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
 Would you be open to a brief conversation this week? 
 
-P.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app — no credit card required.
+P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
 
 ## SIGNATURE — Every email MUST end with this exact signature block:
 
@@ -5958,7 +5958,7 @@ Client Acquisition Director
 Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
 
 **TEMPLATE B — Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?**
 Dear Dr. [Last Name],
@@ -5981,7 +5981,7 @@ Client Acquisition Director
 Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
 
 **TEMPLATE C — Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]**
 Dear Dr. [Last Name],
@@ -5999,7 +5999,7 @@ Client Acquisition Director
 Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
-P.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app — no credit card required.
+P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
 
 IMPORTANT: Include the FULL template text — do NOT shorten. Replace [Practice Name] and [Dr. Last Name] with actual lead info. Include the subject line at the top as "Subject: ...". For Tier 3 leads, ALWAYS use Template C. Adapt the opening line to match the lead's specialty.
 
@@ -6360,7 +6360,7 @@ What MedAuth Adds to Your Workflow:
 Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
 
 
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
 
 **TEMPLATE B — Pain Points + MedAuth Version:**
 Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
@@ -6380,7 +6380,7 @@ What sets us apart:
 Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
 
 
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://medauth-complete.vercel.app
+P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
 
 **TEMPLATE C — Cold Introduction:**
 Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
@@ -6395,7 +6395,7 @@ That's why we're offering a complimentary CPT & billing cost analysis — at no 
 We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
 Would you be open to a brief conversation this week? 
 
-P.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app — no credit card required.
+P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
 
 ## SIGNATURE — Every email MUST end with:
 Best regards,
@@ -6439,9 +6439,9 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
                     const isHot = (lead.score || 0) >= 60 || (lead.intentSignal || "").toLowerCase().match(/billing|claim|denial|reimburse|revenue/);
                     let outreach: string;
                     if (isHot) {
-                      outreach = `Subject: Billing Solutions + Free AI Prior Auth Platform for ${practiceName}\n\nDear ${contactName},\n\nI'm reaching out because practices like ${practiceName} often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.\n\nAt Track-Med Billing Solutions, we address both -- and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).\n\nWhat Track-Med Delivers:\n- End-to-end revenue cycle management (claims, posting, denials, appeals)\n- Credentialing and RAC audit defense\n- Patient balance collections\n- Complimentary CPT and billing cost analysis\n- Practice management software included at no additional cost\n\nWhat MedAuth Adds to Your Workflow:\n- AI Denial Risk Scoring -- Identifies issues before submission; clients report approval rates improving from 68% to 91%\n- AI Appeal Generator -- One practice recovered over $12,000 in denied claims\n- Time savings -- Prior auth time reduced from 3+ hours to under 30 minutes daily\n- Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)\n- 8-minute setup, HIPAA-compliant, end-to-end encryption\n\nWould you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact ${practiceName}'s bottom line -- with no obligation.\n\n${signature}\n\nP.S. The 90-day MedAuth access begins immediately upon signing -- no credit card required. Preview it here: https://medauth-complete.vercel.app`;
+                      outreach = `Subject: Billing Solutions + Free AI Prior Auth Platform for ${practiceName}\n\nDear ${contactName},\n\nI'm reaching out because practices like ${practiceName} often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.\n\nAt Track-Med Billing Solutions, we address both -- and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).\n\nWhat Track-Med Delivers:\n- End-to-end revenue cycle management (claims, posting, denials, appeals)\n- Credentialing and RAC audit defense\n- Patient balance collections\n- Complimentary CPT and billing cost analysis\n- Practice management software included at no additional cost\n\nWhat MedAuth Adds to Your Workflow:\n- AI Denial Risk Scoring -- Identifies issues before submission; clients report approval rates improving from 68% to 91%\n- AI Appeal Generator -- One practice recovered over $12,000 in denied claims\n- Time savings -- Prior auth time reduced from 3+ hours to under 30 minutes daily\n- Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)\n- 8-minute setup, HIPAA-compliant, end-to-end encryption\n\nWould you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact ${practiceName}'s bottom line -- with no obligation.\n\n${signature}\n\nP.S. The 90-day MedAuth access begins immediately upon signing -- no credit card required. Preview it here: https://www.tmbds.com/`;
                     } else {
-                      outreach = `Subject: A quick introduction from Track-Med Billing Solutions, ${practiceName}\n\nDear ${contactName},\n\nI hope this finds you well. My name is Clara Motena and I work with independent practices like ${practiceName} to help streamline their revenue cycle -- so providers can spend more time with patients and less time chasing payments.\n\nAt Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.\n\nThat's why we're offering a complimentary CPT & billing cost analysis -- at no cost or obligation. In less than 30 minutes, we can show you:\n- Whether your current coding is maximizing your reimbursements\n- Where claims may be getting delayed or denied unnecessarily\n- A clear comparison of what you're collecting vs. what you could be\n\nWe also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.\n\nWould you be open to a brief conversation this week? ${signature}\n\nP.S. Preview ARGILETTE MedAuth here: https://medauth-complete.vercel.app -- no credit card required.`;
+                      outreach = `Subject: A quick introduction from Track-Med Billing Solutions, ${practiceName}\n\nDear ${contactName},\n\nI hope this finds you well. My name is Clara Motena and I work with independent practices like ${practiceName} to help streamline their revenue cycle -- so providers can spend more time with patients and less time chasing payments.\n\nAt Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.\n\nThat's why we're offering a complimentary CPT & billing cost analysis -- at no cost or obligation. In less than 30 minutes, we can show you:\n- Whether your current coding is maximizing your reimbursements\n- Where claims may be getting delayed or denied unnecessarily\n- A clear comparison of what you're collecting vs. what you could be\n\nWe also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.\n\nWould you be open to a brief conversation this week? ${signature}\n\nP.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ -- no credit card required.`;
                     }
                     await db.update(leads).set({ outreach }).where(eq(leads.id, lead.id));
                     readyToSend.push({ ...lead, outreach });
