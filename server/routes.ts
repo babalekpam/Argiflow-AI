@@ -2,6 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
+import { registerTrackerPublicRoutes, registerTrackerDashboardRoutes } from "./tracker-routes";
 import { eq, and, sql, desc, or, ilike, isNull } from "drizzle-orm";
 import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts } from "@shared/schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
@@ -2270,7 +2271,12 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   app.set("trust proxy", 1);
+
+  registerTrackerPublicRoutes(app);
+
   app.use(getSession());
+
+  registerTrackerDashboardRoutes(app);
 
   app.use("/api", (_req, res, next) => {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");

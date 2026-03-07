@@ -62,6 +62,7 @@ import {
   DollarSign,
   Cpu,
   Coins,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -79,6 +80,7 @@ export function AppSidebar() {
     { title: t("sidebar.appointments"), icon: Calendar, url: "/dashboard/appointments" },
     { title: "AI Performance", icon: BarChart3, url: "/dashboard/ai-kpi" },
     { title: "Analytics", icon: Activity, url: "/dashboard/analytics", badge: t("common.new") },
+    { title: "Visitor Tracking", icon: Eye, url: "/dashboard/visitor-tracking", badge: t("common.new") },
     { title: "Team", icon: UsersRound, url: "/dashboard/team", badge: t("common.new") },
   ];
 
