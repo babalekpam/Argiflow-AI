@@ -7768,7 +7768,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
 
   setImmediate(async () => {
     try {
-      await restoreLeadsFromFunnel();
+      await deduplicateLeads();
       await cleanupTaxLienLeads();
       await cleanupFakeGeneratedLeads();
       await repairSentLeads();
@@ -11156,6 +11156,36 @@ async function cleanupNonMedicalLeads() {
     }
   } catch (err) {
     console.error("[Startup Cleanup] Error removing non-medical leads:", err);
+  }
+}
+
+async function deduplicateLeads() {
+  try {
+    const owner = await storage.getUserByEmail("abel@argilette.com");
+    if (!owner) return;
+
+    const allLeads = await storage.getLeadsByUser(owner.id);
+    const seen = new Map<string, string>();
+    const toDelete: string[] = [];
+
+    for (const lead of allLeads) {
+      const key = (lead.name || "").toLowerCase().trim() + "|" + (lead.email || "").toLowerCase().trim();
+      if (!key || key === "|") continue;
+      if (seen.has(key)) {
+        toDelete.push(lead.id);
+      } else {
+        seen.set(key, lead.id);
+      }
+    }
+
+    if (toDelete.length > 0) {
+      for (const id of toDelete) {
+        await db.delete(leads).where(eq(leads.id, id));
+      }
+      console.log(`[Dedup] Removed ${toDelete.length} duplicate leads`);
+    }
+  } catch (err) {
+    console.error("[Dedup] Error:", err);
   }
 }
 
