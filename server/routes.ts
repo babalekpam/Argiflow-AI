@@ -8144,6 +8144,90 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
     }
   });
 
+  app.post("/api/campaign/apply", isAuthenticated, async (req, res) => {
+    try {
+      const { campaignId } = req.body;
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      const settings = await storage.getSettingsByUser(userId);
+      if (!user) return res.status(400).json({ message: "User not found" });
+
+      const campaigns: Record<string, { subject: string; template: (lead: any) => string }> = {
+        "90-day-pa-free": {
+          subject: "90 Days Free — Prior Authorization Automation for {{company}}",
+          template: (lead: any) => {
+            const firstName = (lead.name || "").split(" ")[0] || "there";
+            const company = lead.company || "your practice";
+            return `Subject: 90 Days Free — Prior Authorization Automation for ${company}
+
+Hi ${firstName},
+
+I'm reaching out because I know how much time prior authorizations consume for medical practices like ${company}. The back-and-forth with insurance companies, the denials, the resubmissions — it's a huge drain on your team's time and revenue.
+
+At Track-Med Billing Solutions, we've built a Prior Authorization Automation Tool that eliminates this bottleneck. And right now, we're offering it completely free for 90 days to qualified practices — no commitment, no credit card required.
+
+Here's what the tool does:
+• Automates prior auth submissions across all major payers
+• Real-time status tracking and instant denial alerts
+• Rule-based logic engine that learns your payers' requirements
+• Multi-provider support with detailed claim-type specs
+• HIPAA-compliant encrypted data transport
+
+Practices using our platform have cut prior auth processing time by up to 60% and significantly reduced denials.
+
+I'd love to get ${company} set up with a free 90-day trial. You can learn more and get started at https://www.tmbds.com — or book a quick 15-minute walkthrough with me here:
+https://calendly.com/track-med-info/30min
+
+Looking forward to helping ${company} streamline your prior auth workflow.
+
+Best regards,
+Clara Motena
+Track-Med Billing Solutions
++1 (615) 482-6768
+https://www.tmbds.com
+https://calendly.com/track-med-info/30min`;
+          },
+        },
+      };
+
+      const campaign = campaigns[campaignId];
+      if (!campaign) return res.status(400).json({ message: `Unknown campaign: ${campaignId}` });
+
+      const allLeads = await storage.getLeadsByUser(userId);
+      const eligible = allLeads.filter(l =>
+        l.email && l.email.trim() !== "" &&
+        !l.email.toLowerCase().includes("@track-med") &&
+        !l.email.toLowerCase().includes("@argilette") &&
+        !l.email.toLowerCase().includes("@argiflow") &&
+        !l.email.toLowerCase().includes("@tmbds")
+      );
+
+      let updated = 0;
+      for (const lead of eligible) {
+        const outreach = campaign.template(lead);
+        await storage.updateLead(lead.id, {
+          outreach: outreach,
+          outreachSentAt: null as any,
+          followUpStep: null as any,
+          followUpStatus: null as any,
+          followUpNextAt: null as any,
+        });
+        updated++;
+      }
+
+      console.log(`[Campaign] Applied "${campaignId}" to ${updated} leads for user ${userId}`);
+      res.json({
+        success: true,
+        message: `Campaign "${campaignId}" applied to ${updated} leads. Go to Leads page and click "Send All" to send.`,
+        leadsUpdated: updated,
+        totalEligible: eligible.length,
+      });
+    } catch (error) {
+      console.error("[Campaign] Error:", error);
+      res.status(500).json({ message: "Failed to apply campaign" });
+    }
+  });
+
   app.get("/api/admin/platform-config", isAdmin, async (_req, res) => {
     try {
       res.json({
