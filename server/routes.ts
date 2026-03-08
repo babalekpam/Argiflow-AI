@@ -10872,7 +10872,8 @@ async function repairSentLeads() {
       const wasContacted = lead.status === "contacted" || lead.status === "warm" || lead.status === "hot" || lead.status === "qualified" || lead.status === "converted";
       const isRestoredFromFunnel = (lead.source || "").includes("restored-from-funnel");
 
-      if (!lead.outreachSentAt && (hasOutreach || wasContacted || isRestoredFromFunnel)) {
+      const isCampaignDraft = (lead.outreach || "").includes("90 Days Free");
+      if (!lead.outreachSentAt && !isCampaignDraft && (hasOutreach || wasContacted || isRestoredFromFunnel)) {
         const updates: any = { outreachSentAt: sentAt, followUpStep: 0, followUpStatus: "active", followUpNextAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) };
         if (lead.status === "new") updates.status = "warm";
         await storage.updateLead(lead.id, updates);
