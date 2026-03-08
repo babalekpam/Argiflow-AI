@@ -50,9 +50,6 @@ import catalogRobotImg from "@assets/image_1770823690247.png";
 import type { Lead } from "@shared/schema";
 
 const AGENT_ICONS: Record<string, typeof Bot> = {
-  "tax-lien": Landmark,
-  "tax-deed": FileText,
-  "wholesale-re": Building2,
   "govt-contracts-us": Landmark,
   "arbitrage": RefreshCw,
   "lead-gen": Search,

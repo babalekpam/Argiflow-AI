@@ -35,10 +35,9 @@ Do not make changes to the file `Y`.
 - **Lead Management**: Scheduling and canceling outreach for leads.
 - **Agent-to-Funnel Auto-Pipeline**: Automatic assignment of leads discovered by agents to predefined sales funnels.
 - **Voice AI Calling**: AI-powered phone calls via Twilio with real-time streaming pipeline (Twilio Media Streams → Deepgram STT → Claude AI streaming → Deepgram TTS → Twilio). Falls back to TwiML Gather/Say if Deepgram not configured. WebSocket at `/api/voice/stream/:callLogId`.
-- **Automated Lead Generation**: Background jobs for generating specialized leads (e.g., medical billing, tax lien) using AI.
+- **Automated Lead Generation**: Background jobs for generating specialized leads (e.g., medical billing) using AI.
 - **Automated Follow-Up Sequences**: AI-generated, multi-step email sequences for leads, stopping on engagement.
 - **Workflow Automation Engine**: An n8n-style engine with event bus, execution, and API endpoints, supporting various action types and AI-powered workflow generation from templates.
-- **County-Level Tax Lien Discovery**: Dedicated search system for tax lien data, including ROI/risk scoring and due diligence checklists.
 - **AI Inbox Monitor & Auto-Reply**: Monitors IMAP inbox for lead replies, generates AI responses, and updates lead status.
 - **Email Infrastructure Engine**: Comprehensive email management including account management, warmup, campaign builder, unified inbox (Unibox) with AI classification, website visitor identification, email verification, and inbox placement testing. Includes an AI Copilot for content generation.
 - **B2B Sales Intelligence Engine**: Provides Apollo.io/ZoomInfo-style capabilities for people and company search, contact/company enrichment, email/phone finding, intent data detection, technographic scanning, org chart building, news & events, AI-powered deep research, and prospect list management.

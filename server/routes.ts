@@ -18,7 +18,6 @@ import { REGIONS, detectRegion, getRegionConfig } from "./region-config";
 import { registerWorkflowRoutes } from "./workflow-routes";
 import { startWorkflowEngine } from "./workflow-engine";
 import { workflowHooks } from "./workflow-hooks";
-import { discoverTaxLiens, STATE_DATA, STATE_NAMES, type TaxLienSettings } from "./agents/tax-lien-agent";
 import instantlyRoutes, { handlePixelTrack } from "./instantly-routes";
 import intelligenceRoutes from "./intelligence-routes";
 import outreachAgentRoutes from "./outreach-agent-routes";
@@ -402,36 +401,6 @@ function randomInt(min: number, max: number) { return Math.floor(Math.random() *
 // ============================================================
 
 const AGENT_FUNNEL_STAGES: Record<string, { name: string; stages: { name: string; color: string }[] }> = {
-  "tax-lien": {
-    name: "Tax Lien Pipeline",
-    stages: [
-      { name: "Discovered", color: "#3b82f6" },
-      { name: "Analyzing ROI", color: "#8b5cf6" },
-      { name: "Due Diligence", color: "#f59e0b" },
-      { name: "Bidding", color: "#f97316" },
-      { name: "Won / Acquired", color: "#22c55e" },
-    ],
-  },
-  "tax-deed": {
-    name: "Tax Deed Pipeline",
-    stages: [
-      { name: "Found", color: "#3b82f6" },
-      { name: "Property Evaluation", color: "#8b5cf6" },
-      { name: "Due Diligence", color: "#f59e0b" },
-      { name: "Bid Prep", color: "#f97316" },
-      { name: "Acquired", color: "#22c55e" },
-    ],
-  },
-  "wholesale-re": {
-    name: "Wholesale RE Pipeline",
-    stages: [
-      { name: "Prospects", color: "#3b82f6" },
-      { name: "Comp Analysis", color: "#8b5cf6" },
-      { name: "Under Contract", color: "#f59e0b" },
-      { name: "Buyer Matched", color: "#f97316" },
-      { name: "Closed", color: "#22c55e" },
-    ],
-  },
   "govt-contracts-us": {
     name: "Govt Contracts Pipeline",
     stages: [
@@ -1543,7 +1512,7 @@ LEAD SCORING:
 - Recent pain point or complaint found: +30 points
 - Score 70+ = HOT, 50-69 = WARM, below 50 = COLD
 
-AGENT-TO-FUNNEL: When generating leads for a specific agent type, include agent_type in generate_leads. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. This auto-creates or finds the matching funnel pipeline.
+AGENT-TO-FUNNEL: When generating leads for a specific agent type, include agent_type in generate_leads. Valid types: govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. This auto-creates or finds the matching funnel pipeline.
 
 TOOL SEQUENCING: web_search → generate_leads (with agent_type if applicable) → send_outreach (if user says engage/reach out/send/email). For SMS: send_sms. For funnels: create_funnel. Execute actions immediately, then summarize results.
 
@@ -1575,11 +1544,11 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
   const tools: any[] = [
     {
       name: "generate_leads",
-      description: "Save leads to CRM. Never fabricate data. ALWAYS target decision makers (CEO, Founder, Owner, Director, VP, Partner) — NEVER gatekeepers. If leads come from a specific agent (e.g. tax-lien, lead-gen), include agent_type to auto-add them to the matching funnel pipeline.",
+      description: "Save leads to CRM. Never fabricate data. ALWAYS target decision makers (CEO, Founder, Owner, Director, VP, Partner) — NEVER gatekeepers. If leads come from a specific agent (e.g. lead-gen, medical-billing), include agent_type to auto-add them to the matching funnel pipeline.",
       input_schema: {
         type: "object" as const,
         properties: {
-          agent_type: { type: "string", description: "Optional agent type if leads are from a specific agent. Valid types: tax-lien, tax-deed, wholesale-re, govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. When provided, leads are auto-added to the matching funnel pipeline." },
+          agent_type: { type: "string", description: "Optional agent type if leads are from a specific agent. Valid types: govt-contracts-us, lead-gen, medical-billing, govt-tender-africa, cross-border-trade, agri-market, diaspora-services, arbitrage. When provided, leads are auto-added to the matching funnel pipeline." },
           leads: {
             type: "array",
             items: {
@@ -7772,7 +7741,6 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   setImmediate(async () => {
     try {
       await deduplicateLeads();
-      await cleanupTaxLienLeads();
       await cleanupFakeGeneratedLeads();
       await repairSentLeads();
       await backfillDentalLeads();
@@ -8176,28 +8144,6 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
     }
   });
 
-  app.post("/api/admin/cleanup-tax-lien-leads", isAdmin, async (_req, res) => {
-    try {
-      const taxLeads = await db.delete(leads).where(or(
-        ilike(leads.source, "%tax%lien%"),
-        ilike(leads.name, "%tax%lien%"),
-        ilike(leads.intentSignal, "%tax%lien%"),
-        ilike(leads.notes, "%tax%lien%"),
-        ilike(leads.company, "%tax%lien%")
-      )).returning({ id: leads.id, name: leads.name });
-
-      const taxDeals = await db.delete(funnelDeals).where(
-        ilike(funnelDeals.contactName, "%tax%lien%")
-      ).returning({ id: funnelDeals.id, contactName: funnelDeals.contactName });
-
-      console.log(`[Cleanup] Removed ${taxLeads.length} tax lien leads and ${taxDeals.length} tax lien deals`);
-      res.json({ success: true, removedLeads: taxLeads.length, removedDeals: taxDeals.length, leads: taxLeads.map(l => l.name), deals: taxDeals.map(d => d.contactName) });
-    } catch (error) {
-      console.error("[Cleanup] Tax lien cleanup error:", error);
-      res.status(500).json({ message: "Failed to cleanup tax lien leads" });
-    }
-  });
-
   app.get("/api/admin/platform-config", isAdmin, async (_req, res) => {
     try {
       res.json({
@@ -8500,153 +8446,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
             aiModel = CLAUDE_MODEL;
           }
 
-          if (config.agentType === "tax-lien") {
-            console.log(`[Agent Run] Using dedicated county-level Tax Lien discovery for user ${userId}`);
-            const tlSettings: TaxLienSettings = {
-              targetStates: settings.targetStates || ["FL"],
-              targetCounties: settings.targetCounties || [],
-              propertyTypes: settings.propertyTypes || ["residential"],
-              minLienAmount: settings.minLienAmount || 500,
-              maxLienAmount: settings.maxLienAmount || 25000,
-              minInterestRate: settings.minInterestRate || 8,
-              bidStrategy: settings.bidStrategy || "moderate",
-              autoBid: settings.autoBid || false,
-            };
-
-            const results = await discoverTaxLiens(aiClient, aiModel, tlSettings);
-
-            let leadsFound = 0;
-            let leadsSkippedDup = 0;
-            const savedLeadsList: { name: string; email?: string; value?: number }[] = [];
-            const user = await storage.getUserById(userId);
-            const bookingLink = (await storage.getSettingsByUser(userId))?.calendarLink || "";
-            const senderName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Your Team";
-            const companyName = user?.companyName || "our company";
-
-            const existingLeadsTL = await storage.getLeadsByUser(userId);
-            const existingTLSet = new Set<string>();
-            for (const el of existingLeadsTL) {
-              if (el.source === "Tax Lien Hunter Agent" && el.notes) {
-                try {
-                  const parsed = JSON.parse(el.notes);
-                  if (parsed.parcelNumber) existingTLSet.add(`parcel:${parsed.parcelNumber.toLowerCase().trim()}`);
-                  if (parsed.propertyAddress) existingTLSet.add(`addr:${parsed.propertyAddress.toLowerCase().trim().replace(/[^a-z0-9]/g, "")}`);
-                } catch {}
-              }
-              const nameCompanyKey = `${(el.name || "").toLowerCase().trim()}::${(el.company || "").toLowerCase().trim()}`;
-              existingTLSet.add(nameCompanyKey);
-            }
-
-            for (const property of results.properties.slice(0, 50)) {
-              try {
-                if (!property.ownerName || property.ownerName === "Unknown" || /^(prospect|lead|contact|test)\s*\d/i.test(property.ownerName)) {
-                  console.log(`[tax-lien] Skipping property with invalid owner: "${property.ownerName}"`);
-                  continue;
-                }
-                if (!property.propertyAddress || property.propertyAddress.length < 5) {
-                  console.log(`[tax-lien] Skipping property with invalid address: "${property.propertyAddress}"`);
-                  continue;
-                }
-
-                let isTLDuplicate = false;
-                if (property.parcelNumber && existingTLSet.has(`parcel:${property.parcelNumber.toLowerCase().trim()}`)) {
-                  isTLDuplicate = true;
-                } else if (property.propertyAddress) {
-                  const addrKey = `addr:${property.propertyAddress.toLowerCase().trim().replace(/[^a-z0-9]/g, "")}`;
-                  if (existingTLSet.has(addrKey)) isTLDuplicate = true;
-                }
-                if (isTLDuplicate) {
-                  console.log(`[tax-lien] Skipping duplicate property: "${property.propertyAddress}" (parcel: ${property.parcelNumber})`);
-                  leadsSkippedDup++;
-                  continue;
-                }
-                if (property.parcelNumber) existingTLSet.add(`parcel:${property.parcelNumber.toLowerCase().trim()}`);
-                if (property.propertyAddress) existingTLSet.add(`addr:${property.propertyAddress.toLowerCase().trim().replace(/[^a-z0-9]/g, "")}`);
-
-                const outreach = `Hi ${property.ownerName},\n\nI noticed a tax lien on your property at ${property.propertyAddress} (${property.county} County, ${STATE_NAMES[property.state] || property.state}). The amount owed is $${property.amountOwed?.toLocaleString()} with a ${property.interestRate}% interest rate.\n\nI specialize in helping property owners resolve tax liens before auction deadlines. I'd love to discuss your options.\n\nBest regards,\n${senderName}, ${companyName}${bookingLink ? `\nBook a call: ${bookingLink}` : ""}`;
-
-                await storage.createLead({
-                  userId,
-                  name: property.ownerName,
-                  company: `${property.county} County, ${STATE_NAMES[property.state] || property.state}`,
-                  email: "",
-                  phone: "",
-                  status: "new",
-                  source: "Tax Lien Hunter Agent",
-                  score: Math.max(10, 100 - property.riskScore),
-                  notes: JSON.stringify({
-                    type: "tax_lien",
-                    contactStatus: "property_owner_identified",
-                    parcelNumber: property.parcelNumber,
-                    propertyAddress: property.propertyAddress,
-                    amountOwed: property.amountOwed,
-                    assessedValue: property.assessedValue,
-                    marketValue: property.marketValue,
-                    interestRate: property.interestRate,
-                    redemptionPeriod: property.redemptionPeriod,
-                    projectedROI: property.projectedROI,
-                    riskScore: property.riskScore,
-                    riskFactors: property.riskFactors,
-                    auctionDate: property.auctionDate,
-                    auctionPlatform: property.auctionPlatform,
-                    purchaseSteps: property.purchaseSteps,
-                    dueDiligenceChecklist: property.dueDiligenceChecklist,
-                    sourceUrl: property.sourceUrl,
-                  }),
-                  outreachDraft: outreach,
-                });
-                savedLeadsList.push({ name: property.ownerName, value: property.amountOwed || 0 });
-                leadsFound++;
-              } catch (err) {
-                console.error("[tax-lien] Failed to save lead:", err);
-              }
-            }
-
-            const funnelInfo = await autoAddToFunnelDirect(userId, "tax-lien", savedLeadsList);
-
-            await storage.updateAgentTask(task.id, {
-              status: "completed",
-              completedAt: new Date(),
-              result: JSON.stringify({
-                leadsFound,
-                auctionEvents: results.auctionCalendar.length,
-                summary: results.summary,
-                aiPowered: true,
-                countySearch: true,
-              }),
-            });
-            await storage.updateAgentConfig(configId, userId, {
-              isRunning: false,
-              totalLeadsFound: (config.totalLeadsFound || 0) + leadsFound,
-            } as any);
-            await storage.createNotification({
-              userId,
-              agentType: config.agentType,
-              type: "new_lead",
-              title: `Tax Lien Hunter Found ${leadsFound} Properties`,
-              message: `County-level search across ${results.summary.statesSearched.join(", ")} found ${results.summary.totalFound} properties. ${results.summary.matchingCriteria} matched your criteria (${results.summary.topDeals} top deals with >12% ROI). ${results.summary.nextAuctions}.${funnelInfo ? " " + funnelInfo : ""}`,
-              priority: leadsFound > 5 ? "high" : "normal",
-            });
-
-            console.log(`[Agent Run] Tax Lien Hunter completed: ${leadsFound} properties saved, ${leadsSkippedDup} duplicates skipped for user ${userId}`);
-            return;
-          }
-
           const agentSearchPrompts: Record<string, string> = {
-            "tax-lien": `Search for REAL tax lien properties currently listed for auction or recently filed in ${(settings.targetStates || ["FL", "AZ", "IN"]).join(", ")}. For EACH property you find, you MUST extract:
-- Full property address (street, city, state, zip)
-- Property owner's FULL NAME (search county assessor records, property appraiser sites)
-- Owner's phone number (search Whitepages, TruePeopleSearch, or public records)
-- Owner's email address (search for their name + email, or use professional patterns)
-- Lien amount if available
-- Property type (residential, commercial, vacant land)
-
-Search queries to use: "tax lien auction [state] 2025", "delinquent property tax list [county]", "tax lien certificate sale [state]", "[county] tax collector delinquent list"
-Then for each property found, search: "[owner name] contact info", "[owner name] [city] phone email"
-
-Return 5-10 leads with REAL data only. Every lead must have a real person's name, real address, and real contact info. Do NOT use placeholder names like "Prospect 1" or fake emails like "contact1@prospect.com".`,
-            "tax-deed": `Search for REAL tax deed properties available at upcoming auctions in ${(settings.targetStates || ["TX", "GA", "CA", "FL"]).join(", ")}. For each property extract: full address, owner name, phone, email, estimated property value. Search county auction sites, tax deed sale listings, and public records. Return 5-10 leads with verified real data only.`,
-            "wholesale-re": `Search for REAL distressed properties, pre-foreclosure listings, and motivated sellers in ${(settings.targetMarkets || ["Atlanta", "Houston", "Phoenix"]).join(", ")}. For each property extract: full address, owner name, phone, email, estimated ARV. Search foreclosure listings, probate records, and absentee owner lists. Return 5-10 leads with verified real data only.`,
             "govt-contracts-us": `Search for REAL current government contract opportunities on SAM.gov and federal procurement portals. Find contracts valued between $${settings.minContractValue || 25000} and $${settings.maxContractValue || 500000}. Extract: contracting agency, contract title, NAICS code, deadline, point of contact name/email/phone. Return 5-10 real opportunities.`,
             "lead-gen": `Search for REAL businesses in the ${settings.industry || "professional services"} industry that are actively looking for new clients or showing growth signals. Target ${settings.targetTitle || "business owners"}. Extract: owner/decision-maker name, business name, phone, email, website. Return 5-10 leads with verified real data only.`,
             "govt-tender-africa": `Search for REAL government tenders currently open in ${(settings.targetCountries || ["NG", "KE", "GH"]).join(", ")} for sectors: ${(settings.sectors || ["IT", "construction"]).join(", ")}. Extract: tender title, issuing agency, deadline, contact person name/email/phone, estimated value. Return 5-10 real opportunities.`,
@@ -8836,43 +8636,6 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
     }
   });
 
-  // ---- TAX LIEN CONFIG ENDPOINTS ----
-
-  app.get("/api/agents/tax-lien/config", isAuthenticated, (_req, res) => {
-    res.json({
-      availableStates: Object.entries(STATE_DATA).map(([code, data]) => ({
-        code,
-        name: STATE_NAMES[code],
-        interestRate: data.interestRate,
-        redemptionPeriod: data.redemptionPeriod,
-        auctionType: data.auctionType,
-        keyCounties: data.keyCounties,
-        auctionPlatforms: data.auctionPlatforms,
-      })),
-      propertyTypes: [
-        { value: "residential", label: "Residential" },
-        { value: "commercial", label: "Commercial" },
-        { value: "vacant_land", label: "Vacant Land" },
-        { value: "multi_family", label: "Multi-Family" },
-      ],
-      bidStrategies: [
-        { value: "conservative", label: "Conservative — Low risk, steady 8-12% returns" },
-        { value: "moderate", label: "Moderate — Balanced, target 12-18% returns" },
-        { value: "aggressive", label: "Aggressive — Higher risk, 18-24% returns" },
-      ],
-    });
-  });
-
-  app.get("/api/agents/tax-lien/states/:stateCode", isAuthenticated, (req, res) => {
-    const stateCode = req.params.stateCode.toUpperCase();
-    const data = STATE_DATA[stateCode];
-    if (!data) return res.status(404).json({ error: "State not found" });
-    res.json({
-      code: stateCode,
-      name: STATE_NAMES[stateCode],
-      ...data,
-    });
-  });
 
   // ---- AGENT TASKS ----
 
@@ -11063,32 +10826,6 @@ async function repairSentLeads() {
     }
   } catch (error) {
     console.error("[Repair] Error repairing sent leads:", error);
-  }
-}
-
-async function cleanupTaxLienLeads() {
-  try {
-    const deletedLeads = await db.delete(leads).where(or(
-      ilike(leads.source, "%tax%lien%"),
-      ilike(leads.name, "%tax%lien%"),
-      ilike(leads.name, "%lien hunter%"),
-      ilike(leads.intentSignal, "%tax%lien%"),
-      ilike(leads.notes, "%tax%lien%"),
-      ilike(leads.company, "%tax%lien%")
-    )).returning({ id: leads.id, name: leads.name });
-
-    const deletedDeals = await db.delete(funnelDeals).where(or(
-      ilike(funnelDeals.contactName, "%tax%lien%"),
-      ilike(funnelDeals.contactName, "%lien hunter%")
-    )).returning({ id: funnelDeals.id, contactName: funnelDeals.contactName });
-
-    if (deletedLeads.length > 0 || deletedDeals.length > 0) {
-      console.log(`[Cleanup] Removed ${deletedLeads.length} tax lien leads and ${deletedDeals.length} tax lien funnel deals`);
-      for (const l of deletedLeads) console.log(`  Lead: ${l.name}`);
-      for (const d of deletedDeals) console.log(`  Deal: ${d.contactName}`);
-    }
-  } catch (error) {
-    console.error("[Cleanup] Tax lien cleanup error:", error);
   }
 }
 
