@@ -1158,7 +1158,7 @@ Schedule a discovery call with our team to discuss your custom strategy in detai
 
 function getBaseUrl(): string {
   if (process.env.REPLIT_DEPLOYMENT_URL) {
-    return `https://${process.env.REPLIT_DEPLOYMENT_URL}`;
+    return "https://argilette.co";
   }
   if (process.env.REPLIT_DOMAINS) {
     return `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;

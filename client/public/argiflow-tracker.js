@@ -38,7 +38,8 @@
   const send = (path, data) => {
     try {
       const url = API + path;
-      if (navigator.sendBeacon) navigator.sendBeacon(url, JSON.stringify(data));
+      const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+      if (navigator.sendBeacon) navigator.sendBeacon(url, blob);
       else fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),keepalive:true});
     } catch(e){}
   };
