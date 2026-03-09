@@ -51,7 +51,7 @@ import SocialMediaPage from "./social-media";
 import ReputationPage from "./reputation";
 import WhatsAppPage from "./whatsapp";
 import MetaDmsPage from "./meta-dms";
-import CalendarSyncPage from "./calendar-sync";
+import CalendarPage from "./calendar";
 import ESignaturesPage from "./e-signatures";
 import GoogleBusinessPage from "./google-business";
 import MembershipPage from "./membership";
@@ -261,7 +261,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/reputation" component={ReputationPage} />
               <Route path="/dashboard/whatsapp" component={WhatsAppPage} />
               <Route path="/dashboard/meta-dms" component={MetaDmsPage} />
-              <Route path="/dashboard/calendar" component={CalendarSyncPage} />
+              <Route path="/dashboard/calendar" component={CalendarPage} />
               <Route path="/dashboard/e-signatures" component={ESignaturesPage} />
               <Route path="/dashboard/google-business" component={GoogleBusinessPage} />
               <Route path="/dashboard/membership" component={MembershipPage} />

@@ -137,7 +137,7 @@ export default function ChatWidgetPage() {
   const set = (key: string, val: any) => setForm((f) => ({ ...f, [key]: val }));
 
   const getEmbedCode = (widget: ChatWidget) =>
-    `<script src="${window.location.origin}/widget/${widget.id}.js" async></script>`;
+    `<!-- ArgiFlow Chat Widget -->\n<script>\n(function(){\n  var h="${window.location.origin}";\n  var s=document.createElement("script");\n  s.src=h+"/argiflow-tracker.js";\n  s.setAttribute("data-host",h);\n  document.head.appendChild(s);\n  var w=document.createElement("div");\n  w.id="argiflow-aria-root";\n  document.body.appendChild(w);\n  var css=document.createElement("style");\n  css.textContent="#argiflow-aria-btn{position:fixed;bottom:24px;right:24px;z-index:9998;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#7c3aed);box-shadow:0 4px 16px rgba(0,0,0,.2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;transition:transform .2s}#argiflow-aria-btn:hover{transform:scale(1.05)}";\n  document.head.appendChild(css);\n  var btn=document.createElement("button");\n  btn.id="argiflow-aria-btn";\n  btn.innerHTML="\\u{1F4AC}";\n  btn.title="${widget.name || "Chat with us"}";\n  btn.onclick=function(){window.open(h+"/chat","ArgiFlow Chat","width=400,height=560")};\n  w.appendChild(btn);\n})();\n</script>`;
 
   const copyEmbed = (widget: ChatWidget) => {
     navigator.clipboard.writeText(getEmbedCode(widget));

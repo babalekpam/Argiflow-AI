@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { AriaWidget } from "@/components/aria-widget";
 import botHeroImg from "@assets/generated_images/bot-hero.png";
 import botLeadScoutImg from "@assets/generated_images/bot-lead-scout.png";
 import botEmailWriterImg from "@assets/generated_images/bot-email-writer.png";
@@ -958,6 +959,7 @@ export default function LandingPage() {
           </div>
         )}
       </div>
+      <AriaWidget />
     </>
   );
 }

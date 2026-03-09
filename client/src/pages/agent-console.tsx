@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -21,22 +22,15 @@ import {
   CheckCircle2,
   Trash2,
   Coins,
+  FileText,
+  ClipboardList,
+  RefreshCw,
+  Linkedin,
 } from "lucide-react";
 
-const AGENT_META: Record<string, { icon: any; color: string; bgColor: string; placeholder: string }> = {
-  scout: { icon: Search, color: "text-blue-500", bgColor: "bg-blue-500/10", placeholder: 'Find 20 dental practice owners in Texas with verified emails' },
-  writer: { icon: Mail, color: "text-violet-500", bgColor: "bg-violet-500/10", placeholder: 'Write a cold email to a CFO at a mid-size SaaS company about our billing automation' },
-  reply: { icon: MessageSquare, color: "text-amber-500", bgColor: "bg-amber-500/10", placeholder: 'Analyze this reply: "Thanks for reaching out. We\'re currently evaluating options..."' },
-  intent: { icon: Activity, color: "text-teal-500", bgColor: "bg-teal-500/10", placeholder: 'Check buying signals for acme-corp.com — are they in a buying cycle?' },
-  booker: { icon: CalendarCheck, color: "text-emerald-500", bgColor: "bg-emerald-500/10", placeholder: 'A prospect replied "Sounds interesting, tell me more" — book a meeting' },
-  forum: { icon: Globe, color: "text-pink-500", bgColor: "bg-pink-500/10", placeholder: 'Find Reddit threads where people are looking for medical billing solutions' },
-};
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Intelligence: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  Prospecting: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  Outreach: "bg-violet-500/10 text-violet-500 border-violet-500/20",
-  CRM: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+const ICON_MAP: Record<string, any> = {
+  Search, Mail, MessageSquare, Activity, CalendarCheck, Globe,
+  Bot, FileText, ClipboardList, RefreshCw, Linkedin, Zap,
 };
 
 type Agent = {
@@ -48,10 +42,27 @@ type Agent = {
   runs: number;
   rate: number;
   lastRun: string | null;
+  vertical: string;
+  examples: string[];
+  verticalColor: string;
+  icon: string;
+};
+
+type VerticalConfig = Record<string, { color: string; label: string }>;
+
+const FALLBACK_VERTICAL_CONFIG: VerticalConfig = {
+  "Track-Med": { color: "#0DAD74", label: "Track-Med / CureMedAuth" },
+  "NaviMed": { color: "#4B6CF7", label: "NaviMed EHR" },
+  "ARGILETTE": { color: "#7B5BFB", label: "ARGILETTE Agency" },
+  "Universal": { color: "#0691A1", label: "Universal" },
+  "Prospecting": { color: "#3b82f6", label: "Prospecting" },
+  "Outreach": { color: "#8b5cf6", label: "Outreach" },
+  "Intelligence": { color: "#0691A1", label: "Intelligence" },
+  "CRM": { color: "#10b981", label: "CRM" },
 };
 
 export default function AgentConsolePage() {
-  const [selectedId, setSelectedId] = useState<string>("scout");
+  const [selectedId, setSelectedId] = useState<string>("trackmed-scout");
   const [prompt, setPrompt] = useState("");
   const [output, setOutput] = useState("");
   const [runError, setRunError] = useState<string | null>(null);
@@ -59,7 +70,11 @@ export default function AgentConsolePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: catalogData, isLoading } = useQuery<{ agents: Agent[] }>({
+  const { data: catalogData, isLoading } = useQuery<{
+    agents: Agent[];
+    verticalConfig: VerticalConfig;
+    verticalOrder: string[];
+  }>({
     queryKey: ["/api/agent-console/catalog"],
   });
 
@@ -84,10 +99,30 @@ export default function AgentConsolePage() {
   });
 
   const agents = catalogData?.agents || [];
+  const verticalConfig = catalogData?.verticalConfig || FALLBACK_VERTICAL_CONFIG;
+  const verticalOrder = catalogData?.verticalOrder || ["Track-Med", "NaviMed", "ARGILETTE", "Universal"];
   const credits = balanceData?.credits ?? 0;
   const selected = agents.find(a => a.id === selectedId) || agents[0];
-  const meta = AGENT_META[selectedId] || AGENT_META.scout;
-  const Icon = meta.icon;
+
+  const grouped = agents.reduce<Record<string, Agent[]>>((acc, ag) => {
+    const v = ag.vertical || ag.category || "Universal";
+    if (!acc[v]) acc[v] = [];
+    acc[v].push(ag);
+    return acc;
+  }, {});
+
+  const allVerticals = Array.from(new Set([...verticalOrder, ...Object.keys(grouped)]));
+  const orderedVerticals = allVerticals.filter(v => grouped[v]?.length);
+
+  const selectedMeta = selected ? {
+    icon: ICON_MAP[selected.icon] || Bot,
+    color: selected.verticalColor || "#0691A1",
+    examples: selected.examples || [],
+    vertical: selected.vertical || selected.category,
+  } : { icon: Bot, color: "#0691A1", examples: [], vertical: "Universal" };
+
+  const Icon = selectedMeta.icon;
+  const vConfig = verticalConfig[selectedMeta.vertical] || { color: selectedMeta.color, label: selectedMeta.vertical };
 
   const handleRun = () => {
     if (!prompt.trim()) return;
@@ -98,149 +133,216 @@ export default function AgentConsolePage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6" data-testid="page-agent-console">
-        <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-3 gap-3">
-          {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-28" />)}
+      <div className="flex h-full" data-testid="page-agent-console">
+        <div className="w-60 shrink-0 border-r border-border p-4 space-y-3">
+          <Skeleton className="h-6 w-32" />
+          {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-12" />)}
         </div>
-        <Skeleton className="h-64" />
+        <div className="flex-1 p-6 space-y-4">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-64" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6" data-testid="page-agent-console">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-agent-console-title">AI Agent Console</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Run specialized AI agents powered by your active LLM provider</p>
+    <div className="flex h-full" data-testid="page-agent-console">
+      <div className="w-60 shrink-0 border-r border-border flex flex-col bg-card">
+        <div className="p-3 border-b border-border">
+          <h2 className="text-sm font-bold" data-testid="text-agent-sidebar-title">AI Agents</h2>
+          <p className="text-[11px] text-muted-foreground mt-1">Select an agent to run</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-lg border border-border/50">
-            <Coins className="w-4 h-4 text-primary" />
-            <span className="text-sm font-mono font-bold" data-testid="text-agent-credit-balance">{credits.toLocaleString()}</span>
-            <span className="text-xs text-muted-foreground">credits</span>
+
+        <ScrollArea className="flex-1">
+          <div className="py-1">
+            {orderedVerticals.map(v => {
+              const vc = verticalConfig[v] || { color: "#0691A1", label: v };
+              return (
+                <div key={v}>
+                  <div
+                    className="px-3 pt-3 pb-1 text-[9px] font-bold uppercase tracking-widest font-mono"
+                    style={{ color: vc.color }}
+                    data-testid={`text-vertical-label-${v}`}
+                  >
+                    {vc.label}
+                  </div>
+                  {grouped[v]?.map(ag => {
+                    const isSel = selectedId === ag.id;
+                    const AgIcon = ICON_MAP[ag.icon] || Bot;
+                    return (
+                      <div
+                        key={ag.id}
+                        className={`flex items-center gap-2.5 px-3 py-2 mx-1.5 my-0.5 rounded-md cursor-pointer transition-colors ${
+                          isSel
+                            ? "bg-primary/10 border border-primary/20"
+                            : "border border-transparent hover-elevate"
+                        }`}
+                        onClick={() => { setSelectedId(ag.id); setOutput(""); setPrompt(""); setRunError(null); }}
+                        data-testid={`card-agent-${ag.id}`}
+                      >
+                        <div
+                          className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
+                            isSel ? "bg-primary/10" : "bg-secondary"
+                          }`}
+                        >
+                          <AgIcon className="w-3.5 h-3.5" style={{ color: isSel ? vc.color : undefined }} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-xs truncate ${isSel ? "font-bold" : "font-medium text-muted-foreground"}`} data-testid={`text-agent-name-${ag.id}`}>
+                            {ag.name}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-mono">
+                            {ag.runs > 0 ? `${ag.runs} runs` : "ready"}
+                          </div>
+                        </div>
+                        <div
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: ag.status === "active" ? "#0DAD74" : "#E79109" }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
-          <Badge variant="outline" className="text-xs">50 cr/run</Badge>
-        </div>
+        </ScrollArea>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {agents.map(agent => {
-          const agentMeta = AGENT_META[agent.id] || AGENT_META.scout;
-          const AgentIcon = agentMeta.icon;
-          const isSel = selectedId === agent.id;
-          return (
-            <Card
-              key={agent.id}
-              className={`p-4 cursor-pointer transition-all hover:shadow-md ${isSel ? "border-primary/40 ring-1 ring-primary/20 bg-primary/5" : ""}`}
-              onClick={() => { setSelectedId(agent.id); setOutput(""); setRunError(null); }}
-              data-testid={`card-agent-${agent.id}`}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {selected && (
+          <div className="px-5 py-3 border-b border-border flex items-center gap-3 bg-card shrink-0">
+            <div
+              className="w-9 h-9 rounded-md flex items-center justify-center shrink-0"
+              style={{ backgroundColor: `${vConfig.color}15`, border: `1px solid ${vConfig.color}30` }}
             >
-              <div className="flex items-start gap-3">
-                <div className={`w-9 h-9 rounded-lg ${agentMeta.bgColor} flex items-center justify-center shrink-0`}>
-                  <AgentIcon className={`w-4 h-4 ${agentMeta.color}`} />
+              <Icon className="w-4 h-4" style={{ color: vConfig.color }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold" data-testid="text-selected-agent">{selected.name}</h3>
+              <p className="text-[11px] text-muted-foreground truncate">{selected.description}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-md border border-border/50">
+                <Coins className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-mono font-bold" data-testid="text-agent-credit-balance">{credits.toLocaleString()}</span>
+                <span className="text-[10px] text-muted-foreground">credits</span>
+              </div>
+              <Badge variant="outline" className="text-[10px]">50 cr/run</Badge>
+            </div>
+          </div>
+        )}
+
+        <ScrollArea className="flex-1">
+          <div className="p-5 space-y-4">
+            {selectedMeta.examples.length > 0 && !prompt && (
+              <div data-testid="section-example-prompts">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-mono mb-2">
+                  Example prompts — click to use
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold truncate" data-testid={`text-agent-name-${agent.id}`}>{agent.name}</h3>
-                    <Badge className={`text-[9px] ${CATEGORY_COLORS[agent.category] || ""}`}>{agent.category}</Badge>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{agent.description}</p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="text-[10px] text-muted-foreground font-mono">{agent.runs} runs</span>
-                    {agent.rate > 0 && <span className="text-[10px] text-emerald-500 font-mono">{agent.rate}%</span>}
-                  </div>
+                <div className="flex flex-col gap-1.5">
+                  {selectedMeta.examples.map((ex, i) => (
+                    <div
+                      key={i}
+                      onClick={() => setPrompt(ex)}
+                      className="px-3.5 py-2.5 bg-secondary border border-border rounded-md cursor-pointer text-xs text-muted-foreground leading-relaxed hover-elevate transition-colors"
+                      data-testid={`button-example-prompt-${i}`}
+                    >
+                      <span className="font-semibold mr-1.5" style={{ color: vConfig.color }}>-&gt;</span>
+                      {ex}
+                    </div>
+                  ))}
                 </div>
               </div>
-            </Card>
-          );
-        })}
+            )}
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Your prompt for {selected?.name || "Agent"}
+                </label>
+                <div className="flex items-center gap-3">
+                  {prompt && (
+                    <button
+                      onClick={() => { setPrompt(""); setOutput(""); setRunError(null); }}
+                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                      data-testid="button-clear-prompt"
+                    >
+                      Clear
+                    </button>
+                  )}
+                  <span className="text-[11px] text-muted-foreground">
+                    Balance: <strong className="font-mono text-foreground">{credits.toLocaleString()}</strong> credits
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Textarea
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  placeholder={selectedMeta.examples[0] || `Describe what you want ${selected?.name || "the agent"} to do...`}
+                  rows={4}
+                  className="flex-1 resize-none"
+                  data-testid="input-agent-prompt"
+                  onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleRun(); }}
+                />
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={handleRun}
+                    disabled={runMutation.isPending || !prompt.trim() || credits < 50}
+                    className="self-end px-6"
+                    data-testid="button-run-agent"
+                  >
+                    {runMutation.isPending ? (
+                      <><Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Running</>
+                    ) : (
+                      <><Play className="w-4 h-4 mr-1.5" /> Run</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              ref={outputRef}
+              className="min-h-[180px] max-h-[320px] overflow-auto rounded-md bg-secondary/50 border border-border/50 p-4"
+              data-testid="output-agent-result"
+            >
+              {!output && !runMutation.isPending && !runError && (
+                <p className="text-sm text-muted-foreground/50 italic">Output streams here after you hit Run...</p>
+              )}
+              {runMutation.isPending && (
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Running {selected?.name}...
+                </div>
+              )}
+              {runError && (
+                <p className="text-sm text-destructive" data-testid="text-agent-error">{runError}</p>
+              )}
+              {output && (
+                <pre className="text-sm whitespace-pre-wrap leading-relaxed" data-testid="text-agent-output">{output}</pre>
+              )}
+            </div>
+
+            {output && !runMutation.isPending && (
+              <div className="flex items-center gap-3 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-md">
+                <div className="w-9 h-9 rounded-md bg-emerald-500/10 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Agent completed</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Review the output and take action on the results.</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => { setOutput(""); setPrompt(""); }} data-testid="button-clear-output">
+                  <Trash2 className="w-4 h-4 mr-1" /> Clear
+                </Button>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
       </div>
-
-      <Card className="overflow-hidden" data-testid="card-agent-runner">
-        <div className="px-5 py-3 border-b border-border/50 flex items-center gap-3 bg-secondary/30">
-          <div className={`w-8 h-8 rounded-lg ${meta.bgColor} flex items-center justify-center`}>
-            <Icon className={`w-4 h-4 ${meta.color}`} />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold" data-testid="text-selected-agent">{selected?.name || "Select an Agent"}</h3>
-            <p className="text-[11px] text-muted-foreground">{selected?.description}</p>
-          </div>
-          {runMutation.isPending && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
-        </div>
-
-        <div className="p-5 space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Prompt</label>
-              <span className="text-xs text-muted-foreground">
-                Balance: <strong className="font-mono text-foreground">{credits.toLocaleString()}</strong> credits
-              </span>
-            </div>
-            <div className="flex gap-3">
-              <Textarea
-                value={prompt}
-                onChange={e => setPrompt(e.target.value)}
-                placeholder={meta.placeholder}
-                rows={3}
-                className="flex-1 resize-none"
-                data-testid="input-agent-prompt"
-                onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleRun(); }}
-              />
-              <Button
-                onClick={handleRun}
-                disabled={runMutation.isPending || !prompt.trim() || credits < 50}
-                className="self-end px-6"
-                data-testid="button-run-agent"
-              >
-                {runMutation.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Running</>
-                ) : (
-                  <><Play className="w-4 h-4 mr-1.5" /> Run</>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <div
-            ref={outputRef}
-            className="min-h-[180px] max-h-[320px] overflow-auto rounded-lg bg-secondary/50 border border-border/50 p-4"
-            data-testid="output-agent-result"
-          >
-            {!output && !runMutation.isPending && !runError && (
-              <p className="text-sm text-muted-foreground/50 italic">Output streams here after you hit Run…</p>
-            )}
-            {runMutation.isPending && (
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Running {selected?.name}…
-              </div>
-            )}
-            {runError && (
-              <p className="text-sm text-destructive" data-testid="text-agent-error">{runError}</p>
-            )}
-            {output && (
-              <pre className="text-sm whitespace-pre-wrap leading-relaxed" data-testid="text-agent-output">{output}</pre>
-            )}
-          </div>
-
-          {output && !runMutation.isPending && (
-            <div className="flex items-center gap-3 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
-              <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Agent completed</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Review the output and take action on the results.</p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => { setOutput(""); setPrompt(""); }} data-testid="button-clear-output">
-                <Trash2 className="w-4 h-4 mr-1" /> Clear
-              </Button>
-            </div>
-          )}
-        </div>
-      </Card>
     </div>
   );
 }
