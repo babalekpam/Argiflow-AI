@@ -82,15 +82,61 @@ async function logEmail(data: { userId: string; leadId?: string; recipientEmail:
   }
 }
 
+async function sendViaPostal(params: { to: string; toName?: string; fromEmail: string; fromName: string; subject: string; html: string; plainText?: string }): Promise<{ success: boolean; error?: string }> {
+  const postalKey = process.env.POSTAL_API_KEY;
+  const postalUrl = process.env.POSTAL_API_URL || "https://mail.argilette.co";
+  if (!postalKey) return { success: false, error: "POSTAL_API_KEY not configured" };
+
+  const body: any = {
+    to: [params.toName ? `${params.toName} <${params.to}>` : params.to],
+    from: `${params.fromName} <${params.fromEmail}>`,
+    subject: params.subject,
+    html_body: params.html,
+  };
+  if (params.plainText) body.plain_body = params.plainText;
+
+  const res = await fetch(`${postalUrl}/api/v1/send/message`, {
+    method: "POST",
+    headers: {
+      "X-Server-API-Key": postalKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const errMsg = errData?.data?.message || errData?.message || res.statusText;
+    return { success: false, error: `Postal error: ${errMsg}` };
+  }
+
+  const data = await res.json();
+  if (data.status === "error") {
+    return { success: false, error: `Postal: ${data.data?.message || "Unknown error"}` };
+  }
+  return { success: true };
+}
+
 async function sendSystemEmail(to: string, from: { email: string; name: string }, subject: string, html: string, userId?: string) {
   const smtpHost = process.env.SMTP_HOST;
   const smtpUser = process.env.SMTP_USERNAME;
   const smtpPass = process.env.SMTP_PASSWORD;
   const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587;
   const sgKey = process.env.SENDGRID_API_KEY;
+  const postalKey = process.env.POSTAL_API_KEY;
 
   const logUserId = userId || "system";
   try {
+    if (postalKey) {
+      const result = await sendViaPostal({ to, fromEmail: from.email, fromName: from.name, subject, html });
+      if (result.success) {
+        console.log(`[SystemEmail] Sent via Postal to ${to}`);
+        await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "postal", source: "system", status: "sent" });
+        return;
+      }
+      console.warn(`[SystemEmail] Postal failed: ${result.error}, trying fallback...`);
+    }
+
     if (smtpHost && smtpUser && smtpPass) {
       const transporter = nodemailer.createTransport({
         host: smtpHost,
@@ -115,13 +161,13 @@ async function sendSystemEmail(to: string, from: { email: string; name: string }
       console.log(`[SystemEmail] Sent via SendGrid to ${to}`);
       await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "sendgrid", source: "system", status: "sent" });
     } else {
-      console.warn("No email provider configured (neither SMTP env vars nor SENDGRID_API_KEY). Cannot send system email.");
+      console.warn("No email provider configured. Cannot send system email.");
       await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "none", source: "system", status: "failed", errorMessage: "No email provider configured" });
     }
   } catch (err: any) {
     const errorMsg = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send system email";
     console.error(`[SystemEmail] Send error to ${to}:`, errorMsg);
-    await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: smtpHost ? "smtp" : "sendgrid", source: "system", status: "failed", errorMessage: errorMsg });
+    await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: postalKey ? "postal" : smtpHost ? "smtp" : "sendgrid", source: "system", status: "failed", errorMessage: errorMsg });
   }
 }
 
@@ -1204,25 +1250,27 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
   const smtpPort = userSettings.smtpPort || (process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587);
   const smtpSecure = userSettings.smtpSecure ?? false;
 
+  const hasPostal = !!process.env.POSTAL_API_KEY;
   const hasSmtp = !!(smtpHost && smtpUsername && smtpPassword);
   const hasSendgrid = !!userSettings.sendgridApiKey;
   const hasSmtpEnvVars = !!(process.env.SMTP_HOST && process.env.SMTP_USERNAME && process.env.SMTP_PASSWORD);
 
-  let emailProvider = userSettings.emailProvider || "sendgrid";
-  if (hasSmtpEnvVars || hasSmtp) {
+  let emailProvider = "sendgrid";
+  if (hasPostal) {
+    emailProvider = "postal";
+  } else if (hasSmtpEnvVars || hasSmtp) {
     emailProvider = "smtp";
+  } else if (userSettings.emailProvider) {
+    emailProvider = userSettings.emailProvider;
   }
-  console.log(`[EMAIL] Provider: ${emailProvider}, hasSmtp: ${hasSmtp}, hasSmtpEnv: ${hasSmtpEnvVars}, hasSendgrid: ${hasSendgrid}`);
+  console.log(`[EMAIL] Provider: ${emailProvider}, hasPostal: ${hasPostal}, hasSmtp: ${hasSmtp}, hasSmtpEnv: ${hasSmtpEnvVars}, hasSendgrid: ${hasSendgrid}`);
 
-  if (emailProvider === "smtp") {
-    if (!hasSmtp) {
-      return { success: false, error: "SMTP settings incomplete. Go to Settings > Integrations and configure your SMTP server (host, username, password)." };
-    }
-  } else {
-    if (!hasSendgrid) {
-      console.log(`[EMAIL] FATAL: No SendGrid key AND no SMTP fallback. Settings: emailProvider=${userSettings.emailProvider}, sgKey=${userSettings.sendgridApiKey ? 'SET' : 'UNSET'}`);
-      return { success: false, error: "SendGrid API key required. Go to Settings > Integrations and enter your SendGrid API key to send emails." };
-    }
+  if (emailProvider === "smtp" && !hasSmtp) {
+    return { success: false, error: "SMTP settings incomplete. Go to Settings > Integrations and configure your SMTP server (host, username, password)." };
+  }
+  if (emailProvider === "sendgrid" && !hasSendgrid) {
+    console.log(`[EMAIL] FATAL: No SendGrid key AND no SMTP/Postal fallback.`);
+    return { success: false, error: "No email provider configured. Contact admin or configure SMTP/SendGrid in Settings > Integrations." };
   }
   console.log(`[EMAIL] Sending via: ${emailProvider} to ${lead.email}`);
 
@@ -1277,7 +1325,35 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
   const plainText = outreachBody + textSignature;
 
   try {
-    if (emailProvider === "smtp") {
+    if (emailProvider === "postal") {
+      const postalResult = await sendViaPostal({
+        to: lead.email,
+        toName: lead.name,
+        fromEmail: senderEmail,
+        fromName: senderName,
+        subject: subjectLine,
+        html: htmlBody,
+        plainText,
+      });
+      if (!postalResult.success) {
+        console.warn(`[EMAIL] Postal failed for outreach: ${postalResult.error}, trying SMTP/SendGrid fallback...`);
+        if (hasSmtp || hasSmtpEnvVars) {
+          const transporter = nodemailer.createTransport({
+            host: smtpHost, port: smtpPort, secure: smtpSecure,
+            auth: { user: smtpUsername, pass: smtpPassword },
+            connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
+          });
+          await transporter.sendMail({ from: `"${senderName}" <${senderEmail}>`, to: lead.email, subject: subjectLine, text: plainText, html: htmlBody });
+          emailProvider = "smtp";
+        } else if (hasSendgrid) {
+          sgMail.setApiKey(userSettings.sendgridApiKey);
+          await sgMail.send({ to: lead.email, from: { email: senderEmail, name: senderName }, subject: subjectLine, text: plainText, html: htmlBody });
+          emailProvider = "sendgrid";
+        } else {
+          throw new Error(postalResult.error || "Postal failed and no fallback available");
+        }
+      }
+    } else if (emailProvider === "smtp") {
       const transporter = nodemailer.createTransport({
         host: smtpHost,
         port: smtpPort,
