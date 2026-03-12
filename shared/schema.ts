@@ -1692,3 +1692,4 @@ export * from "./workflow-schema";
 export * from "./instantly-schema";
 export * from "./intelligence-schema";
 export * from "./email-quota-schema";
+export * from "./domain-schema";

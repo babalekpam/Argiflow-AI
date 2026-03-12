@@ -92,6 +92,7 @@ export function AppSidebar() {
     { title: "Sequences", icon: GitBranch, url: "/dashboard/sequences", badge: t("common.new") },
     { title: t("sidebar.emailSms"), icon: Mail, url: "/dashboard/email" },
     { title: "Email Service", icon: MailPlus, url: "/dashboard/email-service" },
+    { title: "Sending Domain", icon: Globe, url: "/dashboard/domain" },
     { title: "Email Infrastructure", icon: MailPlus, url: "/dashboard/email-infra" },
     { title: "Email Logs", icon: Mail, url: "/dashboard/email-logs" },
     { title: t("sidebar.outreachAgent", "Outreach Agent"), icon: Target, url: "/dashboard/outreach-agent" },

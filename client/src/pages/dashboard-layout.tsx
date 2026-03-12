@@ -67,6 +67,7 @@ import AgentConsolePage from "./agent-console";
 import WebBuilderPage from "./web-builder";
 import VisitorTrackingPage from "./visitor-tracking";
 import EmailDashboardPage from "./email-dashboard";
+import DomainSetupPage from "./domain-setup";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -275,6 +276,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/website-builder" component={WebBuilderPage} />
               <Route path="/dashboard/visitor-tracking" component={VisitorTrackingPage} />
               <Route path="/dashboard/email-service" component={EmailDashboardPage} />
+              <Route path="/dashboard/domain" component={DomainSetupPage} />
               <Route path="/dashboard/ai-providers" component={AiProvidersPage} />
               <Route path="/dashboard/credits" component={CreditsPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
