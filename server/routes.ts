@@ -36,6 +36,8 @@ import { registerAgencyRoutes } from "./agency-routes";
 import { registerGhlRoutes } from "./ghl-routes";
 import { startSequenceAutomationEngine, stopSequencesForLead, stopSequencesForDeal, autoEnrollLeadInSequence, getAutomationStatus, processSequenceAutomation } from "./sequence-automation";
 import chatbotRoutes from "./chatbot-routes";
+import postalRoutes from "./postal-routes";
+import postalService from "./postal";
 
 let tavilyRateLimitedUntil = 0;
 
@@ -84,37 +86,22 @@ async function logEmail(data: { userId: string; leadId?: string; recipientEmail:
 
 async function sendViaPostal(params: { to: string; toName?: string; fromEmail: string; fromName: string; subject: string; html: string; plainText?: string }): Promise<{ success: boolean; error?: string }> {
   const postalKey = process.env.POSTAL_API_KEY;
-  const postalUrl = process.env.POSTAL_API_URL || "https://mail.argilette.co";
   if (!postalKey) return { success: false, error: "POSTAL_API_KEY not configured" };
 
-  const body: any = {
-    to: [params.toName ? `${params.toName} <${params.to}>` : params.to],
-    from: `${params.fromName} <${params.fromEmail}>`,
-    subject: params.subject,
-    html_body: params.html,
-  };
-  if (params.plainText) body.plain_body = params.plainText;
+  const recipient = params.toName
+    ? { address: params.to, name: params.toName }
+    : params.to;
 
-  const res = await fetch(`${postalUrl}/api/v1/send/message`, {
-    method: "POST",
-    headers: {
-      "X-Server-API-Key": postalKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
+  const result = await postalService.sendEmail({
+    to: recipient,
+    from: params.fromEmail,
+    fromName: params.fromName,
+    subject: params.subject,
+    htmlBody: params.html,
+    plainBody: params.plainText,
   });
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    const errMsg = errData?.data?.message || errData?.message || res.statusText;
-    return { success: false, error: `Postal error: ${errMsg}` };
-  }
-
-  const data = await res.json();
-  if (data.status === "error") {
-    return { success: false, error: `Postal: ${data.data?.message || "Unknown error"}` };
-  }
-  return { success: true };
+  return { success: result.success, error: result.error };
 }
 
 async function sendSystemEmail(to: string, from: { email: string; name: string }, subject: string, html: string, userId?: string) {
@@ -9531,6 +9518,7 @@ The ArgiFlow Team`;
   registerAgencyRoutes(app);
   registerGhlRoutes(app);
   app.use("/api/chatbot", chatbotRoutes);
+  app.use("/api/postal", postalRoutes);
   registerWorkflowRoutes(app);
   startWorkflowEngine();
   startSequenceAutomationEngine();
