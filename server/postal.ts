@@ -5,7 +5,7 @@
 // ============================================================
 
 const POSTAL_API_URL = "https://mail.argilette.co/api/v1";
-const POSTAL_API_KEY = process.env.POSTAL_API_KEY || "L8vbfObAPZr9rFQnrFM3TFCC";
+const POSTAL_API_KEY = process.env.POSTAL_API_KEY || "";
 
 export interface EmailRecipient {
   address: string;

@@ -91,6 +91,7 @@ export function AppSidebar() {
     { title: t("sidebar.voiceAi"), icon: Phone, url: "/dashboard/voice-ai" },
     { title: "Sequences", icon: GitBranch, url: "/dashboard/sequences", badge: t("common.new") },
     { title: t("sidebar.emailSms"), icon: Mail, url: "/dashboard/email" },
+    { title: "Email Service", icon: MailPlus, url: "/dashboard/email-service" },
     { title: "Email Infrastructure", icon: MailPlus, url: "/dashboard/email-infra" },
     { title: "Email Logs", icon: Mail, url: "/dashboard/email-logs" },
     { title: t("sidebar.outreachAgent", "Outreach Agent"), icon: Target, url: "/dashboard/outreach-agent" },

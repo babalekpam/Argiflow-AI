@@ -38,6 +38,7 @@ import { startSequenceAutomationEngine, stopSequencesForLead, stopSequencesForDe
 import chatbotRoutes from "./chatbot-routes";
 import postalRoutes from "./postal-routes";
 import postalService from "./postal";
+import emailQuotaRoutes from "./email-quota-routes";
 
 let tavilyRateLimitedUntil = 0;
 
@@ -9519,6 +9520,7 @@ The ArgiFlow Team`;
   registerGhlRoutes(app);
   app.use("/api/chatbot", chatbotRoutes);
   app.use("/api/postal", postalRoutes);
+  app.use("/api/email", emailQuotaRoutes);
   registerWorkflowRoutes(app);
   startWorkflowEngine();
   startSequenceAutomationEngine();

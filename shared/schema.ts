@@ -1691,3 +1691,4 @@ export const trackEmailEvents = pgTable("track_email_events", {
 export * from "./workflow-schema";
 export * from "./instantly-schema";
 export * from "./intelligence-schema";
+export * from "./email-quota-schema";
