@@ -7,6 +7,7 @@ import {
   type EmailQuota,
 } from "../shared/email-quota-schema";
 import postalService from "./postal";
+import { getActiveDomainForUser } from "./domain-engine";
 
 export async function getOrCreateQuota(userId: string): Promise<EmailQuota> {
   const [existing] = await db
@@ -141,16 +142,17 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
 
   const toAddresses = toList.join(", ");
 
-  const fromAddr = options.from || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
-  console.log(`[EmailQuota] Sending email — to: ${toAddresses}, from: ${fromAddr}, fromName: ${options.fromName}, subject: ${subject}`);
+  const activeDomain = await getActiveDomainForUser(options.userId);
+  const fromAddr = activeDomain?.defaultFromEmail || options.from || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+  const fromName = activeDomain?.defaultFromName || options.fromName || "ArgiFlow";
+  console.log(`[EmailQuota] Sending email — to: ${toAddresses}, from: ${fromAddr}, fromName: ${fromName}, subject: ${subject}, activeDomain: ${activeDomain?.domain || "none"}`);
 
   let sendResult: any;
   try {
-    // Always use SES (reliable delivery)
     sendResult = await postalService.sendEmail({
       to: toAddresses,
       from: fromAddr,
-      fromName: options.fromName || "ArgiFlow",
+      fromName,
       subject,
       htmlBody: htmlBody || undefined,
       plainBody: options.plainBody || undefined,
