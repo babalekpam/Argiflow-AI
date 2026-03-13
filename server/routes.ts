@@ -9483,6 +9483,32 @@ The ArgiFlow Team`;
   app.use("/api/postal", postalRoutes);
   app.use("/api/email", emailQuotaRoutes);
   app.use("/api/domains", domainRoutes);
+
+  app.get("/api/test-email", async (req, res) => {
+    const t = nodemailer.createTransport({
+      host: process.env.SES_SMTP_HOST,
+      port: parseInt(process.env.SES_SMTP_PORT || "587"),
+      secure: false,
+      auth: { user: process.env.SES_SMTP_USER, pass: process.env.SES_SMTP_PASS },
+      requireTLS: true,
+    });
+    try {
+      const r = await t.sendMail({
+        from: process.env.SES_FROM_EMAIL,
+        to: "abel@argilette.com",
+        subject: "Test from routes",
+        html: "<p>Working!</p>",
+      });
+      res.json({ success: true, messageId: r.messageId, env: {
+        host: process.env.SES_SMTP_HOST,
+        user: process.env.SES_SMTP_USER,
+        from: process.env.SES_FROM_EMAIL,
+      }});
+    } catch (e: any) {
+      res.json({ success: false, error: e.message });
+    }
+  });
+
   registerWorkflowRoutes(app);
   startWorkflowEngine();
   startSequenceAutomationEngine();
