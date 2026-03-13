@@ -1190,7 +1190,10 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
   const hasCustomSmtp = !!(customSmtpHost && customSmtpUser && customSmtpPass) && !isBrokenHost;
 
   // Sender: user's verified address, or platform SES identity — never SMTP_USERNAME env var (track-med.com)
-  const senderEmail = userSettings.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+  const BROKEN_DOMAINS = ["track-med.com"];
+  const rawSender = userSettings.senderEmail;
+  const senderIsBroken = rawSender && BROKEN_DOMAINS.some(d => rawSender.toLowerCase().includes(d));
+  const senderEmail = (senderIsBroken ? null : rawSender) || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
   const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
 
   let subjectLine = lead.company
@@ -4621,7 +4624,10 @@ RULES:
     const hasCustomSmtp = !!(customSmtpHost && customSmtpUser && customSmtpPass) && !isBrokenHostFU;
 
     // Use user's verified sender email, or fall back to platform SES identity
-    const senderEmail = userSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+    const BROKEN_DOMAINS_FU = ["track-med.com"];
+    const rawSenderFU = userSettings?.senderEmail;
+    const senderIsBrokenFU = rawSenderFU && BROKEN_DOMAINS_FU.some(d => rawSenderFU.toLowerCase().includes(d));
+    const senderEmail = (senderIsBrokenFU ? null : rawSenderFU) || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
     const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
     const firstName = lead.name.split(" ")[0];
     const subjectLine = step === 1
@@ -4990,7 +4996,10 @@ Return ONLY the email reply text, no subject line, no markdown.`
                 .trim();
 
               if (replyText) {
-                const inboxSenderEmail = userSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+                const BROKEN_DOMAINS_IX = ["track-med.com"];
+                const rawSenderIX = userSettings?.senderEmail;
+                const senderIsBrokenIX = rawSenderIX && BROKEN_DOMAINS_IX.some(d => rawSenderIX.toLowerCase().includes(d));
+                const inboxSenderEmail = (senderIsBrokenIX ? null : rawSenderIX) || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
                 const inboxCustomSmtpHost = userSettings?.smtpHost;
                 const inboxCustomSmtpUser = userSettings?.smtpUsername;
                 const inboxCustomSmtpPass = userSettings?.smtpPassword;
