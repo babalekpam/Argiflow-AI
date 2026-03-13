@@ -10,21 +10,19 @@ const SES_PORT = parseInt(process.env.SES_SMTP_PORT || "587", 10);
 const SES_USER = process.env.SES_SMTP_USER || "";
 const SES_PASS = process.env.SES_SMTP_PASS || "";
 
-let _sesTransporter: Transporter | null = null;
-
 function getSesTransporter(): Transporter | null {
   if (!SES_USER || !SES_PASS || !SES_HOST) return null;
-  if (!_sesTransporter) {
-    _sesTransporter = nodemailer.createTransport({
-      host: SES_HOST,
-      port: SES_PORT,
-      secure: false,
-      auth: { user: SES_USER, pass: SES_PASS },
-      requireTLS: true,
-    });
-    console.log(`[Email] SES SMTP fallback configured via ${SES_HOST}:${SES_PORT}`);
-  }
-  return _sesTransporter;
+  // Create a fresh transporter per send — avoids stale connection pool / "Greeting never received"
+  return nodemailer.createTransport({
+    host: SES_HOST,
+    port: SES_PORT,
+    secure: false,
+    auth: { user: SES_USER, pass: SES_PASS },
+    requireTLS: true,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  });
 }
 
 export interface EmailRecipient {
