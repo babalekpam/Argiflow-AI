@@ -868,17 +868,9 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return "Sender email not configured. Tell the user to go to Settings > Integrations and set their verified sender email before sending outreach.";
       }
 
-      const hasSmtpEnv = !!(settings?.smtpHost || process.env.SMTP_HOST) && !!(settings?.smtpUsername || process.env.SMTP_USERNAME) && !!(settings?.smtpPassword || process.env.SMTP_PASSWORD);
+      // Platform SES is always available — custom SMTP/SendGrid are optional overrides
+      const hasCustomSmtp = !!(settings?.smtpHost && settings?.smtpUsername && settings?.smtpPassword);
       const hasSgKey = !!settings?.sendgridApiKey;
-      let eprov = (hasSmtpEnv) ? "smtp" : (settings?.emailProvider || "sendgrid");
-
-      if (eprov === "smtp") {
-        if (!hasSmtpEnv) {
-          return "SMTP settings incomplete. Tell the user to go to Settings > Integrations and configure their SMTP server (host, username, password).";
-        }
-      } else if (!hasSgKey) {
-        return "Email provider not configured. Tell the user to go to Settings > Integrations and either set up SendGrid API key or configure their own SMTP server.";
-      }
 
       let sent = 0;
       let failed = 0;
@@ -1189,41 +1181,14 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
     return { success: false, error: "Company identity required. Go to Settings > Company Profile and enter your company name before sending outreach." };
   }
 
-  if (!userSettings?.senderEmail && !process.env.SMTP_USERNAME) {
-    return { success: false, error: "Sender email required. Go to Settings > Integrations and set your verified sender email." };
-  }
+  // Use user's custom SMTP only if explicitly set in user_settings (not env vars)
+  const customSmtpHost = userSettings?.smtpHost;
+  const customSmtpUser = userSettings?.smtpUsername;
+  const customSmtpPass = userSettings?.smtpPassword;
+  const hasCustomSmtp = !!(customSmtpHost && customSmtpUser && customSmtpPass);
 
-  const smtpHost = userSettings.smtpHost || process.env.SMTP_HOST;
-  const smtpUsername = userSettings.smtpUsername || process.env.SMTP_USERNAME;
-  const smtpPassword = userSettings.smtpPassword || process.env.SMTP_PASSWORD;
-  const smtpPort = userSettings.smtpPort || (process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587);
-  const smtpSecure = userSettings.smtpSecure ?? false;
-
-  const hasPostal = !!process.env.POSTAL_API_KEY;
-  const hasSmtp = !!(smtpHost && smtpUsername && smtpPassword);
-  const hasSendgrid = !!userSettings.sendgridApiKey;
-  const hasSmtpEnvVars = !!(process.env.SMTP_HOST && process.env.SMTP_USERNAME && process.env.SMTP_PASSWORD);
-
-  let emailProvider = "sendgrid";
-  if (hasPostal) {
-    emailProvider = "postal";
-  } else if (hasSmtpEnvVars || hasSmtp) {
-    emailProvider = "smtp";
-  } else if (userSettings.emailProvider) {
-    emailProvider = userSettings.emailProvider;
-  }
-  console.log(`[EMAIL] Provider: ${emailProvider}, hasPostal: ${hasPostal}, hasSmtp: ${hasSmtp}, hasSmtpEnv: ${hasSmtpEnvVars}, hasSendgrid: ${hasSendgrid}`);
-
-  if (emailProvider === "smtp" && !hasSmtp) {
-    return { success: false, error: "SMTP settings incomplete. Go to Settings > Integrations and configure your SMTP server (host, username, password)." };
-  }
-  if (emailProvider === "sendgrid" && !hasSendgrid) {
-    console.log(`[EMAIL] FATAL: No SendGrid key AND no SMTP/Postal fallback.`);
-    return { success: false, error: "No email provider configured. Contact admin or configure SMTP/SendGrid in Settings > Integrations." };
-  }
-  console.log(`[EMAIL] Sending via: ${emailProvider} to ${lead.email}`);
-
-  const senderEmail = userSettings.senderEmail || process.env.SMTP_USERNAME;
+  // Sender: user's verified address, or platform SES identity — never SMTP_USERNAME env var (track-med.com)
+  const senderEmail = userSettings.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
   const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
 
   let subjectLine = lead.company
@@ -1273,49 +1238,16 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
 
   const plainText = outreachBody + textSignature;
 
+  const usedProvider = hasCustomSmtp ? "smtp" : "ses";
   try {
-    if (emailProvider === "postal") {
-      const postalResult = await sendViaPostal({
-        to: lead.email,
-        toName: lead.name,
-        fromEmail: senderEmail,
-        fromName: senderName,
-        subject: subjectLine,
-        html: htmlBody,
-        plainText,
-      });
-      if (!postalResult.success) {
-        console.warn(`[EMAIL] Postal failed for outreach: ${postalResult.error}, trying SMTP/SendGrid fallback...`);
-        if (hasSmtp || hasSmtpEnvVars) {
-          const transporter = nodemailer.createTransport({
-            host: smtpHost, port: smtpPort, secure: smtpSecure,
-            auth: { user: smtpUsername, pass: smtpPassword },
-            connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
-          });
-          await transporter.sendMail({ from: `"${senderName}" <${senderEmail}>`, to: lead.email, subject: subjectLine, text: plainText, html: htmlBody });
-          emailProvider = "smtp";
-        } else if (hasSendgrid) {
-          sgMail.setApiKey(userSettings.sendgridApiKey);
-          await sgMail.send({ to: lead.email, from: { email: senderEmail, name: senderName }, subject: subjectLine, text: plainText, html: htmlBody });
-          emailProvider = "sendgrid";
-        } else {
-          throw new Error(postalResult.error || "Postal failed and no fallback available");
-        }
-      }
-    } else if (emailProvider === "smtp") {
+    if (hasCustomSmtp) {
       const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpSecure,
-        auth: {
-          user: smtpUsername,
-          pass: smtpPassword,
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
+        host: customSmtpHost,
+        port: userSettings?.smtpPort || 587,
+        secure: userSettings?.smtpSecure ?? false,
+        auth: { user: customSmtpUser, pass: customSmtpPass },
+        connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
       });
-
       await transporter.sendMail({
         from: `"${senderName}" <${senderEmail}>`,
         to: lead.email,
@@ -1324,16 +1256,17 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
         html: htmlBody,
       });
     } else {
-      sgMail.setApiKey(userSettings.sendgridApiKey);
-      await sgMail.send({
+      const result = await postalService.sendEmail({
         to: lead.email,
-        from: { email: senderEmail, name: senderName },
+        from: senderEmail,
+        fromName: senderName,
         subject: subjectLine,
-        text: plainText,
-        html: htmlBody,
+        htmlBody,
+        plainBody: plainText,
       });
+      if (!result.success) throw new Error(result.error || "Send failed");
     }
-    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: emailProvider, source: "outreach", status: "sent" });
+    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: usedProvider, source: "outreach", status: "sent" });
     return { success: true };
   } catch (err: any) {
     console.error("Email send error:", err?.response?.body || err?.message || err);
@@ -1343,7 +1276,7 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
       /bounce|rejected|undeliverable|mailbox.*not found|user.*unknown|does not exist|invalid.*recipient|no such user/i.test(errorMsg);
 
     const emailStatus = isBounce ? "bounced" : "failed";
-    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: emailProvider, source: "outreach", status: emailStatus, errorMessage: errorMsg });
+    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: usedProvider, source: "outreach", status: emailStatus, errorMessage: errorMsg });
     return { success: false, error: errorMsg, bounced: isBounce };
   }
 }
@@ -3477,24 +3410,11 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return res.status(400).json({ message: "Company identity required. Go to Settings > Company Profile and enter your company name before sending outreach." });
       }
 
-      if (!settings?.senderEmail && !process.env.SMTP_USERNAME) {
-        return res.status(400).json({ message: "Sender email required. Go to Settings > Integrations > Email Identity and set your sender email before sending outreach." });
-      }
-
-      const bulkSmtpHost = settings?.smtpHost || process.env.SMTP_HOST;
-      const bulkSmtpUser = settings?.smtpUsername || process.env.SMTP_USERNAME;
-      const bulkSmtpPass = settings?.smtpPassword || process.env.SMTP_PASSWORD;
-      const bulkHasSmtp = !!(bulkSmtpHost && bulkSmtpUser && bulkSmtpPass);
-      const bulkHasSg = !!settings?.sendgridApiKey;
-      let bulkProvider = bulkHasSmtp ? "smtp" : (settings?.emailProvider || "sendgrid");
-
-      if (bulkProvider === "smtp") {
-        if (!bulkHasSmtp) {
-          return res.status(400).json({ message: "SMTP settings incomplete. Go to Settings > Integrations and configure your SMTP server." });
-        }
-      } else if (!bulkHasSg) {
-        return res.status(400).json({ message: "Email provider not configured. Go to Settings > Integrations and set up SendGrid or SMTP." });
-      }
+      // Bulk send uses custom SMTP if configured, otherwise platform SES
+      const bulkCustomSmtpHost = settings?.smtpHost;
+      const bulkCustomSmtpUser = settings?.smtpUsername;
+      const bulkCustomSmtpPass = settings?.smtpPassword;
+      const bulkHasCustomSmtp = !!(bulkCustomSmtpHost && bulkCustomSmtpUser && bulkCustomSmtpPass);
 
       const existing = bulkSendStatus.get(userId);
       if (existing && existing.status === "processing") {
@@ -4439,14 +4359,8 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
           const settings = await storage.getSettingsByUser(user.id);
           if (!settings) continue;
 
-          const hasSendCapability = !!(
-            (settings as any).senderEmail ||
-            process.env.SMTP_USERNAME
-          ) && !!(
-            ((settings as any).smtpHost && (settings as any).smtpUsername && (settings as any).smtpPassword) ||
-            (process.env.SMTP_HOST && process.env.SMTP_USERNAME && process.env.SMTP_PASSWORD) ||
-            (settings as any).sendgridApiKey
-          );
+          // Platform SES is always available as sender — always allow auto-engage
+          const hasSendCapability = true;
           if (!hasSendCapability) continue;
 
           const allLeads = await storage.getLeadsByUser(user.id);
@@ -4692,28 +4606,18 @@ RULES:
     if (!lead.email || !emailBody) {
       return { success: false, error: "No email or follow-up body" };
     }
-    const effectiveSenderEmail = userSettings?.senderEmail || process.env.SMTP_USERNAME;
-    if (!user?.companyName || !effectiveSenderEmail) {
-      return { success: false, error: `Missing company/sender config (company=${user?.companyName}, sender=${effectiveSenderEmail})` };
+    if (!user?.companyName) {
+      return { success: false, error: `Missing company config` };
     }
 
-    const smtpHost = userSettings?.smtpHost || process.env.SMTP_HOST;
-    const smtpUsername = userSettings?.smtpUsername || process.env.SMTP_USERNAME;
-    const smtpPassword = userSettings?.smtpPassword || process.env.SMTP_PASSWORD;
-    const smtpPort = userSettings?.smtpPort || (process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587);
-    const smtpSecure = userSettings?.smtpSecure ?? false;
+    // Use user's custom SMTP only if explicitly configured in user_settings (not env vars)
+    const customSmtpHost = userSettings?.smtpHost;
+    const customSmtpUser = userSettings?.smtpUsername;
+    const customSmtpPass = userSettings?.smtpPassword;
+    const hasCustomSmtp = !!(customSmtpHost && customSmtpUser && customSmtpPass);
 
-    const hasSmtp = !!(smtpHost && smtpUsername && smtpPassword);
-    const hasSendgrid = !!userSettings?.sendgridApiKey;
-    const hasSmtpEnvVars = !!(process.env.SMTP_HOST && process.env.SMTP_USERNAME && process.env.SMTP_PASSWORD);
-
-    let emailProvider = userSettings?.emailProvider || "sendgrid";
-    if (hasSmtpEnvVars || hasSmtp) emailProvider = "smtp";
-
-    if (emailProvider === "smtp" && !hasSmtp) return { success: false, error: "SMTP settings incomplete" };
-    if (emailProvider !== "smtp" && !hasSendgrid) return { success: false, error: "No email provider configured" };
-
-    const senderEmail = effectiveSenderEmail;
+    // Use user's verified sender email, or fall back to platform SES identity
+    const senderEmail = userSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
     const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
     const firstName = lead.name.split(" ")[0];
     const subjectLine = step === 1
@@ -4745,10 +4649,13 @@ RULES:
     const fPlainText = emailBody + fTextSig;
 
     try {
-      if (emailProvider === "smtp") {
+      if (hasCustomSmtp) {
         const transporter = nodemailer.createTransport({
-          host: smtpHost, port: smtpPort, secure: smtpSecure,
-          auth: { user: smtpUsername, pass: smtpPassword },
+          host: customSmtpHost,
+          port: userSettings?.smtpPort || 587,
+          secure: userSettings?.smtpSecure ?? false,
+          auth: { user: customSmtpUser, pass: customSmtpPass },
+          connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
         });
         await transporter.sendMail({
           from: `"${senderName}" <${senderEmail}>`,
@@ -4756,19 +4663,22 @@ RULES:
           text: fPlainText, html: htmlBody,
         });
       } else {
-        sgMail.setApiKey(userSettings?.sendgridApiKey);
-        await sgMail.send({
+        const result = await postalService.sendEmail({
           to: lead.email,
-          from: { email: senderEmail, name: senderName },
-          subject: subjectLine, text: fPlainText, html: htmlBody,
+          from: senderEmail,
+          fromName: senderName,
+          subject: subjectLine,
+          htmlBody,
+          plainBody: fPlainText,
         });
+        if (!result.success) throw new Error(result.error || "Send failed");
       }
       console.log(`[FOLLOW-UP] Step ${step} sent to ${lead.name} (${lead.email})`);
-      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: emailProvider, source: "follow-up", status: "sent" });
+      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: hasCustomSmtp ? "smtp" : "ses", source: "follow-up", status: "sent" });
       return { success: true };
     } catch (err: any) {
       console.error(`[FOLLOW-UP] Send failed for ${lead.name}:`, err?.message);
-      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: emailProvider, source: "follow-up", status: "failed", errorMessage: err?.message });
+      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: hasCustomSmtp ? "smtp" : "ses", source: "follow-up", status: "failed", errorMessage: err?.message });
       return { success: false, error: err?.message || "Send failed" };
     }
   }
@@ -4818,13 +4728,9 @@ RULES:
 
           const settings = await storage.getSettingsByUser(lead.userId) || {} as any;
           const user = await storage.getUserById(lead.userId);
-          const hasSenderFallback = !!(settings?.senderEmail || process.env.SMTP_USERNAME);
-          if (!user || !hasSenderFallback) {
-            console.warn(`[FOLLOW-UP] Skipping ${lead.name}: missing user/sender config (senderEmail=${settings?.senderEmail}, SMTP_USERNAME=${process.env.SMTP_USERNAME ? 'SET' : 'UNSET'})`);
+          if (!user) {
+            console.warn(`[FOLLOW-UP] Skipping ${lead.name}: user not found`);
             continue;
-          }
-          if (!settings.senderEmail && process.env.SMTP_USERNAME) {
-            settings.senderEmail = process.env.SMTP_USERNAME;
           }
 
           let followUpAi: { client: Anthropic; model: string } | undefined;
@@ -5080,32 +4986,40 @@ Return ONLY the email reply text, no subject line, no markdown.`
                 .trim();
 
               if (replyText) {
-                const smtpHost = userSettings?.smtpHost || process.env.SMTP_HOST;
-                const smtpUsername = userSettings?.smtpUsername || process.env.SMTP_USERNAME;
-                const smtpPassword = userSettings?.smtpPassword || process.env.SMTP_PASSWORD;
-                const smtpPort = userSettings?.smtpPort || (process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587);
-                const senderEmail = userSettings?.senderEmail || smtpUsername;
+                const inboxSenderEmail = userSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+                const inboxCustomSmtpHost = userSettings?.smtpHost;
+                const inboxCustomSmtpUser = userSettings?.smtpUsername;
+                const inboxCustomSmtpPass = userSettings?.smtpPassword;
+                const inboxHasCustomSmtp = !!(inboxCustomSmtpHost && inboxCustomSmtpUser && inboxCustomSmtpPass);
                 const senderName = `${matchedUser.firstName || ""} from ${senderCompany}`.trim();
 
                 const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
                 const htmlReply = replyText.replace(/\n/g, "<br>");
 
-                const transporter = nodemailer.createTransport({
-                  host: smtpHost,
-                  port: smtpPort,
-                  secure: smtpPort === 465,
-                  auth: { user: smtpUsername, pass: smtpPassword },
-                });
-
-                await transporter.sendMail({
-                  from: `"${senderName}" <${senderEmail}>`,
-                  to: fromEmail,
-                  subject: replySubject,
-                  text: replyText,
-                  html: htmlReply,
-                  inReplyTo: messageId,
-                  references: messageId,
-                });
+                if (inboxHasCustomSmtp) {
+                  const transporter = nodemailer.createTransport({
+                    host: inboxCustomSmtpHost,
+                    port: userSettings?.smtpPort || 587,
+                    secure: userSettings?.smtpSecure ?? false,
+                    auth: { user: inboxCustomSmtpUser, pass: inboxCustomSmtpPass },
+                    connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
+                  });
+                  await transporter.sendMail({
+                    from: `"${senderName}" <${inboxSenderEmail}>`,
+                    to: fromEmail, subject: replySubject,
+                    text: replyText, html: htmlReply,
+                    inReplyTo: messageId, references: messageId,
+                  });
+                } else {
+                  await postalService.sendEmail({
+                    to: fromEmail,
+                    from: inboxSenderEmail,
+                    fromName: senderName,
+                    subject: replySubject,
+                    htmlBody: htmlReply,
+                    plainBody: replyText,
+                  });
+                }
 
                 await storage.createEmailReply({
                   leadId: matchedLead.id,
@@ -5661,12 +5575,8 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         try {
           const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, targetUser.id));
           if (settings && settings.autoLeadGenEnabled) {
-            const hasSendCapability = !!(
-              ((settings as any).senderEmail || process.env.SMTP_USERNAME) &&
-              (((settings as any).smtpHost && (settings as any).smtpUsername && (settings as any).smtpPassword) ||
-               (process.env.SMTP_HOST && process.env.SMTP_USERNAME && process.env.SMTP_PASSWORD) ||
-               (settings as any).sendgridApiKey)
-            );
+            // Platform SES is always available — always allow auto lead gen sends
+            const hasSendCapability = true;
 
             if (hasSendCapability) {
               const runSource = `Auto Lead Gen — ${region}`;
