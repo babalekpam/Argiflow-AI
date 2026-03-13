@@ -20,6 +20,7 @@ function getSesTransporter(): Transporter | null {
       port: SES_PORT,
       secure: false,
       auth: { user: SES_USER, pass: SES_PASS },
+      requireTLS: true,
     });
     console.log(`[Email] SES SMTP fallback configured via ${SES_HOST}:${SES_PORT}`);
   }
