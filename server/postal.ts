@@ -194,32 +194,62 @@ async function sendViaSes(options: SendEmailOptions): Promise<PostalSendResult> 
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<PostalSendResult> {
-  // SES first — reliable delivery, no suppression list issues
-  // Always use verified platform sender for SES
-  const sesFrom = DEFAULT_FROM;
-  try {
-    const sesResult = await sendViaSes({ ...options, from: sesFrom });
-    if (sesResult.success) {
-      console.log(`[Email] Sent via SES to ${JSON.stringify(options.to)} from ${sesFrom} — msgId: ${sesResult.messageId}`);
-      return sesResult;
-    }
-    console.warn(`[Email] SES failed: ${sesResult.error}, trying Postal fallback...`);
-  } catch (err: any) {
-    console.warn(`[Email] SES error: ${err.message}, trying Postal fallback...`);
-  }
+  const isCustomDomain = options.from && options.from !== DEFAULT_FROM;
 
-  // Postal API fallback
-  try {
-    const postalResult = await sendViaPostalApi({ ...options, from: sesFrom });
-    if (postalResult.success) {
-      console.log(`[Email] Sent via Postal to ${JSON.stringify(options.to)} from ${sesFrom} — msgId: ${postalResult.messageId}`);
-      return postalResult;
+  if (isCustomDomain) {
+    // Custom domain — use Postal first (supports white-label sending from verified domains)
+    console.log(`[Email] Custom domain detected (${options.from}), using Postal first...`);
+    try {
+      const postalResult = await sendViaPostalApi(options);
+      if (postalResult.success) {
+        console.log(`[Email] Sent via Postal to ${JSON.stringify(options.to)} from ${options.from} — msgId: ${postalResult.messageId}`);
+        return postalResult;
+      }
+      console.warn(`[Email] Postal failed for custom domain: ${postalResult.error}, trying SES fallback with platform sender...`);
+    } catch (err: any) {
+      console.warn(`[Email] Postal error for custom domain: ${err.message}, trying SES fallback with platform sender...`);
     }
-    console.error(`[Email] Postal also failed: ${postalResult.error}`);
-    return postalResult;
-  } catch (err: any) {
-    console.error(`[Email] All providers failed. Last error:`, err.message);
-    return { success: false, error: err.message };
+
+    // SES fallback — must use platform sender
+    try {
+      const sesResult = await sendViaSes({ ...options, from: DEFAULT_FROM });
+      if (sesResult.success) {
+        console.log(`[Email] Sent via SES (fallback) to ${JSON.stringify(options.to)} from ${DEFAULT_FROM} — msgId: ${sesResult.messageId}`);
+        return sesResult;
+      }
+      console.error(`[Email] SES fallback also failed: ${sesResult.error}`);
+      return sesResult;
+    } catch (err: any) {
+      console.error(`[Email] All providers failed. Last error:`, err.message);
+      return { success: false, error: err.message };
+    }
+  } else {
+    // Platform default — use SES first (reliable delivery)
+    const sesFrom = DEFAULT_FROM;
+    try {
+      const sesResult = await sendViaSes({ ...options, from: sesFrom });
+      if (sesResult.success) {
+        console.log(`[Email] Sent via SES to ${JSON.stringify(options.to)} from ${sesFrom} — msgId: ${sesResult.messageId}`);
+        return sesResult;
+      }
+      console.warn(`[Email] SES failed: ${sesResult.error}, trying Postal fallback...`);
+    } catch (err: any) {
+      console.warn(`[Email] SES error: ${err.message}, trying Postal fallback...`);
+    }
+
+    // Postal fallback
+    try {
+      const postalResult = await sendViaPostalApi({ ...options, from: sesFrom });
+      if (postalResult.success) {
+        console.log(`[Email] Sent via Postal to ${JSON.stringify(options.to)} from ${sesFrom} — msgId: ${postalResult.messageId}`);
+        return postalResult;
+      }
+      console.error(`[Email] Postal also failed: ${postalResult.error}`);
+      return postalResult;
+    } catch (err: any) {
+      console.error(`[Email] All providers failed. Last error:`, err.message);
+      return { success: false, error: err.message };
+    }
   }
 }
 
