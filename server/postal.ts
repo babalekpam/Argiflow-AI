@@ -162,18 +162,18 @@ async function sendViaSes(options: SendEmailOptions): Promise<PostalSendResult> 
 
 export async function sendEmail(options: SendEmailOptions): Promise<PostalSendResult> {
   try {
-    const postalResult = await sendViaPostalApi(options);
-    if (postalResult.success) return postalResult;
-    console.warn(`[Email] Postal failed: ${postalResult.error}, trying SES fallback...`);
+    const sesResult = await sendViaSes(options);
+    if (sesResult.success) return sesResult;
+    console.warn(`[Email] SES failed: ${sesResult.error}, trying Postal fallback...`);
   } catch (err: any) {
-    console.warn(`[Email] Postal error: ${err.message}, trying SES fallback...`);
+    console.warn(`[Email] SES error: ${err.message}, trying Postal fallback...`);
   }
 
   try {
-    const sesResult = await sendViaSes(options);
-    if (sesResult.success) return sesResult;
-    console.error(`[Email] SES also failed: ${sesResult.error}`);
-    return sesResult;
+    const postalResult = await sendViaPostalApi(options);
+    if (postalResult.success) return postalResult;
+    console.error(`[Email] Postal also failed: ${postalResult.error}`);
+    return postalResult;
   } catch (err: any) {
     console.error(`[Email] All providers failed. Last error:`, err.message);
     return { success: false, error: err.message };

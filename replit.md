@@ -59,7 +59,8 @@ Do not make changes to the file `Y`.
 - **Anthropic Claude**: Available as optional per-user override via Settings > Integrations. Also used for built-in web search fallback.
 - **Tavily**: Default web search provider for company research and AI agents. Uses advanced search with AI summaries. Platform-managed key.
 - **You.com Search API**: Alternative web search provider. Configured per-user via Settings > Integrations. Uses `https://api.ydc-index.io/v1/search` with `X-API-Key` header. User settings: `webSearchProvider` ("tavily"|"claude"|"you"), `youApiKey`.
-- **Postal (mail.argilette.co)**: Primary email provider for all system and outreach emails. Self-hosted at `mail.argilette.co`, uses API key auth (`X-Server-API-Key`). Default sender: `partnerships@argilette.co`. Falls back to SMTP/SendGrid if Postal fails. Backend: `sendViaPostal()` in `server/routes.ts`. Env: `POSTAL_API_KEY`, `POSTAL_API_URL`.
+- **Amazon SES (Primary)**: Primary email provider via SMTP (`email-smtp.us-east-2.amazonaws.com`). Default sender: `partnerships@argilette.co`. Env: `SES_SMTP_HOST`, `SES_SMTP_PORT=587`, `SES_SMTP_USER`, `SES_SMTP_PASS`, `SES_FROM_EMAIL`.
+- **Postal (mail.argilette.co) (Fallback)**: Self-hosted mail server as fallback. Uses API key auth (`X-Server-API-Key`). Falls back to Postal if SES fails. Backend: `server/postal.ts`. Env: `POSTAL_API_KEY`.
 - **SendGrid**: Fallback email service for system emails and user outreach campaigns.
 - **Twilio**: SMS and Voice service for text messages and AI-powered phone calls.
 - **Deepgram**: Speech-to-text (Nova-2) and text-to-speech (Aura) for real-time Voice AI streaming. Optional ELEVENLABS_API_KEY for higher quality TTS.
