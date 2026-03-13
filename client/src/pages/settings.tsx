@@ -1045,6 +1045,30 @@ export default function SettingsPage() {
               </div>
             )}
           </Card>
+          <Card className="p-5" data-testid="integration-sending-domain">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-md bg-sky-500/10 flex items-center justify-center shrink-0">
+                <Globe className="w-5 h-5 text-sky-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-sm">Custom Sending Domain</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Send emails from your own domain (e.g., info@yourdomain.com) instead of the ArgiFlow platform address. Verify your domain with DNS records to enable white-label sending.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              className="mt-1"
+              data-testid="button-manage-domain"
+              onClick={() => window.location.href = "/dashboard/domain"}
+            >
+              <Shield className="w-3.5 h-3.5 mr-1.5" />
+              Manage Sending Domain
+            </Button>
+          </Card>
           {integrations.map((config) => {
             const connected = isIntegrationConnected(config);
             const unsaved = hasUnsavedChanges(config);
