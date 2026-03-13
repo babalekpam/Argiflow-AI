@@ -52,3 +52,7 @@ integrations = ["javascript_log_in_with_replit:2.0.0", "javascript_database:1.0.
 YOU_API_KEY = "ydc-sk-528e87ffac9b11ff-UG1kRTTLo8d0ByGBgLCJpMsqP5SiGSrl-82e0f3c4"
 VITE_STRIPE_PUBLISHABLE_KEY = "pk_live_51IGTenI00Go5yxk3MsJtzIZrryk7cjsYdlxt3IOndCNUnAcgkyf4vUHE0xDF6tZg5rYHN9cam5uYYkuaJdfFIke800vrpXeFMZ"
 POSTAL_API_URL = "https://mail.argilette.co"
+SES_SMTP_HOST = "email-smtp.us-east-2.amazonaws.com"
+SES_SMTP_PORT = "587"
+SES_SMTP_USER = "AKIAS2M546PKONWP4HFE"
+SES_FROM_EMAIL = "partnerships@argilette.co"
