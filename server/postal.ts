@@ -75,6 +75,24 @@ function buildFromAddress(fromName?: string, from?: string): string {
     : (from || DEFAULT_FROM);
 }
 
+async function checkPostalDeliveryStatus(messageId: number): Promise<{ held: boolean; reason?: string }> {
+  try {
+    const response = await fetch(`${POSTAL_API_URL}/messages/deliveries`, {
+      method: "POST",
+      headers: { "X-Server-API-Key": POSTAL_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ id: messageId }),
+    });
+    const data = await response.json() as any;
+    if (data.status === "success" && Array.isArray(data.data)) {
+      const held = data.data.find((d: any) => d.status === "Held");
+      if (held) return { held: true, reason: held.details || "Unknown" };
+    }
+    return { held: false };
+  } catch {
+    return { held: false };
+  }
+}
+
 async function sendViaPostalApi(options: SendEmailOptions): Promise<PostalSendResult> {
   if (!POSTAL_API_KEY) return { success: false, error: "POSTAL_API_KEY not configured" };
 
@@ -106,7 +124,22 @@ async function sendViaPostalApi(options: SendEmailOptions): Promise<PostalSendRe
 
   if (data.status === "success") {
     const firstRecipient = Object.values(data.data?.messages || {})[0] as any;
+    const recipientId = firstRecipient?.id;
     console.log(`[Postal API] Accepted — msgId: ${data.data?.message_id}, token: ${firstRecipient?.token}, recipient: ${JSON.stringify(Object.keys(data.data?.messages || {}))}`);
+
+    if (recipientId) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const deliveryCheck = await checkPostalDeliveryStatus(recipientId);
+      if (deliveryCheck.held) {
+        console.warn(`[Postal API] Message HELD — ${deliveryCheck.reason}. Will try SES fallback.`);
+        return {
+          success: false,
+          error: `Postal held: ${deliveryCheck.reason}`,
+          provider: "postal",
+        };
+      }
+    }
+
     return {
       success: true,
       messageId: data.data?.message_id,
