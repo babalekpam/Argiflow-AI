@@ -193,14 +193,7 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
   const hasCustomSmtp = !!(smtpHost && smtpUser && smtpPass) && !isBrokenSmtp;
 
   // Determine the from address: prefer user's sender_email, then explicit option, then platform default
-  // Skip sender emails from known-broken domains that aren't verified in SES
-  const BROKEN_SENDER_DOMAINS = ["track-med.com"];
-  const rawSenderEmail = options.from || uSettings?.senderEmail;
-  const senderIsBroken = rawSenderEmail && BROKEN_SENDER_DOMAINS.some(d => rawSenderEmail.toLowerCase().includes(d));
-  if (senderIsBroken) {
-    console.warn(`[EmailQuota] Skipping broken sender '${rawSenderEmail}' — using platform default`);
-  }
-  const fromEmail = (senderIsBroken ? null : rawSenderEmail) || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+  const fromEmail = options.from || uSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
 
   let sendResult: any;
   try {
