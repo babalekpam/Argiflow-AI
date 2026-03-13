@@ -141,12 +141,15 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
 
   const toAddresses = toList.join(", ");
 
+  const fromAddr = options.from || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+  console.log(`[EmailQuota] Sending email — to: ${toAddresses}, from: ${fromAddr}, fromName: ${options.fromName}, subject: ${subject}`);
+
   let sendResult: any;
   try {
     // Always use SES (reliable delivery)
     sendResult = await postalService.sendEmail({
       to: toAddresses,
-      from: options.from || process.env.SES_FROM_EMAIL || "partnerships@argilette.co",
+      from: fromAddr,
       fromName: options.fromName || "ArgiFlow",
       subject,
       htmlBody: htmlBody || undefined,
