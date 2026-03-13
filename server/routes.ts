@@ -1181,13 +1181,10 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
     return { success: false, error: "Company identity required. Go to Settings > Company Profile and enter your company name before sending outreach." };
   }
 
-  // Use user's custom SMTP only if explicitly set in user_settings and not a known-broken host
   const customSmtpHost = userSettings?.smtpHost;
   const customSmtpUser = userSettings?.smtpUsername;
   const customSmtpPass = userSettings?.smtpPassword;
-  const BROKEN_HOSTS = ["track-med.com", "mail.track-med.com"];
-  const isBrokenHost = customSmtpHost && BROKEN_HOSTS.some(h => customSmtpHost.toLowerCase().includes(h));
-  const hasCustomSmtp = !!(customSmtpHost && customSmtpUser && customSmtpPass) && !isBrokenHost;
+  const hasCustomSmtp = !!(customSmtpHost && customSmtpUser && customSmtpPass);
 
   const senderEmail = userSettings.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
   const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
@@ -4611,13 +4608,10 @@ RULES:
       return { success: false, error: `Missing company config` };
     }
 
-    // Use user's custom SMTP only if explicitly configured and not a known-broken host
     const customSmtpHost = userSettings?.smtpHost;
     const customSmtpUser = userSettings?.smtpUsername;
     const customSmtpPass = userSettings?.smtpPassword;
-    const BROKEN_HOSTS_FU = ["track-med.com", "mail.track-med.com"];
-    const isBrokenHostFU = customSmtpHost && BROKEN_HOSTS_FU.some(h => customSmtpHost.toLowerCase().includes(h));
-    const hasCustomSmtp = !!(customSmtpHost && customSmtpUser && customSmtpPass) && !isBrokenHostFU;
+    const hasCustomSmtp = !!(customSmtpHost && customSmtpUser && customSmtpPass);
 
     const senderEmail = userSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
     const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
@@ -4992,9 +4986,7 @@ Return ONLY the email reply text, no subject line, no markdown.`
                 const inboxCustomSmtpHost = userSettings?.smtpHost;
                 const inboxCustomSmtpUser = userSettings?.smtpUsername;
                 const inboxCustomSmtpPass = userSettings?.smtpPassword;
-                const BROKEN_HOSTS_IN = ["track-med.com", "mail.track-med.com"];
-                const isBrokenHostIN = inboxCustomSmtpHost && BROKEN_HOSTS_IN.some(h => inboxCustomSmtpHost.toLowerCase().includes(h));
-                const inboxHasCustomSmtp = !!(inboxCustomSmtpHost && inboxCustomSmtpUser && inboxCustomSmtpPass) && !isBrokenHostIN;
+                const inboxHasCustomSmtp = !!(inboxCustomSmtpHost && inboxCustomSmtpUser && inboxCustomSmtpPass);
                 const senderName = `${matchedUser.firstName || ""} from ${senderCompany}`.trim();
 
                 const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;

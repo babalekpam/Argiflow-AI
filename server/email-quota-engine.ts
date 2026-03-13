@@ -185,12 +185,7 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
   const smtpHost = uSettings?.smtpHost;
   const smtpUser = uSettings?.smtpUsername;
   const smtpPass = uSettings?.smtpPassword;
-  const BROKEN_SMTP_HOSTS = ["track-med.com", "mail.track-med.com"];
-  const isBrokenSmtp = smtpHost && BROKEN_SMTP_HOSTS.some(h => smtpHost.toLowerCase().includes(h));
-  if (isBrokenSmtp) {
-    console.warn(`[EmailQuota] Skipping broken SMTP host '${smtpHost}' — using platform instead`);
-  }
-  const hasCustomSmtp = !!(smtpHost && smtpUser && smtpPass) && !isBrokenSmtp;
+  const hasCustomSmtp = !!(smtpHost && smtpUser && smtpPass);
 
   // Determine the from address: prefer user's sender_email, then explicit option, then platform default
   const fromEmail = options.from || uSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
