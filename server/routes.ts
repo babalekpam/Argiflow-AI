@@ -87,9 +87,6 @@ async function logEmail(data: { userId: string; leadId?: string; recipientEmail:
 }
 
 async function sendViaPostal(params: { to: string; toName?: string; fromEmail: string; fromName: string; subject: string; html: string; plainText?: string }): Promise<{ success: boolean; error?: string }> {
-  const postalKey = process.env.POSTAL_API_KEY;
-  if (!postalKey) return { success: false, error: "POSTAL_API_KEY not configured" };
-
   const recipient = params.toName
     ? { address: params.to, name: params.toName }
     : params.to;
@@ -107,56 +104,19 @@ async function sendViaPostal(params: { to: string; toName?: string; fromEmail: s
 }
 
 async function sendSystemEmail(to: string, from: { email: string; name: string }, subject: string, html: string, userId?: string) {
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpUser = process.env.SMTP_USERNAME;
-  const smtpPass = process.env.SMTP_PASSWORD;
-  const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587;
-  const sgKey = process.env.SENDGRID_API_KEY;
-  const postalKey = process.env.POSTAL_API_KEY;
-
   const logUserId = userId || "system";
   try {
-    if (postalKey) {
-      const result = await sendViaPostal({ to, fromEmail: from.email, fromName: from.name, subject, html });
-      if (result.success) {
-        console.log(`[SystemEmail] Sent via Postal to ${to}`);
-        await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "postal", source: "system", status: "sent" });
-        return;
-      }
-      console.warn(`[SystemEmail] Postal failed: ${result.error}, trying fallback...`);
+    const result = await sendViaPostal({ to, fromEmail: from.email, fromName: from.name, subject, html });
+    if (result.success) {
+      console.log(`[SystemEmail] Sent via SES to ${to}`);
+      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "ses", source: "system", status: "sent" });
+      return;
     }
-
-    if (smtpHost && smtpUser && smtpPass) {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: { user: smtpUser, pass: smtpPass },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-      });
-      await transporter.sendMail({
-        from: `"${from.name}" <${from.email}>`,
-        to,
-        subject,
-        html,
-      });
-      console.log(`[SystemEmail] Sent via SMTP to ${to}`);
-      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "smtp", source: "system", status: "sent" });
-    } else if (sgKey) {
-      sgMail.setApiKey(sgKey);
-      await sgMail.send({ to, from, subject, html });
-      console.log(`[SystemEmail] Sent via SendGrid to ${to}`);
-      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "sendgrid", source: "system", status: "sent" });
-    } else {
-      console.warn("No email provider configured. Cannot send system email.");
-      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "none", source: "system", status: "failed", errorMessage: "No email provider configured" });
-    }
+    throw new Error(result.error || "SES send failed");
   } catch (err: any) {
-    const errorMsg = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send system email";
+    const errorMsg = err?.message || "Failed to send system email";
     console.error(`[SystemEmail] Send error to ${to}:`, errorMsg);
-    await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: postalKey ? "postal" : smtpHost ? "smtp" : "sendgrid", source: "system", status: "failed", errorMessage: errorMsg });
+    await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "ses", source: "system", status: "failed", errorMessage: errorMsg });
   }
 }
 

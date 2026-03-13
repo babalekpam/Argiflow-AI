@@ -1,9 +1,4 @@
-// ============================================================
-// EMAIL QUOTA ENGINE — ArgiFlow Mailing Service
-// Handles quota checks, usage tracking, plan management
-// ============================================================
-
-import { db } from "./db"; // your existing db import
+import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
 import {
   emailQuotas,
@@ -11,12 +6,7 @@ import {
   EMAIL_PLAN_LIMITS,
   type EmailQuota,
 } from "../shared/email-quota-schema";
-
-// Postal config
-const POSTAL_API_URL = "https://mail.argilette.co/api/v1";
-const POSTAL_API_KEY = process.env.POSTAL_API_KEY || "";
-
-// ── QUOTA MANAGEMENT ──────────────────────────────────────────
+import postalService from "./postal";
 
 export async function getOrCreateQuota(userId: string): Promise<EmailQuota> {
   const [existing] = await db
@@ -25,7 +15,6 @@ export async function getOrCreateQuota(userId: string): Promise<EmailQuota> {
     .where(eq(emailQuotas.userId, userId));
 
   if (existing) {
-    // Check if reset date has passed — reset counter if new month
     const now = new Date();
     if (now >= existing.resetDate) {
       const nextReset = getNextResetDate();
@@ -39,7 +28,6 @@ export async function getOrCreateQuota(userId: string): Promise<EmailQuota> {
     return existing;
   }
 
-  // Create new quota with starter plan
   const [created] = await db
     .insert(emailQuotas)
     .values({
@@ -93,8 +81,6 @@ export async function upgradePlan(userId: string, newPlan: "starter" | "growth" 
   return updated;
 }
 
-// ── CORE SEND WITH QUOTA ──────────────────────────────────────
-
 export interface QuotaSendOptions {
   userId: string;
   to: string | string[];
@@ -104,7 +90,6 @@ export interface QuotaSendOptions {
   htmlBody?: string;
   plainBody?: string;
   tag?: string;
-  // Variable substitution
   firstName?: string;
   lastName?: string;
   company?: string;
@@ -120,7 +105,6 @@ export interface QuotaSendResult {
 }
 
 export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<QuotaSendResult> {
-  // 1. Check quota
   const quotaCheck = await checkQuota(options.userId);
 
   if (!quotaCheck.allowed) {
@@ -132,7 +116,6 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
     };
   }
 
-  // 2. Process variables
   const variables: Record<string, string> = {
     firstName: options.firstName || "there",
     first_name: options.firstName || "there",
@@ -148,35 +131,21 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
     htmlBody = htmlBody.replace(new RegExp(`{{${key}}}`, "g"), val).replace(new RegExp(`{${key}}`, "g"), val);
   }
 
-  // 3. Build recipient list
   const toList = Array.isArray(options.to) ? options.to : [options.to];
   const toAddresses = toList.join(", ");
 
-  const fromAddress = options.fromName
-    ? `${options.fromName} <${options.from || "partnerships@argilette.co"}>`
-    : (options.from || "partnerships@argilette.co");
-
-  // 4. Send via Postal
-  let postalResult: any;
+  let sendResult: any;
   try {
-    const response = await fetch(`${POSTAL_API_URL}/send/message`, {
-      method: "POST",
-      headers: {
-        "X-Server-API-Key": POSTAL_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        to: toAddresses,
-        from: fromAddress,
-        subject,
-        html_body: htmlBody || undefined,
-        plain_body: options.plainBody || undefined,
-        tag: options.tag || "argiflow",
-      }),
+    sendResult = await postalService.sendEmail({
+      to: toAddresses,
+      from: options.from,
+      fromName: options.fromName,
+      subject,
+      htmlBody: htmlBody || undefined,
+      plainBody: options.plainBody || undefined,
+      tag: options.tag || "argiflow",
     });
-    postalResult = await response.json();
   } catch (err: any) {
-    // Log failed send
     await db.insert(emailSendsLog).values({
       userId: options.userId,
       to: toAddresses,
@@ -188,22 +157,19 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
     return { success: false, error: err.message };
   }
 
-  const success = postalResult.status === "success";
-  const firstMsg = Object.values(postalResult.data?.messages || {})[0] as any;
+  const success = sendResult.success;
 
-  // 5. Log the send
   await db.insert(emailSendsLog).values({
     userId: options.userId,
     to: toAddresses,
     subject: options.subject,
     tag: options.tag,
-    postalMsgId: postalResult.data?.message_id,
-    postalToken: firstMsg?.token,
+    postalMsgId: sendResult.messageId,
+    postalToken: sendResult.token,
     status: success ? "sent" : "failed",
-    errorMsg: success ? null : (postalResult.data?.message || "Unknown error"),
+    errorMsg: success ? null : (sendResult.error || "Unknown error"),
   });
 
-  // 6. Increment quota counter
   if (success) {
     await db
       .update(emailQuotas)
@@ -217,14 +183,12 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
 
   return {
     success,
-    messageId: postalResult.data?.message_id,
-    token: firstMsg?.token,
+    messageId: sendResult.messageId,
+    token: sendResult.token,
     remaining: quotaCheck.remaining - (success ? 1 : 0),
-    error: success ? undefined : postalResult.data?.message,
+    error: success ? undefined : sendResult.error,
   };
 }
-
-// ── BULK SEND WITH QUOTA ──────────────────────────────────────
 
 export async function sendBulkWithQuota(
   userId: string,
@@ -243,7 +207,6 @@ export async function sendBulkWithQuota(
     return { success: false, sent: 0, failed: emails.length, quotaExceeded: true, remaining: 0 };
   }
 
-  // Only send up to remaining quota
   const sendable = emails.slice(0, quotaCheck.remaining);
   let sent = 0;
   let failed = 0;
@@ -269,8 +232,6 @@ export async function sendBulkWithQuota(
   };
 }
 
-// ── ADMIN FUNCTIONS ───────────────────────────────────────────
-
 export async function getAllUsersQuotaStats() {
   return db.select().from(emailQuotas).orderBy(emailQuotas.sentThisMonth);
 }
@@ -284,11 +245,9 @@ export async function getUserEmailHistory(userId: string, limit = 50) {
     .limit(limit);
 }
 
-// ── HELPERS ───────────────────────────────────────────────────
-
 function getNextResetDate(): Date {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth() + 1, 1); // 1st of next month
+  return new Date(now.getFullYear(), now.getMonth() + 1, 1);
 }
 
 export default {

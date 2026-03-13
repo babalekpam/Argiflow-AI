@@ -1,11 +1,29 @@
-// ============================================================
-// POSTAL EMAIL SERVICE — ArgiFlow Integration
-// Replaces nodemailer/SMTP with Postal HTTP API
-// Server: https://mail.argilette.co
-// ============================================================
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 
-const POSTAL_API_URL = "https://mail.argilette.co/api/v1";
-const POSTAL_API_KEY = process.env.POSTAL_API_KEY || "";
+const SES_HOST = process.env.SES_SMTP_HOST || "email-smtp.us-east-2.amazonaws.com";
+const SES_PORT = parseInt(process.env.SES_SMTP_PORT || "587", 10);
+const SES_USER = process.env.SES_SMTP_USER || "";
+const SES_PASS = process.env.SES_SMTP_PASS || "";
+const SES_FROM = process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+
+let _transporter: Transporter | null = null;
+
+function getTransporter(): Transporter {
+  if (!_transporter) {
+    if (!SES_USER || !SES_PASS) {
+      throw new Error("SES_SMTP_USER and SES_SMTP_PASS must be configured");
+    }
+    _transporter = nodemailer.createTransport({
+      host: SES_HOST,
+      port: SES_PORT,
+      secure: false,
+      auth: { user: SES_USER, pass: SES_PASS },
+    });
+    console.log(`[Email] SES SMTP configured via ${SES_HOST}:${SES_PORT}`);
+  }
+  return _transporter;
+}
 
 export interface EmailRecipient {
   address: string;
@@ -20,11 +38,11 @@ export interface SendEmailOptions {
   subject: string;
   htmlBody?: string;
   plainBody?: string;
-  tag?: string; // for tracking/categorization e.g. "sequence", "navimed", "argiflow"
+  tag?: string;
   attachments?: {
     name: string;
     content_type: string;
-    data: string; // base64 encoded
+    data: string;
   }[];
 }
 
@@ -42,11 +60,10 @@ export interface BulkSendResult {
   results: PostalSendResult[];
 }
 
-// ── CORE SEND FUNCTION ────────────────────────────────────────
-
 export async function sendEmail(options: SendEmailOptions): Promise<PostalSendResult> {
   try {
-    // Normalize recipients
+    const transporter = getTransporter();
+
     const toArray = Array.isArray(options.to) ? options.to : [options.to];
     const toAddresses = toArray.map(r => {
       if (typeof r === "string") return r;
@@ -54,57 +71,46 @@ export async function sendEmail(options: SendEmailOptions): Promise<PostalSendRe
     });
 
     const fromAddress = options.fromName
-      ? `${options.fromName} <${options.from || "partnerships@argilette.co"}>`
-      : (options.from || "partnerships@argilette.co");
+      ? `${options.fromName} <${options.from || SES_FROM}>`
+      : (options.from || SES_FROM);
 
-    const payload: Record<string, any> = {
-      to: toAddresses,
+    const mailOptions: any = {
       from: fromAddress,
+      to: toAddresses.join(", "),
       subject: options.subject,
     };
 
-    if (options.htmlBody) payload.html_body = options.htmlBody;
-    if (options.plainBody) payload.plain_body = options.plainBody;
-    if (options.replyTo) payload.reply_to = options.replyTo;
-    if (options.tag) payload.tag = options.tag;
-    if (options.attachments) payload.attachments = options.attachments;
+    if (options.htmlBody) mailOptions.html = options.htmlBody;
+    if (options.plainBody) mailOptions.text = options.plainBody;
+    if (options.replyTo) mailOptions.replyTo = options.replyTo;
 
-    const response = await fetch(`${POSTAL_API_URL}/send/message`, {
-      method: "POST",
-      headers: {
-        "X-Server-API-Key": POSTAL_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json() as any;
-
-    if (data.status === "success") {
-      const firstRecipient = Object.values(data.data?.messages || {})[0] as any;
-      return {
-        success: true,
-        messageId: data.data?.message_id,
-        token: firstRecipient?.token,
-      };
-    } else {
-      console.error("[Postal] Send failed:", data);
-      return {
-        success: false,
-        error: data.data?.message || "Unknown Postal error",
-      };
+    if (options.attachments?.length) {
+      mailOptions.attachments = options.attachments.map(a => ({
+        filename: a.name,
+        content: Buffer.from(a.data, "base64"),
+        contentType: a.content_type,
+      }));
     }
+
+    if (options.tag) {
+      mailOptions.headers = { "X-ArgiFlow-Tag": options.tag };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+
+    return {
+      success: true,
+      messageId: info.messageId,
+    };
   } catch (err: any) {
-    console.error("[Postal] Request error:", err.message);
+    console.error("[Email] SES send failed:", err.message);
     return { success: false, error: err.message };
   }
 }
 
-// ── BULK SEND (for sequences / campaigns) ─────────────────────
-
 export async function sendBulkEmails(
   emails: SendEmailOptions[],
-  delayMs: number = 500 // 500ms delay between sends to avoid rate limiting
+  delayMs: number = 500
 ): Promise<BulkSendResult> {
   const results: PostalSendResult[] = [];
   let sent = 0;
@@ -113,14 +119,9 @@ export async function sendBulkEmails(
   for (const email of emails) {
     const result = await sendEmail(email);
     results.push(result);
+    if (result.success) sent++;
+    else failed++;
 
-    if (result.success) {
-      sent++;
-    } else {
-      failed++;
-    }
-
-    // Delay between sends
     if (delayMs > 0 && emails.indexOf(email) < emails.length - 1) {
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
@@ -129,17 +130,13 @@ export async function sendBulkEmails(
   return { success: failed === 0, sent, failed, results };
 }
 
-// ── SEQUENCE EMAIL HELPER ─────────────────────────────────────
-// Processes spintax and variable substitution before sending
-
 export function processSpintax(text: string): string {
   return text.replace(/\{([^}]+)\}/g, (match, options) => {
-    // Check if it looks like a spintax block (contains |)
     if (options.includes("|")) {
       const variants = options.split("|");
       return variants[Math.floor(Math.random() * variants.length)];
     }
-    return match; // Return as-is if it's a variable placeholder
+    return match;
   });
 }
 
@@ -176,15 +173,8 @@ export async function sendSequenceEmail(options: {
     fullName: `${options.firstName || ""} ${options.lastName || ""}`.trim() || "there",
   };
 
-  const processedSubject = substituteVariables(
-    processSpintax(options.subject),
-    variables
-  );
-
-  const processedBody = substituteVariables(
-    processSpintax(options.htmlBody),
-    variables
-  );
+  const processedSubject = substituteVariables(processSpintax(options.subject), variables);
+  const processedBody = substituteVariables(processSpintax(options.htmlBody), variables);
 
   return sendEmail({
     to: options.to,
@@ -197,8 +187,6 @@ export async function sendSequenceEmail(options: {
       : "sequence",
   });
 }
-
-// ── TRANSACTIONAL EMAIL HELPERS ───────────────────────────────
 
 export async function sendWelcomeEmail(to: string, name: string): Promise<PostalSendResult> {
   return sendEmail({
@@ -262,7 +250,7 @@ export async function sendLeadNotificationEmail(
     subject: `New lead: ${leadName} from ${leadCompany}`,
     htmlBody: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h3>🎯 New Lead Captured</h3>
+        <h3>New Lead Captured</h3>
         <table style="width: 100%; border-collapse: collapse;">
           <tr><td style="padding: 8px; color: #666;">Name</td><td style="padding: 8px;"><strong>${leadName}</strong></td></tr>
           <tr><td style="padding: 8px; color: #666;">Email</td><td style="padding: 8px;">${leadEmail}</td></tr>
@@ -278,17 +266,12 @@ export async function sendLeadNotificationEmail(
   });
 }
 
-// ── MESSAGE STATUS CHECK ──────────────────────────────────────
-
 export async function getMessageStatus(messageId: string): Promise<any> {
-  try {
-    const response = await fetch(`${POSTAL_API_URL}/messages/${messageId}`, {
-      headers: { "X-Server-API-Key": POSTAL_API_KEY },
-    });
-    return await response.json();
-  } catch (err: any) {
-    return { error: err.message };
-  }
+  return { messageId, status: "Message status tracking via SES CloudWatch" };
+}
+
+export function getSesTransporter(): Transporter {
+  return getTransporter();
 }
 
 export default {
@@ -301,4 +284,5 @@ export default {
   getMessageStatus,
   processSpintax,
   substituteVariables,
+  getSesTransporter,
 };
