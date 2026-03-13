@@ -194,29 +194,29 @@ async function sendViaSes(options: SendEmailOptions): Promise<PostalSendResult> 
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<PostalSendResult> {
-  // Postal API first — supports white-label sending from custom domains (e.g. track-med.com)
-  // SES SMTP fallback — reliable but only supports verified sender domains (argilette.co)
+  // SES first — reliable delivery, no suppression list issues
+  // Always use verified platform sender for SES
+  const sesFrom = DEFAULT_FROM;
   try {
-    const postalResult = await sendViaPostalApi(options);
-    if (postalResult.success) {
-      console.log(`[Email] Sent via Postal to ${JSON.stringify(options.to)} from ${options.from || DEFAULT_FROM} — msgId: ${postalResult.messageId}`);
-      return postalResult;
-    }
-    console.warn(`[Email] Postal failed: ${postalResult.error}, trying SES fallback...`);
-  } catch (err: any) {
-    console.warn(`[Email] Postal error: ${err.message}, trying SES fallback...`);
-  }
-
-  // SES fallback — override from address to verified platform identity
-  const sesOptions = { ...options, from: DEFAULT_FROM };
-  try {
-    const sesResult = await sendViaSes(sesOptions);
+    const sesResult = await sendViaSes({ ...options, from: sesFrom });
     if (sesResult.success) {
-      console.log(`[Email] Sent via SES to ${JSON.stringify(options.to)} from ${DEFAULT_FROM} — msgId: ${sesResult.messageId}`);
+      console.log(`[Email] Sent via SES to ${JSON.stringify(options.to)} from ${sesFrom} — msgId: ${sesResult.messageId}`);
       return sesResult;
     }
-    console.error(`[Email] SES also failed: ${sesResult.error}`);
-    return sesResult;
+    console.warn(`[Email] SES failed: ${sesResult.error}, trying Postal fallback...`);
+  } catch (err: any) {
+    console.warn(`[Email] SES error: ${err.message}, trying Postal fallback...`);
+  }
+
+  // Postal API fallback
+  try {
+    const postalResult = await sendViaPostalApi({ ...options, from: sesFrom });
+    if (postalResult.success) {
+      console.log(`[Email] Sent via Postal to ${JSON.stringify(options.to)} from ${sesFrom} — msgId: ${postalResult.messageId}`);
+      return postalResult;
+    }
+    console.error(`[Email] Postal also failed: ${postalResult.error}`);
+    return postalResult;
   } catch (err: any) {
     console.error(`[Email] All providers failed. Last error:`, err.message);
     return { success: false, error: err.message };
