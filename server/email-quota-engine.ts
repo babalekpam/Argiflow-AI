@@ -1,3 +1,4 @@
+import nodemailer from "nodemailer";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
 import {
@@ -6,7 +7,45 @@ import {
   EMAIL_PLAN_LIMITS,
   type EmailQuota,
 } from "../shared/email-quota-schema";
+import { userSettings } from "../shared/schema";
 import postalService from "./postal";
+
+async function sendViaUserSmtp(options: {
+  to: string;
+  from: string;
+  fromName?: string;
+  subject: string;
+  htmlBody?: string;
+  plainBody?: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpPass: string;
+  smtpSecure: boolean;
+}): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const transporter = nodemailer.createTransport({
+    host: options.smtpHost,
+    port: options.smtpPort,
+    secure: options.smtpSecure,
+    auth: { user: options.smtpUser, pass: options.smtpPass },
+    requireTLS: !options.smtpSecure,
+  });
+
+  const fromAddress = options.fromName
+    ? `${options.fromName} <${options.from}>`
+    : options.from;
+
+  const mail: any = {
+    from: fromAddress,
+    to: options.to,
+    subject: options.subject,
+  };
+  if (options.htmlBody) mail.html = options.htmlBody;
+  if (options.plainBody) mail.text = options.plainBody;
+
+  const info = await transporter.sendMail(mail);
+  return { success: true, messageId: info.messageId };
+}
 
 export async function getOrCreateQuota(userId: string): Promise<EmailQuota> {
   const [existing] = await db
@@ -134,17 +173,50 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
   const toList = Array.isArray(options.to) ? options.to : [options.to];
   const toAddresses = toList.join(", ");
 
+  // Look up user's custom SMTP settings for white-label sending
+  const [uSettings] = await db
+    .select()
+    .from(userSettings)
+    .where(eq(userSettings.userId, options.userId));
+
+  const smtpHost = uSettings?.smtpHost;
+  const smtpUser = uSettings?.smtpUsername;
+  const smtpPass = uSettings?.smtpPassword;
+  const hasCustomSmtp = !!(smtpHost && smtpUser && smtpPass);
+
+  // Determine the from address: prefer user's sender_email, then explicit option, then platform default
+  const fromEmail = options.from || uSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+
   let sendResult: any;
   try {
-    sendResult = await postalService.sendEmail({
-      to: toAddresses,
-      from: options.from,
-      fromName: options.fromName,
-      subject,
-      htmlBody: htmlBody || undefined,
-      plainBody: options.plainBody || undefined,
-      tag: options.tag || "argiflow",
-    });
+    if (hasCustomSmtp) {
+      // Send via user's own SMTP — fully white-label, no ArgiFlow branding in headers
+      const result = await sendViaUserSmtp({
+        to: toAddresses,
+        from: fromEmail,
+        fromName: options.fromName,
+        subject,
+        htmlBody: htmlBody || undefined,
+        plainBody: options.plainBody || undefined,
+        smtpHost,
+        smtpPort: uSettings?.smtpPort || 587,
+        smtpUser,
+        smtpPass,
+        smtpSecure: uSettings?.smtpSecure ?? false,
+      });
+      sendResult = result;
+    } else {
+      // Fall back to platform SES → Postal
+      sendResult = await postalService.sendEmail({
+        to: toAddresses,
+        from: fromEmail,
+        fromName: options.fromName,
+        subject,
+        htmlBody: htmlBody || undefined,
+        plainBody: options.plainBody || undefined,
+        tag: options.tag || "argiflow",
+      });
+    }
   } catch (err: any) {
     await db.insert(emailSendsLog).values({
       userId: options.userId,
