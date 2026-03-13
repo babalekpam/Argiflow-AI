@@ -29,6 +29,9 @@ async function sendViaUserSmtp(options: {
     secure: options.smtpSecure,
     auth: { user: options.smtpUser, pass: options.smtpPass },
     requireTLS: !options.smtpSecure,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 
   const fromAddress = options.fromName
@@ -170,7 +173,7 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
     htmlBody = htmlBody.replace(new RegExp(`{{${key}}}`, "g"), val).replace(new RegExp(`{${key}}`, "g"), val);
   }
 
-  const toList = Array.isArray(options.to) ? options.to : [options.to];
+  const toList = (Array.isArray(options.to) ? options.to : [options.to]).map(a => a.trim());
   const toAddresses = toList.join(", ");
 
   // Look up user's custom SMTP settings for white-label sending
@@ -190,23 +193,50 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
   let sendResult: any;
   try {
     if (hasCustomSmtp) {
-      // Send via user's own SMTP — fully white-label, no ArgiFlow branding in headers
-      const result = await sendViaUserSmtp({
-        to: toAddresses,
-        from: fromEmail,
-        fromName: options.fromName,
-        subject,
-        htmlBody: htmlBody || undefined,
-        plainBody: options.plainBody || undefined,
-        smtpHost,
-        smtpPort: uSettings?.smtpPort || 587,
-        smtpUser,
-        smtpPass,
-        smtpSecure: uSettings?.smtpSecure ?? false,
-      });
-      sendResult = result;
+      // Try user's own SMTP — fully white-label, no ArgiFlow branding in headers
+      try {
+        const result = await sendViaUserSmtp({
+          to: toAddresses,
+          from: fromEmail,
+          fromName: options.fromName,
+          subject,
+          htmlBody: htmlBody || undefined,
+          plainBody: options.plainBody || undefined,
+          smtpHost: smtpHost!,
+          smtpPort: uSettings?.smtpPort || 587,
+          smtpUser: smtpUser!,
+          smtpPass: smtpPass!,
+          smtpSecure: uSettings?.smtpSecure ?? false,
+        });
+        if (result.success) {
+          console.log(`[EmailQuota] Sent via user SMTP (${smtpHost}) to ${toAddresses}`);
+          sendResult = result;
+        } else {
+          console.warn(`[EmailQuota] User SMTP (${smtpHost}) failed: ${result.error}, falling back to platform...`);
+          sendResult = await postalService.sendEmail({
+            to: toAddresses,
+            from: fromEmail,
+            fromName: options.fromName,
+            subject,
+            htmlBody: htmlBody || undefined,
+            plainBody: options.plainBody || undefined,
+            tag: options.tag || "argiflow",
+          });
+        }
+      } catch (smtpErr: any) {
+        console.warn(`[EmailQuota] User SMTP (${smtpHost}) error: ${smtpErr.message}, falling back to platform...`);
+        sendResult = await postalService.sendEmail({
+          to: toAddresses,
+          from: fromEmail,
+          fromName: options.fromName,
+          subject,
+          htmlBody: htmlBody || undefined,
+          plainBody: options.plainBody || undefined,
+          tag: options.tag || "argiflow",
+        });
+      }
     } else {
-      // Fall back to platform SES → Postal
+      // No custom SMTP — use platform Postal API → SES fallback
       sendResult = await postalService.sendEmail({
         to: toAddresses,
         from: fromEmail,

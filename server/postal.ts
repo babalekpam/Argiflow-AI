@@ -64,8 +64,8 @@ export interface BulkSendResult {
 function normalizeRecipients(to: SendEmailOptions["to"]): string[] {
   const toArray = Array.isArray(to) ? to : [to];
   return toArray.map(r => {
-    if (typeof r === "string") return r;
-    return r.name ? `${r.name} <${r.address}>` : r.address;
+    if (typeof r === "string") return r.trim();
+    return r.name ? `${r.name} <${r.address.trim()}>` : r.address.trim();
   });
 }
 
@@ -106,6 +106,7 @@ async function sendViaPostalApi(options: SendEmailOptions): Promise<PostalSendRe
 
   if (data.status === "success") {
     const firstRecipient = Object.values(data.data?.messages || {})[0] as any;
+    console.log(`[Postal API] Accepted — msgId: ${data.data?.message_id}, token: ${firstRecipient?.token}, recipient: ${JSON.stringify(Object.keys(data.data?.messages || {}))}`);
     return {
       success: true,
       messageId: data.data?.message_id,
@@ -113,6 +114,7 @@ async function sendViaPostalApi(options: SendEmailOptions): Promise<PostalSendRe
       provider: "postal",
     };
   } else {
+    console.error(`[Postal API] Rejected — status: ${data.status}, error: ${data.data?.message || JSON.stringify(data)}`);
     return {
       success: false,
       error: data.data?.message || "Unknown Postal error",
@@ -159,19 +161,27 @@ async function sendViaSes(options: SendEmailOptions): Promise<PostalSendResult> 
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<PostalSendResult> {
+  // Postal API (HTTPS) is primary — always reachable from any environment
+  // SES SMTP is fallback — port 587 can be blocked in some deployment environments
   try {
-    const sesResult = await sendViaSes(options);
-    if (sesResult.success) return sesResult;
-    console.warn(`[Email] SES failed: ${sesResult.error}, trying Postal fallback...`);
+    const postalResult = await sendViaPostalApi(options);
+    if (postalResult.success) {
+      console.log(`[Email] Sent via Postal API to ${JSON.stringify(options.to)} — msgId: ${postalResult.messageId}`);
+      return postalResult;
+    }
+    console.warn(`[Email] Postal failed: ${postalResult.error}, trying SES fallback...`);
   } catch (err: any) {
-    console.warn(`[Email] SES error: ${err.message}, trying Postal fallback...`);
+    console.warn(`[Email] Postal error: ${err.message}, trying SES fallback...`);
   }
 
   try {
-    const postalResult = await sendViaPostalApi(options);
-    if (postalResult.success) return postalResult;
-    console.error(`[Email] Postal also failed: ${postalResult.error}`);
-    return postalResult;
+    const sesResult = await sendViaSes(options);
+    if (sesResult.success) {
+      console.log(`[Email] Sent via SES SMTP to ${JSON.stringify(options.to)} — msgId: ${sesResult.messageId}`);
+      return sesResult;
+    }
+    console.error(`[Email] SES also failed: ${sesResult.error}`);
+    return sesResult;
   } catch (err: any) {
     console.error(`[Email] All providers failed. Last error:`, err.message);
     return { success: false, error: err.message };
