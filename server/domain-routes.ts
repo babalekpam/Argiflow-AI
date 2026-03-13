@@ -59,6 +59,19 @@ router.get("/", requireAuth, async (req: any, res) => {
   }
 });
 
+// ── UPDATE DOMAIN SENDER INFO ────────────────────────────────
+// PATCH /api/domains/:id
+router.patch("/:id", requireAuth, async (req: any, res) => {
+  try {
+    const { fromName, fromEmail } = req.body;
+    const updated = await domainEngine.updateDomainSender(req.params.id, req.userId, fromName, fromEmail);
+    if (!updated) return res.status(404).json({ error: "Domain not found" });
+    res.json({ success: true, domain: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── DELETE DOMAIN ─────────────────────────────────────────────
 // DELETE /api/domains/:id
 router.delete("/:id", requireAuth, async (req: any, res) => {

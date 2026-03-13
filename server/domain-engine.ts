@@ -167,6 +167,23 @@ export async function getActiveDomainForUser(userId: string): Promise<ClientDoma
   return domains.find(d => d.status === "active") || null;
 }
 
+export async function updateDomainSender(domainId: string, userId: string, fromName?: string, fromEmail?: string): Promise<ClientDomain | null> {
+  const [domain] = await db.select().from(clientDomains)
+    .where(eq(clientDomains.id, domainId));
+
+  if (!domain || domain.userId !== userId) return null;
+
+  const updates: Record<string, any> = {};
+  if (fromName !== undefined) updates.defaultFromName = fromName;
+  if (fromEmail !== undefined) updates.defaultFromEmail = fromEmail;
+
+  if (Object.keys(updates).length === 0) return domain;
+
+  const [updated] = await db.update(clientDomains).set(updates)
+    .where(eq(clientDomains.id, domainId)).returning();
+  return updated;
+}
+
 export async function deleteDomain(domainId: string, userId: string): Promise<boolean> {
   const [domain] = await db.select().from(clientDomains)
     .where(eq(clientDomains.id, domainId));
@@ -182,5 +199,6 @@ export default {
   verifyClientDomain,
   getUserDomains,
   getActiveDomainForUser,
+  updateDomainSender,
   deleteDomain,
 };

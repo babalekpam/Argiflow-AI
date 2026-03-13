@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Plus, Trash2, RefreshCw, Copy, Check, Shield, Mail, AlertTriangle, CheckCircle2, Clock, Info } from "lucide-react";
+import { Globe, Plus, Trash2, RefreshCw, Copy, Check, Shield, Mail, AlertTriangle, CheckCircle2, Clock, Info, Pencil } from "lucide-react";
 
 interface DnsRecord {
   type: string;
@@ -71,6 +71,8 @@ export default function DomainSetup() {
   const [dnsRecords, setDnsRecords] = useState<Record<string, DnsRecord> | null>(null);
   const [form, setForm] = useState({ domain: "", fromName: "", fromEmail: "" });
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ fromName: "", fromEmail: "" });
 
   const { data, isLoading } = useQuery<{ domains: Domain[] }>({
     queryKey: ["/api/domains"],
@@ -104,6 +106,21 @@ export default function DomainSetup() {
       queryClient.invalidateQueries({ queryKey: ["/api/domains"] });
       setDnsRecords(null);
       toast({ title: "Domain removed" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, fromName, fromEmail }: { id: string; fromName: string; fromEmail: string }) => {
+      const res = await apiRequest("PATCH", `/api/domains/${id}`, { fromName, fromEmail });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/domains"] });
+      setEditingId(null);
+      toast({ title: "Sender info updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update", variant: "destructive" });
     },
   });
 
@@ -280,11 +297,62 @@ export default function DomainSetup() {
                       {domain.status === "active" ? "Active" : domain.status === "pending" ? "Pending DNS" : domain.status}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    <Mail className="h-3 w-3 inline mr-1" />
-                    Sending as: <strong className="text-foreground">{domain.defaultFromEmail}</strong>
-                    {domain.defaultFromName && ` (${domain.defaultFromName})`}
-                  </p>
+                  {editingId === domain.id ? (
+                    <div className="mt-2 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Sender Name</Label>
+                          <Input
+                            value={editForm.fromName}
+                            onChange={e => setEditForm(p => ({ ...p, fromName: e.target.value }))}
+                            placeholder="Your Company Name"
+                            data-testid="input-edit-from-name"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Sender Email</Label>
+                          <Input
+                            value={editForm.fromEmail}
+                            onChange={e => setEditForm(p => ({ ...p, fromEmail: e.target.value }))}
+                            placeholder={`hello@${domain.domain}`}
+                            data-testid="input-edit-from-email"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => updateMutation.mutate({ id: domain.id, fromName: editForm.fromName, fromEmail: editForm.fromEmail })}
+                          disabled={updateMutation.isPending}
+                          data-testid="button-save-sender"
+                        >
+                          <Check className="h-3 w-3 mr-1" />
+                          {updateMutation.isPending ? "Saving..." : "Save"}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)} data-testid="button-cancel-edit">
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      <Mail className="h-3 w-3 inline mr-1" />
+                      Sending as: <strong className="text-foreground">{domain.defaultFromEmail}</strong>
+                      {domain.defaultFromName && ` (${domain.defaultFromName})`}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-2 h-6 px-2 text-xs text-sky-400 hover:text-sky-300"
+                        onClick={() => {
+                          setEditingId(domain.id);
+                          setEditForm({ fromName: domain.defaultFromName || "", fromEmail: domain.defaultFromEmail || "" });
+                        }}
+                        data-testid={`button-edit-sender-${domain.id}`}
+                      >
+                        <Pencil className="h-3 w-3 mr-1" /> Edit
+                      </Button>
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   {domain.status !== "active" && (
