@@ -131,7 +131,14 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
     htmlBody = htmlBody.replace(new RegExp(`{{${key}}}`, "g"), val).replace(new RegExp(`{${key}}`, "g"), val);
   }
 
-  const toList = (Array.isArray(options.to) ? options.to : [options.to]).map(a => a.trim());
+  const toList = (Array.isArray(options.to) ? options.to : [options.to])
+    .map(a => a.trim().replace(/[^a-zA-Z0-9@._+\-]/g, ""))
+    .filter(a => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a));
+
+  if (toList.length === 0) {
+    return { success: false, error: "No valid email address provided" };
+  }
+
   const toAddresses = toList.join(", ");
 
   let sendResult: any;
