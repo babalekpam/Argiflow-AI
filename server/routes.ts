@@ -108,15 +108,15 @@ async function sendSystemEmail(to: string, from: { email: string; name: string }
   try {
     const result = await sendViaPostal({ to, fromEmail: from.email, fromName: from.name, subject, html });
     if (result.success) {
-      console.log(`[SystemEmail] Sent via SES to ${to}`);
-      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "ses", source: "system", status: "sent" });
+      console.log(`[SystemEmail] Sent to ${to}`);
+      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "postal", source: "system", status: "sent" });
       return;
     }
-    throw new Error(result.error || "SES send failed");
+    throw new Error(result.error || "Send failed");
   } catch (err: any) {
     const errorMsg = err?.message || "Failed to send system email";
     console.error(`[SystemEmail] Send error to ${to}:`, errorMsg);
-    await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "ses", source: "system", status: "failed", errorMessage: errorMsg });
+    await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "postal", source: "system", status: "failed", errorMessage: errorMsg });
   }
 }
 

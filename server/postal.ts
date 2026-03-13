@@ -1,28 +1,29 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 
-const SES_HOST = process.env.SES_SMTP_HOST || "email-smtp.us-east-2.amazonaws.com";
+const POSTAL_API_URL = "https://mail.argilette.co/api/v1";
+const POSTAL_API_KEY = process.env.POSTAL_API_KEY || "";
+const DEFAULT_FROM = process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+
+const SES_HOST = process.env.SES_SMTP_HOST || "";
 const SES_PORT = parseInt(process.env.SES_SMTP_PORT || "587", 10);
 const SES_USER = process.env.SES_SMTP_USER || "";
 const SES_PASS = process.env.SES_SMTP_PASS || "";
-const SES_FROM = process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
 
-let _transporter: Transporter | null = null;
+let _sesTransporter: Transporter | null = null;
 
-function getTransporter(): Transporter {
-  if (!_transporter) {
-    if (!SES_USER || !SES_PASS) {
-      throw new Error("SES_SMTP_USER and SES_SMTP_PASS must be configured");
-    }
-    _transporter = nodemailer.createTransport({
+function getSesTransporter(): Transporter | null {
+  if (!SES_USER || !SES_PASS || !SES_HOST) return null;
+  if (!_sesTransporter) {
+    _sesTransporter = nodemailer.createTransport({
       host: SES_HOST,
       port: SES_PORT,
       secure: false,
       auth: { user: SES_USER, pass: SES_PASS },
     });
-    console.log(`[Email] SES SMTP configured via ${SES_HOST}:${SES_PORT}`);
+    console.log(`[Email] SES SMTP fallback configured via ${SES_HOST}:${SES_PORT}`);
   }
-  return _transporter;
+  return _sesTransporter;
 }
 
 export interface EmailRecipient {
@@ -51,6 +52,7 @@ export interface PostalSendResult {
   messageId?: string;
   token?: string;
   error?: string;
+  provider?: string;
 }
 
 export interface BulkSendResult {
@@ -60,50 +62,119 @@ export interface BulkSendResult {
   results: PostalSendResult[];
 }
 
-export async function sendEmail(options: SendEmailOptions): Promise<PostalSendResult> {
-  try {
-    const transporter = getTransporter();
+function normalizeRecipients(to: SendEmailOptions["to"]): string[] {
+  const toArray = Array.isArray(to) ? to : [to];
+  return toArray.map(r => {
+    if (typeof r === "string") return r;
+    return r.name ? `${r.name} <${r.address}>` : r.address;
+  });
+}
 
-    const toArray = Array.isArray(options.to) ? options.to : [options.to];
-    const toAddresses = toArray.map(r => {
-      if (typeof r === "string") return r;
-      return r.name ? `${r.name} <${r.address}>` : r.address;
-    });
+function buildFromAddress(fromName?: string, from?: string): string {
+  return fromName
+    ? `${fromName} <${from || DEFAULT_FROM}>`
+    : (from || DEFAULT_FROM);
+}
 
-    const fromAddress = options.fromName
-      ? `${options.fromName} <${options.from || SES_FROM}>`
-      : (options.from || SES_FROM);
+async function sendViaPostalApi(options: SendEmailOptions): Promise<PostalSendResult> {
+  if (!POSTAL_API_KEY) return { success: false, error: "POSTAL_API_KEY not configured" };
 
-    const mailOptions: any = {
-      from: fromAddress,
-      to: toAddresses.join(", "),
-      subject: options.subject,
-    };
+  const toAddresses = normalizeRecipients(options.to);
+  const fromAddress = buildFromAddress(options.fromName, options.from);
 
-    if (options.htmlBody) mailOptions.html = options.htmlBody;
-    if (options.plainBody) mailOptions.text = options.plainBody;
-    if (options.replyTo) mailOptions.replyTo = options.replyTo;
+  const payload: Record<string, any> = {
+    to: toAddresses,
+    from: fromAddress,
+    subject: options.subject,
+  };
 
-    if (options.attachments?.length) {
-      mailOptions.attachments = options.attachments.map(a => ({
-        filename: a.name,
-        content: Buffer.from(a.data, "base64"),
-        contentType: a.content_type,
-      }));
-    }
+  if (options.htmlBody) payload.html_body = options.htmlBody;
+  if (options.plainBody) payload.plain_body = options.plainBody;
+  if (options.replyTo) payload.reply_to = options.replyTo;
+  if (options.tag) payload.tag = options.tag;
+  if (options.attachments) payload.attachments = options.attachments;
 
-    if (options.tag) {
-      mailOptions.headers = { "X-ArgiFlow-Tag": options.tag };
-    }
+  const response = await fetch(`${POSTAL_API_URL}/send/message`, {
+    method: "POST",
+    headers: {
+      "X-Server-API-Key": POSTAL_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 
-    const info = await transporter.sendMail(mailOptions);
+  const data = await response.json() as any;
 
+  if (data.status === "success") {
+    const firstRecipient = Object.values(data.data?.messages || {})[0] as any;
     return {
       success: true,
-      messageId: info.messageId,
+      messageId: data.data?.message_id,
+      token: firstRecipient?.token,
+      provider: "postal",
     };
+  } else {
+    return {
+      success: false,
+      error: data.data?.message || "Unknown Postal error",
+      provider: "postal",
+    };
+  }
+}
+
+async function sendViaSes(options: SendEmailOptions): Promise<PostalSendResult> {
+  const transporter = getSesTransporter();
+  if (!transporter) return { success: false, error: "SES SMTP not configured" };
+
+  const toAddresses = normalizeRecipients(options.to);
+  const fromAddress = buildFromAddress(options.fromName, options.from);
+
+  const mailOptions: any = {
+    from: fromAddress,
+    to: toAddresses.join(", "),
+    subject: options.subject,
+  };
+
+  if (options.htmlBody) mailOptions.html = options.htmlBody;
+  if (options.plainBody) mailOptions.text = options.plainBody;
+  if (options.replyTo) mailOptions.replyTo = options.replyTo;
+
+  if (options.attachments?.length) {
+    mailOptions.attachments = options.attachments.map(a => ({
+      filename: a.name,
+      content: Buffer.from(a.data, "base64"),
+      contentType: a.content_type,
+    }));
+  }
+
+  if (options.tag) {
+    mailOptions.headers = { "X-ArgiFlow-Tag": options.tag };
+  }
+
+  const info = await transporter.sendMail(mailOptions);
+  return {
+    success: true,
+    messageId: info.messageId,
+    provider: "ses",
+  };
+}
+
+export async function sendEmail(options: SendEmailOptions): Promise<PostalSendResult> {
+  try {
+    const postalResult = await sendViaPostalApi(options);
+    if (postalResult.success) return postalResult;
+    console.warn(`[Email] Postal failed: ${postalResult.error}, trying SES fallback...`);
   } catch (err: any) {
-    console.error("[Email] SES send failed:", err.message);
+    console.warn(`[Email] Postal error: ${err.message}, trying SES fallback...`);
+  }
+
+  try {
+    const sesResult = await sendViaSes(options);
+    if (sesResult.success) return sesResult;
+    console.error(`[Email] SES also failed: ${sesResult.error}`);
+    return sesResult;
+  } catch (err: any) {
+    console.error(`[Email] All providers failed. Last error:`, err.message);
     return { success: false, error: err.message };
   }
 }
@@ -267,11 +338,15 @@ export async function sendLeadNotificationEmail(
 }
 
 export async function getMessageStatus(messageId: string): Promise<any> {
-  return { messageId, status: "Message status tracking via SES CloudWatch" };
-}
-
-export function getSesTransporter(): Transporter {
-  return getTransporter();
+  if (!POSTAL_API_KEY) return { error: "POSTAL_API_KEY not configured" };
+  try {
+    const response = await fetch(`${POSTAL_API_URL}/messages/${messageId}`, {
+      headers: { "X-Server-API-Key": POSTAL_API_KEY },
+    });
+    return await response.json();
+  } catch (err: any) {
+    return { error: err.message };
+  }
 }
 
 export default {
@@ -284,5 +359,4 @@ export default {
   getMessageStatus,
   processSpintax,
   substituteVariables,
-  getSesTransporter,
 };
