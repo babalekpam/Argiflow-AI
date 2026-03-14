@@ -1803,16 +1803,25 @@ export default function LeadsPage() {
               {deleteAllMutation.isPending ? t("leads.clearing") : t("leads.clearAll")}
             </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={() => {
-              window.open("/api/leads/export/csv", "_blank");
-            }}
-            data-testid="button-export-csv"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+          <Select onValueChange={(val) => {
+            const url = val === "all" ? "/api/leads/export/csv" : `/api/leads/export/csv?status=${val}`;
+            window.open(url, "_blank");
+          }}>
+            <SelectTrigger className="w-[160px]" data-testid="button-export-csv">
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Leads</SelectItem>
+              <SelectItem value="hot">Hot Leads</SelectItem>
+              <SelectItem value="warm">Warm Leads</SelectItem>
+              <SelectItem value="new">New Leads</SelectItem>
+              <SelectItem value="cold">Cold Leads</SelectItem>
+              <SelectItem value="qualified">Qualified Leads</SelectItem>
+              <SelectItem value="contacted">Contacted Leads</SelectItem>
+              <SelectItem value="converted">Converted Leads</SelectItem>
+            </SelectContent>
+          </Select>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-lead">
