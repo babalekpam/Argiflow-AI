@@ -3,36 +3,89 @@ import { eq } from "drizzle-orm";
 import { clientDomains, type ClientDomain } from "../shared/domain-schema";
 import * as dns from "dns/promises";
 import * as crypto from "crypto";
+import {
+  SESClient,
+  VerifyDomainIdentityCommand,
+  VerifyDomainDkimCommand,
+  GetIdentityVerificationAttributesCommand,
+  GetIdentityDkimAttributesCommand,
+  DeleteIdentityCommand,
+} from "@aws-sdk/client-ses";
 
 const POSTAL_SERVER_ID = 1;
+const AWS_REGION = "us-east-2";
 
-async function addDomainToPostal(domain: string, dkimSelector: string): Promise<{
+function getSesClient(): SESClient | null {
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID || process.env.AWS_API_KEY;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  if (!accessKeyId || !secretAccessKey) return null;
+  return new SESClient({
+    region: AWS_REGION,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+}
+
+async function registerDomainWithSes(domain: string): Promise<{
   success: boolean;
-  domainId?: number;
-  dkimPublicKey?: string;
+  verificationToken?: string;
+  dkimTokens?: string[];
   error?: string;
 }> {
+  const client = getSesClient();
+  if (!client) return { success: false, error: "AWS SES credentials not configured" };
+
   try {
-    const { publicKey } = crypto.generateKeyPairSync("rsa", {
-      modulusLength: 2048,
-      publicKeyEncoding: { type: "spki", format: "pem" },
-      privateKeyEncoding: { type: "pkcs8", format: "pem" },
-    });
+    const verifyResult = await client.send(new VerifyDomainIdentityCommand({ Domain: domain }));
+    const verificationToken = verifyResult.VerificationToken;
+    console.log(`[DomainEngine] SES domain verification initiated for ${domain}, token: ${verificationToken}`);
 
-    const pubKeyRaw = publicKey
-      .replace("-----BEGIN PUBLIC KEY-----", "")
-      .replace("-----END PUBLIC KEY-----", "")
-      .replace(/\n/g, "");
+    const dkimResult = await client.send(new VerifyDomainDkimCommand({ Domain: domain }));
+    const dkimTokens = dkimResult.DkimTokens || [];
+    console.log(`[DomainEngine] SES DKIM tokens for ${domain}: ${dkimTokens.join(", ")}`);
 
-    const dkimRecord = `v=DKIM1; t=s; h=sha256; p=${pubKeyRaw};`;
-
-    console.log(`[DomainEngine] DKIM key generated for ${domain} (selector: ${dkimSelector})`);
-    console.log(`[DomainEngine] Note: Domain must be manually added to Postal server if SSH is not configured`);
-
-    return { success: true, dkimPublicKey: dkimRecord };
+    return { success: true, verificationToken, dkimTokens };
   } catch (err: any) {
-    console.error("[DomainEngine] DKIM generation failed:", err.message);
+    console.error(`[DomainEngine] SES registration failed for ${domain}:`, err.message);
     return { success: false, error: err.message };
+  }
+}
+
+async function checkSesVerificationStatus(domain: string): Promise<{
+  identityVerified: boolean;
+  dkimVerified: boolean;
+}> {
+  const client = getSesClient();
+  if (!client) return { identityVerified: false, dkimVerified: false };
+
+  try {
+    const [identityResult, dkimResult] = await Promise.all([
+      client.send(new GetIdentityVerificationAttributesCommand({ Identities: [domain] })),
+      client.send(new GetIdentityDkimAttributesCommand({ Identities: [domain] })),
+    ]);
+
+    const identityStatus = identityResult.VerificationAttributes?.[domain]?.VerificationStatus;
+    const dkimStatus = dkimResult.DkimAttributes?.[domain]?.DkimVerificationStatus;
+
+    console.log(`[DomainEngine] SES status for ${domain} — identity: ${identityStatus}, dkim: ${dkimStatus}`);
+
+    return {
+      identityVerified: identityStatus === "Success",
+      dkimVerified: dkimStatus === "Success",
+    };
+  } catch (err: any) {
+    console.error(`[DomainEngine] SES status check failed for ${domain}:`, err.message);
+    return { identityVerified: false, dkimVerified: false };
+  }
+}
+
+async function removeDomainFromSes(domain: string): Promise<void> {
+  const client = getSesClient();
+  if (!client) return;
+  try {
+    await client.send(new DeleteIdentityCommand({ Identity: domain }));
+    console.log(`[DomainEngine] SES identity deleted for ${domain}`);
+  } catch (err: any) {
+    console.warn(`[DomainEngine] SES identity delete failed for ${domain}:`, err.message);
   }
 }
 
@@ -78,56 +131,59 @@ export async function addClientDomain(userId: string, domain: string, fromName?:
     return { success: false, error: "Domain already registered" };
   }
 
-  const dkimSelector = `argi-${crypto.randomBytes(4).toString("hex")}`;
-  const postalResult = await addDomainToPostal(domain, dkimSelector);
+  const sesResult = await registerDomainWithSes(domain);
+  if (!sesResult.success) {
+    return { success: false, error: `SES registration failed: ${sesResult.error}` };
+  }
 
-  const spfRecord = `v=spf1 include:spf.argilette.co ~all`;
-  const returnPathHost = `rp.argilette.co`;
+  const dkimSelector = `argi-${crypto.randomBytes(4).toString("hex")}`;
 
   const [created] = await db.insert(clientDomains).values({
     userId,
     domain,
     status: "pending",
     dkimSelector,
-    dkimPublicKey: postalResult.dkimPublicKey || "",
-    spfRecord,
-    returnPathHost,
-    postalDomainId: postalResult.domainId,
+    dkimPublicKey: "",
+    spfRecord: "",
+    returnPathHost: "",
     postalServerId: POSTAL_SERVER_ID,
+    sesVerified: false,
+    sesDkimTokens: JSON.stringify(sesResult.dkimTokens || []),
     defaultFromName: fromName || "",
     defaultFromEmail: fromEmail || `hello@${domain}`,
   }).returning();
 
+  const dnsRecords: any = {
+    ses_verification: {
+      type: "TXT",
+      name: `_amazonses.${domain}`,
+      value: sesResult.verificationToken || "",
+      description: "Verifies domain ownership with Amazon SES",
+    },
+  };
+
+  if (sesResult.dkimTokens?.length) {
+    sesResult.dkimTokens.forEach((token, i) => {
+      dnsRecords[`ses_dkim_${i + 1}`] = {
+        type: "CNAME",
+        name: `${token}._domainkey.${domain}`,
+        value: `${token}.dkim.amazonses.com`,
+        description: `SES DKIM record ${i + 1} of ${sesResult.dkimTokens!.length}`,
+      };
+    });
+  }
+
   return {
     success: true,
     domain: created,
-    dnsRecords: {
-      spf: {
-        type: "TXT",
-        name: "@",
-        value: spfRecord,
-        description: "Authorizes ArgiFlow to send email from your domain",
-      },
-      dkim: {
-        type: "TXT",
-        name: `${dkimSelector}._domainkey`,
-        value: postalResult.dkimPublicKey || "",
-        description: "Authenticates your emails with a digital signature",
-      },
-      returnPath: {
-        type: "CNAME",
-        name: "psrp",
-        value: returnPathHost,
-        description: "Improves deliverability and handles bounces",
-      },
-    },
+    dnsRecords,
+    sesVerificationToken: sesResult.verificationToken,
   };
 }
 
 export async function verifyClientDomain(domainId: string, userId: string): Promise<{
-  spf: boolean;
-  dkim: boolean;
-  returnPath: boolean;
+  sesIdentity: boolean;
+  sesDkim: boolean;
   allVerified: boolean;
   status: string;
 }> {
@@ -135,26 +191,26 @@ export async function verifyClientDomain(domainId: string, userId: string): Prom
   if (!domainRecord) throw new Error("Domain not found");
   if (domainRecord.userId !== userId) throw new Error("Domain not found");
 
-  const [spf, dkim, returnPath] = await Promise.all([
-    verifySpf(domainRecord.domain),
-    verifyDkim(domainRecord.domain, domainRecord.dkimSelector),
-    verifyReturnPath(domainRecord.domain),
-  ]);
+  const sesStatus = await checkSesVerificationStatus(domainRecord.domain);
 
-  const allVerified = spf && dkim && returnPath;
+  const allVerified = sesStatus.identityVerified && sesStatus.dkimVerified;
   const status = allVerified ? "active" : "verifying";
 
   await db.update(clientDomains).set({
-    spfVerified: spf,
-    dkimVerified: dkim,
-    returnPathVerified: returnPath,
+    sesVerified: allVerified,
+    dkimVerified: sesStatus.dkimVerified,
     status: status as any,
     lastCheckedAt: new Date(),
     verifiedAt: allVerified ? new Date() : undefined,
     updatedAt: new Date(),
   }).where(eq(clientDomains.id, domainId));
 
-  return { spf, dkim, returnPath, allVerified, status };
+  return {
+    sesIdentity: sesStatus.identityVerified,
+    sesDkim: sesStatus.dkimVerified,
+    allVerified,
+    status,
+  };
 }
 
 export async function getUserDomains(userId: string): Promise<ClientDomain[]> {
@@ -190,6 +246,7 @@ export async function deleteDomain(domainId: string, userId: string): Promise<bo
 
   if (!domain || domain.userId !== userId) return false;
 
+  await removeDomainFromSes(domain.domain);
   await db.delete(clientDomains).where(eq(clientDomains.id, domainId));
   return true;
 }

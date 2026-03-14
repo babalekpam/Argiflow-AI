@@ -24,6 +24,9 @@ export const clientDomains = pgTable("client_domains", {
   postalDomainId:   integer("postal_domain_id"),
   postalServerId:   integer("postal_server_id"),
 
+  sesVerified:      boolean("ses_verified").default(false),
+  sesDkimTokens:    text("ses_dkim_tokens"),
+
   spfVerified:      boolean("spf_verified").default(false),
   dkimVerified:     boolean("dkim_verified").default(false),
   returnPathVerified: boolean("return_path_verified").default(false),

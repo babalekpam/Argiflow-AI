@@ -20,15 +20,11 @@ interface Domain {
   id: string;
   domain: string;
   status: string;
-  spfVerified: boolean;
+  sesVerified: boolean;
   dkimVerified: boolean;
-  returnPathVerified: boolean;
   defaultFromEmail: string;
   defaultFromName: string;
-  dkimSelector: string;
-  spfRecord: string;
-  dkimPublicKey: string;
-  returnPathHost: string;
+  sesDkimTokens: string;
   createdAt: string;
 }
 
@@ -380,9 +376,8 @@ export default function DomainSetup() {
               </div>
 
               <div className="flex gap-2 flex-wrap">
-                <StatusBadge verified={domain.spfVerified} label="SPF" />
+                <StatusBadge verified={domain.sesVerified} label="SES Verified" />
                 <StatusBadge verified={domain.dkimVerified} label="DKIM" />
-                <StatusBadge verified={domain.returnPathVerified} label="Return Path" />
               </div>
 
               {domain.status !== "active" && (
@@ -390,26 +385,33 @@ export default function DomainSetup() {
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="h-4 w-4 text-yellow-400 mt-0.5 shrink-0" />
                     <span>
-                      <strong>DNS records not yet verified.</strong> Make sure you've added all 3 records, then click Verify DNS. Changes can take up to 24 hours.
+                      <strong>Domain not yet verified.</strong> Add the CNAME records below at your domain registrar, then click Verify. DNS changes can take 5-15 minutes.
                     </span>
                   </div>
-                  <div className="space-y-2 text-xs font-mono bg-background/50 rounded-md p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">SPF TXT (@):</span>
-                      <code className="break-all">{domain.spfRecord}</code>
-                      <CopyButton text={domain.spfRecord || ""} />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">DKIM TXT ({domain.dkimSelector}._domainkey):</span>
-                      <CopyButton text={domain.dkimPublicKey || ""} />
-                      <span className="text-muted-foreground italic">(long key — use copy)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Return Path CNAME (psrp):</span>
-                      <code className="break-all">{domain.returnPathHost}</code>
-                      <CopyButton text={domain.returnPathHost || ""} />
-                    </div>
-                  </div>
+                  {domain.sesDkimTokens && (() => {
+                    try {
+                      const tokens: string[] = JSON.parse(domain.sesDkimTokens);
+                      return (
+                        <div className="space-y-2 text-xs font-mono bg-background/50 rounded-md p-3">
+                          <p className="text-sm font-sans font-medium text-foreground mb-2">Add these 3 CNAME records:</p>
+                          {tokens.map((token, i) => (
+                            <div key={i} className="space-y-1 pb-2 border-b border-border/50 last:border-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground shrink-0">Name:</span>
+                                <code className="break-all">{token}._domainkey.{domain.domain}</code>
+                                <CopyButton text={`${token}._domainkey.${domain.domain}`} />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground shrink-0">Value:</span>
+                                <code className="break-all">{token}.dkim.amazonses.com</code>
+                                <CopyButton text={`${token}.dkim.amazonses.com`} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    } catch { return null; }
+                  })()}
                 </div>
               )}
             </CardContent>
@@ -421,14 +423,17 @@ export default function DomainSetup() {
         <CardContent className="pt-6">
           <h4 className="font-semibold flex items-center gap-2 text-green-400 mb-3">
             <Info className="h-4 w-4" />
-            How White-Label Sending Works
+            How Domain Verification Works
           </h4>
-          <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-5">
-            <li>Your emails come from <strong className="text-foreground">you@yourdomain.com</strong> — not from ArgiFlow</li>
-            <li>Recipients never see any mention of ArgiFlow in the email</li>
-            <li>Your domain builds its own sending reputation over time</li>
-            <li>Full DKIM signatures improve deliverability and inbox placement</li>
-          </ul>
+          <ol className="text-sm text-muted-foreground space-y-2 list-decimal pl-5">
+            <li>Click <strong className="text-foreground">Connect Domain</strong> and enter your domain name</li>
+            <li>We automatically register your domain with Amazon SES and generate 3 CNAME records</li>
+            <li>Add the CNAME records at your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.)</li>
+            <li>Click <strong className="text-foreground">Verify</strong> — once verified, all your emails send from your own domain</li>
+          </ol>
+          <p className="text-sm text-muted-foreground mt-3">
+            Verification typically takes 5-15 minutes after adding DNS records. Your domain builds its own sending reputation over time.
+          </p>
         </CardContent>
       </Card>
     </div>
