@@ -37,6 +37,7 @@ import { registerAgencyRoutes } from "./agency-routes";
 import { registerGhlRoutes } from "./ghl-routes";
 import { startSequenceAutomationEngine, stopSequencesForLead, stopSequencesForDeal, autoEnrollLeadInSequence, getAutomationStatus, processSequenceAutomation } from "./sequence-automation";
 import chatbotRoutes from "./chatbot-routes";
+import { getTemplateInstructions, detectSpecialty, getFollowUpForSpecialty, TRACKMED_SEQUENCES } from "./outreach-templates";
 import postalRoutes from "./postal-routes";
 import postalService from "./postal";
 import emailQuotaRoutes from "./email-quota-routes";
@@ -1354,61 +1355,67 @@ Use this knowledge when advising the client. Reference their actual services, pr
   const medBillChatBlock = isMedBillChatUser ? `
 
 TRACK-MED BILLING SOLUTIONS — SPECIAL INSTRUCTIONS:
-You are acting as Abel Nkawula, CEO at ARGILETTE.
+You are acting as Abel Nkawula, CEO at Track-Med Billing Solutions.
 When asked to find medical practices or leads, you MUST:
 1. Use web_search to find REAL practices — search for "[specialty] practice [city/state]", "small medical practice [region]", "independent physician office [area]", "private dental practice [location]", etc.
 2. Do MULTIPLE searches (3-5) targeting different specialties, locations, and directories (Healthgrades, Zocdoc, Google Maps results, state medical board, BBB).
 3. For EACH practice found, do a FOLLOW-UP web_search for "[practice name] phone email contact" to get decision-maker details.
 4. ONLY target decision makers: Practice Owner, Managing Partner, Medical Director, Office Manager, Administrator — NEVER receptionists.
 5. Save ALL leads using generate_leads with agent_type="medical-billing".
-6. Use these outreach templates based on lead score:
-   - Score >= 60 (hot/warm): Alternate between Template A (Free Analysis Offer) and Template B (Pain Points Version)
-   - Score < 60 (cold prospect): Use Template C (Soft Introduction)
+6. Select the outreach template based on the lead's SPECIALTY:
+   - Dental/DDS/DMD/Orthodontist → Dental sequence
+   - Mental health/Therapy/Psychology/Counseling → Mental Health sequence
+   - Hospital/Health system/Medical center → Hospital sequence
+   - All other medical practices → Private Practice sequence
 
-TEMPLATE A — Subject: Billing Solutions + Free AI Prior Auth Platform for [Practice Name]
-Dear Dr. [Last Name],
-I'm reaching out because practices like [Practice Name] often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
-At Track-Med Billing Solutions, we address both — and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
+## SPECIALTY-SPECIFIC OUTREACH TEMPLATES (Touch 1 — Initial Email Only)
 
-What Track-Med Delivers:
-• End-to-end revenue cycle management (claims, posting, denials, appeals)
-• Credentialing and RAC audit defense
-• Patient balance collections
-• Complimentary CPT and billing cost analysis
-• Practice management software included at no additional cost
-
-What MedAuth Adds to Your Workflow:
-• AI Denial Risk Scoring — Identifies issues before submission; clients report approval rates improving from 68% to 91%
-• AI Appeal Generator — One practice recovered over $12,000 in denied claims
-• Time savings — Prior auth time reduced from 3+ hours to under 30 minutes daily
-• Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
-• 8-minute setup, HIPAA-compliant, end-to-end encryption
-
-Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
-
-Best regards,
+### Private Practice
+Subject: Quick question about your claim denial rate
+Hi {{First Name}},
+Most independent practices are losing 8–15% of revenue to preventable claim denials — and don't realize it until month-end.
+Track-Med catches those errors before submission using AI claim scrubbing and surfaces denial trends in real time so nothing slips through.
+Can I do a free 20-minute A/R audit for {{Practice Name}}? No pitch — just data.
+→ https://calendly.com/track-med-info/30min
 Abel Nkawula
-CEO, Track-Med Billing Solutions
-+1 (615) 482-6768
-https://www.track-med.com
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
+Track-Med Billing Solutions | track-med.com
 
-TEMPLATE C — Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
-Dear Dr. [Last Name],
-I hope this finds you well. My name is Abel Nkawula and I work with independent [specialty] practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
-At Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
-That's why we're offering a complimentary CPT & billing cost analysis — at no cost or obligation. In less than 30 minutes, we can show you:
-• Whether your current coding is maximizing your reimbursements
-• Where claims may be getting delayed or denied unnecessarily
-• A clear comparison of what you're collecting vs. what you could be
-We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
-Would you be open to a brief conversation this week? 
-Best regards,
+### Dental Offices
+Subject: Dental billing question — {{Practice Name}}
+Hi {{First Name}},
+CDT code mismatches, missing narratives, and incomplete X-ray documentation are the top reasons dental claims get denied — and they're all preventable.
+Track-Med's dental-specific claim scrubber catches those before submission and flags payer-specific requirements automatically.
+Free 20-minute billing audit for {{Practice Name}}?
+→ https://calendly.com/track-med-info/30min
 Abel Nkawula
-CEO, Track-Med Billing Solutions
-+1 (615) 482-6768
-https://www.track-med.com
-P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
+Track-Med | track-med.com
+
+### Mental Health / Therapy
+Subject: Prior auth is getting harder for behavioral health
+Hi {{First Name}},
+Payers have quietly tightened prior auth requirements for behavioral health — more session limits, stricter medical necessity docs, inconsistent telehealth policies.
+Track-Med tracks prior auth expirations automatically and applies the right POS codes and modifiers per payer so your clinicians don't lose sessions to admin errors.
+Free 20-minute audit for {{Practice Name}}?
+→ https://calendly.com/track-med-info/30min
+Abel Nkawula
+Track-Med | track-med.com
+
+### Hospitals / Health Systems
+Subject: Revenue cycle question — {{Practice Name}}
+Hi {{First Name}},
+At health systems, the biggest A/R leakage usually comes from three places: underpayments on contracted rates, prior auth bottlenecks, and denials that never get appealed.
+Track-Med gives revenue cycle teams real-time visibility across all three — with AI-flagged appeal drafts and payer contract variance detection built in.
+Worth a 30-minute discovery call?
+→ https://calendly.com/track-med-info/30min
+Abel Nkawula
+Track-Med | track-med.com
+
+RULES:
+- Replace {{First Name}} with the lead's first name
+- Replace {{Practice Name}} with the lead's company/practice name
+- Use the FULL template — do NOT shorten
+- Do NOT add any additional signature beyond what's in the template
+- Follow-ups are handled automatically by the system
 
 ABSOLUTE RULE: When asked to find practices or leads, NEVER give advice or recommendations on "how to find them." YOU must search, find, and SAVE them using the tools. The user is paying for you to DO the work, not to tell them how to do it themselves.
 ` : "";
@@ -3534,88 +3541,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
         try {
           const isMedBillUser = (senderCompany || "").toLowerCase().includes("track-med");
-          const medBillTemplateInstructions = isMedBillUser ? `
-
-## OUTREACH TEMPLATES — Use the appropriate template based on the lead's score and intent signals.
-
-**TEMPLATE A — MedAuth Bundle Offer (for leads with score >= 60 or billing-related intent):**
-Subject: Billing Solutions + Free AI Prior Auth Platform for [Practice Name]
-
-Dear Dr. [Last Name],
-I'm reaching out because practices like [Practice Name] often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
-At Track-Med Billing Solutions, we address both — and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
-
-What Track-Med Delivers:
-• End-to-end revenue cycle management (claims, posting, denials, appeals)
-• Credentialing and RAC audit defense
-• Patient balance collections
-• Complimentary CPT and billing cost analysis
-• Practice management software included at no additional cost
-
-What MedAuth Adds to Your Workflow:
-• AI Denial Risk Scoring — Identifies issues before submission; clients report approval rates improving from 68% to 91%
-• AI Appeal Generator — One practice recovered over $12,000 in denied claims
-• Time savings — Prior auth time reduced from 3+ hours to under 30 minutes daily
-• Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
-• 8-minute setup, HIPAA-compliant, end-to-end encryption
-
-Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
-
-
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
-
-**TEMPLATE B — Pain Points + MedAuth Version (for leads with score >= 60 or billing-related intent):**
-Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
-
-Dear Dr. [Last Name],
-Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
-At Track-Med Billing Solutions, we address all of these — and we're currently offering new partners 90 days of complimentary access to ARGILETTE MedAuth, our AI-powered prior authorization platform (valued at $2,700+).
-
-What sets us apart:
-✔ End-to-end revenue cycle management tailored to your specialty
-✔ Complimentary CPT & billing cost analysis — so you see the ROI before you commit
-✔ Practice management software included at no additional cost
-✔ Credentialing and RAC audit defense
-✔ HIPAA-compliant systems across the board
-✔ 90 days of ARGILETTE MedAuth — AI prior authorization that cuts auth time from 3+ hours to under 30 minutes and boosts approval rates from 68% to 91%
-
-Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
-
-
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
-
-**TEMPLATE C — Cold Prospect Introduction (for leads with score < 60 or no billing signals):**
-Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
-
-Dear Dr. [Last Name],
-I hope this finds you well. My name is Abel Nkawula and I work with independent practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
-At Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
-That's why we're offering a complimentary CPT & billing cost analysis — at no cost or obligation. In less than 30 minutes, we can show you:
-• Whether your current coding is maximizing your reimbursements
-• Where claims may be getting delayed or denied unnecessarily
-• A clear comparison of what you're collecting vs. what you could be
-We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
-Would you be open to a brief conversation this week? 
-
-P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
-
-## SIGNATURE — Every email MUST end with this exact signature block:
-
-Best regards,
-Abel Nkawula
-CEO, Track-Med Billing Solutions
-+1 (615) 482-6768
-https://www.track-med.com
-
-## RULES:
-- For leads with score >= 60 or billing/claims/denial-related intent signals: Alternate between Template A and Template B
-- For leads with score < 60 or no billing signals (cold prospects): Use Template C
-- Replace [Practice Name] with the lead's actual company/practice name
-- Replace [Dr. Last Name] with the lead's actual last name (use full name if last name unknown)
-- Adapt the opening line to match the lead's specialty (e.g. "chiropractic practices", "dental practices", "medical practices")
-- Keep the full template content — do NOT shorten or summarize
-- MUST end with the EXACT signature block above — no variations
-` : "";
+          const medBillTemplateInstructions = isMedBillUser ? getTemplateInstructions() : "";
 
           const response = await outreachAi.client.messages.create({
             model: outreachAi.model,
@@ -3623,7 +3549,7 @@ https://www.track-med.com
             messages: [{
               role: "user",
               content: isMedBillUser
-                ? `Generate personalized outreach email drafts for these leads using the Track-Med templates below. Each template already includes the proper signature — do NOT add any additional signature.\n${medBillTemplateInstructions}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"full email draft including subject line and signature from template"}]. No markdown, no explanation.`
+                ? `Generate personalized outreach email drafts for these leads using the Track-Med specialty-specific templates below. Select the correct template based on each lead's specialty (dental, mental health, hospital, or private practice). Each template already includes the proper signature — do NOT add any additional signature.\n${medBillTemplateInstructions}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"full email draft including subject line and signature from template"}]. No markdown, no explanation.`
                 : `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}\n\nEach email MUST end with this EXACT signature block:\n\nBest regards,\n${senderFullName}\n${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}\n${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${bookingLink ? `${bookingLink}\n` : ""}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft with signature"}]. No markdown, no explanation.`
             }],
           });
@@ -4442,92 +4368,11 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
               `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Notes: ${l.notes || "N/A"}, Intent: ${l.intentSignal || "N/A"}, Score: ${l.score || "N/A"}`
             ).join("\n");
 
-            const medBillTemplateInstructions = isMedBillUser ? `
-
-## OUTREACH TEMPLATES — Use the appropriate template based on the lead's score and intent signals.
-
-**TEMPLATE A — MedAuth Bundle Offer (for leads with score >= 60 or billing-related intent):**
-Subject: Billing Solutions + Free AI Prior Auth Platform for [Practice Name]
-
-Dear Dr. [Last Name],
-I'm reaching out because practices like [Practice Name] often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
-At Track-Med Billing Solutions, we address both — and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
-
-What Track-Med Delivers:
-• End-to-end revenue cycle management (claims, posting, denials, appeals)
-• Credentialing and RAC audit defense
-• Patient balance collections
-• Complimentary CPT and billing cost analysis
-• Practice management software included at no additional cost
-
-What MedAuth Adds to Your Workflow:
-• AI Denial Risk Scoring — Identifies issues before submission; clients report approval rates improving from 68% to 91%
-• AI Appeal Generator — One practice recovered over $12,000 in denied claims
-• Time savings — Prior auth time reduced from 3+ hours to under 30 minutes daily
-• Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
-• 8-minute setup, HIPAA-compliant, end-to-end encryption
-
-Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
-
-
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
-
-**TEMPLATE B — Pain Points + MedAuth Version (for leads with score >= 60 or billing-related intent):**
-Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
-
-Dear Dr. [Last Name],
-Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
-At Track-Med Billing Solutions, we address all of these — and we're currently offering new partners 90 days of complimentary access to ARGILETTE MedAuth, our AI-powered prior authorization platform (valued at $2,700+).
-
-What sets us apart:
-✔ End-to-end revenue cycle management tailored to your specialty
-✔ Complimentary CPT & billing cost analysis — so you see the ROI before you commit
-✔ Practice management software included at no additional cost
-✔ Credentialing and RAC audit defense
-✔ HIPAA-compliant systems across the board
-✔ 90 days of ARGILETTE MedAuth — AI prior authorization that cuts auth time from 3+ hours to under 30 minutes and boosts approval rates from 68% to 91%
-
-Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
-
-
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
-
-**TEMPLATE C — Cold Prospect Introduction (for leads with score < 60 or no billing signals):**
-Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
-
-Dear Dr. [Last Name],
-I hope this finds you well. My name is Abel Nkawula and I work with independent practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
-At Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
-That's why we're offering a complimentary CPT & billing cost analysis — at no cost or obligation. In less than 30 minutes, we can show you:
-• Whether your current coding is maximizing your reimbursements
-• Where claims may be getting delayed or denied unnecessarily
-• A clear comparison of what you're collecting vs. what you could be
-We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
-Would you be open to a brief conversation this week? 
-
-P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
-
-## SIGNATURE — Every email MUST end with this exact signature block:
-
-Best regards,
-Abel Nkawula
-CEO, Track-Med Billing Solutions
-+1 (615) 482-6768
-https://www.track-med.com
-
-## RULES:
-- For leads with score >= 60 or billing/claims/denial-related intent signals: Alternate between Template A and Template B
-- For leads with score < 60 or no billing signals (cold prospects): Use Template C
-- Replace [Practice Name] with the lead's actual company/practice name
-- Replace [Dr. Last Name] with the lead's actual last name (use full name if last name unknown)
-- Adapt the opening line to match the lead's specialty (e.g. "chiropractic practices", "dental practices", "medical practices")
-- Keep the full template content — do NOT shorten or summarize
-- MUST end with the EXACT signature block above — no variations
-` : "";
+            const medBillTemplateInstructions = isMedBillUser ? getTemplateInstructions() : "";
 
             try {
               const prompt = isMedBillUser
-                ? `Generate personalized outreach email drafts for these leads using the Track-Med templates below. Each template already includes the proper signature — do NOT add any additional signature.\n${medBillTemplateInstructions}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"full email draft including subject line and signature from template"}]. No markdown, no explanation.`
+                ? `Generate personalized outreach email drafts for these leads using the Track-Med specialty-specific templates below. Select the correct template based on each lead's specialty (dental, mental health, hospital, or private practice). Each template already includes the proper signature — do NOT add any additional signature.\n${medBillTemplateInstructions}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"full email draft including subject line and signature from template"}]. No markdown, no explanation.`
                 : `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}\n\nEach email MUST end with this EXACT signature block:\n\nBest regards,\n${senderFullName}\n${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}\n${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${bookingLink ? `${bookingLink}\n` : ""}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft with signature"}]. No markdown, no explanation.`;
 
               const response = await outreachAi.client.messages.create({
@@ -4601,13 +4446,13 @@ https://www.track-med.com
   console.log("[AutoEngage] Auto-engagement scheduled — runs every 10 minutes. Leads with score >= 40 get outreach generated + sent automatically.");
 
   // ---- AUTOMATED FOLLOW-UP SEQUENCES ----
-  // Sends escalating follow-up emails to leads until they book an appointment
-  // Schedule: Day 1 (initial sent), Day 3 (follow-up 1), Day 5 (follow-up 2), Day 7 (final nudge)
+  // Specialty-specific 4-touch sequences. Touch 1 = initial outreach (sent on day 0).
+  // Schedule: Touch 2 (day 4), Touch 3 (day 10), Touch 4 (day 18)
 
   const FOLLOW_UP_SCHEDULE = [
-    { step: 1, daysAfter: 2, urgency: "gentle", label: "Friendly Check-In" },
-    { step: 2, daysAfter: 2, urgency: "value", label: "Value Reminder" },
-    { step: 3, daysAfter: 2, urgency: "final", label: "Final Nudge" },
+    { step: 1, daysAfter: 4, urgency: "gentle", label: "Touch 2 — Follow-Up" },
+    { step: 2, daysAfter: 6, urgency: "value", label: "Touch 3 — Case Study/Value" },
+    { step: 3, daysAfter: 8, urgency: "final", label: "Touch 4 — Closing the Loop" },
   ];
 
   async function generateFollowUpEmail(lead: any, step: number, urgency: string, user: any, bookingLink: string, userClient?: { client: Anthropic; model: string }): Promise<string> {
@@ -4658,11 +4503,24 @@ RULES:
     const senderEmail = userSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
     const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
     const firstName = lead.name.split(" ")[0];
-    const subjectLine = step === 1
-      ? `Following up, ${firstName}`
-      : step === 2
-        ? `Quick thought for ${lead.company || firstName}`
-        : `Last note, ${firstName}`;
+
+    const isMedBillSender = (user.companyName || "").toLowerCase().includes("track-med");
+    let subjectLine: string;
+    if (isMedBillSender) {
+      const specialty = detectSpecialty(lead);
+      const followUp = getFollowUpForSpecialty(specialty, step, lead.name, lead.company || "your practice");
+      subjectLine = followUp?.subject || (step === 1
+        ? `Following up, ${firstName}`
+        : step === 2
+          ? `Quick thought for ${lead.company || firstName}`
+          : `Last note, ${firstName}`);
+    } else {
+      subjectLine = step === 1
+        ? `Following up, ${firstName}`
+        : step === 2
+          ? `Quick thought for ${lead.company || firstName}`
+          : `Last note, ${firstName}`;
+    }
 
     const baseUrl = getBaseUrl();
     const fSigParts: string[] = [];
@@ -4771,14 +4629,27 @@ RULES:
             continue;
           }
 
-          let followUpAi: { client: Anthropic; model: string } | undefined;
-          try { followUpAi = await getAnthropicForUser(lead.userId); } catch {
-            console.warn(`[FOLLOW-UP] Skipping ${lead.name}: user has no AI API key configured`);
-            continue;
+          const isMedBillFollowUp = (user.companyName || "").toLowerCase().includes("track-med");
+
+          let emailBody = "";
+          if (isMedBillFollowUp) {
+            const specialty = detectSpecialty(lead);
+            const followUp = getFollowUpForSpecialty(specialty, currentStep, lead.name, lead.company || "your practice");
+            if (followUp) {
+              emailBody = followUp.body;
+            }
           }
 
-          const bookingLink = settings.calendarLink || "";
-          const emailBody = await generateFollowUpEmail(lead, currentStep, stepConfig.urgency, user, bookingLink, followUpAi);
+          if (!emailBody) {
+            let followUpAi: { client: Anthropic; model: string } | undefined;
+            try { followUpAi = await getAnthropicForUser(lead.userId); } catch {
+              console.warn(`[FOLLOW-UP] Skipping ${lead.name}: user has no AI API key configured`);
+              continue;
+            }
+            const bookingLink = settings.calendarLink || "";
+            emailBody = await generateFollowUpEmail(lead, currentStep, stepConfig.urgency, user, bookingLink, followUpAi);
+          }
+
           if (!emailBody) {
             console.warn(`[FOLLOW-UP] Empty email generated for ${lead.name} step ${currentStep}, retrying next cycle`);
             continue;
@@ -4812,7 +4683,7 @@ RULES:
     }
   }
 
-  console.log("[FOLLOW-UP] Follow-up processor started — checking every 15 minutes (3 steps: day 2 gentle, day 4 value, day 6 final)");
+  console.log("[FOLLOW-UP] Follow-up processor started — checking every 15 minutes (3 follow-ups: touch 2 day 4, touch 3 day 10, touch 4 day 18)");
   setInterval(processFollowUpSequences, 15 * 60 * 1000);
   setTimeout(processFollowUpSequences, 2 * 60 * 1000);
 
@@ -5871,77 +5742,53 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} sp
 For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone, company (practice name), address (physical street address, city, state, zip — extract from Google Maps, Yelp, or website), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + practice details + where contact was found + practice size if known), outreach (use the appropriate template based on the lead's tier):
 
 ## TEMPLATE SELECTION RULES:
-- **Tier 1 (Hot) and Tier 2 (Warm) leads**: Alternate between Template A and Template B
-- **Tier 3 (Cold Prospect) leads**: ALWAYS use Template C — the softer introduction
+- Select the template based on the lead's SPECIALTY (not score):
+  - Dental/DDS/DMD/Orthodontist → Dental sequence
+  - Mental health/Therapy/Psychology/Counseling → Mental Health sequence
+  - Hospital/Health system/Medical center → Hospital sequence
+  - All other ${specialty} practices → Private Practice sequence
 
-**TEMPLATE A — Subject: Billing Solutions + Free AI Prior Auth Platform for [Practice Name]**
-Dear Dr. [Last Name],
-I'm reaching out because ${specialty} practices like [Practice Name] often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
-At Track-Med Billing Solutions, we address both — and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
-
-What Track-Med Delivers:
-• End-to-end revenue cycle management (claims, posting, denials, appeals)
-• Credentialing and RAC audit defense
-• Patient balance collections
-• Complimentary CPT and billing cost analysis
-• Practice management software included at no additional cost
-
-What MedAuth Adds to Your Workflow:
-• AI Denial Risk Scoring — Identifies issues before submission; clients report approval rates improving from 68% to 91%
-• AI Appeal Generator — One practice recovered over $12,000 in denied claims
-• Time savings — Prior auth time reduced from 3+ hours to under 30 minutes daily
-• Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
-• 8-minute setup, HIPAA-compliant, end-to-end encryption
-
-Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
-
-Best regards,
+### Private Practice — Touch 1
+Subject: Quick question about your claim denial rate
+Hi [First Name],
+Most independent practices are losing 8–15% of revenue to preventable claim denials — and don't realize it until month-end.
+Track-Med catches those errors before submission using AI claim scrubbing and surfaces denial trends in real time so nothing slips through.
+Can I do a free 20-minute A/R audit for [Practice Name]? No pitch — just data.
+→ https://calendly.com/track-med-info/30min
 Abel Nkawula
-CEO, Track-Med Billing Solutions
-+1 (615) 482-6768
-https://www.track-med.com
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
+Track-Med Billing Solutions | track-med.com
 
-**TEMPLATE B — Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?**
-Dear Dr. [Last Name],
-Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
-At Track-Med Billing Solutions, we address all of these — and we're currently offering new partners 90 days of complimentary access to ARGILETTE MedAuth, our AI-powered prior authorization platform (valued at $2,700+).
-
-What sets us apart:
-✔ End-to-end revenue cycle management tailored to your specialty
-✔ Complimentary CPT & billing cost analysis — so you see the ROI before you commit
-✔ Practice management software included at no additional cost
-✔ Credentialing and RAC audit defense
-✔ HIPAA-compliant systems across the board
-✔ 90 days of ARGILETTE MedAuth — AI prior authorization that cuts auth time from 3+ hours to under 30 minutes and boosts approval rates from 68% to 91%
-
-Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
-
-Best regards,
+### Dental Offices — Touch 1
+Subject: Dental billing question — [Practice Name]
+Hi [First Name],
+CDT code mismatches, missing narratives, and incomplete X-ray documentation are the top reasons dental claims get denied — and they're all preventable.
+Track-Med's dental-specific claim scrubber catches those before submission and flags payer-specific requirements automatically.
+Free 20-minute billing audit for [Practice Name]?
+→ https://calendly.com/track-med-info/30min
 Abel Nkawula
-CEO, Track-Med Billing Solutions
-+1 (615) 482-6768
-https://www.track-med.com
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
+Track-Med | track-med.com
 
-**TEMPLATE C — Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]**
-Dear Dr. [Last Name],
-I hope this finds you well. My name is Abel Nkawula and I work with independent ${specialty} practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
-At Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
-That's why we're offering a complimentary CPT & billing cost analysis — at no cost or obligation. In less than 30 minutes, we can show you:
-• Whether your current coding is maximizing your reimbursements
-• Where claims may be getting delayed or denied unnecessarily
-• A clear comparison of what you're collecting vs. what you could be
-We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
-Would you be open to a brief conversation this week? 
-Best regards,
+### Mental Health / Therapy — Touch 1
+Subject: Prior auth is getting harder for behavioral health
+Hi [First Name],
+Payers have quietly tightened prior auth requirements for behavioral health — more session limits, stricter medical necessity docs, inconsistent telehealth policies.
+Track-Med tracks prior auth expirations automatically and applies the right POS codes and modifiers per payer so your clinicians don't lose sessions to admin errors.
+Free 20-minute audit for [Practice Name]?
+→ https://calendly.com/track-med-info/30min
 Abel Nkawula
-CEO, Track-Med Billing Solutions
-+1 (615) 482-6768
-https://www.track-med.com
-P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
+Track-Med | track-med.com
 
-IMPORTANT: Include the FULL template text — do NOT shorten. Replace [Practice Name] and [Dr. Last Name] with actual lead info. Include the subject line at the top as "Subject: ...". For Tier 3 leads, ALWAYS use Template C. Adapt the opening line to match the lead's specialty.
+### Hospitals / Health Systems — Touch 1
+Subject: Revenue cycle question — [Practice Name]
+Hi [First Name],
+At health systems, the biggest A/R leakage usually comes from three places: underpayments on contracted rates, prior auth bottlenecks, and denials that never get appealed.
+Track-Med gives revenue cycle teams real-time visibility across all three — with AI-flagged appeal drafts and payer contract variance detection built in.
+Worth a 30-minute discovery call?
+→ https://calendly.com/track-med-info/30min
+Abel Nkawula
+Track-Med | track-med.com
+
+IMPORTANT: Use the FULL template — do NOT shorten. Replace [Practice Name] and [First Name] with actual lead info. Include the subject line at the top as "Subject: ...". Select the correct specialty template. Do NOT add any additional signature beyond what's in the template. Follow-ups (touches 2-4) are handled automatically by the system.
 
 LEAD MIX TARGET: Aim for approximately 60% Tier 1/2 (hot/warm) and 40% Tier 3 (cold prospects). This ensures a healthy pipeline of both immediate opportunities and future prospects.
 
@@ -6270,84 +6117,14 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                     `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email}, Score: ${l.score || 50}, Intent: ${l.intentSignal || "N/A"}, Notes: ${l.notes || "N/A"}`
                   ).join("\n");
 
-                  const templatePrompt = `Generate personalized outreach emails for these medical billing leads using Track-Med templates.
+                  const templatePrompt = `Generate personalized outreach emails for these medical billing leads using Track-Med specialty-specific templates. Select the correct template based on each lead's specialty.
 
-## TEMPLATE RULES:
-- Score >= 60 or billing/claims/denial intent: Use Template A or B (alternate)
-- Score < 60 or no billing signals: Use Template C (soft introduction)
-
-**TEMPLATE A — MedAuth Bundle Offer:**
-Subject: Billing Solutions + Free AI Prior Auth Platform for [Practice Name]
-
-Dear Dr. [Last Name],
-I'm reaching out because practices like [Practice Name] often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.
-At Track-Med Billing Solutions, we address both — and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).
-
-What Track-Med Delivers:
-• End-to-end revenue cycle management (claims, posting, denials, appeals)
-• Credentialing and RAC audit defense
-• Patient balance collections
-• Complimentary CPT and billing cost analysis
-• Practice management software included at no additional cost
-
-What MedAuth Adds to Your Workflow:
-• AI Denial Risk Scoring — Identifies issues before submission; clients report approval rates improving from 68% to 91%
-• AI Appeal Generator — One practice recovered over $12,000 in denied claims
-• Time savings — Prior auth time reduced from 3+ hours to under 30 minutes daily
-• Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)
-• 8-minute setup, HIPAA-compliant, end-to-end encryption
-
-Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
-
-
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
-
-**TEMPLATE B — Pain Points + MedAuth Version:**
-Subject: Still dealing with denied claims and slow reimbursements, [Practice Name]?
-
-Dear Dr. [Last Name],
-Denied claims, slow reimbursements, and billing staff turnover are among the biggest revenue killers for independent practices today — and most providers don't realize how much it's truly costing them.
-At Track-Med Billing Solutions, we address all of these — and we're currently offering new partners 90 days of complimentary access to ARGILETTE MedAuth, our AI-powered prior authorization platform (valued at $2,700+).
-
-What sets us apart:
-✔ End-to-end revenue cycle management tailored to your specialty
-✔ Complimentary CPT & billing cost analysis — so you see the ROI before you commit
-✔ Practice management software included at no additional cost
-✔ Credentialing and RAC audit defense
-✔ HIPAA-compliant systems across the board
-✔ 90 days of ARGILETTE MedAuth — AI prior authorization that cuts auth time from 3+ hours to under 30 minutes and boosts approval rates from 68% to 91%
-
-Would you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact [Practice Name]'s bottom line — with no obligation.
-
-
-P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
-
-**TEMPLATE C — Cold Introduction:**
-Subject: A quick introduction from Track-Med Billing Solutions, [Practice Name]
-
-Dear Dr. [Last Name],
-I hope this finds you well. My name is Abel Nkawula and I work with independent practices like [Practice Name] to help streamline their revenue cycle — so providers can spend more time with patients and less time chasing payments.
-At Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.
-That's why we're offering a complimentary CPT & billing cost analysis — at no cost or obligation. In less than 30 minutes, we can show you:
-• Whether your current coding is maximizing your reimbursements
-• Where claims may be getting delayed or denied unnecessarily
-• A clear comparison of what you're collecting vs. what you could be
-We also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.
-Would you be open to a brief conversation this week? 
-
-P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
-
-## SIGNATURE — Every email MUST end with:
-Best regards,
-Abel Nkawula
-CEO, Track-Med Billing Solutions
-+1 (615) 482-6768
-https://www.track-med.com
+${getTemplateInstructions()}
 
 Leads:
 ${leadsInfo}
 
-Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with subject line and signature"}]. No markdown.`;
+Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with subject line and signature from template"}]. No markdown.`;
 
                   const response = await aiClient.client.messages.create({
                     model: aiClient.model,
@@ -6370,21 +6147,19 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
                   }
                 } catch (genErr: any) {
                   console.error(`[MedBill Instant] AI outreach generation failed:`, genErr.message);
-                  console.log(`[MedBill Instant] Using hard template fallback for ${needsOutreachGen.length} leads...`);
-                  const signature = `\n\nBest regards,\nAbel Nkawula\nCEO, Track-Med Billing Solutions\n+1 (615) 482-6768\nhttps://www.track-med.com`;
+                  console.log(`[MedBill Instant] Using specialty template fallback for ${needsOutreachGen.length} leads...`);
                   for (const lead of needsOutreachGen) {
                     const practiceName = lead.company || lead.name;
-                    const contactName = lead.name;
-                    const isHot = (lead.score || 0) >= 60 || (lead.intentSignal || "").toLowerCase().match(/billing|claim|denial|reimburse|revenue/);
-                    let outreach: string;
-                    if (isHot) {
-                      outreach = `Subject: Billing Solutions + Free AI Prior Auth Platform for ${practiceName}\n\nDear ${contactName},\n\nI'm reaching out because practices like ${practiceName} often face two persistent challenges: time-consuming prior authorizations and revenue lost to claim denials.\n\nAt Track-Med Billing Solutions, we address both -- and we're currently offering new partners 90 days of complimentary access to our AI-powered prior authorization platform, ARGILETTE MedAuth (valued at $2,700+).\n\nWhat Track-Med Delivers:\n- End-to-end revenue cycle management (claims, posting, denials, appeals)\n- Credentialing and RAC audit defense\n- Patient balance collections\n- Complimentary CPT and billing cost analysis\n- Practice management software included at no additional cost\n\nWhat MedAuth Adds to Your Workflow:\n- AI Denial Risk Scoring -- Identifies issues before submission; clients report approval rates improving from 68% to 91%\n- AI Appeal Generator -- One practice recovered over $12,000 in denied claims\n- Time savings -- Prior auth time reduced from 3+ hours to under 30 minutes daily\n- Real-time payer intelligence for major carriers (UnitedHealthcare, Aetna, BCBS, Cigna)\n- 8-minute setup, HIPAA-compliant, end-to-end encryption\n\nWould you have 10 minutes this week for a brief call? I'd be happy to walk you through how this partnership could impact ${practiceName}'s bottom line -- with no obligation.\n\n${signature}\n\nP.S. The 90-day MedAuth access begins immediately upon signing -- no credit card required. Preview it here: https://www.tmbds.com/`;
-                    } else {
-                      outreach = `Subject: A quick introduction from Track-Med Billing Solutions, ${practiceName}\n\nDear ${contactName},\n\nI hope this finds you well. My name is Abel Nkawula and I work with independent practices like ${practiceName} to help streamline their revenue cycle -- so providers can spend more time with patients and less time chasing payments.\n\nAt Track-Med Billing Solutions, we've found that many small to mid-size practices don't realize how much revenue they're leaving on the table until they see the numbers.\n\nThat's why we're offering a complimentary CPT & billing cost analysis -- at no cost or obligation. In less than 30 minutes, we can show you:\n- Whether your current coding is maximizing your reimbursements\n- Where claims may be getting delayed or denied unnecessarily\n- A clear comparison of what you're collecting vs. what you could be\n\nWe also include practice management software at no additional cost, credentialing, RAC audit defense, and HIPAA-compliant document management. Plus, new partners receive 90 days of complimentary access to ARGILETTE MedAuth, our AI prior authorization platform.\n\nWould you be open to a brief conversation this week? ${signature}\n\nP.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ -- no credit card required.`;
-                    }
+                    const specialty = detectSpecialty(lead);
+                    const seq = TRACKMED_SEQUENCES[specialty];
+                    const touch = seq.touches[0];
+                    const firstName = lead.name.split(" ")[0];
+                    const subject = touch.subject.replace(/\{\{First Name\}\}/g, firstName).replace(/\{\{Practice Name\}\}/g, practiceName).replace(/\{\{Health System Name\}\}/g, practiceName);
+                    const body = touch.body.replace(/\{\{First Name\}\}/g, firstName).replace(/\{\{Practice Name\}\}/g, practiceName).replace(/\{\{Health System Name\}\}/g, practiceName);
+                    const outreach = `Subject: ${subject}\n\n${body}`;
                     await db.update(leads).set({ outreach }).where(eq(leads.id, lead.id));
                     readyToSend.push({ ...lead, outreach });
-                    console.log(`[MedBill Instant] Hard template applied for ${lead.name} (score: ${lead.score})`);
+                    console.log(`[MedBill Instant] ${specialty} template applied for ${lead.name} (score: ${lead.score})`);
                   }
                 }
               }
