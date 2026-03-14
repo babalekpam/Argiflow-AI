@@ -1388,7 +1388,7 @@ Would you have 10 minutes this week for a brief call? I'd be happy to walk you t
 
 Best regards,
 Abel Nkawula
-CEO, ARGILETTE
+CEO, Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
 P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
@@ -1405,7 +1405,7 @@ We also include practice management software at no additional cost, credentialin
 Would you be open to a brief conversation this week? 
 Best regards,
 Abel Nkawula
-CEO, ARGILETTE
+CEO, Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
 P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
@@ -3557,7 +3557,7 @@ P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card r
 
 Best regards,
 Abel Nkawula
-CEO, ARGILETTE
+CEO, Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
 
@@ -4465,7 +4465,7 @@ P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card r
 
 Best regards,
 Abel Nkawula
-CEO, ARGILETTE
+CEO, Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
 
@@ -5851,7 +5851,7 @@ Would you have 10 minutes this week for a brief call? I'd be happy to walk you t
 
 Best regards,
 Abel Nkawula
-CEO, ARGILETTE
+CEO, Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
 P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
@@ -5873,7 +5873,7 @@ Would you have 10 minutes this week for a brief call? I'd be happy to walk you t
 
 Best regards,
 Abel Nkawula
-CEO, ARGILETTE
+CEO, Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
 P.S. The 90-day MedAuth access begins immediately upon signing — no credit card required. Preview it here: https://www.tmbds.com/
@@ -5890,7 +5890,7 @@ We also include practice management software at no additional cost, credentialin
 Would you be open to a brief conversation this week? 
 Best regards,
 Abel Nkawula
-CEO, ARGILETTE
+CEO, Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
 P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card required.
@@ -6294,7 +6294,7 @@ P.S. Preview ARGILETTE MedAuth here: https://www.tmbds.com/ — no credit card r
 ## SIGNATURE — Every email MUST end with:
 Best regards,
 Abel Nkawula
-CEO, ARGILETTE
+CEO, Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.track-med.com
 
@@ -6325,7 +6325,7 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
                 } catch (genErr: any) {
                   console.error(`[MedBill Instant] AI outreach generation failed:`, genErr.message);
                   console.log(`[MedBill Instant] Using hard template fallback for ${needsOutreachGen.length} leads...`);
-                  const signature = `\n\nBest regards,\nAbel Nkawula\nCEO, ARGILETTE\n+1 (615) 482-6768\nhttps://www.track-med.com`;
+                  const signature = `\n\nBest regards,\nAbel Nkawula\nCEO, Track-Med Billing Solutions\n+1 (615) 482-6768\nhttps://www.track-med.com`;
                   for (const lead of needsOutreachGen) {
                     const practiceName = lead.company || lead.name;
                     const contactName = lead.name;
@@ -8106,7 +8106,7 @@ Looking forward to helping ${company} streamline your prior auth workflow.
 
 Best regards,
 Abel Nkawula
-CEO, ARGILETTE
+CEO, Track-Med Billing Solutions
 +1 (615) 482-6768
 https://www.tmbds.com
 https://calendly.com/track-med-info/30min`;
@@ -11159,7 +11159,7 @@ async function ensureOwnerPassword() {
     await storage.updateUser(user.id, {
       passwordHash: newHash,
       industry: "Revenue Cycle Management / Medical Billing",
-      companyName: "ARGILETTE",
+      companyName: "Track-Med Billing Solutions",
       firstName: "Abel",
       lastName: "Nkawula",
     });
