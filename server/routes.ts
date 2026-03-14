@@ -3277,15 +3277,19 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str}"` : str;
       };
 
-      const headers = ["Name", "Email", "Phone", "Company", "Source", "Status", "Score", "Intent Signal", "Engagement Level", "Engagement Score", "Email Opens", "Email Clicks", "Address", "Notes", "Next Step", "Follow-Up Status", "Created At"];
+      const headers = ["Name", "Lead Status", "Score", "Email", "Phone", "Company", "Source", "Intent Signal", "Engagement Level", "Engagement Score", "Email Opens", "Email Clicks", "Address", "Notes", "Next Step", "Follow-Up Status", "Created At"];
+      const statusLabel = (s: string | null) => {
+        if (!s) return "";
+        return s.toUpperCase();
+      };
       const rows = allLeads.map(l => [
         escapeCsv(l.name),
+        escapeCsv(statusLabel(l.status)),
+        escapeCsv(l.score),
         escapeCsv(l.email),
         escapeCsv(l.phone),
         escapeCsv(l.company),
         escapeCsv(l.source),
-        escapeCsv(l.status),
-        escapeCsv(l.score),
         escapeCsv(l.intentSignal),
         escapeCsv(l.engagementLevel),
         escapeCsv(l.engagementScore),
