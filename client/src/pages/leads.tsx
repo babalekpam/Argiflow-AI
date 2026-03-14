@@ -1806,8 +1806,7 @@ export default function LeadsPage() {
           <Select onValueChange={(val) => {
             const [filter, pg] = val.split("|");
             const page = pg || "1";
-            const params = new URLSearchParams({ page, limit: "10" });
-            if (filter !== "all") params.set("status", filter);
+            const params = new URLSearchParams({ page, limit: "10", status: filter });
             window.open(`/api/leads/export/csv?${params.toString()}`, "_blank");
           }}>
             <SelectTrigger className="w-[190px]" data-testid="button-export-csv">
@@ -1816,29 +1815,19 @@ export default function LeadsPage() {
             </SelectTrigger>
             <SelectContent>
               {(() => {
-                const allCount = Array.isArray(leads) ? leads.length : 0;
-                const pages = Math.max(1, Math.ceil(allCount / 10));
-                const items: React.ReactNode[] = [];
-                for (let p = 1; p <= pages; p++) {
-                  const start = (p - 1) * 10 + 1;
-                  const end = Math.min(p * 10, allCount);
-                  items.push(
-                    <SelectItem key={`all-${p}`} value={`all|${p}`} data-testid={`export-all-page-${p}`}>
-                      All — #{start}–{end}
-                    </SelectItem>
-                  );
-                }
                 const statusFilters = [
-                  { value: "hot", label: "Hot" },
-                  { value: "warm", label: "Warm" },
-                  { value: "new", label: "New" },
-                  { value: "cold", label: "Cold" },
-                  { value: "qualified", label: "Qualified" },
-                  { value: "contacted", label: "Contacted" },
-                  { value: "converted", label: "Converted" },
+                  { value: "hot", label: "🔥 Hot" },
+                  { value: "warm", label: "🟠 Warm" },
+                  { value: "new", label: "🆕 New" },
+                  { value: "cold", label: "🔵 Cold" },
+                  { value: "qualified", label: "✅ Qualified" },
+                  { value: "contacted", label: "📧 Contacted" },
+                  { value: "converted", label: "🎯 Converted" },
                 ];
+                const items: React.ReactNode[] = [];
                 for (const sf of statusFilters) {
-                  const count = Array.isArray(leads) ? leads.filter((l: any) => l.status === sf.value).length : 0;
+                  const filtered = Array.isArray(leads) ? leads.filter((l: any) => l.status === sf.value) : [];
+                  const count = filtered.length;
                   if (count === 0) continue;
                   const sfPages = Math.max(1, Math.ceil(count / 10));
                   for (let p = 1; p <= sfPages; p++) {
@@ -1846,10 +1835,15 @@ export default function LeadsPage() {
                     const end = Math.min(p * 10, count);
                     items.push(
                       <SelectItem key={`${sf.value}-${p}`} value={`${sf.value}|${p}`} data-testid={`export-${sf.value}-page-${p}`}>
-                        {sf.label} — #{start}–{end}
+                        {sf.label} ({count}) — #{start}–{end}
                       </SelectItem>
                     );
                   }
+                }
+                if (items.length === 0) {
+                  items.push(
+                    <SelectItem key="none" value="none" disabled>No leads to export</SelectItem>
+                  );
                 }
                 return items;
               })()}
