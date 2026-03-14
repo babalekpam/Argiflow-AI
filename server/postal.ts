@@ -194,29 +194,35 @@ async function sendViaSes(options: SendEmailOptions): Promise<PostalSendResult> 
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<PostalSendResult> {
-  const isCustomDomain = options.from && options.from !== DEFAULT_FROM;
+  const fromAddr = options.from || DEFAULT_FROM;
+  const fromName = options.fromName || "ArgiFlow";
+  console.log(`[Email] Sending via SES — to: ${JSON.stringify(options.to)}, from: ${fromAddr}, fromName: ${fromName}`);
 
-  // Always use SES for reliable delivery
-  // For custom domains: keep the display name, use platform sender, set Reply-To to custom email
-  const sesOptions = {
-    ...options,
-    from: DEFAULT_FROM,
-    replyTo: isCustomDomain ? options.from : options.replyTo,
-  };
-
-  if (isCustomDomain) {
-    console.log(`[Email] Custom domain (${options.from}) — sending via SES as ${DEFAULT_FROM}, Reply-To: ${options.from}, fromName: ${options.fromName}`);
-  }
-
+  // Send via SES — supports verified custom domains and platform default
   try {
-    const sesResult = await sendViaSes(sesOptions);
+    const sesResult = await sendViaSes(options);
     if (sesResult.success) {
-      console.log(`[Email] Sent via SES to ${JSON.stringify(options.to)} from ${DEFAULT_FROM} (display: ${options.fromName}) — msgId: ${sesResult.messageId}`);
+      console.log(`[Email] Sent via SES to ${JSON.stringify(options.to)} from ${fromAddr} — msgId: ${sesResult.messageId}`);
       return sesResult;
     }
-    console.warn(`[Email] SES failed: ${sesResult.error}, trying Postal fallback...`);
+    console.warn(`[Email] SES failed: ${sesResult.error}, trying SES with platform sender...`);
   } catch (err: any) {
-    console.warn(`[Email] SES error: ${err.message}, trying Postal fallback...`);
+    console.warn(`[Email] SES error: ${err.message}, trying SES with platform sender...`);
+  }
+
+  // If custom domain SES failed, retry with platform sender
+  if (fromAddr !== DEFAULT_FROM) {
+    console.log(`[Email] Retrying with platform sender ${DEFAULT_FROM}...`);
+    try {
+      const sesRetry = await sendViaSes({ ...options, from: DEFAULT_FROM, replyTo: fromAddr });
+      if (sesRetry.success) {
+        console.log(`[Email] Sent via SES (platform fallback) to ${JSON.stringify(options.to)} from ${DEFAULT_FROM}, Reply-To: ${fromAddr} — msgId: ${sesRetry.messageId}`);
+        return sesRetry;
+      }
+      console.warn(`[Email] SES platform fallback failed: ${sesRetry.error}, trying Postal...`);
+    } catch (err: any) {
+      console.warn(`[Email] SES platform fallback error: ${err.message}, trying Postal...`);
+    }
   }
 
   // Postal fallback
