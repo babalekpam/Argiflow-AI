@@ -770,7 +770,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
         const gatekeeperMsg = hasGatekeepers ? "\n- GATEKEEPER contacts (info@, contact@, office@, receptionists, schedulers) are AUTO-REJECTED. Find the DECISION MAKER: the owner, CEO, founder, director, VP, or partner." : "";
         const hasMissing = skipped.some(s => s.includes("missing"));
         const missingMsg = hasMissing ? "\n- Leads MUST have BOTH a real phone number AND a real email. Leads with only one or neither are AUTO-REJECTED." : "";
-        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info, missing phone/email, or were gatekeeper contacts.${gatekeeperMsg}${missingMsg}\nYou MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] owner" or "[business name] CEO" to find the DECISION MAKER\n3. Search "[decision maker name] email" AND "[business name] phone number" for REAL contact details — you need BOTH\n4. ONLY use emails and phone numbers you see in actual search results\n5. Phone numbers must NOT contain "555" — those are fictional\n6. Emails must NOT be generic (info@, contact@, office@) — find the decision maker's PERSONAL email\n7. Emails must be from REAL domains you found in search results\n8. Every lead MUST have BOTH a real phone AND real email — skip any lead where you can't find both\nTry again with REAL decision-maker contacts (BOTH phone AND email) from actual web pages.`;
+        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info, missing phone/email, or were gatekeeper contacts.${gatekeeperMsg}${missingMsg}\nYou MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] owner" or "[business name] CEO" to find the DECISION MAKER\n3. Search "[decision maker name] phone number" AND "[decision maker name] direct line" for the decision maker's DIRECT phone — NOT the front desk number\n4. Search "[decision maker name] email" for their PERSONAL email — NOT generic office addresses\n5. ONLY use emails and phone numbers you see in actual search results\n6. Phone numbers must NOT contain "555" — those are fictional\n7. Emails must NOT be generic (info@, contact@, office@) — find the decision maker's PERSONAL email\n8. Emails must be from REAL domains you found in search results\n9. Every lead MUST have BOTH a real phone AND real email — skip any lead where you can't find both\n10. For phone numbers: Direct cell > Direct office line > Main line ONLY for solo practices. Avoid general front desk numbers that go to gatekeepers.\nTry again with REAL decision-maker DIRECT contacts (BOTH direct phone AND personal email) from actual web pages.`;
       }
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);
@@ -1359,10 +1359,12 @@ You are acting as Abel Nkawula, CEO at Track-Med Billing Solutions.
 When asked to find medical practices or leads, you MUST:
 1. Use web_search to find REAL practices — search for "[specialty] practice [city/state]", "small medical practice [region]", "independent physician office [area]", "private dental practice [location]", etc.
 2. Do MULTIPLE searches (3-5) targeting different specialties, locations, and directories (Healthgrades, Zocdoc, Google Maps results, state medical board, BBB).
-3. For EACH practice found, do a FOLLOW-UP web_search for "[practice name] phone email contact" to get decision-maker details.
+3. For EACH practice found, do a FOLLOW-UP web_search for "[decision maker name] phone number" AND "[practice name] owner contact" to get the decision-maker's DIRECT phone line — NOT the front desk number.
 4. ONLY target decision makers: Practice Owner, Managing Partner, Medical Director, Office Manager, Administrator — NEVER receptionists.
-5. Save ALL leads using generate_leads with agent_type="medical-billing".
-6. Select the outreach template based on the lead's SPECIALTY:
+5. Phone number priority: Direct cell > Direct office line > Main line ONLY for solo practitioners. AVOID general front desk numbers for practices with 3+ providers — those go to gatekeepers.
+6. Check NPI Registry, LinkedIn, "About Us" pages, and state medical board registries for direct contact numbers.
+7. Save ALL leads using generate_leads with agent_type="medical-billing".
+8. Select the outreach template based on the lead's SPECIALTY:
    - Dental/DDS/DMD/Orthodontist → Dental sequence
    - Mental health/Therapy/Psychology/Counseling → Mental Health sequence
    - Hospital/Health system/Medical center → Hospital sequence
@@ -5709,7 +5711,7 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} sp
 2. Decision Maker Name + Title (Owner/CEO/Administrator/Director)
 3. Specialty
 4. City/State
-5. Phone Number (real, verified)
+5. Phone Number — DECISION MAKER'S DIRECT LINE (not front desk/general line)
 6. Email Address (real, verified — NOT fabricated)
 7. Website URL
 8. Google Rating + Number of Reviews
@@ -5719,9 +5721,12 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} sp
 
 ## SEARCH STRATEGY
 1. Use web_search to find "${specialty} practices ${region}" and "${specialty} doctor ${region} contact"
-2. For each practice, search for the decision maker: "[practice name] owner" or "[practice name] administrator"
-3. Search for real contact info: "[practice name] phone email contact"
-4. Check Google Maps, Yelp, Healthgrades, NPI Registry for verified data
+2. For each practice, search for the decision maker: "[practice name] owner" or "[practice name] CEO" or "[practice name] administrator"
+3. Search for DIRECT contact info: "[decision maker name] phone number" AND "[decision maker name] direct line" AND "[decision maker name] email"
+4. Try LinkedIn: "[decision maker name] [practice name] LinkedIn" — LinkedIn profiles often have direct phone/email
+5. Check the practice's "About Us", "Our Team", or "Staff" pages — these sometimes list direct extensions or cell numbers
+6. Search NPI Registry for the physician's NPI record which may list a direct contact number
+7. Check Google Maps, Yelp, Healthgrades for verified data — but PREFER direct lines over main office numbers
 
 ## CONTACT INFO RULES (MANDATORY)
 - ONLY include contact info you actually found on a real website, directory, or contact page
@@ -5731,15 +5736,30 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} sp
 - Phone numbers MUST be FULL US numbers with area code (10 digits)
 - Each lead MUST have a real phone number from actual webpages
 
+## PHONE NUMBER PRIORITY (CRITICAL — Avoid Gatekeepers)
+- PRIORITY 1: Decision maker's DIRECT cell/mobile number (best — bypasses gatekeepers entirely)
+- PRIORITY 2: Decision maker's direct office extension or direct dial line
+- PRIORITY 3: Practice number ONLY if it's a solo practitioner or very small practice (1-2 providers) where the decision maker answers directly
+- AVOID: General front desk numbers for practices with 3+ providers — these go to receptionists/gatekeepers who block cold calls
+- WHERE TO FIND DIRECT LINES:
+  • NPI Registry — often lists the physician's direct contact
+  • LinkedIn profiles — may have personal phone numbers
+  • Practice "About Us" or "Our Team" pages — sometimes list direct extensions
+  • State medical board registries — may have direct contact numbers
+  • Professional association directories — often list member direct contacts
+  • Google "[decision maker name] phone number" or "[decision maker name] contact"
+- In the notes field, SPECIFY what type of phone number you found: "Direct cell", "Direct line", "Office direct", or "Main office (solo practice)"
+
 ## SCORING
 - Practice actively posting for billing help (Tier 1): score 85-95
 - Practice matching struggle profile (Tier 2): score 65-80
 - Cold prospect small practice (Tier 3): score 40-60
 - Decision maker found with direct contact: +15 bonus
+- Decision maker's DIRECT cell/mobile number found: +10 bonus (on top of decision maker bonus)
 - Multiple lead signals: +10 bonus
 - Has billing-related complaints in reviews: +10 bonus
 
-For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone, company (practice name), address (physical street address, city, state, zip — extract from Google Maps, Yelp, or website), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + practice details + where contact was found + practice size if known), outreach (use the appropriate template based on the lead's tier):
+For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone (DECISION MAKER'S DIRECT line — not front desk), company (practice name), address (physical street address, city, state, zip — extract from Google Maps, Yelp, or website), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + phone type [Direct cell/Direct line/Office direct/Main office solo] + practice details + where contact was found + practice size if known), outreach (use the appropriate template based on the lead's specialty):
 
 ## TEMPLATE SELECTION RULES:
 - Select the template based on the lead's SPECIALTY (not score):
