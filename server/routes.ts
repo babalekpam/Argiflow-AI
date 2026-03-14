@@ -3261,9 +3261,15 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       const userId = req.session.userId!;
       const source = req.query.source as string | undefined;
       const status = req.query.status as string | undefined;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
       let allLeads = await storage.getLeadsByUser(userId);
       if (source) allLeads = allLeads.filter(l => l.source === source);
       if (status) allLeads = allLeads.filter(l => l.status === status);
+      const totalLeads = allLeads.length;
+      const totalPages = Math.ceil(totalLeads / limit);
+      const startIndex = (page - 1) * limit;
+      allLeads = allLeads.slice(startIndex, startIndex + limit);
 
       const escapeCsv = (val: any) => {
         if (val === null || val === undefined) return "";
@@ -3294,7 +3300,8 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
       const csv = [headers.join(","), ...rows].join("\n");
       res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", `attachment; filename="leads-export-${new Date().toISOString().split("T")[0]}.csv"`);
+      const pageLabel = totalPages > 1 ? `-page${page}of${totalPages}` : "";
+      res.setHeader("Content-Disposition", `attachment; filename="leads-export-${status || "all"}${pageLabel}-${new Date().toISOString().split("T")[0]}.csv"`);
       res.send(csv);
     } catch (error) {
       console.error("Error exporting leads CSV:", error);

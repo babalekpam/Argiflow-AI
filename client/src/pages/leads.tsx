@@ -1804,22 +1804,55 @@ export default function LeadsPage() {
             </Button>
           )}
           <Select onValueChange={(val) => {
-            const url = val === "all" ? "/api/leads/export/csv" : `/api/leads/export/csv?status=${val}`;
-            window.open(url, "_blank");
+            const [filter, pg] = val.split("|");
+            const page = pg || "1";
+            const params = new URLSearchParams({ page, limit: "10" });
+            if (filter !== "all") params.set("status", filter);
+            window.open(`/api/leads/export/csv?${params.toString()}`, "_blank");
           }}>
-            <SelectTrigger className="w-[160px]" data-testid="button-export-csv">
+            <SelectTrigger className="w-[190px]" data-testid="button-export-csv">
               <Download className="w-4 h-4 mr-2" />
-              Export CSV
+              Export 10 Leads
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Leads</SelectItem>
-              <SelectItem value="hot">Hot Leads</SelectItem>
-              <SelectItem value="warm">Warm Leads</SelectItem>
-              <SelectItem value="new">New Leads</SelectItem>
-              <SelectItem value="cold">Cold Leads</SelectItem>
-              <SelectItem value="qualified">Qualified Leads</SelectItem>
-              <SelectItem value="contacted">Contacted Leads</SelectItem>
-              <SelectItem value="converted">Converted Leads</SelectItem>
+              {(() => {
+                const allCount = Array.isArray(leads) ? leads.length : 0;
+                const pages = Math.max(1, Math.ceil(allCount / 10));
+                const items: React.ReactNode[] = [];
+                for (let p = 1; p <= pages; p++) {
+                  const start = (p - 1) * 10 + 1;
+                  const end = Math.min(p * 10, allCount);
+                  items.push(
+                    <SelectItem key={`all-${p}`} value={`all|${p}`} data-testid={`export-all-page-${p}`}>
+                      All — #{start}–{end}
+                    </SelectItem>
+                  );
+                }
+                const statusFilters = [
+                  { value: "hot", label: "Hot" },
+                  { value: "warm", label: "Warm" },
+                  { value: "new", label: "New" },
+                  { value: "cold", label: "Cold" },
+                  { value: "qualified", label: "Qualified" },
+                  { value: "contacted", label: "Contacted" },
+                  { value: "converted", label: "Converted" },
+                ];
+                for (const sf of statusFilters) {
+                  const count = Array.isArray(leads) ? leads.filter((l: any) => l.status === sf.value).length : 0;
+                  if (count === 0) continue;
+                  const sfPages = Math.max(1, Math.ceil(count / 10));
+                  for (let p = 1; p <= sfPages; p++) {
+                    const start = (p - 1) * 10 + 1;
+                    const end = Math.min(p * 10, count);
+                    items.push(
+                      <SelectItem key={`${sf.value}-${p}`} value={`${sf.value}|${p}`} data-testid={`export-${sf.value}-page-${p}`}>
+                        {sf.label} — #{start}–{end}
+                      </SelectItem>
+                    );
+                  }
+                }
+                return items;
+              })()}
             </SelectContent>
           </Select>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
