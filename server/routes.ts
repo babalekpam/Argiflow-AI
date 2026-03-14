@@ -3247,6 +3247,52 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     }
   });
 
+  app.get("/api/leads/export/csv", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const source = req.query.source as string | undefined;
+      const status = req.query.status as string | undefined;
+      let allLeads = await storage.getLeadsByUser(userId);
+      if (source) allLeads = allLeads.filter(l => l.source === source);
+      if (status) allLeads = allLeads.filter(l => l.status === status);
+
+      const escapeCsv = (val: any) => {
+        if (val === null || val === undefined) return "";
+        const str = String(val).replace(/"/g, '""');
+        return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str}"` : str;
+      };
+
+      const headers = ["Name", "Email", "Phone", "Company", "Source", "Status", "Score", "Intent Signal", "Engagement Level", "Engagement Score", "Email Opens", "Email Clicks", "Address", "Notes", "Next Step", "Follow-Up Status", "Created At"];
+      const rows = allLeads.map(l => [
+        escapeCsv(l.name),
+        escapeCsv(l.email),
+        escapeCsv(l.phone),
+        escapeCsv(l.company),
+        escapeCsv(l.source),
+        escapeCsv(l.status),
+        escapeCsv(l.score),
+        escapeCsv(l.intentSignal),
+        escapeCsv(l.engagementLevel),
+        escapeCsv(l.engagementScore),
+        escapeCsv(l.emailOpens),
+        escapeCsv(l.emailClicks),
+        escapeCsv(l.address),
+        escapeCsv(l.notes),
+        escapeCsv(l.nextStep),
+        escapeCsv(l.followUpStatus),
+        escapeCsv(l.createdAt ? new Date(l.createdAt).toISOString() : ""),
+      ].join(","));
+
+      const csv = [headers.join(","), ...rows].join("\n");
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="leads-export-${new Date().toISOString().split("T")[0]}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error("Error exporting leads CSV:", error);
+      res.status(500).json({ message: "Failed to export leads" });
+    }
+  });
+
   app.post("/api/leads", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;

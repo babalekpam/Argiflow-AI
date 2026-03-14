@@ -69,6 +69,7 @@ import {
   Zap,
   UserSearch,
   MapPin,
+  Download,
 } from "lucide-react";
 import type { Lead, Business, EmailReply } from "@shared/schema";
 import { useState, useEffect, useMemo } from "react";
@@ -1802,6 +1803,16 @@ export default function LeadsPage() {
               {deleteAllMutation.isPending ? t("leads.clearing") : t("leads.clearAll")}
             </Button>
           )}
+          <Button
+            variant="outline"
+            onClick={() => {
+              window.open("/api/leads/export/csv", "_blank");
+            }}
+            data-testid="button-export-csv"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-lead">
