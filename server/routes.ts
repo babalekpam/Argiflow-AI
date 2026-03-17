@@ -608,15 +608,34 @@ async function executeAction(userId: string, action: string, params: any): Promi
         return "ERROR: No lead data provided. Use web_search first to find real businesses, then pass their details to this tool.";
       }
 
-      const isGatekeeper = (name: string, email: string) => {
+      const isGatekeeper = (name: string, email: string, notes?: string) => {
         const lower = (name || "").toLowerCase().trim();
         const emailLower = (email || "").toLowerCase().trim();
-        const gatekeeperTitles = /(receptionist|front\s*desk|secretary|scheduler|intake\s*specialist|office\s*staff|billing\s*clerk)/i;
+        const notesLower = (notes || "").toLowerCase();
+        const gatekeeperTitles = /(receptionist|front\s*desk|secretary|scheduler|intake\s*specialist|office\s*staff|billing\s*clerk|medical\s*assistant|nurse\s*aide|cna\b|lpn\b)/i;
         if (gatekeeperTitles.test(lower)) return true;
-        const isDecisionMaker = /\b(dr\.?|doctor|dds|dmd|md|do|dc|od|phd|owner|founder|ceo|president|managing\s*partner|principal|director|vp|vice\s*president|partner|cfo|coo|cto|cmo|head\s*of|general\s*manager|physician|dentist|chiropract|optometrist|surgeon|practitioner)\b/i.test(lower);
+        const isDecisionMaker = /\b(dr\.?|doctor|dds|dmd|md|do|dc|od|phd|owner|founder|ceo|president|managing\s*partner|principal|director|vp|vice\s*president|partner|cfo|coo|cto|cmo|head\s*of|general\s*manager|physician|dentist|chiropract|optometrist|surgeon|practitioner|administrator)\b/i.test(lower);
         if (isDecisionMaker) return false;
-        const gatekeeperEmails = /^(info|contact|office|admin|hello|support|reception|frontdesk|appointments?|scheduling|billing|general|team|staff|help|enquir|inquir|mail)@/i;
+        const gatekeeperEmails = /^(info|contact|office|admin|hello|support|reception|frontdesk|appointments?|scheduling|billing|general|team|staff|help|enquir|inquir|mail|noreply|no-reply)@/i;
         if (gatekeeperEmails.test(emailLower)) return true;
+        if (!isDecisionMaker && !lower.includes("dr") && !lower.includes("owner")) {
+          const hasNoTitle = !notesLower.match(/\b(owner|ceo|founder|president|director|partner|administrator|physician|dds|dmd|md|do|dc)\b/i);
+          if (hasNoTitle && gatekeeperEmails.test(emailLower)) return true;
+        }
+        return false;
+      };
+
+      const isGenericOfficeLine = (phone: string, name: string, email: string, notes?: string) => {
+        if (!phone) return false;
+        const lower = (name || "").toLowerCase();
+        const emailLower = (email || "").toLowerCase();
+        const notesLower = (notes || "").toLowerCase();
+        const isDecisionMaker = /\b(dr\.?|doctor|dds|dmd|md|do|dc|od|phd|owner|founder|ceo|president|managing\s*partner|principal|director|vp|vice\s*president|partner|cfo|coo|cto|cmo|head\s*of|general\s*manager|physician|dentist|chiropract|optometrist|surgeon|practitioner|administrator)\b/i.test(lower);
+        if (isDecisionMaker) return false;
+        const notesHasDirectPhone = /direct\s*(cell|line|phone|dial|mobile|number)|cell\s*phone|mobile|personal\s*phone|solo\s*practice|sole\s*practitioner/i.test(notesLower);
+        if (notesHasDirectPhone) return false;
+        const genericEmailPrefix = /^(info|contact|office|admin|reception|frontdesk|appointments?|scheduling|general|team|staff)@/i;
+        if (genericEmailPrefix.test(emailLower)) return true;
         return false;
       };
 
@@ -685,9 +704,14 @@ async function executeAction(userId: string, action: string, params: any): Promi
           console.warn(`[Lead Filter] Rejected fake phone: name="${lead.name}", phone="${lead.phone}"`);
           continue;
         }
-        if (isGatekeeper(lead.name, lead.email)) {
+        if (isGatekeeper(lead.name, lead.email, lead.notes)) {
           skipped.push(`${lead.name || "unnamed"} (gatekeeper)`);
           console.warn(`[Lead Filter] Rejected gatekeeper: name="${lead.name}", email="${lead.email}" — we only want decision makers`);
+          continue;
+        }
+        if (isGenericOfficeLine(lead.phone, lead.name, lead.email, lead.notes)) {
+          skipped.push(`${lead.name || "unnamed"} (generic office line — need decision maker direct phone)`);
+          console.warn(`[Lead Filter] Rejected generic office line: name="${lead.name}", email="${lead.email}", phone="${lead.phone}" — need decision maker's direct number, not front desk`);
           continue;
         }
         if (agentType === "medical-billing" && isBillingCompetitor(lead.company, lead.notes)) {
@@ -770,7 +794,9 @@ async function executeAction(userId: string, action: string, params: any): Promi
         const gatekeeperMsg = hasGatekeepers ? "\n- GATEKEEPER contacts (info@, contact@, office@, receptionists, schedulers) are AUTO-REJECTED. Find the DECISION MAKER: the owner, CEO, founder, director, VP, or partner." : "";
         const hasMissing = skipped.some(s => s.includes("missing"));
         const missingMsg = hasMissing ? "\n- Leads MUST have BOTH a real phone number AND a real email. Leads with only one or neither are AUTO-REJECTED." : "";
-        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info, missing phone/email, or were gatekeeper contacts.${gatekeeperMsg}${missingMsg}\nYou MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] owner" or "[business name] CEO" to find the DECISION MAKER\n3. Search "[decision maker name] phone number" AND "[decision maker name] direct line" for the decision maker's DIRECT phone — NOT the front desk number\n4. Search "[decision maker name] email" for their PERSONAL email — NOT generic office addresses\n5. ONLY use emails and phone numbers you see in actual search results\n6. Phone numbers must NOT contain "555" — those are fictional\n7. Emails must NOT be generic (info@, contact@, office@) — find the decision maker's PERSONAL email\n8. Emails must be from REAL domains you found in search results\n9. Every lead MUST have BOTH a real phone AND real email — skip any lead where you can't find both\n10. For phone numbers: Direct cell > Direct office line > Main line ONLY for solo practices. Avoid general front desk numbers that go to gatekeepers.\nTry again with REAL decision-maker DIRECT contacts (BOTH direct phone AND personal email) from actual web pages.`;
+        const hasGenericPhone = skipped.some(s => s.includes("generic office line"));
+        const genericPhoneMsg = hasGenericPhone ? "\n- GENERIC OFFICE PHONE NUMBERS are AUTO-REJECTED when paired with generic emails. We need the DECISION MAKER's DIRECT phone (cell or personal line), NOT the practice front desk number. Add 'direct cell' or 'direct line' in notes to confirm it's a direct number." : "";
+        return `ERROR: All ${skipped.length} leads were REJECTED — they had fabricated contact info, missing phone/email, generic office phone numbers, or were gatekeeper contacts.${gatekeeperMsg}${missingMsg}${genericPhoneMsg}\nYou MUST:\n1. Use web_search to search for SPECIFIC real businesses by name\n2. Search "[business name] owner" or "[business name] CEO" to find the DECISION MAKER\n3. Search "[decision maker name] phone number" AND "[decision maker name] direct line" AND "[decision maker name] cell phone" for the decision maker's DIRECT phone — NOT the front desk number\n4. Search "[decision maker name] email" for their PERSONAL email — NOT generic office addresses\n5. ONLY use emails and phone numbers you see in actual search results\n6. Phone numbers must NOT contain "555" — those are fictional\n7. Emails must NOT be generic (info@, contact@, office@) — find the decision maker's PERSONAL email\n8. Emails must be from REAL domains you found in search results\n9. Every lead MUST have BOTH a real phone AND real email — skip any lead where you can't find both\n10. PHONE NUMBER PRIORITY: Direct cell > Direct office line > Main line ONLY for solo practices (sole practitioner with no staff). NEVER use general front desk numbers.\n11. In the notes field, you MUST specify the phone type: "direct cell", "direct office line", or "solo practice main line". Leads without this classification are REJECTED.\nTry again with REAL decision-maker DIRECT contacts (BOTH direct phone AND personal email) from actual web pages.`;
       }
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);

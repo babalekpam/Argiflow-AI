@@ -1163,31 +1163,50 @@ INSTRUCTIONS:
 7. If the current contact IS already the decision maker, confirm and enhance their info
 8. Find the PHYSICAL ADDRESS of the practice/business — street address, city, state, zip code
 
+PHONE NUMBER RULES (CRITICAL):
+- We ONLY want the DECISION MAKER's phone — NOT the general practice front desk number
+- Phone priority: Direct cell/mobile > Direct office extension > Personal line
+- The practice main line (info/reception) is ONLY acceptable for solo practitioners (single doctor, no staff)
+- If you can only find the general practice phone, return null for phone — a front desk number is worse than no number
+- In "phoneType" specify what kind of number it is: "direct cell", "direct office line", or "solo practice main line"
+- NEVER return a phone number without specifying its type
+
 Return JSON:
 {
   "name": "Full Name with title (e.g., Dr. John Smith, DDS)",
   "title": "Their title (Owner, CEO, Lead Dentist, Medical Director, etc.)",
   "email": "their email from search results, or null if not found",
-  "phone": "their phone from search results, or null if not found",
+  "phone": "DECISION MAKER's DIRECT phone only (cell or personal line), or null if you can only find the front desk number",
+  "phoneType": "direct cell | direct office line | solo practice main line | null",
   "linkedinUrl": "LinkedIn URL if found, or null",
   "address": "Full physical address (e.g., 123 Main St, Suite 200, Chicago, IL 60601), or null if not found",
   "confidence": "high (found in multiple sources) | medium (found in one source) | low (inferred/uncertain)",
-  "notes": "How you identified this person as the decision maker",
+  "notes": "How you identified this person as the decision maker AND where you found their phone number (which website/source)",
   "source": "Primary URL where found"
 }
 
-CRITICAL: Only return data you actually found in the search results. Use null for anything you cannot verify. Never return phone numbers with 555. Never fabricate emails. Never fabricate addresses.`
+CRITICAL: Only return data you actually found in the search results. Use null for anything you cannot verify. Never return phone numbers with 555. Never fabricate emails. Never fabricate addresses. If the phone number is the general practice front desk line (shared reception number), return null for phone — we do NOT want front desk numbers.`
       );
+
+      const rawPhoneType = result.phoneType && result.phoneType !== "null" ? result.phoneType.toLowerCase().trim() : null;
+      const ALLOWED_PHONE_TYPES = ["direct cell", "direct office line", "solo practice main line"];
+      const phoneType = rawPhoneType && ALLOWED_PHONE_TYPES.some(t => rawPhoneType.includes(t)) ? rawPhoneType : null;
+      let finalPhone = result.phone && result.phone !== "null" ? result.phone : null;
+      if (finalPhone && !phoneType) {
+        console.warn(`[Intelligence] Phone returned without valid type classification for ${data.company} (got: "${rawPhoneType}") — rejecting as possible front desk number`);
+        finalPhone = null;
+      }
+      const notesWithPhoneType = phoneType ? `${result.notes || ""} | Phone type: ${phoneType}` : (result.notes || "");
 
       return {
         name: result.name || null,
         title: result.title || null,
         email: result.email && result.email !== "null" ? result.email : null,
-        phone: result.phone && result.phone !== "null" ? result.phone : null,
+        phone: finalPhone,
         linkedinUrl: result.linkedinUrl && result.linkedinUrl !== "null" ? result.linkedinUrl : null,
         address: result.address && result.address !== "null" ? result.address : null,
         confidence: result.confidence || "low",
-        notes: result.notes || "",
+        notes: notesWithPhoneType,
         source: result.source || allSources[0] || "",
       };
     } catch (err: any) {
