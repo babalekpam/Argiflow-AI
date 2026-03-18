@@ -9256,6 +9256,11 @@ The ArgiFlow Team`;
   const { startBusinessManagerScheduler } = await import("./business-manager");
   startBusinessManagerScheduler();
 
+  const ariaRoutes = (await import("./aria-routes")).default;
+  app.use("/api/aria", isAuthenticated, ariaRoutes);
+  const { startAriaScheduler } = await import("./aria-agent");
+  startAriaScheduler();
+
   startAutopilotScheduler();
   app.use("/api/postal", postalRoutes);
   app.use("/api/email", emailQuotaRoutes);

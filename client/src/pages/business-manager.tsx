@@ -1,680 +1,784 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Bot, Brain, Play, Pause, Zap, TrendingUp, Mail, Users, Calendar,
+  Bot, Brain, Play, Send, Zap, TrendingUp, Mail, Users, Calendar,
   BarChart3, Clock, CheckCircle, AlertCircle, Loader2, FileText,
-  Settings, Target, Sparkles, Activity, ChevronRight
+  Settings, Sparkles, Activity, MessageCircle, Shield, ShieldCheck,
+  Rocket, X, Check, Plug, ArrowRight, Star, Sun
 } from "lucide-react";
 
-const CAPABILITY_OPTIONS = [
-  { id: "lead_generation", label: "Lead Generation", icon: Users, desc: "Find and qualify new prospects" },
-  { id: "email_outreach", label: "Email Outreach", icon: Mail, desc: "Send cold emails and campaigns" },
-  { id: "follow_ups", label: "Follow-Ups", icon: ChevronRight, desc: "Automated follow-up sequences" },
-  { id: "pipeline_management", label: "Pipeline Management", icon: TrendingUp, desc: "Manage deals and stages" },
-  { id: "marketing", label: "Marketing", icon: Sparkles, desc: "Content and campaign creation" },
-  { id: "analytics_review", label: "Analytics Review", icon: BarChart3, desc: "Performance analysis and insights" },
-  { id: "inbox_management", label: "Inbox Management", icon: Mail, desc: "Monitor and respond to emails" },
-];
-
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    idle: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    thinking: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-    running: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    error: "bg-red-500/10 text-red-400 border-red-500/20",
-    paused: "bg-gray-500/10 text-gray-400 border-gray-500/20",
-  };
-  const icons: Record<string, any> = {
-    idle: CheckCircle,
-    thinking: Brain,
-    running: Activity,
-    error: AlertCircle,
-    paused: Pause,
-  };
-  const Icon = icons[status] || Activity;
+function AriaAvatar({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
+  const s = size === "sm" ? "w-6 h-6" : size === "lg" ? "w-12 h-12" : "w-8 h-8";
   return (
-    <Badge className={colors[status] || colors.idle} data-testid={`status-badge-${status}`}>
+    <div className={`${s} rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center flex-shrink-0`}>
+      <Bot className={size === "sm" ? "w-3.5 h-3.5" : size === "lg" ? "w-7 h-7" : "w-4.5 h-4.5"} style={{ color: "white" }} />
+    </div>
+  );
+}
+
+function AutonomyBadge({ level }: { level: string }) {
+  const config: Record<string, { icon: any; label: string; cls: string }> = {
+    supervised: { icon: Shield, label: "Supervised", cls: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
+    "semi-auto": { icon: ShieldCheck, label: "Semi-Auto", cls: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+    autopilot: { icon: Rocket, label: "Autopilot", cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  };
+  const c = config[level] || config.supervised;
+  const Icon = c.icon;
+  return (
+    <Badge className={c.cls} data-testid="badge-autonomy">
       <Icon className="w-3 h-3 mr-1" />
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {c.label}
     </Badge>
   );
 }
 
-function PriorityBadge({ priority }: { priority: string }) {
+function StatusDot({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    high: "bg-red-500/10 text-red-400 border-red-500/20",
-    medium: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-    low: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+    active: "bg-emerald-400",
+    thinking: "bg-yellow-400 animate-pulse",
+    onboarding: "bg-sky-400",
+    error: "bg-red-400",
   };
-  return <Badge className={colors[priority] || colors.medium}>{priority}</Badge>;
+  return <span className={`inline-block w-2 h-2 rounded-full ${colors[status] || "bg-gray-400"}`} />;
+}
+
+function DiscoveryChat({ onComplete }: { onComplete: () => void }) {
+  const { toast } = useToast();
+  const [input, setInput] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { data: history = [], isSuccess: historyLoaded } = useQuery<Array<{ role: string; content: string }>>({
+    queryKey: ["/api/aria/discovery/history"],
+  });
+
+  const [initSent, setInitSent] = useState(false);
+
+  const discoveryMut = useMutation({
+    mutationFn: async (message: string) => {
+      const res = await apiRequest("POST", "/api/aria/discovery", { message });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/discovery/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/status"] });
+      if (data.status?.onboarded) {
+        toast({ title: "Setup Complete!", description: "Aria is ready to manage your business." });
+        onComplete();
+      }
+    },
+  });
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [history]);
+
+  useEffect(() => {
+    if (historyLoaded && history.length === 0 && !initSent) {
+      setInitSent(true);
+      discoveryMut.mutate("Hi, I'd like to set up my business manager.");
+    }
+  }, [historyLoaded, history.length]);
+
+  const handleSend = () => {
+    if (!input.trim() || discoveryMut.isPending) return;
+    discoveryMut.mutate(input.trim());
+    setInput("");
+  };
+
+  return (
+    <div className="flex flex-col h-full max-h-[600px]">
+      <div className="flex items-center gap-3 p-4 border-b border-white/10">
+        <AriaAvatar size="lg" />
+        <div>
+          <h2 className="text-lg font-semibold text-white">Meet Aria</h2>
+          <p className="text-sm text-gray-400">Your AI Business Manager — Let's get you set up</p>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {history.map((msg, i) => (
+          <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
+            {msg.role !== "user" && <AriaAvatar size="sm" />}
+            <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+              msg.role === "user"
+                ? "bg-sky-600 text-white rounded-br-sm"
+                : "bg-white/5 text-gray-200 rounded-bl-sm"
+            }`} data-testid={`discovery-msg-${i}`}>
+              {msg.content}
+            </div>
+          </div>
+        ))}
+        {discoveryMut.isPending && (
+          <div className="flex gap-3">
+            <AriaAvatar size="sm" />
+            <div className="bg-white/5 rounded-2xl px-4 py-3 rounded-bl-sm">
+              <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="p-4 border-t border-white/10">
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Tell Aria about your business..."
+            className="bg-white/5 border-white/10"
+            disabled={discoveryMut.isPending}
+            data-testid="input-discovery"
+          />
+          <Button
+            onClick={handleSend}
+            disabled={!input.trim() || discoveryMut.isPending}
+            size="icon"
+            className="bg-sky-600 hover:bg-sky-700"
+            data-testid="button-discovery-send"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChatPanel() {
+  const { toast } = useToast();
+  const [input, setInput] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { data: history = [] } = useQuery<Array<{ id: number; role: string; content: string; created_at: string }>>({
+    queryKey: ["/api/aria/chat/history"],
+    refetchInterval: 5000,
+  });
+
+  const chatMut = useMutation({
+    mutationFn: async (message: string) => {
+      const res = await apiRequest("POST", "/api/aria/chat", { message });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/chat/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/actions/pending"] });
+    },
+  });
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [history]);
+
+  const handleSend = () => {
+    if (!input.trim() || chatMut.isPending) return;
+    chatMut.mutate(input.trim());
+    setInput("");
+  };
+
+  return (
+    <Card className="bg-gray-900/50 border-white/10 flex flex-col h-[500px]">
+      <CardHeader className="py-3 px-4 border-b border-white/10">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-sky-400" />
+          <CardTitle className="text-sm font-medium">Chat with Aria</CardTitle>
+        </div>
+      </CardHeader>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {history.length === 0 && (
+          <div className="text-center text-gray-500 mt-8">
+            <AriaAvatar size="lg" />
+            <p className="mt-3 text-sm">Ask me anything about your business!</p>
+            <div className="flex flex-wrap gap-2 justify-center mt-3">
+              {["What did you do today?", "Who needs follow up?", "Send emails to cold leads"].map(q => (
+                <button
+                  key={q}
+                  onClick={() => { setInput(q); }}
+                  className="text-xs px-3 py-1.5 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 transition"
+                  data-testid={`button-suggestion-${q.slice(0, 10)}`}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {history.map((msg) => (
+          <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : ""}`}>
+            {msg.role !== "user" && <AriaAvatar size="sm" />}
+            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${
+              msg.role === "user"
+                ? "bg-sky-600 text-white rounded-br-sm"
+                : "bg-white/5 text-gray-200 rounded-bl-sm"
+            }`} data-testid={`chat-msg-${msg.id}`}>
+              {msg.content}
+            </div>
+          </div>
+        ))}
+        {chatMut.isPending && (
+          <div className="flex gap-2">
+            <AriaAvatar size="sm" />
+            <div className="bg-white/5 rounded-2xl px-4 py-3 rounded-bl-sm">
+              <div className="flex gap-1">
+                <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="p-3 border-t border-white/10">
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Ask Aria anything..."
+            className="bg-white/5 border-white/10 text-sm"
+            disabled={chatMut.isPending}
+            data-testid="input-chat"
+          />
+          <Button
+            onClick={handleSend}
+            disabled={!input.trim() || chatMut.isPending}
+            size="icon"
+            className="bg-sky-600 hover:bg-sky-700"
+            data-testid="button-chat-send"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function ApprovalQueue() {
+  const { toast } = useToast();
+  const { data: pending = [] } = useQuery<any[]>({
+    queryKey: ["/api/aria/actions/pending"],
+    refetchInterval: 10000,
+  });
+
+  const approveMut = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("POST", `/api/aria/actions/${id}/approve`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/actions/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/actions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/dashboard"] });
+      toast({ title: "Action approved" });
+    },
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("POST", `/api/aria/actions/${id}/reject`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/actions/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/actions"] });
+      toast({ title: "Action rejected" });
+    },
+  });
+
+  if (pending.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        <CheckCircle className="w-8 h-8 mx-auto mb-2 text-emerald-500/50" />
+        <p className="text-sm">No actions waiting for approval</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {pending.map((action: any) => (
+        <div key={action.id} className="bg-white/5 rounded-xl p-4 border border-white/10" data-testid={`approval-${action.id}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Badge className="bg-sky-500/10 text-sky-400 border-sky-500/20 text-xs">{action.category}</Badge>
+              </div>
+              <p className="text-sm font-medium text-white">{action.title}</p>
+              {action.description && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{action.description}</p>}
+              {action.output_preview && (
+                <div className="mt-2 p-2 bg-black/30 rounded-lg text-xs text-gray-300 line-clamp-3">
+                  {action.output_preview}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-1.5 flex-shrink-0">
+              <Button
+                size="sm"
+                onClick={() => approveMut.mutate(action.id)}
+                disabled={approveMut.isPending}
+                className="bg-emerald-600 hover:bg-emerald-700 h-8 px-3"
+                data-testid={`button-approve-${action.id}`}
+              >
+                <Check className="w-3.5 h-3.5 mr-1" />
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => rejectMut.mutate(action.id)}
+                disabled={rejectMut.isPending}
+                className="border-white/10 h-8 px-3"
+                data-testid={`button-reject-${action.id}`}
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, sub, color = "sky" }: { icon: any; label: string; value: string | number; sub?: string; color?: string }) {
+  const colors: Record<string, string> = {
+    sky: "from-sky-500/10 to-sky-600/5 border-sky-500/20",
+    emerald: "from-emerald-500/10 to-emerald-600/5 border-emerald-500/20",
+    violet: "from-violet-500/10 to-violet-600/5 border-violet-500/20",
+    amber: "from-amber-500/10 to-amber-600/5 border-amber-500/20",
+    rose: "from-rose-500/10 to-rose-600/5 border-rose-500/20",
+  };
+  const iconColors: Record<string, string> = {
+    sky: "text-sky-400",
+    emerald: "text-emerald-400",
+    violet: "text-violet-400",
+    amber: "text-amber-400",
+    rose: "text-rose-400",
+  };
+  return (
+    <div className={`bg-gradient-to-br ${colors[color]} border rounded-xl p-4`} data-testid={`stat-${label}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className={`w-4 h-4 ${iconColors[color]}`} />
+        <span className="text-xs text-gray-400">{label}</span>
+      </div>
+      <p className="text-2xl font-bold text-white">{value}</p>
+      {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+function ConnectorsPanel() {
+  const { data: connectors = [] } = useQuery<Array<{ name: string; id: string; connected: boolean; description: string }>>({
+    queryKey: ["/api/aria/connectors"],
+  });
+
+  return (
+    <div className="space-y-3">
+      {connectors.map(c => (
+        <div key={c.id} className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10" data-testid={`connector-${c.id}`}>
+          <Plug className={`w-5 h-5 ${c.connected ? "text-emerald-400" : "text-gray-500"}`} />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-white">{c.name}</p>
+            <p className="text-xs text-gray-400">{c.description}</p>
+          </div>
+          <Badge className={c.connected ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-gray-500/10 text-gray-400 border-gray-500/20"}>
+            {c.connected ? "Connected" : "Not Connected"}
+          </Badge>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SettingsPanel() {
+  const { toast } = useToast();
+
+  const { data: dashboard } = useQuery<any>({ queryKey: ["/api/aria/dashboard"] });
+  const biz = dashboard?.business;
+
+  const settingsMut = useMutation({
+    mutationFn: async (data: any) => {
+      await apiRequest("POST", "/api/aria/settings", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/status"] });
+      toast({ title: "Settings updated" });
+    },
+  });
+
+  if (!biz) return null;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <label className="text-sm text-gray-400 mb-2 block">Autonomy Level</label>
+        <p className="text-xs text-gray-500 mb-3">Controls how much Aria can do without asking you first.</p>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { id: "supervised", icon: Shield, label: "Supervised", desc: "Aria proposes everything, you approve" },
+            { id: "semi-auto", icon: ShieldCheck, label: "Semi-Auto", desc: "Low-risk actions run automatically" },
+            { id: "autopilot", icon: Rocket, label: "Autopilot", desc: "Aria handles everything autonomously" },
+          ].map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => settingsMut.mutate({ autonomy: opt.id })}
+              className={`p-4 rounded-xl border text-left transition ${
+                biz.autonomy === opt.id
+                  ? "bg-sky-500/10 border-sky-500/30"
+                  : "bg-white/5 border-white/10 hover:bg-white/10"
+              }`}
+              data-testid={`button-autonomy-${opt.id}`}
+            >
+              <opt.icon className={`w-5 h-5 mb-2 ${biz.autonomy === opt.id ? "text-sky-400" : "text-gray-500"}`} />
+              <p className="text-sm font-medium text-white">{opt.label}</p>
+              <p className="text-xs text-gray-400 mt-1">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="text-sm text-gray-400 mb-2 block">Daily Briefing Time</label>
+        <Select defaultValue={biz.briefing_time || "08:00"} onValueChange={v => settingsMut.mutate({ briefing_time: v })}>
+          <SelectTrigger className="bg-white/5 border-white/10 w-48" data-testid="select-briefing-time">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {["06:00", "07:00", "08:00", "09:00", "10:00", "12:00"].map(t => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <label className="text-sm text-gray-400 mb-2 block">Briefing Delivery</label>
+        <Select defaultValue={biz.briefing_via || "email"} onValueChange={v => settingsMut.mutate({ briefing_via: v })}>
+          <SelectTrigger className="bg-white/5 border-white/10 w-48" data-testid="select-briefing-via">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="email">Email</SelectItem>
+            <SelectItem value="sms">SMS</SelectItem>
+            <SelectItem value="both">Both</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
 }
 
 export default function BusinessManagerPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
-  const [editMode, setEditMode] = useState(false);
-  const [formData, setFormData] = useState<any>({});
 
-  const { data: config, isLoading: configLoading } = useQuery({
-    queryKey: ["/api/business-manager/config"],
+  const { data: ariaStatus, isLoading: statusLoading } = useQuery<any>({
+    queryKey: ["/api/aria/status"],
   });
 
-  const { data: stats } = useQuery({
-    queryKey: ["/api/business-manager/stats"],
+  const { data: dashboard, isLoading: dashLoading } = useQuery<any>({
+    queryKey: ["/api/aria/dashboard"],
     refetchInterval: 10000,
+    enabled: ariaStatus?.onboarded === true,
   });
 
-  const { data: decisions } = useQuery({
-    queryKey: ["/api/business-manager/decisions"],
+  const { data: actions = [] } = useQuery<any[]>({
+    queryKey: ["/api/aria/actions"],
+    enabled: ariaStatus?.onboarded === true,
   });
 
-  const { data: reports } = useQuery({
-    queryKey: ["/api/business-manager/reports"],
+  const { data: briefings = [] } = useQuery<any[]>({
+    queryKey: ["/api/aria/briefings"],
+    enabled: ariaStatus?.onboarded === true,
   });
 
-  const saveMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/business-manager/config", { method: "POST", body: JSON.stringify(data), headers: { "Content-Type": "application/json" } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/business-manager/config"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/business-manager/stats"] });
-      setEditMode(false);
-      toast({ title: "Configuration saved" });
+  const cycleMut = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/aria/run-cycle");
+      return res.json();
     },
-  });
-
-  const toggleMutation = useMutation({
-    mutationFn: () => apiRequest("/api/business-manager/toggle", { method: "POST" }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/business-manager/config"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/business-manager/stats"] });
-      toast({ title: config?.enabled ? "Manager paused" : "Manager activated" });
-    },
-  });
-
-  const runNowMutation = useMutation({
-    mutationFn: () => apiRequest("/api/business-manager/run-now", { method: "POST" }),
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/business-manager/decisions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/business-manager/stats"] });
-      toast({ title: `Cycle complete: ${data.decisions} decisions, ${data.actions} actions` });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/actions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/actions/pending"] });
+      toast({ title: "Cycle Complete", description: `${data.actions} actions taken: ${data.message}` });
     },
     onError: (err: any) => {
-      toast({ title: "Cycle failed", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
 
-  const reportMutation = useMutation({
-    mutationFn: () => apiRequest("/api/business-manager/report", { method: "POST" }),
+  const briefingMut = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/aria/briefing");
+      return res.json();
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/business-manager/reports"] });
-      toast({ title: "Daily report generated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/briefings"] });
+      toast({ title: "Briefing Generated" });
     },
   });
 
-  if (configLoading) {
+  if (statusLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="w-8 h-8 animate-spin text-sky-400" />
       </div>
     );
   }
 
-  const isConfigured = !!config;
-  const isEnabled = config?.enabled;
+  if (!ariaStatus?.onboarded) {
+    return (
+      <div className="max-w-2xl mx-auto py-8 px-4">
+        <Card className="bg-gray-900/50 border-white/10 overflow-hidden">
+          <DiscoveryChat onComplete={() => queryClient.invalidateQueries({ queryKey: ["/api/aria/status"] })} />
+        </Card>
+      </div>
+    );
+  }
+
+  const biz = dashboard?.business;
 
   return (
-    <div className="space-y-6" data-testid="business-manager-page">
+    <div className="max-w-7xl mx-auto py-6 px-4 space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500/20 to-sky-500/20 border border-violet-500/30">
-            <Bot className="w-6 h-6 text-violet-400" />
-          </div>
+        <div className="flex items-center gap-4">
+          <AriaAvatar size="lg" />
           <div>
-            <h1 className="text-2xl font-bold" data-testid="text-page-title">AI Business Manager</h1>
-            <p className="text-sm text-muted-foreground">Your autonomous AI agent that runs the business like a tenant</p>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              Aria
+              <StatusDot status={biz?.status || "active"} />
+            </h1>
+            <p className="text-sm text-gray-400">
+              AI Business Manager for {biz?.name || "your business"}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {isConfigured && stats && <StatusBadge status={stats.status || "idle"} />}
-          {isConfigured && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => runNowMutation.mutate()}
-                disabled={runNowMutation.isPending || !isEnabled}
-                data-testid="button-run-now"
-              >
-                {runNowMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
-                Run Now
-              </Button>
-              <Button
-                variant={isEnabled ? "destructive" : "default"}
-                size="sm"
-                onClick={() => toggleMutation.mutate()}
-                disabled={toggleMutation.isPending}
-                data-testid="button-toggle-manager"
-              >
-                {isEnabled ? <Pause className="w-4 h-4 mr-1" /> : <Zap className="w-4 h-4 mr-1" />}
-                {isEnabled ? "Pause" : "Activate"}
-              </Button>
-            </>
-          )}
+          <AutonomyBadge level={biz?.autonomy || "supervised"} />
+          <Button
+            onClick={() => cycleMut.mutate()}
+            disabled={cycleMut.isPending}
+            className="bg-sky-600 hover:bg-sky-700"
+            data-testid="button-run-cycle"
+          >
+            {cycleMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+            Run Now
+          </Button>
         </div>
       </div>
 
-      {stats?.currentThought && isEnabled && (
-        <Card className="border-violet-500/20 bg-violet-500/5">
-          <CardContent className="py-3 px-4 flex items-center gap-3">
-            <Brain className="w-5 h-5 text-violet-400 flex-shrink-0" />
-            <div>
-              <p className="text-xs text-violet-300 font-medium">Current Thought</p>
-              <p className="text-sm text-foreground" data-testid="text-current-thought">{stats.currentThought}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {isConfigured && stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {[
-            { label: "Decisions Today", value: stats.todayDecisions || 0, icon: Brain, color: "text-violet-400" },
-            { label: "Actions Today", value: stats.todayActions || 0, icon: Zap, color: "text-sky-400" },
-            { label: "Total Decisions", value: stats.totalDecisions || 0, icon: Target, color: "text-emerald-400" },
-            { label: "Total Actions", value: stats.totalActions || 0, icon: Activity, color: "text-orange-400" },
-            { label: "Credits Used", value: stats.creditsUsedToday || 0, icon: BarChart3, color: "text-yellow-400" },
-            { label: "Last Run", value: stats.lastRunAt ? new Date(stats.lastRunAt).toLocaleTimeString() : "Never", icon: Clock, color: "text-gray-400" },
-          ].map((stat, i) => (
-            <Card key={i} className="border-border/50">
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-2">
-                  <stat.icon className={`w-4 h-4 ${stat.color}`} />
-                  <span className="text-xs text-muted-foreground">{stat.label}</span>
-                </div>
-                <p className="text-xl font-bold mt-1" data-testid={`stat-${stat.label.toLowerCase().replace(/\s/g, "-")}`}>{stat.value}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="bg-white/5 border border-white/10" data-testid="tabs-main">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="decisions" data-testid="tab-decisions">Decisions</TabsTrigger>
-          <TabsTrigger value="reports" data-testid="tab-reports">Reports</TabsTrigger>
+          <TabsTrigger value="chat" data-testid="tab-chat">Chat</TabsTrigger>
+          <TabsTrigger value="approvals" data-testid="tab-approvals">
+            Approvals
+            {dashboard?.pendingApprovals > 0 && (
+              <Badge className="ml-1.5 bg-red-500 text-white text-xs px-1.5 py-0">{dashboard.pendingApprovals}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
+          <TabsTrigger value="briefings" data-testid="tab-briefings">Briefings</TabsTrigger>
+          <TabsTrigger value="connectors" data-testid="tab-connectors">Connectors</TabsTrigger>
           <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4 mt-4">
-          {!isConfigured ? (
-            <SetupWizard onSave={(data: any) => saveMutation.mutate(data)} isPending={saveMutation.isPending} />
-          ) : (
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Bot className="w-4 h-4 text-violet-400" />
-                    Agent Profile
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Name</span>
-                    <span className="font-medium">{config.agentName || "AI Business Manager"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Personality</span>
-                    <Badge variant="outline">{config.personality || "professional"}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Autonomy</span>
-                    <Badge variant="outline">{config.autonomyLevel || "moderate"}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Status</span>
-                    <StatusBadge status={config.status || "idle"} />
-                  </div>
-                </CardContent>
-              </Card>
+        <TabsContent value="overview" className="space-y-6 mt-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <StatCard icon={Users} label="Active Leads" value={dashboard?.leads || 0} color="sky" />
+            <StatCard icon={Mail} label="Emails Sent" value={dashboard?.emailsSent || 0} color="violet" />
+            <StatCard icon={Calendar} label="Meetings" value={dashboard?.upcomingMeetings || 0} color="emerald" />
+            <StatCard icon={Zap} label="Actions Today" value={dashboard?.todayActions || 0} color="amber" />
+            <StatCard icon={AlertCircle} label="Pending" value={dashboard?.pendingApprovals || 0} color="rose" />
+          </div>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Target className="w-4 h-4 text-sky-400" />
-                    Active Capabilities
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {(config.activeCapabilities || []).map((cap: string) => {
-                      const opt = CAPABILITY_OPTIONS.find(c => c.id === cap);
-                      return (
-                        <Badge key={cap} variant="outline" className="text-xs">
-                          {opt?.label || cap}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ChatPanel />
 
-              <Card className="md:col-span-2">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-violet-400" />
-                    Recent Decisions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {(decisions as any[])?.length > 0 ? (
-                    <div className="space-y-3">
-                      {(decisions as any[]).slice(0, 5).map((d: any) => (
-                        <div key={d.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 border border-border/30">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="text-xs">{d.category}</Badge>
-                              <PriorityBadge priority={d.priority} />
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(d.createdAt).toLocaleString()}
-                              </span>
-                            </div>
-                            <p className="text-sm font-medium">{d.decision}</p>
-                            {d.reasoning && <p className="text-xs text-muted-foreground mt-1">{d.reasoning}</p>}
-                          </div>
-                        </div>
-                      ))}
+            <Card className="bg-gray-900/50 border-white/10 h-[500px] flex flex-col">
+              <CardHeader className="py-3 px-4 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-sky-400" />
+                    <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
+                  </div>
+                </div>
+              </CardHeader>
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {(dashboard?.recentActions || []).length === 0 && (
+                  <div className="text-center py-8 text-gray-500 text-sm">
+                    No activity yet. Run a cycle to get started.
+                  </div>
+                )}
+                {(dashboard?.recentActions || []).map((action: any) => (
+                  <div key={action.id} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg" data-testid={`activity-${action.id}`}>
+                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                      action.status === "completed" ? "bg-emerald-400" :
+                      action.status === "pending" ? "bg-yellow-400" :
+                      action.status === "rejected" ? "bg-red-400" : "bg-gray-400"
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white truncate">{action.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge className="bg-white/5 text-gray-400 border-white/10 text-xs">{action.category}</Badge>
+                        <span className="text-xs text-gray-500">{new Date(action.created_at).toLocaleTimeString()}</span>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-6">No decisions yet. Activate the manager or click "Run Now" to start.</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
         </TabsContent>
 
-        <TabsContent value="decisions" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Decision Log</CardTitle>
+        <TabsContent value="chat" className="mt-4">
+          <div className="max-w-3xl mx-auto">
+            <ChatPanel />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="approvals" className="mt-4">
+          <Card className="bg-gray-900/50 border-white/10">
+            <CardHeader className="border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-yellow-400" />
+                <CardTitle className="text-base">Actions Waiting for Your Approval</CardTitle>
+              </div>
+              <p className="text-sm text-gray-400">Aria proposed these actions. Review and approve or reject them.</p>
             </CardHeader>
-            <CardContent>
-              {(decisions as any[])?.length > 0 ? (
-                <div className="space-y-3">
-                  {(decisions as any[]).map((d: any) => (
-                    <div key={d.id} className="p-4 rounded-lg bg-muted/30 border border-border/30">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline" className="text-xs">{d.category}</Badge>
-                        <PriorityBadge priority={d.priority} />
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          {new Date(d.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                      <p className="text-sm font-medium mb-1">{d.decision}</p>
-                      {d.reasoning && <p className="text-xs text-muted-foreground mb-2">{d.reasoning}</p>}
-                      {d.actionsTaken && (d.actionsTaken as any[]).length > 0 && (
-                        <div className="mt-2 space-y-1.5">
-                          <p className="text-xs font-medium text-muted-foreground">Actions:</p>
-                          {(d.actionsTaken as any[]).map((a: any, i: number) => (
-                            <div key={i} className="text-xs p-2 rounded bg-background/50 border border-border/20">
-                              <span className="font-medium text-sky-400">{a.type}</span>: {a.detail}
-                              {a.result && <p className="mt-1 text-muted-foreground whitespace-pre-wrap">{a.result.slice(0, 300)}{a.result.length > 300 ? "..." : ""}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No decisions recorded yet.</p>
-              )}
+            <CardContent className="p-4">
+              <ApprovalQueue />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="reports" className="space-y-4 mt-4">
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => reportMutation.mutate()}
-              disabled={reportMutation.isPending || !isConfigured}
-              data-testid="button-generate-report"
-            >
-              {reportMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileText className="w-4 h-4 mr-1" />}
-              Generate Report Now
-            </Button>
-          </div>
-          {(reports as any[])?.length > 0 ? (
-            <div className="space-y-4">
-              {(reports as any[]).map((r: any) => (
-                <Card key={r.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm">Report — {r.reportDate}</CardTitle>
-                      <div className="flex gap-3 text-xs text-muted-foreground">
-                        <span>{r.decisionsCount} decisions</span>
-                        <span>{r.actionsCount} actions</span>
+        <TabsContent value="activity" className="mt-4">
+          <Card className="bg-gray-900/50 border-white/10">
+            <CardHeader className="border-b border-white/10">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Activity className="w-5 h-5 text-sky-400" />
+                All Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-2">
+                {actions.map((action: any) => (
+                  <div key={action.id} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg" data-testid={`action-${action.id}`}>
+                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                      action.status === "completed" ? "bg-emerald-400" :
+                      action.status === "pending" ? "bg-yellow-400" :
+                      action.status === "approved" ? "bg-blue-400" :
+                      action.status === "rejected" ? "bg-red-400" : "bg-gray-400"
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white">{action.title}</p>
+                      {action.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{action.description}</p>}
+                      {action.output_preview && (
+                        <div className="mt-1.5 p-2 bg-black/30 rounded text-xs text-gray-300 line-clamp-3">{action.output_preview}</div>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge className="bg-white/5 text-gray-400 border-white/10 text-xs">{action.category}</Badge>
+                        <Badge className={`text-xs ${
+                          action.status === "completed" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                          action.status === "pending" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" :
+                          action.status === "rejected" ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                          "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                        }`}>{action.status}</Badge>
+                        {action.tool_used && <span className="text-xs text-gray-500">via {action.tool_used}</span>}
+                        <span className="text-xs text-gray-500">{new Date(action.created_at).toLocaleString()}</span>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm">{r.summary}</p>
-                    {r.highlights && (r.highlights as string[]).length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-emerald-400 mb-1">Highlights</p>
-                        <ul className="text-xs space-y-1 text-muted-foreground">
-                          {(r.highlights as string[]).map((h: string, i: number) => (
-                            <li key={i} className="flex items-start gap-1.5">
-                              <CheckCircle className="w-3 h-3 text-emerald-400 mt-0.5 flex-shrink-0" />
-                              {h}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {r.recommendations && (r.recommendations as string[]).length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-sky-400 mb-1">Recommendations</p>
-                        <ul className="text-xs space-y-1 text-muted-foreground">
-                          {(r.recommendations as string[]).map((rec: string, i: number) => (
-                            <li key={i} className="flex items-start gap-1.5">
-                              <Target className="w-3 h-3 text-sky-400 mt-0.5 flex-shrink-0" />
-                              {rec}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {r.pipelineHealth && (
-                      <div className="flex gap-4 text-xs pt-2 border-t border-border/30">
-                        <span>Total: <strong>{r.pipelineHealth.total}</strong></span>
-                        <span className="text-red-400">Hot: {r.pipelineHealth.hot}</span>
-                        <span className="text-yellow-400">Warm: {r.pipelineHealth.warm}</span>
-                        <span className="text-blue-400">Cold: {r.pipelineHealth.cold}</span>
-                        <span className="text-emerald-400">Converted: {r.pipelineHealth.converted}</span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-sm text-muted-foreground">No reports yet. Click "Generate Report Now" to create one.</p>
-              </CardContent>
-            </Card>
-          )}
+                  </div>
+                ))}
+                {actions.length === 0 && (
+                  <div className="text-center py-8 text-gray-500 text-sm">No actions yet. Run a cycle to get started.</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="settings" className="space-y-4 mt-4">
-          <SettingsPanel config={config} onSave={(data: any) => saveMutation.mutate(data)} isPending={saveMutation.isPending} />
+        <TabsContent value="briefings" className="mt-4">
+          <Card className="bg-gray-900/50 border-white/10">
+            <CardHeader className="border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sun className="w-5 h-5 text-amber-400" />
+                  Daily Briefings
+                </CardTitle>
+                <Button
+                  size="sm"
+                  onClick={() => briefingMut.mutate()}
+                  disabled={briefingMut.isPending}
+                  className="bg-sky-600 hover:bg-sky-700"
+                  data-testid="button-generate-briefing"
+                >
+                  {briefingMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <FileText className="w-3.5 h-3.5 mr-1" />}
+                  Generate Now
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4">
+              {briefings.length === 0 && (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  No briefings yet. Generate one to see your daily summary.
+                </div>
+              )}
+              {briefings.map((b: any) => (
+                <div key={b.id} className="p-4 bg-white/5 rounded-xl border border-white/10 mb-3" data-testid={`briefing-${b.id}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-400">{new Date(b.sent_at).toLocaleString()}</span>
+                    {b.sent_via && <Badge className="bg-white/5 text-gray-400 border-white/10 text-xs">via {b.sent_via}</Badge>}
+                  </div>
+                  <p className="text-sm text-gray-200 whitespace-pre-wrap">{b.content}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="connectors" className="mt-4">
+          <Card className="bg-gray-900/50 border-white/10">
+            <CardHeader className="border-b border-white/10">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Plug className="w-5 h-5 text-sky-400" />
+                Connected Tools
+              </CardTitle>
+              <p className="text-sm text-gray-400">Tools Aria can use to manage your business.</p>
+            </CardHeader>
+            <CardContent className="p-4">
+              <ConnectorsPanel />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-4">
+          <Card className="bg-gray-900/50 border-white/10">
+            <CardHeader className="border-b border-white/10">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Settings className="w-5 h-5 text-gray-400" />
+                Aria Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <SettingsPanel />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-function SetupWizard({ onSave, isPending }: { onSave: (data: any) => void; isPending: boolean }) {
-  const [step, setStep] = useState(0);
-  const [data, setData] = useState({
-    agentName: "AI Business Manager",
-    businessContext: "",
-    goals: ["Generate qualified leads", "Close more deals", "Grow revenue"],
-    personality: "professional",
-    autonomyLevel: "moderate",
-    activeCapabilities: ["lead_generation", "email_outreach", "follow_ups", "pipeline_management", "marketing", "analytics_review", "inbox_management"],
-  });
-
-  const steps = [
-    {
-      title: "Business Context",
-      content: (
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Agent Name</label>
-            <Input
-              value={data.agentName}
-              onChange={(e) => setData(d => ({ ...d, agentName: e.target.value }))}
-              placeholder="e.g. TrackBot, BizManager"
-              data-testid="input-agent-name"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Describe Your Business</label>
-            <Textarea
-              value={data.businessContext}
-              onChange={(e) => setData(d => ({ ...d, businessContext: e.target.value }))}
-              placeholder="e.g. We are a medical billing company serving dental and mental health practices in the US. Our target customers are practice owners who need help with billing, coding, and revenue cycle management."
-              rows={4}
-              data-testid="input-business-context"
-            />
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: "Goals & Personality",
-      content: (
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Business Goals (one per line)</label>
-            <Textarea
-              value={data.goals.join("\n")}
-              onChange={(e) => setData(d => ({ ...d, goals: e.target.value.split("\n").filter(g => g.trim()) }))}
-              rows={4}
-              placeholder="Generate qualified leads&#10;Close more deals&#10;Grow revenue"
-              data-testid="input-goals"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">Personality</label>
-              <Select value={data.personality} onValueChange={(v) => setData(d => ({ ...d, personality: v }))}>
-                <SelectTrigger data-testid="select-personality"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="friendly">Friendly</SelectItem>
-                  <SelectItem value="aggressive">Aggressive</SelectItem>
-                  <SelectItem value="consultative">Consultative</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Autonomy Level</label>
-              <Select value={data.autonomyLevel} onValueChange={(v) => setData(d => ({ ...d, autonomyLevel: v }))}>
-                <SelectTrigger data-testid="select-autonomy"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="conservative">Conservative (Safe actions only)</SelectItem>
-                  <SelectItem value="moderate">Moderate (Balanced)</SelectItem>
-                  <SelectItem value="aggressive">Aggressive (Maximize growth)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: "Capabilities",
-      content: (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">Select what the AI Manager is allowed to do:</p>
-          {CAPABILITY_OPTIONS.map((cap) => (
-            <div key={cap.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:border-sky-500/30 transition-colors">
-              <div className="flex items-center gap-3">
-                <cap.icon className="w-4 h-4 text-sky-400" />
-                <div>
-                  <p className="text-sm font-medium">{cap.label}</p>
-                  <p className="text-xs text-muted-foreground">{cap.desc}</p>
-                </div>
-              </div>
-              <Switch
-                checked={data.activeCapabilities.includes(cap.id)}
-                onCheckedChange={(checked) => {
-                  setData(d => ({
-                    ...d,
-                    activeCapabilities: checked
-                      ? [...d.activeCapabilities, cap.id]
-                      : d.activeCapabilities.filter(c => c !== cap.id),
-                  }));
-                }}
-                data-testid={`switch-capability-${cap.id}`}
-              />
-            </div>
-          ))}
-        </div>
-      ),
-    },
-  ];
-
-  return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500/20 to-sky-500/20">
-            <Bot className="w-5 h-5 text-violet-400" />
-          </div>
-          <div>
-            <CardTitle className="text-lg">Set Up Your AI Business Manager</CardTitle>
-            <p className="text-sm text-muted-foreground">Step {step + 1} of {steps.length}: {steps[step].title}</p>
-          </div>
-        </div>
-        <div className="flex gap-1">
-          {steps.map((_, i) => (
-            <div key={i} className={`h-1 flex-1 rounded-full ${i <= step ? "bg-violet-500" : "bg-muted"}`} />
-          ))}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {steps[step].content}
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={() => setStep(s => s - 1)} disabled={step === 0} data-testid="button-wizard-back">
-            Back
-          </Button>
-          {step < steps.length - 1 ? (
-            <Button onClick={() => setStep(s => s + 1)} data-testid="button-wizard-next">
-              Next
-            </Button>
-          ) : (
-            <Button onClick={() => onSave(data)} disabled={isPending} data-testid="button-wizard-create">
-              {isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
-              Create AI Manager
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SettingsPanel({ config, onSave, isPending }: { config: any; onSave: (data: any) => void; isPending: boolean }) {
-  const [data, setData] = useState({
-    agentName: config?.agentName || "AI Business Manager",
-    businessContext: config?.businessContext || "",
-    goals: config?.goals || [],
-    personality: config?.personality || "professional",
-    autonomyLevel: config?.autonomyLevel || "moderate",
-    activeCapabilities: config?.activeCapabilities || [],
-    dailyBudgetCredits: config?.dailyBudgetCredits || 500,
-  });
-
-  return (
-    <div className="space-y-4 max-w-2xl">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Settings className="w-4 h-4" /> Configuration
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Agent Name</label>
-            <Input value={data.agentName} onChange={(e) => setData(d => ({ ...d, agentName: e.target.value }))} data-testid="input-settings-agent-name" />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Business Context</label>
-            <Textarea value={data.businessContext} onChange={(e) => setData(d => ({ ...d, businessContext: e.target.value }))} rows={3} data-testid="input-settings-context" />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Goals (one per line)</label>
-            <Textarea
-              value={(data.goals || []).join("\n")}
-              onChange={(e) => setData(d => ({ ...d, goals: e.target.value.split("\n").filter((g: string) => g.trim()) }))}
-              rows={3}
-              data-testid="input-settings-goals"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium">Personality</label>
-              <Select value={data.personality} onValueChange={(v) => setData(d => ({ ...d, personality: v }))}>
-                <SelectTrigger data-testid="select-settings-personality"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="friendly">Friendly</SelectItem>
-                  <SelectItem value="aggressive">Aggressive</SelectItem>
-                  <SelectItem value="consultative">Consultative</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Autonomy</label>
-              <Select value={data.autonomyLevel} onValueChange={(v) => setData(d => ({ ...d, autonomyLevel: v }))}>
-                <SelectTrigger data-testid="select-settings-autonomy"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="conservative">Conservative</SelectItem>
-                  <SelectItem value="moderate">Moderate</SelectItem>
-                  <SelectItem value="aggressive">Aggressive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Daily Credit Budget</label>
-              <Input type="number" value={data.dailyBudgetCredits} onChange={(e) => setData(d => ({ ...d, dailyBudgetCredits: parseInt(e.target.value) || 500 }))} data-testid="input-settings-budget" />
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-2 block">Active Capabilities</label>
-            <div className="grid grid-cols-2 gap-2">
-              {CAPABILITY_OPTIONS.map(cap => (
-                <div key={cap.id} className="flex items-center justify-between p-2 rounded border border-border/50">
-                  <span className="text-xs">{cap.label}</span>
-                  <Switch
-                    checked={(data.activeCapabilities || []).includes(cap.id)}
-                    onCheckedChange={(checked) => {
-                      setData(d => ({
-                        ...d,
-                        activeCapabilities: checked
-                          ? [...(d.activeCapabilities || []), cap.id]
-                          : (d.activeCapabilities || []).filter((c: string) => c !== cap.id),
-                      }));
-                    }}
-                    data-testid={`switch-settings-${cap.id}`}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-          <Button onClick={() => onSave(data)} disabled={isPending} className="w-full" data-testid="button-save-settings">
-            {isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
-            Save Configuration
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }
