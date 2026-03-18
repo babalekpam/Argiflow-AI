@@ -10,17 +10,17 @@ const router = Router();
 const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
 const useDirectKey = isValidAnthropicKey(process.env.ANTHROPIC_API_KEY);
 
-const anthropic = new Anthropic(
-  useDirectKey
-    ? { apiKey: process.env.ANTHROPIC_API_KEY! }
-    : process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL
-    ? { apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY, baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL }
-    : { apiKey: process.env.OPENAI_API_KEY || "" }
-);
+function getAnthropicConfig(): { apiKey: string; baseURL?: string } {
+  if (useDirectKey) return { apiKey: process.env.ANTHROPIC_API_KEY! };
+  if (process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
+    return { apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY, baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL };
+  }
+  console.error("[MarketingSuite] No valid Anthropic API key or Replit AI integration found");
+  return { apiKey: "missing" };
+}
 
-const AI_MODEL = useDirectKey ? "claude-sonnet-4-20250514"
-  : process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY ? "claude-sonnet-4-5"
-  : "claude-sonnet-4-5";
+const anthropic = new Anthropic(getAnthropicConfig());
+const AI_MODEL = useDirectKey ? "claude-sonnet-4-20250514" : "claude-sonnet-4-5";
 
 function safeError(err: unknown): string {
   if (err instanceof z.ZodError) {
