@@ -18,17 +18,26 @@ Do not make changes to the file `Y`.
 **AI Integration**: OpenAI GPT-4o as primary AI provider for B2B Intelligence Engine (strong reasoning). GPT-4o-mini used for general chat and lightweight tasks. Anthropic Claude available as optional override via per-user API keys. OpenAI-to-Anthropic compatibility wrapper ensures seamless provider switching.
 **B2B Intelligence Data Pipeline**: Multi-source data aggregation from 7+ databases: OpenCorporates (government registries), SEC EDGAR (public company filings), Wikidata/Wikipedia (knowledge base), GitHub API (developer/tech companies), RDAP/WHOIS (domain registration), DuckDuckGo Instant Answers (knowledge graph), plus Tavily/You.com web search. GPT-4o cross-references all sources for comprehensive, ZoomInfo/Apollo-level company and people intelligence.
 **UI/UX Design**: Dark theme with sky blue gradient accents and Inter font.
+**Consolidated Navigation** (sidebar deduplication completed):
+- 3 Agent pages → 1 unified "AI Agents" (`/dashboard/ai-agents`) with tabs: Catalog, Monitor, Console
+- 2 Analytics pages → 1 unified "Analytics" (`/dashboard/analytics`) with tabs: Campaigns, AI Performance
+- 2 Automation pages → 1 unified "Automations" (`/dashboard/automations`) with tabs: Templates, Workflow Builder
+- 3 Email pages → 1 unified "Email & Outreach" (`/dashboard/email`) with tabs: Outreach, Quotas & Sending, Delivery Logs
+- 2 Intelligence pages → 1 unified "Intelligence" (`/dashboard/intelligence`) with tabs: Sales Intelligence, Lead Discovery
+- 3 Learning pages → 1 unified "Learning Center" (`/dashboard/learning`) with tabs: Training, Templates, Growth Guide
+- Strategy page merged into Marketing Suite as a tab
+- Appointments page removed; Calendar (`/dashboard/calendar`) is the consolidated scheduling page
 **Core Features**:
 - **User Management**: Standard authentication and account management.
 - **Dashboard**: Centralized overview of business metrics.
 - **CRM & Leads**: Tracking, scoring, engagement analysis, and automated outreach, supporting multiple business profiles per user.
 - **Sales Funnels**: Kanban-style pipeline with deal management and analytics.
-- **Appointment Scheduling**: Client appointment management.
-- **AI Agent Management**: Catalog of specialized AI agents with configuration and task management.
-- **Email & SMS Campaigns**: AI-assisted creation, bulk sending, and tracking.
-- **Marketing Strategy**: AI-generated personalized marketing strategies.
+- **Calendar**: Full scheduling with month/week/list views, replaces separate Appointments page.
+- **AI Agents (Unified)**: Catalog, monitoring, and console for 13+ specialized AI agents — all in one tabbed page.
+- **Email & Outreach (Unified)**: AI chat outreach, SMS, quota tracking, direct mailer, and delivery logs in one tabbed page.
+- **Marketing Suite (with Strategy)**: AI-powered marketing autopilot, 33-skill toolkit, and strategy generation combined.
 - **Website Training**: AI analysis of user websites for personalized agent responses.
-- **Automations**: Workflow automation with templates.
+- **Automations (Unified)**: Template management and visual drag-drop workflow builder combined.
 - **Notifications**: Real-time alerts for agent activities and system events.
 - **Admin Panel**: Super admin access for system management.
 - **Multi-Region Support**: Distinct branding, agent catalogs, pricing, and currencies for Western and African markets.

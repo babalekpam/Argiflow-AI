@@ -169,7 +169,7 @@ export default function DashboardPage() {
               <h3 className="font-semibold text-sm">End-to-End Pipeline</h3>
               <p className="text-xs text-muted-foreground mt-1">Lead found → enriched → contacted → meeting</p>
             </div>
-            <Link href="/dashboard/workflows">
+            <Link href="/dashboard/automations">
               <Button variant="outline" size="sm" className="text-xs" data-testid="link-edit-flow">Edit Flow →</Button>
             </Link>
           </div>
@@ -257,7 +257,7 @@ export default function DashboardPage() {
         <Card className="p-5">
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
             <h3 className="font-semibold" data-testid="text-upcoming-appointments">{t("dashboard.upcomingAppointments")}</h3>
-            <Link href="/dashboard/appointments">
+            <Link href="/dashboard/calendar">
               <Button variant="ghost" size="sm" data-testid="link-view-all-appointments">
                 {t("common.viewAll")}
               </Button>
@@ -328,7 +328,7 @@ export default function DashboardPage() {
           <Card className="p-5" data-testid="card-agent-health">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-sm">Agent Health</h3>
-              <Link href="/dashboard/agent-console">
+              <Link href="/dashboard/ai-agents">
                 <Button variant="outline" size="sm" className="text-xs" data-testid="link-manage-agents">Manage →</Button>
               </Link>
             </div>

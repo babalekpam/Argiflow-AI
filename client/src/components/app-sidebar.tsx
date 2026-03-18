@@ -15,11 +15,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  Zap,
   LayoutDashboard,
   Users,
   UsersRound,
-  Calendar,
   Bot,
   Mail,
   MailPlus,
@@ -29,11 +27,8 @@ import {
   Phone,
   MessageSquare,
   Workflow,
-  Sparkles,
-  Library,
   Wand2,
   Filter,
-  Boxes,
   Shield,
   Globe,
   BookOpen,
@@ -41,7 +36,6 @@ import {
   Search,
   Target,
   BarChart3,
-  Microscope,
   Linkedin,
   Activity,
   GitBranch,
@@ -67,78 +61,76 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
+import type { LucideIcon } from "lucide-react";
+
+interface NavItem {
+  title: string;
+  icon: LucideIcon;
+  url: string;
+  badge?: string;
+  adminOnly?: boolean;
+}
 
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
 
-  const mainNav = [
+  const mainNav: NavItem[] = [
     { title: t("sidebar.overview"), icon: LayoutDashboard, url: "/dashboard" },
-    { title: "Visitor Tracking", icon: Eye, url: "/dashboard/visitor-tracking", badge: t("common.new") },
-    { title: t("sidebar.strategy"), icon: Sparkles, url: "/dashboard/strategy", badge: t("common.brandTag") },
     { title: t("sidebar.leadsCrm"), icon: Users, url: "/dashboard/leads" },
     { title: t("sidebar.salesFunnels"), icon: Filter, url: "/dashboard/funnels" },
-    { title: t("sidebar.appointments"), icon: Calendar, url: "/dashboard/appointments" },
-    { title: "AI Performance", icon: BarChart3, url: "/dashboard/ai-kpi" },
-    { title: "Analytics", icon: Activity, url: "/dashboard/analytics", badge: t("common.new") },
-    { title: "Team", icon: UsersRound, url: "/dashboard/team", badge: t("common.new") },
+    { title: "Calendar", icon: CalendarDays, url: "/dashboard/calendar" },
+    { title: "Analytics", icon: BarChart3, url: "/dashboard/analytics" },
+    { title: "Visitor Tracking", icon: Eye, url: "/dashboard/visitor-tracking" },
+    { title: "Team", icon: UsersRound, url: "/dashboard/team" },
   ];
 
-  const automationNav = [
-    { title: t("sidebar.agentCatalog"), icon: Boxes, url: "/dashboard/agent-catalog" },
-    { title: t("sidebar.aiAgentsNav"), icon: Bot, url: "/dashboard/ai-agents", badge: t("common.live") },
-    { title: "Agent Console", icon: Zap, url: "/dashboard/agent-console", badge: t("common.new") },
-    { title: t("sidebar.voiceAi"), icon: Phone, url: "/dashboard/voice-ai" },
-    { title: "Sequences", icon: GitBranch, url: "/dashboard/sequences", badge: t("common.new") },
-    { title: t("sidebar.emailSms"), icon: Mail, url: "/dashboard/email" },
-    { title: "Email Service", icon: MailPlus, url: "/dashboard/email-service" },
-    { title: "Sending Domain", icon: Globe, url: "/dashboard/domain" },
-    { title: "Email Infrastructure", icon: MailPlus, url: "/dashboard/email-infra" },
-    { title: "Email Logs", icon: Mail, url: "/dashboard/email-logs" },
+  const automationNav: NavItem[] = [
+    { title: "AI Agents", icon: Bot, url: "/dashboard/ai-agents", badge: t("common.live") },
+    { title: "Marketing Suite", icon: Palette, url: "/dashboard/marketing-suite", badge: t("common.new") },
     { title: t("sidebar.outreachAgent", "Outreach Agent"), icon: Target, url: "/dashboard/outreach-agent" },
-    { title: "LinkedIn", icon: Linkedin, url: "/dashboard/linkedin", badge: t("common.new") },
-    { title: t("sidebar.salesIntelligence", "Sales Intelligence"), icon: Search, url: "/dashboard/sales-intelligence" },
-    { title: "Lead Intelligence", icon: Microscope, url: "/dashboard/lead-intelligence" },
-    { title: "Intent Data", icon: Activity, url: "/dashboard/intent-data", badge: t("common.new") },
+    { title: "Sequences", icon: GitBranch, url: "/dashboard/sequences" },
+    { title: "Email & Outreach", icon: Mail, url: "/dashboard/email" },
+    { title: "Email Infrastructure", icon: MailPlus, url: "/dashboard/email-infra" },
+    { title: "Sending Domain", icon: Globe, url: "/dashboard/domain" },
+    { title: t("sidebar.voiceAi"), icon: Phone, url: "/dashboard/voice-ai" },
+    { title: "Intelligence", icon: Search, url: "/dashboard/intelligence" },
+    { title: "Intent Data", icon: Activity, url: "/dashboard/intent-data" },
+    { title: "LinkedIn", icon: Linkedin, url: "/dashboard/linkedin" },
     { title: "Forum Prospector", icon: Globe, url: "/dashboard/forum-prospector", adminOnly: true },
     { title: "Platform Promoter", icon: Megaphone, url: "/dashboard/platform-promoter", adminOnly: true },
   ];
 
-  const platformNav = [
-    { title: "Marketing Suite", icon: Palette, url: "/dashboard/marketing-suite", badge: t("common.new") },
-    { title: "Website Builder", icon: Globe, url: "/dashboard/website-builder", badge: t("common.new") },
-    { title: "Landing Pages", icon: Layout, url: "/dashboard/landing-pages", badge: t("common.new") },
-    { title: "Forms & Surveys", icon: FileText, url: "/dashboard/forms", badge: t("common.new") },
-    { title: "Chat Widget", icon: MessageSquare, url: "/dashboard/chat-widget", badge: t("common.new") },
-    { title: "Invoicing", icon: Receipt, url: "/dashboard/invoicing", badge: t("common.new") },
-    { title: "Social Media", icon: Share2, url: "/dashboard/social-media", badge: t("common.new") },
-    { title: "Reputation", icon: Star, url: "/dashboard/reputation", badge: t("common.new") },
-    { title: "WhatsApp", icon: MessageCircle, url: "/dashboard/whatsapp", badge: t("common.new") },
-    { title: "Meta DMs", icon: MessagesSquare, url: "/dashboard/meta-dms", badge: t("common.new") },
-    { title: "Calendar", icon: CalendarDays, url: "/dashboard/calendar", badge: t("common.new") },
-    { title: "E-Signatures", icon: PenTool, url: "/dashboard/e-signatures", badge: t("common.new") },
-    { title: "Google Business", icon: MapPin, url: "/dashboard/google-business", badge: t("common.new") },
-    { title: "Membership", icon: GraduationCap, url: "/dashboard/membership", badge: t("common.new") },
-    { title: "A/B Testing", icon: FlaskConical, url: "/dashboard/ab-testing", badge: t("common.new") },
-    { title: "Proposals", icon: FileSignature, url: "/dashboard/proposals", badge: t("common.new") },
-    { title: "Affiliates", icon: DollarSign, url: "/dashboard/affiliates", badge: t("common.new") },
-    { title: "Blog", icon: BookOpen, url: "/dashboard/blog", badge: t("common.new") },
-    { title: "Communities", icon: Users, url: "/dashboard/communities", badge: t("common.new") },
+  const platformNav: NavItem[] = [
+    { title: "Website Builder", icon: Globe, url: "/dashboard/website-builder" },
+    { title: "Landing Pages", icon: Layout, url: "/dashboard/landing-pages" },
+    { title: "Forms & Surveys", icon: FileText, url: "/dashboard/forms" },
+    { title: "Social Media", icon: Share2, url: "/dashboard/social-media" },
+    { title: "Chat Widget", icon: MessageSquare, url: "/dashboard/chat-widget" },
+    { title: "WhatsApp", icon: MessageCircle, url: "/dashboard/whatsapp" },
+    { title: "Meta DMs", icon: MessagesSquare, url: "/dashboard/meta-dms" },
+    { title: "Reputation", icon: Star, url: "/dashboard/reputation" },
+    { title: "Google Business", icon: MapPin, url: "/dashboard/google-business" },
+    { title: "Blog", icon: BookOpen, url: "/dashboard/blog" },
+    { title: "Communities", icon: Users, url: "/dashboard/communities" },
+    { title: "Invoicing", icon: Receipt, url: "/dashboard/invoicing" },
+    { title: "E-Signatures", icon: PenTool, url: "/dashboard/e-signatures" },
+    { title: "Proposals", icon: FileSignature, url: "/dashboard/proposals" },
+    { title: "Membership", icon: GraduationCap, url: "/dashboard/membership" },
+    { title: "A/B Testing", icon: FlaskConical, url: "/dashboard/ab-testing" },
+    { title: "Affiliates", icon: DollarSign, url: "/dashboard/affiliates" },
   ];
 
-  const growthNav = [
-    { title: t("sidebar.automations"), icon: Workflow, url: "/dashboard/automations" },
-    { title: t("sidebar.workflowBuilder", "Workflow Builder"), icon: Zap, url: "/dashboard/workflows" },
-    { title: "CRM Integrations", icon: Link2, url: "/dashboard/crm-integrations", badge: t("common.new") },
-    { title: "Webhooks", icon: Webhook, url: "/dashboard/webhooks", badge: t("common.new") },
-    { title: "Agency OS", icon: Shield, url: "/dashboard/agency", badge: t("common.new") },
-    { title: t("sidebar.training"), icon: GraduationCap, url: "/dashboard/training" },
-    { title: t("sidebar.resources"), icon: Library, url: "/dashboard/resources", adminOnly: true },
-    { title: "Growth Guide", icon: BookOpen, url: "/dashboard/guide", adminOnly: true },
+  const growthNav: NavItem[] = [
+    { title: "Automations", icon: Workflow, url: "/dashboard/automations" },
+    { title: "CRM Integrations", icon: Link2, url: "/dashboard/crm-integrations" },
+    { title: "Webhooks", icon: Webhook, url: "/dashboard/webhooks" },
+    { title: "Agency OS", icon: Shield, url: "/dashboard/agency" },
+    { title: "Learning Center", icon: GraduationCap, url: "/dashboard/learning" },
     { title: t("sidebar.demosInstall"), icon: Wand2, url: "/dashboard/demos", adminOnly: true },
-    { title: "AI Providers", icon: Cpu, url: "/dashboard/ai-providers", badge: t("common.new") },
-    { title: "Credits & Billing", icon: Coins, url: "/dashboard/credits", badge: t("common.new") },
+    { title: "AI Providers", icon: Cpu, url: "/dashboard/ai-providers" },
+    { title: "Credits & Billing", icon: Coins, url: "/dashboard/credits" },
     { title: t("sidebar.settings"), icon: Settings, url: "/dashboard/settings" },
   ];
 

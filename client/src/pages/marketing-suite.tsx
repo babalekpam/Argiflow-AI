@@ -13,8 +13,9 @@ import {
   ArrowLeft, Copy, Check, Loader2, Mail, Sparkles, Search, PenLine,
   Rocket, DollarSign, Target, BarChart3, Brain, Play, Zap, Clock,
   TrendingUp, Send, FileText, Activity, RefreshCw, Settings2,
-  ChevronRight, CheckCircle2, XCircle, AlertCircle
+  ChevronRight, CheckCircle2, XCircle, AlertCircle, Wand2
 } from "lucide-react";
+import StrategyPage from "./strategy";
 
 interface ToolField {
   key: string;
@@ -730,6 +731,10 @@ export default function MarketingSuitePage() {
             <Brain className="w-4 h-4" />
             Autopilot
           </TabsTrigger>
+          <TabsTrigger value="strategy" className="gap-2" data-testid="tab-strategy">
+            <Wand2 className="w-4 h-4" />
+            Strategy
+          </TabsTrigger>
           <TabsTrigger value="tools" className="gap-2" data-testid="tab-tools">
             <Zap className="w-4 h-4" />
             Manual Tools
@@ -738,6 +743,10 @@ export default function MarketingSuitePage() {
 
         <TabsContent value="autopilot" className="mt-6">
           <AutopilotDashboard />
+        </TabsContent>
+
+        <TabsContent value="strategy" className="mt-6">
+          <StrategyPage />
         </TabsContent>
 
         <TabsContent value="tools" className="mt-6">

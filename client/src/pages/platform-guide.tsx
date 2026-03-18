@@ -72,8 +72,8 @@ const phases: PhaseData[] = [
       "Instead of guessing what marketing approach to take, you get a data-driven strategy tailored to your specific industry and target market.",
     incomeImpact:
       "A clear strategy prevents wasted time and money on tactics that don't work for your business.",
-    linkTo: "/dashboard/strategy",
-    linkLabel: "Go to Strategy",
+    linkTo: "/dashboard/marketing-suite",
+    linkLabel: "Go to Marketing Suite",
   },
   {
     day: "Day 2-3",
@@ -88,8 +88,8 @@ const phases: PhaseData[] = [
       "Manual lead research takes 2-4 hours per day. The AI does this automatically, finding 30+ qualified leads per batch.",
     incomeImpact:
       "If each lead has a 5% conversion rate and your average deal is $2,000, then 30 leads = 1-2 new clients = $2,000-$4,000 per batch.",
-    linkTo: "/dashboard/agent-catalog",
-    linkLabel: "Go to Agent Catalog",
+    linkTo: "/dashboard/ai-agents",
+    linkLabel: "Go to AI Agents",
   },
   {
     day: "Day 3-5",
@@ -156,8 +156,8 @@ const phases: PhaseData[] = [
       "Workflows connect all the pieces together. When a lead opens your email, the system automatically scores them higher, sends a follow-up, and alerts you.",
     incomeImpact:
       "Automation eliminates 10-20 hours per week of manual tasks. That time can be reinvested into delivering services or strategic growth.",
-    linkTo: "/dashboard/workflows",
-    linkLabel: "Go to Workflow Builder",
+    linkTo: "/dashboard/automations",
+    linkLabel: "Go to Automations",
   },
   {
     day: "Ongoing",
@@ -658,10 +658,10 @@ export default function PlatformGuidePage() {
                 Set Up Profile
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
-              <Button variant="outline" onClick={() => setLocation("/dashboard/strategy")} data-testid="button-guide-start-strategy">
+              <Button variant="outline" onClick={() => setLocation("/dashboard/marketing-suite")} data-testid="button-guide-start-strategy">
                 Generate Strategy
               </Button>
-              <Button variant="outline" onClick={() => setLocation("/dashboard/agent-catalog")} data-testid="button-guide-start-agents">
+              <Button variant="outline" onClick={() => setLocation("/dashboard/ai-agents")} data-testid="button-guide-start-agents">
                 Find Leads
               </Button>
             </div>

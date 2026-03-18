@@ -13,33 +13,19 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import DashboardPage from "./dashboard";
 import LeadsPage from "./leads";
-import AppointmentsPage from "./appointments";
-import AiAgentsPage from "./ai-agents";
 import VoiceAiPage from "./voice-ai";
-import AutomationsPage from "./automations";
-import EmailSmsPage from "./email-sms";
-import TrainingPage from "./training";
 import SettingsPage from "./settings";
-import StrategyPage from "./strategy";
-import ResourcesPage from "./resources";
 import DemoBuilderPage from "./demo-builder";
 import SalesFunnelsPage from "./sales-funnels";
-import AgentCatalogPage from "./agent-catalog";
 import PlansPage from "./plans";
-import WorkflowBuilderPage from "./workflow-builder";
 import ForumProspectorPage from "./forum-prospector";
-import PlatformGuidePage from "./platform-guide";
 import PlatformPromoterPage from "./platform-promoter";
 import EmailInfrastructurePage from "./email-infrastructure";
-import SalesIntelligencePage from "./sales-intelligence";
 import OutreachAgentPage from "./outreach-agent";
-import AiKpiPage from "./ai-kpi";
-import LeadIntelligencePage from "./lead-intelligence";
 import SequencesPage from "./sequences";
 import LinkedInPage from "./linkedin";
 import IntentDataPage from "./intent-data";
 import TeamPage from "./team";
-import AnalyticsPage from "./analytics";
 import CrmIntegrationsPage from "./crm-integrations";
 import WebhooksPage from "./webhooks";
 import AgencyPage from "./agency";
@@ -60,15 +46,18 @@ import ProposalsPage from "./proposals";
 import AffiliateManagementPage from "./affiliate-management";
 import BlogBuilderPage from "./blog-builder";
 import CommunitiesPage from "./communities";
-import EmailLogsPage from "./email-logs";
 import AiProvidersPage from "./ai-providers";
 import CreditsPage from "./credits";
-import AgentConsolePage from "./agent-console";
 import WebBuilderPage from "./web-builder";
 import VisitorTrackingPage from "./visitor-tracking";
-import EmailDashboardPage from "./email-dashboard";
 import DomainSetupPage from "./domain-setup";
 import MarketingSuitePage from "./marketing-suite";
+import UnifiedAgentsPage from "./unified-agents";
+import UnifiedAnalyticsPage from "./unified-analytics";
+import UnifiedAutomationsPage from "./unified-automations";
+import UnifiedEmailPage from "./unified-email";
+import UnifiedIntelligencePage from "./unified-intelligence";
+import UnifiedLearningPage from "./unified-learning";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -225,37 +214,28 @@ export default function DashboardLayout() {
           <main className="flex-1 overflow-auto">
             <Switch>
               <Route path="/dashboard" component={DashboardPage} />
-              <Route path="/dashboard/strategy" component={StrategyPage} />
               <Route path="/dashboard/leads" component={LeadsPage} />
               <Route path="/dashboard/funnels" component={SalesFunnelsPage} />
-              <Route path="/dashboard/appointments" component={AppointmentsPage} />
-              <Route path="/dashboard/ai-agents" component={AiAgentsPage} />
-              <Route path="/dashboard/voice-ai" component={VoiceAiPage} />
-              <Route path="/dashboard/automations" component={AutomationsPage} />
-              <Route path="/dashboard/workflows" component={WorkflowBuilderPage} />
-              <Route path="/dashboard/resources" component={ResourcesPage} />
-              <Route path="/dashboard/demos" component={DemoBuilderPage} />
-              <Route path="/dashboard/email" component={EmailSmsPage} />
-              <Route path="/dashboard/training" component={TrainingPage} />
-              <Route path="/dashboard/agent-catalog" component={AgentCatalogPage} />
-              <Route path="/dashboard/plans" component={PlansPage} />
-              <Route path="/dashboard/forum-prospector" component={ForumProspectorPage} />
-              <Route path="/dashboard/guide" component={PlatformGuidePage} />
-              <Route path="/dashboard/platform-promoter" component={PlatformPromoterPage} />
-              <Route path="/dashboard/email-infra" component={EmailInfrastructurePage} />
-              <Route path="/dashboard/email-logs" component={EmailLogsPage} />
-              <Route path="/dashboard/sales-intelligence" component={SalesIntelligencePage} />
-              <Route path="/dashboard/outreach-agent" component={OutreachAgentPage} />
-              <Route path="/dashboard/ai-kpi" component={AiKpiPage} />
-              <Route path="/dashboard/lead-intelligence" component={LeadIntelligencePage} />
-              <Route path="/dashboard/sequences" component={SequencesPage} />
-              <Route path="/dashboard/linkedin" component={LinkedInPage} />
-              <Route path="/dashboard/intent-data" component={IntentDataPage} />
+              <Route path="/dashboard/calendar" component={CalendarPage} />
+              <Route path="/dashboard/analytics" component={UnifiedAnalyticsPage} />
+              <Route path="/dashboard/visitor-tracking" component={VisitorTrackingPage} />
               <Route path="/dashboard/team" component={TeamPage} />
-              <Route path="/dashboard/analytics" component={AnalyticsPage} />
+              <Route path="/dashboard/ai-agents" component={UnifiedAgentsPage} />
+              <Route path="/dashboard/marketing-suite" component={MarketingSuitePage} />
+              <Route path="/dashboard/outreach-agent" component={OutreachAgentPage} />
+              <Route path="/dashboard/sequences" component={SequencesPage} />
+              <Route path="/dashboard/email" component={UnifiedEmailPage} />
+              <Route path="/dashboard/email-infra" component={EmailInfrastructurePage} />
+              <Route path="/dashboard/domain" component={DomainSetupPage} />
+              <Route path="/dashboard/voice-ai" component={VoiceAiPage} />
+              <Route path="/dashboard/intelligence" component={UnifiedIntelligencePage} />
+              <Route path="/dashboard/intent-data" component={IntentDataPage} />
+              <Route path="/dashboard/linkedin" component={LinkedInPage} />
+              <Route path="/dashboard/automations" component={UnifiedAutomationsPage} />
               <Route path="/dashboard/crm-integrations" component={CrmIntegrationsPage} />
               <Route path="/dashboard/webhooks" component={WebhooksPage} />
               <Route path="/dashboard/agency" component={AgencyPage} />
+              <Route path="/dashboard/website-builder" component={WebBuilderPage} />
               <Route path="/dashboard/landing-pages" component={LandingPagesPage} />
               <Route path="/dashboard/forms" component={FormBuilderPage} />
               <Route path="/dashboard/chat-widget" component={ChatWidgetPage} />
@@ -264,7 +244,6 @@ export default function DashboardLayout() {
               <Route path="/dashboard/reputation" component={ReputationPage} />
               <Route path="/dashboard/whatsapp" component={WhatsAppPage} />
               <Route path="/dashboard/meta-dms" component={MetaDmsPage} />
-              <Route path="/dashboard/calendar" component={CalendarPage} />
               <Route path="/dashboard/e-signatures" component={ESignaturesPage} />
               <Route path="/dashboard/google-business" component={GoogleBusinessPage} />
               <Route path="/dashboard/membership" component={MembershipPage} />
@@ -273,14 +252,13 @@ export default function DashboardLayout() {
               <Route path="/dashboard/affiliates" component={AffiliateManagementPage} />
               <Route path="/dashboard/blog" component={BlogBuilderPage} />
               <Route path="/dashboard/communities" component={CommunitiesPage} />
-              <Route path="/dashboard/agent-console" component={AgentConsolePage} />
-              <Route path="/dashboard/website-builder" component={WebBuilderPage} />
-              <Route path="/dashboard/visitor-tracking" component={VisitorTrackingPage} />
-              <Route path="/dashboard/email-service" component={EmailDashboardPage} />
-              <Route path="/dashboard/domain" component={DomainSetupPage} />
+              <Route path="/dashboard/learning" component={UnifiedLearningPage} />
               <Route path="/dashboard/ai-providers" component={AiProvidersPage} />
               <Route path="/dashboard/credits" component={CreditsPage} />
-              <Route path="/dashboard/marketing-suite" component={MarketingSuitePage} />
+              <Route path="/dashboard/plans" component={PlansPage} />
+              <Route path="/dashboard/forum-prospector" component={ForumProspectorPage} />
+              <Route path="/dashboard/platform-promoter" component={PlatformPromoterPage} />
+              <Route path="/dashboard/demos" component={DemoBuilderPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />
