@@ -7,7 +7,20 @@ import { getSkill, buildSkillPrompt, buildAutoPrompt, listSkills } from "./marke
 
 const router = Router();
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
+const useDirectKey = isValidAnthropicKey(process.env.ANTHROPIC_API_KEY);
+
+const anthropic = new Anthropic(
+  useDirectKey
+    ? { apiKey: process.env.ANTHROPIC_API_KEY! }
+    : process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL
+    ? { apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY, baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL }
+    : { apiKey: process.env.OPENAI_API_KEY || "" }
+);
+
+const AI_MODEL = useDirectKey ? "claude-sonnet-4-20250514"
+  : process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY ? "claude-sonnet-4-5"
+  : "claude-sonnet-4-5";
 
 function safeError(err: unknown): string {
   if (err instanceof z.ZodError) {
@@ -46,7 +59,7 @@ Always give complete, actionable, ready-to-use output. Be specific. Avoid generi
 When producing copy (emails, headlines, etc.), write final versions, not templates with [brackets].`;
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: AI_MODEL,
     max_tokens: 2000,
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }]
@@ -230,7 +243,7 @@ Deliver final, polished copy — no placeholders or brackets.
 Include 2 alternatives for the headline/hook.`;
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: AI_MODEL,
       max_tokens: 2000,
       system: systemSkills,
       messages: [{ role: "user", content: userPrompt }]
@@ -343,7 +356,7 @@ ${user_context ? `\n## User Context\n${user_context}` : ""}`;
     ];
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: AI_MODEL,
       max_tokens: 1500,
       system: ariaBase,
       messages
@@ -391,7 +404,7 @@ Then overall sequence assessment:
 - #1 change to make before sending`;
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: AI_MODEL,
       max_tokens: 2500,
       system: systemSkills,
       messages: [{ role: "user", content: userPrompt }]
