@@ -106,7 +106,7 @@ export async function resolveProvider(userId?: string): Promise<ResolvedProvider
   }
 
   if (process.env.OPENAI_API_KEY) {
-    return { providerId: "openai", apiKey: process.env.OPENAI_API_KEY, model: "gpt-4o-mini", source: "system" };
+    return { providerId: "openai", apiKey: process.env.OPENAI_API_KEY, model: "gpt-4o", source: "system" };
   }
 
   if (isValidAnthropicKey(process.env.ANTHROPIC_API_KEY)) {

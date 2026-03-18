@@ -714,7 +714,7 @@ export default function SettingsPage() {
                   <h3 className="font-semibold text-sm">AI Provider</h3>
                   {(() => {
                     const pref = getFieldValue("preferredAiProvider") || (settings as any)?.preferredAiProvider || "auto";
-                    const providerNames: Record<string, string> = { auto: "Auto (Platform Default)", openai: "OpenAI", anthropic: "Anthropic", gemini: "Google Gemini", mistral: "Mistral AI", groq: "Groq", together: "Together AI" };
+                    const providerNames: Record<string, string> = { auto: "OpenAI GPT-4o (Primary)", openai: "OpenAI", anthropic: "Anthropic", gemini: "Google Gemini", mistral: "Mistral AI", groq: "Groq", together: "Together AI" };
                     return (
                       <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                         <CheckCircle className="w-3 h-3 mr-1" />
@@ -740,8 +740,8 @@ export default function SettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="auto">Auto (Platform Default)</SelectItem>
-                      <SelectItem value="openai">OpenAI (GPT-4o, GPT-4o-mini)</SelectItem>
+                      <SelectItem value="auto">Auto (OpenAI GPT-4o — Platform Primary)</SelectItem>
+                      <SelectItem value="openai">OpenAI (GPT-4o, GPT-4o-mini, o3-mini)</SelectItem>
                       <SelectItem value="anthropic">Anthropic (Claude Sonnet, Opus, Haiku)</SelectItem>
                       <SelectItem value="gemini">Google Gemini (Gemini 1.5 Pro, Flash)</SelectItem>
                       <SelectItem value="mistral">Mistral AI (Large, Medium, Small)</SelectItem>
@@ -780,7 +780,7 @@ export default function SettingsPage() {
                   const pref = getFieldValue("preferredAiProvider") || (settings as any)?.preferredAiProvider || "auto";
                   if (pref === "auto") return null;
                   const modelOptions: Record<string, string[]> = {
-                    openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+                    openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o3-mini"],
                     anthropic: ["claude-sonnet-4-5", "claude-opus-4-5", "claude-haiku-4-5"],
                     gemini: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"],
                     mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"],

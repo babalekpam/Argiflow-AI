@@ -22,7 +22,7 @@ const REGISTRY: Record<string, LLMProviderConfig> = {
     format: "openai",
     defaultModel: "gpt-4o",
     getKey: () => process.env.OPENAI_API_KEY,
-    modelOptions: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+    modelOptions: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o3-mini"],
   },
   gemini: {
     name: "Google Gemini",
