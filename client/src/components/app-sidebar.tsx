@@ -63,6 +63,7 @@ import {
   Cpu,
   Coins,
   Eye,
+  Palette,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -105,6 +106,7 @@ export function AppSidebar() {
   ];
 
   const platformNav = [
+    { title: "Marketing Suite", icon: Palette, url: "/dashboard/marketing-suite", badge: t("common.new") },
     { title: "Website Builder", icon: Globe, url: "/dashboard/website-builder", badge: t("common.new") },
     { title: "Landing Pages", icon: Layout, url: "/dashboard/landing-pages", badge: t("common.new") },
     { title: "Forms & Surveys", icon: FileText, url: "/dashboard/forms", badge: t("common.new") },
