@@ -714,7 +714,7 @@ export default function SettingsPage() {
                   <h3 className="font-semibold text-sm">AI Provider</h3>
                   {(() => {
                     const pref = getFieldValue("preferredAiProvider") || (settings as any)?.preferredAiProvider || "auto";
-                    const providerNames: Record<string, string> = { auto: "OpenAI GPT-4o (Primary)", openai: "OpenAI", anthropic: "Anthropic", gemini: "Google Gemini", mistral: "Mistral AI", groq: "Groq", together: "Together AI" };
+                    const providerNames: Record<string, string> = { auto: "OpenAI GPT-4o (Primary)", openai: "OpenAI", anthropic: "Anthropic", gemini: "Google Gemini", mistral: "Mistral AI", groq: "Groq", together: "Together AI", cohere: "Cohere", openrouter: "OpenRouter", ollama: "Ollama (Local)" };
                     return (
                       <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                         <CheckCircle className="w-3 h-3 mr-1" />
@@ -747,6 +747,9 @@ export default function SettingsPage() {
                       <SelectItem value="mistral">Mistral AI (Large, Medium, Small)</SelectItem>
                       <SelectItem value="groq">Groq (Llama 3.3, Mixtral)</SelectItem>
                       <SelectItem value="together">Together AI (Llama 3, Mixtral)</SelectItem>
+                      <SelectItem value="cohere">Cohere (Command R+, Command R)</SelectItem>
+                      <SelectItem value="openrouter">OpenRouter (Any Model)</SelectItem>
+                      <SelectItem value="ollama">Ollama (Local Models)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -759,6 +762,8 @@ export default function SettingsPage() {
                     mistral: { field: "mistralApiKey", placeholder: "your-mistral-key", label: "Mistral API Key" },
                     groq: { field: "groqApiKey", placeholder: "gsk_...", label: "Groq API Key" },
                     together: { field: "togetherApiKey", placeholder: "your-together-key", label: "Together AI API Key" },
+                    cohere: { field: "cohereApiKey", placeholder: "your-cohere-key", label: "Cohere API Key" },
+                    openrouter: { field: "openrouterApiKey", placeholder: "sk-or-...", label: "OpenRouter API Key" },
                   };
                   const config = providerKeyConfig[pref];
                   if (!config) return null;
@@ -786,6 +791,9 @@ export default function SettingsPage() {
                     mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"],
                     groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
                     together: ["meta-llama/Llama-3-70b-chat-hf", "mistralai/Mixtral-8x22B-Instruct-v0.1"],
+                    cohere: ["command-r-plus", "command-r", "command-light"],
+                    openrouter: ["openai/gpt-4o", "anthropic/claude-sonnet-4-20250514", "google/gemini-pro-1.5", "meta-llama/llama-3.1-405b-instruct"],
+                    ollama: ["llama3", "mistral", "codellama", "gemma"],
                   };
                   const models = modelOptions[pref] || [];
                   if (models.length === 0) return null;

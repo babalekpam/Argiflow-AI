@@ -1,7 +1,7 @@
 interface LLMProviderConfig {
   name: string;
   baseUrl: string;
-  format: "anthropic" | "openai" | "gemini";
+  format: "anthropic" | "openai" | "gemini" | "ollama";
   defaultModel: string;
   getKey: () => string | undefined;
   modelOptions: string[];
@@ -55,6 +55,30 @@ const REGISTRY: Record<string, LLMProviderConfig> = {
     defaultModel: "meta-llama/Llama-3-70b-chat-hf",
     getKey: () => process.env.TOGETHER_API_KEY,
     modelOptions: ["meta-llama/Llama-3-70b-chat-hf", "mistralai/Mixtral-8x22B-Instruct-v0.1"],
+  },
+  cohere: {
+    name: "Cohere",
+    baseUrl: "https://api.cohere.ai",
+    format: "openai",
+    defaultModel: "command-r-plus",
+    getKey: () => process.env.COHERE_API_KEY,
+    modelOptions: ["command-r-plus", "command-r", "command-light"],
+  },
+  openrouter: {
+    name: "OpenRouter",
+    baseUrl: "https://openrouter.ai/api",
+    format: "openai",
+    defaultModel: "openai/gpt-4o",
+    getKey: () => process.env.OPENROUTER_API_KEY,
+    modelOptions: ["openai/gpt-4o", "anthropic/claude-sonnet-4-20250514", "google/gemini-pro-1.5", "meta-llama/llama-3.1-405b-instruct"],
+  },
+  ollama: {
+    name: "Ollama (Local)",
+    baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+    format: "ollama",
+    defaultModel: "llama3",
+    getKey: () => "ollama-local",
+    modelOptions: ["llama3", "mistral", "codellama", "gemma"],
   },
 };
 
@@ -167,6 +191,23 @@ export async function callLLM({ system, userMessage, maxTokens = 800, providerId
     }
     const data: any = await res.json();
     return { text: data.candidates?.[0]?.content?.parts?.[0]?.text ?? "", provider: cfg.name, model: cfg.model };
+  }
+
+  if (cfg.format === "ollama") {
+    const messages: any[] = [];
+    if (system) messages.push({ role: "system", content: system });
+    messages.push({ role: "user", content: userMessage });
+    const res = await fetchWithRetry(`${cfg.baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: cfg.model, messages, stream: false }),
+    });
+    if (!res.ok) {
+      const e: any = await res.json().catch(() => ({}));
+      throw new Error(e?.error || res.statusText);
+    }
+    const data: any = await res.json();
+    return { text: data.message?.content ?? "", provider: cfg.name, model: cfg.model };
   }
 
   throw new Error(`Unsupported format: ${cfg.format}`);

@@ -130,6 +130,8 @@ export const userSettings = pgTable("user_settings", {
   mistralApiKey: text("mistral_api_key"),
   groqApiKey: text("groq_api_key"),
   togetherApiKey: text("together_api_key"),
+  cohereApiKey: text("cohere_api_key"),
+  openrouterApiKey: text("openrouter_api_key"),
   preferredAiProvider: text("preferred_ai_provider").default("auto"),
   preferredAiModel: text("preferred_ai_model"),
   youApiKey: text("you_api_key"),

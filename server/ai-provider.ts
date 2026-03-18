@@ -30,6 +30,8 @@ const AI_PROVIDER_KEY_FIELDS: Record<string, string> = {
   mistral: "mistralApiKey",
   groq: "groqApiKey",
   together: "togetherApiKey",
+  cohere: "cohereApiKey",
+  openrouter: "openrouterApiKey",
 };
 
 const SYSTEM_ENV_KEYS: Record<string, string> = {
@@ -39,6 +41,8 @@ const SYSTEM_ENV_KEYS: Record<string, string> = {
   mistral: "MISTRAL_API_KEY",
   groq: "GROQ_API_KEY",
   together: "TOGETHER_API_KEY",
+  cohere: "COHERE_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
 };
 
 function getSystemKey(providerId: string): string | undefined {

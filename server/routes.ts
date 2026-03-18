@@ -6976,7 +6976,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         settings = await storage.upsertSettings({ userId, emailNotifications: true, smsNotifications: false, aiAutoRespond: true, leadScoring: true, appointmentReminders: true, weeklyReport: true, darkMode: true, twoFactorAuth: false });
       }
       const result: any = { ...settings };
-      const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "youApiKey", "sendgridApiKey"];
+      const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "cohereApiKey", "openrouterApiKey", "youApiKey", "sendgridApiKey"];
       for (const k of sensitiveKeys) {
         if (result[k]) {
           const key = result[k];
@@ -6998,7 +6998,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
     try {
       const userId = req.session.userId!;
       const body = { ...req.body };
-      const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "youApiKey", "sendgridApiKey"];
+      const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "cohereApiKey", "openrouterApiKey", "youApiKey", "sendgridApiKey"];
       for (const k of sensitiveKeys) {
         if (body[k] && body[k].includes("...")) delete body[k];
         if (body[k] === "") body[k] = null;
@@ -9247,6 +9247,9 @@ The ArgiFlow Team`;
   app.use("/api/chatbot", chatbotRoutes);
   app.use("/api/marketing-suite", isAuthenticated, marketingSuiteRoutes);
   app.use("/api/marketing-autopilot", isAuthenticated, marketingAutopilotRoutes);
+
+  const aiProviderRoutes = (await import("../argiflow-ai-adapter/aiProviderRoutes")).default;
+  app.use("/api/ai", isAuthenticated, aiProviderRoutes);
   startAutopilotScheduler();
   app.use("/api/postal", postalRoutes);
   app.use("/api/email", emailQuotaRoutes);

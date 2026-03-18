@@ -1,0 +1,102 @@
+I have a ZIP package called argiflow-ai-adapter that I need you to integrate into this project. Here is exactly what it contains and what to do with each file:
+
+OVERVIEW
+This is a universal AI provider adapter for ArgiFlow. It replaces all direct @anthropic-ai/sdk calls throughout the codebase with a single unified ai.chat() function that works with any AI provider. OpenAI (gpt-4o) is the default provider.
+
+FILES AND INSTRUCTIONS
+1. argiflow-ai-adapter/index.js
+This is the core adapter. Place it at the root of the project as argiflow-ai-adapter/index.js. It exports:
+
+ai.chat(input, options) — main function, accepts a string or message array
+ai.chatWithSystem(system, message, options) — convenience wrapper with system prompt
+ai.chatJSON(input, options) — same as chat but auto-parses JSON response
+ai.listProviders() — returns all supported providers and which are configured
+ai.getActiveProvider() / ai.getActiveModel() — returns current config
+
+It reads these environment variables from Replit Secrets:
+
+AI_PROVIDER — which provider to use (default: openai)
+AI_MODEL — model override (default: gpt-4o for OpenAI)
+OPENAI_API_KEY — required for OpenAI
+ANTHROPIC_API_KEY — required for Anthropic
+GEMINI_API_KEY, MISTRAL_API_KEY, GROQ_API_KEY, COHERE_API_KEY, TOGETHER_API_KEY, OPENROUTER_API_KEY — optional, for other providers
+OLLAMA_BASE_URL — for local Ollama (default: http://localhost:11434)
+
+No npm packages are required for this file — it uses Node.js built-in https/http modules only.
+
+2. argiflow-ai-adapter/aiProviderRoutes.js
+An Express router. Mount it in server.js like this:
+jsconst aiRoutes = require('./argiflow-ai-adapter/aiProviderRoutes');
+app.use('/api/ai', aiRoutes);
+It adds these endpoints:
+
+GET /api/ai/providers — lists all providers and whether they are configured
+POST /api/ai/test — sends a test message to verify the active provider works
+PATCH /api/ai/provider — switches the active provider at runtime (body: { provider, model })
+
+
+3. argiflow-ai-adapter/marketingSuite-multiProvider.js
+An Express router that replaces the existing routes/marketingSuite.js. Mount it in server.js:
+jsconst marketingSuite = require('./argiflow-ai-adapter/marketingSuite-multiProvider');
+app.use('/api/marketing-suite', marketingSuite);
+```
+Remove or comment out the old `routes/marketingSuite.js` mount. This version is identical in routes and behavior but uses `argiflow-ai-adapter/index.js` instead of the Anthropic SDK directly.
+
+Endpoints it exposes:
+- `GET /api/marketing-suite/skills`
+- `POST /api/marketing-suite/cold-email`
+- `POST /api/marketing-suite/email-sequence`
+- `POST /api/marketing-suite/page-audit`
+- `POST /api/marketing-suite/copy-writer`
+- `POST /api/marketing-suite/launch-planner`
+- `POST /api/marketing-suite/pricing-advisor`
+- `POST /api/marketing-suite/ad-creative`
+- `POST /api/marketing-suite/sequence-review`
+- `POST /api/marketing-suite/aria-enhanced`
+
+It requires `../argiflow-marketing-skills/lib/skillsLoader` and `../argiflow-marketing-skills/context/argiflow-product-context.md` to be present (from the previously added `argiflow-marketing-skills` package).
+
+---
+
+**4. `argiflow-ai-adapter/AgentBrain-multiProvider.js`**
+Replaces `agent/AgentBrain.js`. Copy this file to `agent/AgentBrain.js` (overwrite). It has the same exports:
+- `generateActionPlan(userId)`
+- `executeAction(userId, action)`
+- `runAgentCycle(userId)`
+- `agentChat(userId, userMessage)`
+
+It requires:
+- `../../argiflow-ai-adapter` (the adapter)
+- `./AgentMemory` (existing file, no change)
+- `./ActionExecutor` (existing file, no change)
+- `../../argiflow-marketing-skills/skills-data/index` (skills data)
+
+---
+
+**5. `argiflow-ai-adapter/CompanyDiscovery-multiProvider.js`**
+Replaces `agent/CompanyDiscovery.js`. Copy this file to `agent/CompanyDiscovery.js` (overwrite). Same exports:
+- `discoveryTurn(userId, userMessage)`
+- `getOpeningMessage(userId)`
+
+Requires `../../argiflow-ai-adapter` and `./AgentMemory`.
+
+---
+
+**REPLIT SECRETS TO ADD**
+
+Add this to Replit Secrets if not already present:
+```
+OPENAI_API_KEY = sk-...
+```
+
+Optionally also add:
+```
+AI_PROVIDER = openai
+AI_MODEL = gpt-4o
+These are not required since openai and gpt-4o are already the hardcoded defaults, but setting them explicitly makes the config clear.
+
+SUMMARY OF CHANGES TO server.js
+
+Remove: app.use('/api/marketing-suite', require('./routes/marketingSuite'))
+Add: app.use('/api/marketing-suite', require('./argiflow-ai-adapter/marketingSuite-multiProvider'))
+Add: app.use('/api/ai', require('./argiflow-ai-adapter/aiProviderRoutes'))
