@@ -711,35 +711,104 @@ export default function SettingsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-semibold text-sm">{t("settings.aiApiKey")}</h3>
-                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    OpenAI {t("settings.active")}
-                  </Badge>
-                  {getFieldValue("anthropicApiKey") && getFieldValue("anthropicApiKey").startsWith("sk-ant-") && (
-                    <Badge variant="outline" className="text-muted-foreground border-violet-500/30 text-[10px]">
-                      Anthropic Override
-                    </Badge>
-                  )}
+                  <h3 className="font-semibold text-sm">AI Provider</h3>
+                  {(() => {
+                    const pref = getFieldValue("preferredAiProvider") || (settings as any)?.preferredAiProvider || "auto";
+                    const providerNames: Record<string, string> = { auto: "Auto (Platform Default)", openai: "OpenAI", anthropic: "Anthropic", gemini: "Google Gemini", mistral: "Mistral AI", groq: "Groq", together: "Together AI" };
+                    return (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        {providerNames[pref] || pref}
+                      </Badge>
+                    );
+                  })()}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{t("settings.aiApiKeyDescOpenAI")}</p>
+                <p className="text-xs text-muted-foreground mt-1">Choose your preferred AI provider. Use "Auto" to let the platform pick the best available, or select a specific provider and enter your own API key.</p>
               </div>
             </div>
             {isLoading ? (
-              <div className="space-y-3"><Skeleton className="h-9 w-full" /></div>
+              <div className="space-y-3"><Skeleton className="h-9 w-full" /><Skeleton className="h-9 w-full" /></div>
             ) : (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">{t("settings.anthropicApiKeyLabel")}</Label>
-                  <MaskedInput
-                    value={getFieldValue("anthropicApiKey")}
-                    onChange={(v) => setFieldValue("anthropicApiKey", v)}
-                    placeholder="sk-ant-xxxxxxxxxxxxxxxx"
-                    sensitive={true}
-                    testId="input-anthropicApiKey"
-                  />
-                  <p className="text-[10px] text-muted-foreground">{t("settings.anthropicKeyHint")}</p>
+                  <Label className="text-xs text-muted-foreground">Preferred AI Provider</Label>
+                  <Select
+                    value={getFieldValue("preferredAiProvider") || (settings as any)?.preferredAiProvider || "auto"}
+                    onValueChange={(v) => setFieldValue("preferredAiProvider", v)}
+                  >
+                    <SelectTrigger data-testid="select-ai-provider">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto (Platform Default)</SelectItem>
+                      <SelectItem value="openai">OpenAI (GPT-4o, GPT-4o-mini)</SelectItem>
+                      <SelectItem value="anthropic">Anthropic (Claude Sonnet, Opus, Haiku)</SelectItem>
+                      <SelectItem value="gemini">Google Gemini (Gemini 1.5 Pro, Flash)</SelectItem>
+                      <SelectItem value="mistral">Mistral AI (Large, Medium, Small)</SelectItem>
+                      <SelectItem value="groq">Groq (Llama 3.3, Mixtral)</SelectItem>
+                      <SelectItem value="together">Together AI (Llama 3, Mixtral)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+                {(() => {
+                  const pref = getFieldValue("preferredAiProvider") || (settings as any)?.preferredAiProvider || "auto";
+                  const providerKeyConfig: Record<string, { field: string; placeholder: string; label: string }> = {
+                    openai: { field: "openaiApiKey", placeholder: "sk-proj-...", label: "OpenAI API Key" },
+                    anthropic: { field: "anthropicApiKey", placeholder: "sk-ant-...", label: "Anthropic API Key" },
+                    gemini: { field: "geminiApiKey", placeholder: "AIza...", label: "Google Gemini API Key" },
+                    mistral: { field: "mistralApiKey", placeholder: "your-mistral-key", label: "Mistral API Key" },
+                    groq: { field: "groqApiKey", placeholder: "gsk_...", label: "Groq API Key" },
+                    together: { field: "togetherApiKey", placeholder: "your-together-key", label: "Together AI API Key" },
+                  };
+                  const config = providerKeyConfig[pref];
+                  if (!config) return null;
+                  return (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">{config.label}</Label>
+                      <MaskedInput
+                        value={getFieldValue(config.field)}
+                        onChange={(v) => setFieldValue(config.field, v)}
+                        placeholder={config.placeholder}
+                        sensitive={true}
+                        testId={`input-${config.field}`}
+                      />
+                      <p className="text-[10px] text-muted-foreground">Optional — if blank, the platform's built-in key will be used when available.</p>
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const pref = getFieldValue("preferredAiProvider") || (settings as any)?.preferredAiProvider || "auto";
+                  if (pref === "auto") return null;
+                  const modelOptions: Record<string, string[]> = {
+                    openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+                    anthropic: ["claude-sonnet-4-5", "claude-opus-4-5", "claude-haiku-4-5"],
+                    gemini: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"],
+                    mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"],
+                    groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+                    together: ["meta-llama/Llama-3-70b-chat-hf", "mistralai/Mixtral-8x22B-Instruct-v0.1"],
+                  };
+                  const models = modelOptions[pref] || [];
+                  if (models.length === 0) return null;
+                  return (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Model (optional override)</Label>
+                      <Select
+                        value={getFieldValue("preferredAiModel") || (settings as any)?.preferredAiModel || ""}
+                        onValueChange={(v) => setFieldValue("preferredAiModel", v)}
+                      >
+                        <SelectTrigger data-testid="select-ai-model">
+                          <SelectValue placeholder="Default model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default">Default</SelectItem>
+                          {models.map((m) => (
+                            <SelectItem key={m} value={m}>{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })()}
                 <div className="flex items-center justify-between gap-3 pt-1">
                   <div className="flex items-center gap-2">
                     <Cpu className="w-4 h-4 text-muted-foreground" />
@@ -757,20 +826,29 @@ export default function SettingsPage() {
                   size="sm"
                   className="mt-2"
                   onClick={() => {
-                    const update: Record<string, any> = {
-                      anthropicApiKey: getFieldValue("anthropicApiKey"),
-                    };
+                    const pref = getFieldValue("preferredAiProvider") || "auto";
+                    const keyFields = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey"];
+                    const update: Record<string, any> = { preferredAiProvider: pref };
+                    const model = getFieldValue("preferredAiModel");
+                    if (model && model !== "default") update.preferredAiModel = model;
+                    else update.preferredAiModel = null;
+                    for (const kf of keyFields) {
+                      const v = getFieldValue(kf);
+                      if (v && !v.includes("...")) update[kf] = v;
+                    }
                     updateMutation.mutate(update as any, {
                       onSuccess: (data) => {
                         queryClient.setQueryData(["/api/settings"], data);
                         const newDirty = new Set(dirtyFields);
-                        newDirty.delete("anthropicApiKey");
+                        newDirty.delete("preferredAiProvider");
+                        newDirty.delete("preferredAiModel");
+                        keyFields.forEach(k => newDirty.delete(k));
                         setDirtyFields(newDirty);
-                        toast({ title: t("settings.integrationSaved", { title: t("settings.aiApiKey") }), description: t("settings.integrationSavedDesc") });
+                        toast({ title: "AI provider saved", description: "Your AI provider settings have been updated." });
                       },
                     });
                   }}
-                  disabled={updateMutation.isPending || !dirtyFields.has("anthropicApiKey")}
+                  disabled={updateMutation.isPending || (!dirtyFields.has("preferredAiProvider") && !dirtyFields.has("preferredAiModel") && !dirtyFields.has("anthropicApiKey") && !dirtyFields.has("openaiApiKey") && !dirtyFields.has("geminiApiKey") && !dirtyFields.has("mistralApiKey") && !dirtyFields.has("groqApiKey") && !dirtyFields.has("togetherApiKey"))}
                   data-testid="button-save-ai-api-key"
                 >
                   <Save className="w-3.5 h-3.5 mr-1.5" />

@@ -12,26 +12,11 @@ import {
   sequenceSteps,
   sequenceEnrollments,
 } from "@shared/schema";
-import Anthropic from "@anthropic-ai/sdk";
 import { sendEmail } from "./postal";
 import { getSkill, buildSkillPrompt, detectSkills } from "./marketing-skills/skills-loader";
+import { callAI } from "./ai-provider";
 import fs from "fs";
 import path from "path";
-
-const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
-const useDirectKey = isValidAnthropicKey(process.env.ANTHROPIC_API_KEY);
-
-function getAnthropicConfig(): { apiKey: string; baseURL?: string } {
-  if (useDirectKey) return { apiKey: process.env.ANTHROPIC_API_KEY! };
-  if (process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
-    return { apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY, baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL };
-  }
-  console.error("[MarketingAutopilot] No valid Anthropic API key or Replit AI integration found");
-  return { apiKey: "missing" };
-}
-
-const anthropic = new Anthropic(getAnthropicConfig());
-const AI_MODEL = useDirectKey ? "claude-sonnet-4-20250514" : "claude-sonnet-4-5";
 
 const PRODUCT_CONTEXT = (() => {
   try {
@@ -41,14 +26,9 @@ const PRODUCT_CONTEXT = (() => {
   }
 })();
 
-async function aiGenerate(systemPrompt: string, userPrompt: string, maxTokens = 2000): Promise<string> {
-  const response = await anthropic.messages.create({
-    model: AI_MODEL,
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
-  });
-  return (response.content[0] as { text: string }).text;
+async function aiGenerate(systemPrompt: string, userPrompt: string, maxTokens = 2000, userId?: string): Promise<string> {
+  const result = await callAI({ system: systemPrompt, userMessage: userPrompt, maxTokens, userId });
+  return result.text;
 }
 
 async function logAction(
@@ -168,7 +148,8 @@ ${PRODUCT_CONTEXT}`;
 
 Business Data:
 ${businessContext}`,
-    3000
+    3000,
+    userId
   );
 
   await db
@@ -228,7 +209,8 @@ For each action item, be SPECIFIC:
 - Exact content topics
 
 This plan will be executed by AI agents automatically. Make it concrete and actionable.`,
-    4000
+    4000,
+    userId
   );
 
   await db
@@ -353,7 +335,8 @@ Output ONLY in this exact format:
 SUBJECT: [subject line]
 ---
 [email body]`,
-    1000
+    1000,
+    userId
   );
 
   const lines = emailContent.split("\n");
@@ -432,7 +415,8 @@ Output the COMPLETE ready-to-publish content piece with:
 3. Full content
 4. CTA
 5. Hashtags (if social)`,
-    1500
+    1500,
+    userId
   );
 
   await logAction(
@@ -484,7 +468,8 @@ Design a NEW sequence targeting a DIFFERENT segment. Output in this exact JSON f
 }
 
 Output ONLY valid JSON, no markdown.`,
-    2500
+    2500,
+    userId
   );
 
   try {
@@ -560,7 +545,8 @@ Provide:
 3. CTA optimization recommendations
 4. SEO keyword opportunities
 5. Social proof strategies to implement`,
-    1500
+    1500,
+    userId
   );
 
   await logAction(

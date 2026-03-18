@@ -1,7 +1,7 @@
 # ArgiFlow - Automated Client Acquisition Platform
 
 ## Overview
-ArgiFlow is a SaaS platform for automated client acquisition, using AI agents to drive business growth. It automates lead generation, nurturing, appointment booking, and ad optimization. The platform supports both Western (ArgiFlow) and African (TradeFlow) markets with region-specific features and pricing, aiming to provide a comprehensive solution for efficient client acquisition and management.
+ArgiFlow is a SaaS platform designed for automated client acquisition, leveraging AI agents to drive business growth. It provides a comprehensive solution for lead generation, nurturing, appointment booking, and ad optimization. The platform serves both Western (ArgiFlow) and African (TradeFlow) markets with region-specific features and pricing, aiming to enhance efficiency in client acquisition and management. Key capabilities include AI-powered sales intelligence, autonomous marketing, and a robust workflow automation engine.
 
 ## User Preferences
 I prefer detailed explanations.
@@ -14,66 +14,32 @@ Do not make changes to the file `Y`.
 **Frontend**: React, TypeScript, Vite, TailwindCSS, shadcn/ui.
 **Backend**: Express.js with TypeScript.
 **Database**: PostgreSQL with Drizzle ORM.
-**Authentication**: Email/password with session-based authentication using scrypt hashing, including email verification and password reset.
-**AI Integration**: OpenAI GPT-4o as primary AI provider for B2B Intelligence Engine (strong reasoning). GPT-4o-mini used for general chat and lightweight tasks. Anthropic Claude available as optional override via per-user API keys. OpenAI-to-Anthropic compatibility wrapper ensures seamless provider switching.
-**B2B Intelligence Data Pipeline**: Multi-source data aggregation from 7+ databases: OpenCorporates (government registries), SEC EDGAR (public company filings), Wikidata/Wikipedia (knowledge base), GitHub API (developer/tech companies), RDAP/WHOIS (domain registration), DuckDuckGo Instant Answers (knowledge graph), plus Tavily/You.com web search. GPT-4o cross-references all sources for comprehensive, ZoomInfo/Apollo-level company and people intelligence.
+**Authentication**: Email/password with session-based authentication, email verification, and password reset.
 **UI/UX Design**: Dark theme with sky blue gradient accents and Inter font.
-**Consolidated Navigation** (sidebar deduplication completed):
-- 3 Agent pages → 1 unified "AI Agents" (`/dashboard/ai-agents`) with tabs: Catalog, Monitor, Console
-- 2 Analytics pages → 1 unified "Analytics" (`/dashboard/analytics`) with tabs: Campaigns, AI Performance
-- 2 Automation pages → 1 unified "Automations" (`/dashboard/automations`) with tabs: Templates, Workflow Builder
-- 3 Email pages → 1 unified "Email & Outreach" (`/dashboard/email`) with tabs: Outreach, Quotas & Sending, Delivery Logs
-- 2 Intelligence pages → 1 unified "Intelligence" (`/dashboard/intelligence`) with tabs: Sales Intelligence, Lead Discovery
-- 3 Learning pages → 1 unified "Learning Center" (`/dashboard/learning`) with tabs: Training, Templates, Growth Guide
-- Strategy page merged into Marketing Suite as a tab
-- Appointments page removed; Calendar (`/dashboard/calendar`) is the consolidated scheduling page
 **Core Features**:
-- **User Management**: Standard authentication and account management.
-- **Dashboard**: Centralized overview of business metrics.
-- **CRM & Leads**: Tracking, scoring, engagement analysis, and automated outreach, supporting multiple business profiles per user.
-- **Sales Funnels**: Kanban-style pipeline with deal management and analytics.
-- **Calendar**: Full scheduling with month/week/list views, replaces separate Appointments page.
-- **AI Agents (Unified)**: Catalog, monitoring, and console for 13+ specialized AI agents — all in one tabbed page.
-- **Email & Outreach (Unified)**: AI chat outreach, SMS, quota tracking, direct mailer, and delivery logs in one tabbed page.
-- **Marketing Suite (with Strategy)**: AI-powered marketing autopilot, 33-skill toolkit, and strategy generation combined.
-- **Website Training**: AI analysis of user websites for personalized agent responses.
-- **Automations (Unified)**: Template management and visual drag-drop workflow builder combined.
-- **Notifications**: Real-time alerts for agent activities and system events.
-- **Admin Panel**: Super admin access for system management.
+- **Consolidated Navigation**: Streamlined dashboard with unified pages for AI Agents, Analytics, Automations, Email & Outreach, Intelligence, and Learning.
+- **AI Integration**: Utilizes OpenAI (GPT-4o, GPT-4o-mini) as the primary AI provider, with Anthropic Claude available as an optional override and for specific tasks. A multi-LLM router supports various providers (Anthropic, OpenAI, Google Gemini, Mistral, Groq, Together AI) and allows per-user BYOK (Bring Your Own Key) selection.
+- **B2B Sales Intelligence Engine**: Aggregates data from multiple sources (OpenCorporates, SEC EDGAR, Wikidata, GitHub, RDAP/WHOIS, DuckDuckGo, web search) to provide comprehensive company and people intelligence, including lead discovery, enrichment, intent data, and technographic scanning. A "Free Lead Intelligence Scraper" offers zero-cost lead discovery.
+- **AI Agents**: A console for 13+ specialized AI agents, including those for lead scouting, email outreach, intent monitoring, and meeting booking. The platform also features an autonomous AI Outreach Agent that integrates email, sales intelligence, and CRM for an 8-step outreach loop.
+- **Workflow Automation Engine**: An n8n-style engine supporting event-driven automation, various action types, and AI-powered workflow generation.
+- **Email Infrastructure Engine**: Comprehensive email management including account management, warmup, campaign builder, unified inbox with AI classification, website visitor identification, email verification, and white-label sending domains via AWS SES. Features an AI Copilot for content generation and a monthly email quota system.
+- **Voice AI Calling**: AI-powered phone calls via Twilio, integrating Deepgram for real-time speech-to-text and text-to-speech.
+- **AI Marketing Suite & Autopilot**: A 33-skill AI marketing toolkit and an autonomous AI agent that generates 30-day marketing plans and executes campaigns across various channels.
+- **AI Website Builder**: Allows users to generate complete website structures with content and layout using natural language, supporting e-commerce with supplier integration and AI pricing optimization.
+- **Visitor Tracking & Analytics Engine**: Embeddable JavaScript snippet for detailed website visitor intelligence, tracking page views, sessions, clicks, form behavior, and custom events.
+- **Credits System**: A per-action credit billing system with atomic deduction and auto-refund on failure.
 - **Multi-Region Support**: Distinct branding, agent catalogs, pricing, and currencies for Western and African markets.
-- **Lead Management**: Scheduling and canceling outreach for leads.
-- **Agent-to-Funnel Auto-Pipeline**: Automatic assignment of leads discovered by agents to predefined sales funnels.
-- **Voice AI Calling**: AI-powered phone calls via Twilio with real-time streaming pipeline (Twilio Media Streams → Deepgram STT → Claude AI streaming → Deepgram TTS → Twilio). Falls back to TwiML Gather/Say if Deepgram not configured. WebSocket at `/api/voice/stream/:callLogId`.
-- **Automated Lead Generation**: Background jobs for generating specialized leads (e.g., medical billing) using AI.
-- **Automated Follow-Up Sequences**: AI-generated, multi-step email sequences for leads, stopping on engagement.
-- **Workflow Automation Engine**: An n8n-style engine with event bus, execution, and API endpoints, supporting various action types and AI-powered workflow generation from templates.
-- **AI Inbox Monitor & Auto-Reply**: Monitors IMAP inbox for lead replies, generates AI responses, and updates lead status.
-- **Email Infrastructure Engine**: Comprehensive email management including account management, warmup, campaign builder, unified inbox (Unibox) with AI classification, website visitor identification, email verification, and inbox placement testing. Includes an AI Copilot for content generation.
-- **B2B Sales Intelligence Engine**: Provides Apollo.io/ZoomInfo-style capabilities for people and company search, contact/company enrichment, email/phone finding, intent data detection, technographic scanning, org chart building, news & events, AI-powered deep research, and prospect list management.
-- **AI Outreach Agent**: An autonomous agent that integrates email infrastructure, sales intelligence, and CRM for an 8-step outreach loop: discover, enroll, send, monitor, classify, respond, book, and repeat.
-- **Free Lead Intelligence Scraper**: Zero-cost lead discovery and enrichment engine using 12 free data sources (DuckDuckGo, Bing, YellowPages, Manta, LinkedIn dorks, website scraping, RDAP/WHOIS, DNS/MX verification, email pattern generation, Hunter.io free tier, SEC EDGAR, Clearbit logos). API at `/api/free-leads/*`, frontend at `/dashboard/lead-intelligence`. Features: lead search, local business finder, domain enrichment, contact/email finder, CSV export, saved leads.
-- **Multi-LLM Router**: Universal LLM provider switching via environment variables (`LLM_PROVIDER`, `LLM_MODEL`). Supports Anthropic, OpenAI, Google Gemini, Mistral, Groq, Together AI. Backend: `server/llm-router.ts`. Frontend: `/dashboard/ai-providers`.
-- **Credits System**: Per-action credit billing with atomic deduct-before-call and auto-refund on failure. Costs: ai_email=8, lead_enrich=15, agent_run=50, reply_analyze=10, intent_scan=20, email_sequence=30. Backend: `server/credits.ts`. Frontend: `/dashboard/credits`. DB: `credits_ledger` table.
-- **Intent Watchlist**: Domain-level buying signal monitoring with AI analysis. API: `/api/intent-watchlist/*`. DB: `intent_watchlist_signals`, `monitored_domains` tables.
-- **AI Agent Console**: Run 13+ built-in agents organized by vertical (Track-Med, NaviMed, ARGILETTE, Universal). Includes: trackmed-scout, trackmed-email, trackmed-denial, trackmed-audit, navimed-scout, navimed-email, navimed-proposal, argilette-scout, argilette-email, linkedin-scout, intent-monitor, sequence-builder, meeting-booker. Each agent has 5 example prompts, vertical color coding, and comprehensive system prompts. API: `/api/agent-console/run` or `/api/agent-console/:id/run`. DB: `agent_runs` table.
-- **Aria AI Chatbot**: AI-powered sales representative widget on the landing page. Promotes ArgiFlow 24/7, handles objections, qualifies visitors, and books demos. Rate-limited (15 req/min per IP) with input validation. Backend: `server/chatbot-routes.ts`. API: `POST /api/chatbot/message`, `GET /api/chatbot/greeting`. Frontend: `client/src/components/aria-widget.tsx`.
-- **Calendar**: Full calendar page with month/week/list views, event management (demo, meeting, call, internal types), month navigation, and event CRUD. Frontend: `client/src/pages/calendar.tsx` at `/dashboard/calendar`.
-- **AI Website Builder**: Users describe their vision in natural language and AI generates complete website structure with content, sections, copy, and layout. Supports manual template-based creation as well. E-commerce sites get supplier integration and AI pricing optimization. API: `POST /api/sites/ai-generate`, `/api/sites/:id/import-supplier`, `/api/sites/:id/ai-pricing`, `/api/sites/:id/products`. Frontend: `/dashboard/website-builder`. DB: `sites`, `supplier_products` tables. Supported suppliers: AliExpress, Amazon, Alibaba, CJ Dropshipping, Walmart, Temu, DHgate, Made-in-China.
-- **White-Label Sending Domains**: Self-service domain verification via AWS SES API. Clients add their domain → system auto-registers with SES → generates 3 CNAME records → client adds to DNS → clicks Verify → SES confirms and domain goes active. Emails then send directly from client's domain through SES. Backend: `server/domain-engine.ts` (uses `@aws-sdk/client-ses`), `server/domain-routes.ts`. Frontend: `client/src/pages/domain-setup.tsx` at `/dashboard/domain`. API: `/api/domains/*`. DB: `client_domains` table (columns: `ses_verified`, `ses_dkim_tokens`). Env: `AWS_API_KEY` (access key ID), `AWS_SECRET_ACCESS_KEY`.
-- **Email Quota System**: Per-user monthly email sending quotas with plan tiers (Starter 2,500/Growth 10,000/Pro 50,000/Agency 150,000). All emails route through Postal mail server. Tracks usage, auto-resets monthly. Schema: `shared/email-quota-schema.ts`. Backend: `server/email-quota-engine.ts`, `server/email-quota-routes.ts`. Frontend: `client/src/pages/email-dashboard.tsx` at `/dashboard/email-service`. API: `/api/email/*`. DB: `email_quotas`, `email_sends_log` tables.
-- **AI Marketing Suite & Autopilot**: 33-skill AI marketing toolkit powered by Anthropic Claude. 8 manual tools: Cold Email Builder, Email Sequence Designer, Landing Page Auditor, AI Copywriter, Launch Planner, Pricing Advisor, Ad Creative Generator, Sequence Reviewer. **Marketing Autopilot**: Fully autonomous AI agent that studies user's business data (profile, leads, website, strategies), generates a 30-day marketing plan, and executes campaigns hands-off — sends personalized cold emails, creates content, builds sequences, runs marketing audits. Background scheduler checks every 30 minutes for due cycles. Configurable channels (email, content, sequences, audit) and frequency (hourly/twice daily/daily/weekly). Backend: `server/marketing-suite-routes.ts`, `server/marketing-autopilot.ts`, `server/marketing-autopilot-routes.ts`. Schema: `shared/marketing-autopilot-schema.ts`. DB: `marketing_autopilot`, `autopilot_actions` tables. API: `/api/marketing-suite/*`, `/api/marketing-autopilot/*` (auth required). Frontend: `client/src/pages/marketing-suite.tsx` at `/dashboard/marketing-suite` with Autopilot + Manual Tools tabs.
-- **Visitor Tracking & Analytics Engine**: Full website visitor intelligence system. Embeddable `argiflow-tracker.js` snippet tracks: page views (including SPA), sessions (entry/exit/duration/bounce), clicks + rage clicks, scroll depth, search queries, form behavior (start/focus/abandon/submit), and custom events. Email tracking with open/click pixel tracking. Backend: `server/tracker-routes.ts` (raw SQL via `pool`). Frontend: `/dashboard/visitor-tracking`. DB: 12 tables (`track_visitors`, `track_sessions`, `track_pageviews`, `track_clicks`, `track_searches`, `track_search_terms`, `track_scroll`, `track_forms`, `track_custom_events`, `track_email_sends`, `track_email_links`, `track_email_events`). Public APIs at `/api/tracker/*` (no auth required for write endpoints). Dashboard APIs require no auth. JS API: `ArgiFlow.identify()`, `ArgiFlow.track()`.
 
 ## External Dependencies
-- **OpenAI**: Primary AI provider (GPT-4o-mini) for all AI features — chat, lead generation, content creation, research. Cost-effective at ~$0.15/$0.60 per 1M tokens.
-- **Anthropic Claude**: Available as optional per-user override via Settings > Integrations. Also used for built-in web search fallback.
-- **Tavily**: Default web search provider for company research and AI agents. Uses advanced search with AI summaries. Platform-managed key.
-- **You.com Search API**: Alternative web search provider. Configured per-user via Settings > Integrations. Uses `https://api.ydc-index.io/v1/search` with `X-API-Key` header. User settings: `webSearchProvider` ("tavily"|"claude"|"you"), `youApiKey`.
-- **Amazon SES (Primary)**: Primary email provider via SMTP (`email-smtp.us-east-2.amazonaws.com`). Default sender: `partnerships@argilette.co`. Env: `SES_SMTP_HOST`, `SES_SMTP_PORT=587`, `SES_SMTP_USER`, `SES_SMTP_PASS`, `SES_FROM_EMAIL`.
-- **Postal (mail.argilette.co) (Fallback)**: Self-hosted mail server as fallback. Uses API key auth (`X-Server-API-Key`). Falls back to Postal if SES fails. Backend: `server/postal.ts`. Env: `POSTAL_API_KEY`.
-- **SendGrid**: Fallback email service for system emails and user outreach campaigns.
-- **Twilio**: SMS and Voice service for text messages and AI-powered phone calls.
-- **Deepgram**: Speech-to-text (Nova-2) and text-to-speech (Aura) for real-time Voice AI streaming. Optional ELEVENLABS_API_KEY for higher quality TTS.
-- **Venmo**: Payment gateway for subscription billing.
-- **Replit AI Integrations**: Platform for integrating Anthropic Claude.
+- **OpenAI**: Primary AI provider for various AI features.
+- **Anthropic Claude**: Optional AI provider, also used for web search fallback.
+- **Tavily**: Default web search provider.
+- **You.com Search API**: Alternative web search provider.
+- **Amazon SES**: Primary email sending service.
+- **Postal**: Self-hosted mail server for email fallback.
+- **SendGrid**: Fallback email service.
+- **Twilio**: SMS and Voice AI services.
+- **Deepgram**: Speech-to-text and text-to-speech for Voice AI.
+- **Venmo**: Payment gateway.
+- **Replit AI Integrations**: Used for Anthropic Claude integration.
 - **Replit Connectors**: Used for Twilio integration.

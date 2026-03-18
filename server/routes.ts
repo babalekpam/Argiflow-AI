@@ -297,35 +297,29 @@ if (openaiKey) {
 }
 
 export async function getAnthropicForUser(userId: string): Promise<{ client: any; model: string }> {
-  const settings = await storage.getSettingsByUser(userId);
   const sub = await storage.getSubscriptionByUser(userId);
   const hasActiveSubscription = sub && (sub.status === "active" || sub.status === "trial");
 
-  if (platformOpenAI && !platformOpenAI.quotaExhausted && hasActiveSubscription) {
-    return { client: platformOpenAI, model: OPENAI_MODEL };
-  }
+  const settings = await storage.getSettingsByUser(userId);
+  const hasOwnKey = settings && (
+    settings.openaiApiKey || (settings.anthropicApiKey && settings.anthropicApiKey.startsWith("sk-ant-")) ||
+    settings.geminiApiKey || settings.mistralApiKey || settings.groqApiKey || settings.togetherApiKey
+  );
 
-  if (platformOpenAI?.quotaExhausted) {
-    console.log(`[AI] OpenAI quota issue — falling back to Anthropic for user ${userId}`);
-  }
-
-  const userAnthropicKey = settings?.anthropicApiKey;
-  if (userAnthropicKey && userAnthropicKey.startsWith("sk-ant-")) {
-    return {
-      client: new Anthropic({ apiKey: userAnthropicKey, baseURL: "https://api.anthropic.com" }),
-      model: CLAUDE_MODEL,
-    };
-  }
-
-  if (anthropicConfig.apiKey && hasActiveSubscription) {
-    return { client: anthropic, model: CLAUDE_MODEL };
-  }
-
-  if (!hasActiveSubscription) {
+  if (!hasOwnKey && !hasActiveSubscription) {
     throw new Error("AI_SUBSCRIPTION_REQUIRED");
   }
 
-  throw new Error("AI_NOT_CONFIGURED");
+  const { getAnthropicCompatClient } = await import("./ai-provider");
+  try {
+    const { client, model } = await getAnthropicCompatClient(userId);
+    return { client, model };
+  } catch (err: any) {
+    if (err.message === "AI_NOT_CONFIGURED") {
+      if (!hasActiveSubscription) throw new Error("AI_SUBSCRIPTION_REQUIRED");
+    }
+    throw err;
+  }
 }
 
 import { PLAN_LIMITS, type PlanTier } from "@shared/schema";
@@ -6982,17 +6976,12 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         settings = await storage.upsertSettings({ userId, emailNotifications: true, smsNotifications: false, aiAutoRespond: true, leadScoring: true, appointmentReminders: true, weeklyReport: true, darkMode: true, twoFactorAuth: false });
       }
       const result: any = { ...settings };
-      if (result.anthropicApiKey) {
-        const key = result.anthropicApiKey;
-        result.anthropicApiKey = key.length > 8 ? key.slice(0, 7) + "..." + key.slice(-4) : "****";
-      }
-      if (result.youApiKey) {
-        const key = result.youApiKey;
-        result.youApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
-      }
-      if (result.sendgridApiKey) {
-        const key = result.sendgridApiKey;
-        result.sendgridApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
+      const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "youApiKey", "sendgridApiKey"];
+      for (const k of sensitiveKeys) {
+        if (result[k]) {
+          const key = result[k];
+          result[k] = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
+        }
       }
       const sub = await storage.getSubscriptionByUser(userId);
       const hasActiveSub = sub && (sub.status === "active" || sub.status === "trial");
@@ -7009,21 +6998,18 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
     try {
       const userId = req.session.userId!;
       const body = { ...req.body };
-      if (body.anthropicApiKey && body.anthropicApiKey.includes("...")) {
-        delete body.anthropicApiKey;
-      }
-      if (body.youApiKey && body.youApiKey.includes("...")) {
-        delete body.youApiKey;
+      const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "youApiKey", "sendgridApiKey"];
+      for (const k of sensitiveKeys) {
+        if (body[k] && body[k].includes("...")) delete body[k];
+        if (body[k] === "") body[k] = null;
       }
       const settings = await storage.upsertSettings({ ...body, userId });
       const result = { ...settings };
-      if (result.anthropicApiKey) {
-        const key = result.anthropicApiKey;
-        result.anthropicApiKey = key.length > 8 ? key.slice(0, 7) + "..." + key.slice(-4) : "****";
-      }
-      if (result.youApiKey) {
-        const key = result.youApiKey;
-        result.youApiKey = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
+      for (const k of sensitiveKeys) {
+        if ((result as any)[k]) {
+          const key = (result as any)[k];
+          (result as any)[k] = key.length > 8 ? key.slice(0, 4) + "..." + key.slice(-4) : "****";
+        }
       }
       res.json(result);
     } catch (error) {

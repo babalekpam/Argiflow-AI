@@ -1,26 +1,11 @@
 import { Router, type Request, type Response } from "express";
-import Anthropic from "@anthropic-ai/sdk";
 import fs from "fs";
 import path from "path";
 import { z } from "zod";
 import { getSkill, buildSkillPrompt, buildAutoPrompt, listSkills } from "./marketing-skills/skills-loader";
+import { callAI } from "./ai-provider";
 
 const router = Router();
-
-const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
-const useDirectKey = isValidAnthropicKey(process.env.ANTHROPIC_API_KEY);
-
-function getAnthropicConfig(): { apiKey: string; baseURL?: string } {
-  if (useDirectKey) return { apiKey: process.env.ANTHROPIC_API_KEY! };
-  if (process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
-    return { apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY, baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL };
-  }
-  console.error("[MarketingSuite] No valid Anthropic API key or Replit AI integration found");
-  return { apiKey: "missing" };
-}
-
-const anthropic = new Anthropic(getAnthropicConfig());
-const AI_MODEL = useDirectKey ? "claude-sonnet-4-20250514" : "claude-sonnet-4-5";
 
 function safeError(err: unknown): string {
   if (err instanceof z.ZodError) {
@@ -39,7 +24,7 @@ const ARGIFLOW_CONTEXT = (() => {
   }
 })();
 
-async function callWithSkill(skillName: string, userPrompt: string, extraContext = ""): Promise<string> {
+async function callWithSkill(skillName: string, userPrompt: string, extraContext = "", userId?: string): Promise<string> {
   const skillContent = getSkill(skillName);
   const systemPrompt = `You are Aria, ArgiFlow's AI marketing assistant — sharp, direct, and expert-level.
 
@@ -58,14 +43,8 @@ ${skillContent}
 Always give complete, actionable, ready-to-use output. Be specific. Avoid generic advice.
 When producing copy (emails, headlines, etc.), write final versions, not templates with [brackets].`;
 
-  const response = await anthropic.messages.create({
-    model: AI_MODEL,
-    max_tokens: 2000,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }]
-  });
-
-  return (response.content[0] as { text: string }).text;
+  const result = await callAI({ system: systemPrompt, userMessage: userPrompt, maxTokens: 2000, userId });
+  return result.text;
 }
 
 router.get("/skills", (_req: Request, res: Response) => {
@@ -159,7 +138,8 @@ Deliver:
 3. Send timing for each email
 4. One-line note on what each email is designed to do`;
 
-    const result = await callWithSkill("cold-email", userPrompt);
+    const userId = (req.session as any)?.userId;
+    const result = await callWithSkill("cold-email", userPrompt, "", userId);
     res.json({ success: true, result, skill: "cold-email" });
   } catch (err: unknown) {
     const status = err instanceof z.ZodError ? 400 : 500;
@@ -186,7 +166,8 @@ For each email provide:
 - Full body copy (ready to send)
 - CTA (button text + destination)`;
 
-    const result = await callWithSkill("email-sequence", userPrompt);
+    const userId = (req.session as any)?.userId;
+    const result = await callWithSkill("email-sequence", userPrompt, "", userId);
     res.json({ success: true, result, skill: "email-sequence" });
   } catch (err: unknown) {
     const status = err instanceof z.ZodError ? 400 : 500;
@@ -218,7 +199,8 @@ Provide:
 5. CTA copy alternatives
 6. Key objection you're not addressing`;
 
-    const result = await callWithSkill("page-cro", userPrompt);
+    const userId = (req.session as any)?.userId;
+    const result = await callWithSkill("page-cro", userPrompt, "", userId);
     res.json({ success: true, result, skill: "page-cro" });
   } catch (err: unknown) {
     const status = err instanceof z.ZodError ? 400 : 500;
@@ -242,14 +224,9 @@ ${existing_copy ? `Existing copy to improve:\n"""\n${existing_copy}\n"""` : ""}
 Deliver final, polished copy — no placeholders or brackets.
 Include 2 alternatives for the headline/hook.`;
 
-    const response = await anthropic.messages.create({
-      model: AI_MODEL,
-      max_tokens: 2000,
-      system: systemSkills,
-      messages: [{ role: "user", content: userPrompt }]
-    });
-
-    res.json({ success: true, result: (response.content[0] as { text: string }).text, skill: "copywriting+marketing-psychology" });
+    const userId = (req.session as any)?.userId;
+    const result = await callAI({ system: systemSkills, userMessage: userPrompt, maxTokens: 2000, userId });
+    res.json({ success: true, result: result.text, skill: "copywriting+marketing-psychology" });
   } catch (err: unknown) {
     const status = err instanceof z.ZodError ? 400 : 500;
     res.status(status).json({ success: false, error: safeError(err) });
@@ -275,7 +252,8 @@ Deliver:
 5. Email to existing audience (announcement copy)
 6. Social post for launch day`;
 
-    const result = await callWithSkill("launch-strategy", userPrompt);
+    const userId = (req.session as any)?.userId;
+    const result = await callWithSkill("launch-strategy", userPrompt, "", userId);
     res.json({ success: true, result, skill: "launch-strategy" });
   } catch (err: unknown) {
     const status = err instanceof z.ZodError ? 400 : 500;
@@ -303,7 +281,8 @@ Provide:
 5. What to test first
 6. One-sentence recommended positioning for pricing page hero`;
 
-    const result = await callWithSkill("pricing-strategy", userPrompt);
+    const userId = (req.session as any)?.userId;
+    const result = await callWithSkill("pricing-strategy", userPrompt, "", userId);
     res.json({ success: true, result, skill: "pricing-strategy" });
   } catch (err: unknown) {
     const status = err instanceof z.ZodError ? 400 : 500;
@@ -330,7 +309,8 @@ Deliver:
 4. Hook line for video/creative brief
 5. Targeting suggestion for this audience`;
 
-    const result = await callWithSkill("ad-creative", userPrompt);
+    const userId = (req.session as any)?.userId;
+    const result = await callWithSkill("ad-creative", userPrompt, "", userId);
     res.json({ success: true, result, skill: "ad-creative" });
   } catch (err: unknown) {
     const status = err instanceof z.ZodError ? 400 : 500;
@@ -355,16 +335,13 @@ ${user_context ? `\n## User Context\n${user_context}` : ""}`;
       { role: "user" as const, content: message }
     ];
 
-    const response = await anthropic.messages.create({
-      model: AI_MODEL,
-      max_tokens: 1500,
-      system: ariaBase,
-      messages
-    });
+    const userId = (req.session as any)?.userId;
+    const lastUserMsg = messages[messages.length - 1]?.content || message;
+    const result = await callAI({ system: ariaBase, userMessage: typeof lastUserMsg === "string" ? lastUserMsg : message, maxTokens: 1500, userId });
 
     res.json({
       success: true,
-      result: (response.content[0] as { text: string }).text,
+      result: result.text,
       skills_used: skills,
       skill_count: skills.length
     });
@@ -403,16 +380,12 @@ Then overall sequence assessment:
 - Predicted reply rate vs. industry benchmark
 - #1 change to make before sending`;
 
-    const response = await anthropic.messages.create({
-      model: AI_MODEL,
-      max_tokens: 2500,
-      system: systemSkills,
-      messages: [{ role: "user", content: userPrompt }]
-    });
+    const userId = (req.session as any)?.userId;
+    const result = await callAI({ system: systemSkills, userMessage: userPrompt, maxTokens: 2500, userId });
 
     res.json({
       success: true,
-      result: (response.content[0] as { text: string }).text,
+      result: result.text,
       skill: "cold-email+marketing-psychology"
     });
   } catch (err: unknown) {

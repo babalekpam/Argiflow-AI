@@ -75,6 +75,7 @@ interface CallLLMParams {
   providerId?: string;
   apiKey?: string;
   model?: string;
+  baseURL?: string;
 }
 
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
@@ -92,13 +93,14 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3)
   throw new Error("Rate limit exceeded after maximum retries");
 }
 
-export async function callLLM({ system, userMessage, maxTokens = 800, providerId, apiKey, model }: CallLLMParams) {
+export async function callLLM({ system, userMessage, maxTokens = 800, providerId, apiKey, model, baseURL }: CallLLMParams) {
   let cfg: any;
 
   if (providerId && apiKey) {
     const reg = REGISTRY[providerId];
     if (!reg) throw new Error(`Unknown provider: ${providerId}`);
     cfg = { ...reg, apiKey, model: model || reg.defaultModel };
+    if (baseURL) cfg.baseUrl = baseURL;
   } else {
     cfg = getActiveConfig();
     if (model) cfg.model = model;
