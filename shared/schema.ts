@@ -1703,3 +1703,4 @@ export * from "./intelligence-schema";
 export * from "./email-quota-schema";
 export * from "./domain-schema";
 export * from "./marketing-autopilot-schema";
+export * from "./business-manager-schema";
