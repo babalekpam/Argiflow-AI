@@ -58,6 +58,7 @@ import {
   Coins,
   Eye,
   Palette,
+  Brain,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -87,8 +88,9 @@ export function AppSidebar() {
   ];
 
   const automationNav: NavItem[] = [
+    { title: "AI Business Manager", icon: Brain, url: "/dashboard/business-manager", badge: t("common.new") },
     { title: "AI Agents", icon: Bot, url: "/dashboard/ai-agents", badge: t("common.live") },
-    { title: "Marketing Suite", icon: Palette, url: "/dashboard/marketing-suite", badge: t("common.new") },
+    { title: "Marketing Suite", icon: Palette, url: "/dashboard/marketing-suite" },
     { title: t("sidebar.outreachAgent", "Outreach Agent"), icon: Target, url: "/dashboard/outreach-agent" },
     { title: "Sequences", icon: GitBranch, url: "/dashboard/sequences" },
     { title: "Email & Outreach", icon: Mail, url: "/dashboard/email" },

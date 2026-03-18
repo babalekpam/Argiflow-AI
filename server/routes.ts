@@ -9250,6 +9250,12 @@ The ArgiFlow Team`;
 
   const aiProviderRoutes = (await import("../argiflow-ai-adapter/aiProviderRoutes")).default;
   app.use("/api/ai", isAuthenticated, aiProviderRoutes);
+
+  const businessManagerRoutes = (await import("./business-manager-routes")).default;
+  app.use("/api/business-manager", isAuthenticated, businessManagerRoutes);
+  const { startBusinessManagerScheduler } = await import("./business-manager");
+  startBusinessManagerScheduler();
+
   startAutopilotScheduler();
   app.use("/api/postal", postalRoutes);
   app.use("/api/email", emailQuotaRoutes);
