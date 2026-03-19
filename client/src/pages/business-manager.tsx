@@ -296,6 +296,19 @@ function ApprovalQueue() {
     },
   });
 
+  const approveAllMut = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/aria/actions/approve-all");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/actions/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/actions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/dashboard"] });
+      toast({ title: `${data.approved} actions approved` });
+    },
+  });
+
   if (pending.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -307,6 +320,20 @@ function ApprovalQueue() {
 
   return (
     <div className="space-y-3">
+      {pending.length > 1 && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            onClick={() => approveAllMut.mutate()}
+            disabled={approveAllMut.isPending}
+            className="bg-emerald-600 hover:bg-emerald-700"
+            data-testid="button-approve-all"
+          >
+            {approveAllMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Check className="w-3.5 h-3.5 mr-1" />}
+            Approve All ({pending.length})
+          </Button>
+        </div>
+      )}
       {pending.map((action: any) => (
         <div key={action.id} className="bg-white/5 rounded-xl p-4 border border-white/10" data-testid={`approval-${action.id}`}>
           <div className="flex items-start justify-between gap-3">
@@ -520,6 +547,18 @@ export default function BusinessManagerPage() {
     },
   });
 
+  const syncLeadsMut = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/aria/sync-leads");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aria/leads"] });
+      toast({ title: "Leads Synced", description: `${data.synced} new leads imported from platform` });
+    },
+  });
+
   const briefingMut = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/aria/briefing");
@@ -568,6 +607,16 @@ export default function BusinessManagerPage() {
         </div>
         <div className="flex items-center gap-3">
           <AutonomyBadge level={biz?.autonomy || "supervised"} />
+          <Button
+            variant="outline"
+            onClick={() => syncLeadsMut.mutate()}
+            disabled={syncLeadsMut.isPending}
+            className="border-white/10"
+            data-testid="button-sync-leads"
+          >
+            {syncLeadsMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Users className="w-4 h-4 mr-2" />}
+            Sync Leads
+          </Button>
           <Button
             onClick={() => cycleMut.mutate()}
             disabled={cycleMut.isPending}
