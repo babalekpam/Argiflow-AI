@@ -56,12 +56,19 @@ RESPOND AS JSON:
       "category": "email|lead_gen|follow_up|meeting|analysis|marketing",
       "title": "Brief action title",
       "description": "What you'll do",
-      "execute_now": true/false
+      "execute_now": true/false,
+      "tool": "ses|twilio|none",
+      "tool_params": { "to": "recipient@email.com", "subject": "Email subject", "body": "Full HTML email body with greeting, content, and sign-off" }
     }
   ]
 }
 
-If no actions needed, set "actions" to [].`;
+CRITICAL RULES FOR EMAIL ACTIONS:
+- For ANY email action (category "email" or "follow_up"), you MUST include tool: "ses" and tool_params with to, subject, and body.
+- The "body" field must contain the COMPLETE email content ready to send — not a summary or description. Write it as if you are writing the actual email.
+- The "description" field is a brief summary for the owner to review. The "body" in tool_params is the actual email content.
+- If sending to multiple recipients, create a separate action for each one.
+- If no actions needed, set "actions" to [].`;
 
   const result = await callAI({
     system: "You are Aria, a friendly AI business manager. Return only valid JSON. No markdown.",
@@ -81,12 +88,46 @@ If no actions needed, set "actions" to [].`;
 
   for (const action of (parsed.actions || [])) {
     const shouldExecute = action.execute_now && biz.autonomy !== "supervised";
-    await memory.createAction(userId, {
-      category: action.category,
-      title: action.title,
-      description: action.description,
-      status: shouldExecute ? "completed" : "pending",
-    });
+    const isEmailAction = action.tool === "ses" && action.tool_params?.to;
+
+    if (shouldExecute && isEmailAction) {
+      const emailResult = await connectors.sendEmailViaSES({
+        to: action.tool_params.to,
+        toName: action.tool_params.to_name,
+        subject: action.tool_params.subject || `Follow-up from ${biz.name}`,
+        body: action.tool_params.body || action.description,
+        fromName: biz.owner_name || biz.name || "Aria",
+        fromEmail: biz.owner_email || undefined,
+      });
+
+      await memory.createEmail(userId, {
+        to_email: action.tool_params.to,
+        to_name: action.tool_params.to_name,
+        subject: action.tool_params.subject || `Follow-up from ${biz.name}`,
+        body: action.tool_params.body || action.description,
+        status: emailResult.success ? "sent" : "failed",
+      });
+
+      await memory.createAction(userId, {
+        category: action.category,
+        title: action.title,
+        description: action.description,
+        tool_used: "ses",
+        tool_result: { ...emailResult, ...action.tool_params },
+        output_preview: emailResult.success ? `Email sent to ${action.tool_params.to}` : `Failed: ${emailResult.error}`,
+        status: "completed",
+      });
+    } else {
+      await memory.createAction(userId, {
+        category: action.category,
+        title: action.title,
+        description: action.description,
+        tool_used: action.tool || null,
+        tool_result: action.tool_params || null,
+        output_preview: action.description,
+        status: shouldExecute ? "completed" : "pending",
+      });
+    }
   }
 
   await memory.addChatMessage(userId, "assistant", parsed.message);
@@ -215,6 +256,7 @@ Rules:
         title: action.title,
         description: action.description,
         tool_used: action.tool || null,
+        tool_result: action.tool_params || null,
         output_preview: action.description,
         status: isAutoExecute ? "completed" : "pending",
       });
