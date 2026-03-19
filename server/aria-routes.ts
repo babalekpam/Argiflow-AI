@@ -2,9 +2,84 @@ import { Router, Request, Response } from "express";
 import * as memory from "./aria-memory";
 import { handleDiscoveryMessage, getOnboardingStatus } from "./aria-discovery";
 import { handleChat, runAriaCycle, generateBriefing } from "./aria-agent";
-import { getAvailableConnectors } from "./aria-connectors";
+import { getAvailableConnectors, sendEmailViaSES } from "./aria-connectors";
 
 const router = Router();
+
+async function executeApprovedAction(userId: string, action: any): Promise<{ executed: boolean; result?: string; error?: string }> {
+  if (!action.category || action.category !== "email") {
+    await updateActionStatus(action.id, userId, "completed", `Action approved and noted`);
+    return { executed: true, result: "Action completed" };
+  }
+
+  const biz = await memory.getBusiness(userId);
+  let toEmail = "";
+  let subject = "";
+  let body = "";
+
+  let toolResult = action.tool_result;
+  if (typeof toolResult === "string") {
+    try { toolResult = JSON.parse(toolResult); } catch { toolResult = null; }
+  }
+  if (toolResult && typeof toolResult === "object") {
+    toEmail = toolResult.to || toolResult.to_email || "";
+    subject = toolResult.subject || "";
+    body = toolResult.body || "";
+  }
+
+  if (!toEmail && action.description) {
+    const emailMatch = action.description.match(/[\w.-]+@[\w.-]+\.\w+/);
+    if (emailMatch) toEmail = emailMatch[0];
+  }
+
+  if (!toEmail) {
+    await updateActionStatus(action.id, userId, "completed", "Approved (no email target specified)");
+    return { executed: true, result: "Approved but no email target found in action" };
+  }
+
+  if (!subject) subject = action.title || `Follow-up from ${biz?.name || "ArgiFlow"}`;
+  if (!body) body = action.description || action.output_preview || action.title;
+
+  try {
+    const emailResult = await sendEmailViaSES({
+      to: toEmail,
+      subject,
+      body: body.replace(/\n/g, "<br>"),
+      fromName: biz?.owner_name || biz?.name || "ArgiFlow",
+      fromEmail: biz?.owner_email || undefined,
+    });
+
+    if (emailResult.success) {
+      await memory.createEmail(userId, {
+        action_id: action.id,
+        to_email: toEmail,
+        subject,
+        body,
+        status: "sent",
+      });
+      await updateActionStatus(action.id, userId, "completed", `Email sent to ${toEmail}`);
+      return { executed: true, result: `Email sent to ${toEmail}` };
+    } else {
+      await updateActionStatus(action.id, userId, "completed", `Email failed: ${emailResult.error}`);
+      return { executed: false, error: emailResult.error };
+    }
+  } catch (err: any) {
+    return { executed: false, error: err.message };
+  }
+}
+
+async function updateActionStatus(actionId: number, userId: string, status: string, preview: string) {
+  const { pool } = await import("./db");
+  const client = await pool.connect();
+  try {
+    await client.query(
+      "UPDATE aria_actions SET status = $1, output_preview = $2 WHERE id = $3 AND user_id = $4",
+      [status, preview, actionId, userId]
+    );
+  } finally {
+    client.release();
+  }
+}
 
 router.get("/status", async (req: Request, res: Response) => {
   try {
@@ -100,7 +175,9 @@ router.post("/actions/:id/approve", async (req: Request, res: Response) => {
     const userId = (req.session as any).userId;
     const action = await memory.approveAction(parseInt(req.params.id), userId);
     if (!action) return res.status(404).json({ error: "Action not found" });
-    res.json(action);
+
+    const execResult = await executeApprovedAction(userId, action);
+    res.json({ ...action, execResult });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -238,17 +315,18 @@ router.post("/sync-leads", async (req: Request, res: Response) => {
 router.post("/actions/approve-all", async (req: Request, res: Response) => {
   try {
     const userId = (req.session as any).userId;
-    const { pool } = await import("./db");
-    const client = await pool.connect();
-    try {
-      const result = await client.query(
-        "UPDATE aria_actions SET status = 'approved', approved_at = NOW() WHERE user_id = $1 AND status = 'pending' RETURNING id",
-        [userId]
-      );
-      res.json({ approved: result.rowCount, ids: result.rows.map((r: any) => r.id) });
-    } finally {
-      client.release();
+    const pending = await memory.getPendingActions(userId);
+    const results: any[] = [];
+
+    for (const action of pending) {
+      const approved = await memory.approveAction(action.id, userId);
+      if (approved) {
+        const execResult = await executeApprovedAction(userId, approved);
+        results.push({ id: action.id, title: action.title, ...execResult });
+      }
     }
+
+    res.json({ approved: results.length, results });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
