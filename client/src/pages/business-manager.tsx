@@ -15,7 +15,7 @@ import {
   Rocket, X, Check, Plug, ArrowRight, Star, Sun
 } from "lucide-react";
 
-function AriaAvatar({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
+function AbelAvatar({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const s = size === "sm" ? "w-6 h-6" : size === "lg" ? "w-12 h-12" : "w-8 h-8";
   return (
     <div className={`${s} rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center flex-shrink-0`}>
@@ -70,7 +70,7 @@ function DiscoveryChat({ onComplete }: { onComplete: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["/api/aria/discovery/history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/aria/status"] });
       if (data.status?.onboarded) {
-        toast({ title: "Setup Complete!", description: "Aria is ready to manage your business." });
+        toast({ title: "Setup Complete!", description: "Abel is ready to manage your business." });
         onComplete();
       }
     },
@@ -96,9 +96,9 @@ function DiscoveryChat({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="flex flex-col h-full max-h-[600px]">
       <div className="flex items-center gap-3 p-4 border-b border-white/10">
-        <AriaAvatar size="lg" />
+        <AbelAvatar size="lg" />
         <div>
-          <h2 className="text-lg font-semibold text-white">Meet Aria</h2>
+          <h2 className="text-lg font-semibold text-white">Meet Abel</h2>
           <p className="text-sm text-gray-400">Your AI Business Manager — Let's get you set up</p>
         </div>
       </div>
@@ -106,7 +106,7 @@ function DiscoveryChat({ onComplete }: { onComplete: () => void }) {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {history.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
-            {msg.role !== "user" && <AriaAvatar size="sm" />}
+            {msg.role !== "user" && <AbelAvatar size="sm" />}
             <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
               msg.role === "user"
                 ? "bg-sky-600 text-white rounded-br-sm"
@@ -118,7 +118,7 @@ function DiscoveryChat({ onComplete }: { onComplete: () => void }) {
         ))}
         {discoveryMut.isPending && (
           <div className="flex gap-3">
-            <AriaAvatar size="sm" />
+            <AbelAvatar size="sm" />
             <div className="bg-white/5 rounded-2xl px-4 py-3 rounded-bl-sm">
               <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
             </div>
@@ -133,7 +133,7 @@ function DiscoveryChat({ onComplete }: { onComplete: () => void }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Tell Aria about your business..."
+            placeholder="Tell Abel about your business..."
             className="bg-white/5 border-white/10"
             disabled={discoveryMut.isPending}
             data-testid="input-discovery"
@@ -190,14 +190,14 @@ function ChatPanel() {
       <CardHeader className="py-3 px-4 border-b border-white/10">
         <div className="flex items-center gap-2">
           <MessageCircle className="w-4 h-4 text-sky-400" />
-          <CardTitle className="text-sm font-medium">Chat with Aria</CardTitle>
+          <CardTitle className="text-sm font-medium">Chat with Abel</CardTitle>
         </div>
       </CardHeader>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {history.length === 0 && (
           <div className="text-center text-gray-500 mt-8">
-            <AriaAvatar size="lg" />
+            <AbelAvatar size="lg" />
             <p className="mt-3 text-sm">Ask me anything about your business!</p>
             <div className="flex flex-wrap gap-2 justify-center mt-3">
               {["What did you do today?", "Who needs follow up?", "Send emails to cold leads"].map(q => (
@@ -215,7 +215,7 @@ function ChatPanel() {
         )}
         {history.map((msg) => (
           <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : ""}`}>
-            {msg.role !== "user" && <AriaAvatar size="sm" />}
+            {msg.role !== "user" && <AbelAvatar size="sm" />}
             <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${
               msg.role === "user"
                 ? "bg-sky-600 text-white rounded-br-sm"
@@ -227,7 +227,7 @@ function ChatPanel() {
         ))}
         {chatMut.isPending && (
           <div className="flex gap-2">
-            <AriaAvatar size="sm" />
+            <AbelAvatar size="sm" />
             <div className="bg-white/5 rounded-2xl px-4 py-3 rounded-bl-sm">
               <div className="flex gap-1">
                 <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -246,7 +246,7 @@ function ChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Ask Aria anything..."
+            placeholder="Ask Abel anything..."
             className="bg-white/5 border-white/10 text-sm"
             disabled={chatMut.isPending}
             data-testid="input-chat"
@@ -451,12 +451,12 @@ function SettingsPanel() {
     <div className="space-y-6">
       <div>
         <label className="text-sm text-gray-400 mb-2 block">Autonomy Level</label>
-        <p className="text-xs text-gray-500 mb-3">Controls how much Aria can do without asking you first.</p>
+        <p className="text-xs text-gray-500 mb-3">Controls how much Abel can do without asking you first.</p>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { id: "supervised", icon: Shield, label: "Supervised", desc: "Aria proposes everything, you approve" },
+            { id: "supervised", icon: Shield, label: "Supervised", desc: "Abel proposes everything, you approve" },
             { id: "semi-auto", icon: ShieldCheck, label: "Semi-Auto", desc: "Low-risk actions run automatically" },
-            { id: "autopilot", icon: Rocket, label: "Autopilot", desc: "Aria handles everything autonomously" },
+            { id: "autopilot", icon: Rocket, label: "Autopilot", desc: "Abel handles everything autonomously" },
           ].map(opt => (
             <button
               key={opt.id}
@@ -594,10 +594,10 @@ export default function BusinessManagerPage() {
     <div className="max-w-7xl mx-auto py-6 px-4 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <AriaAvatar size="lg" />
+          <AbelAvatar size="lg" />
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              Aria
+              Abel
               <StatusDot status={biz?.status || "active"} />
             </h1>
             <p className="text-sm text-gray-400">
@@ -706,7 +706,7 @@ export default function BusinessManagerPage() {
                 <Shield className="w-5 h-5 text-yellow-400" />
                 <CardTitle className="text-base">Actions Waiting for Your Approval</CardTitle>
               </div>
-              <p className="text-sm text-gray-400">Aria proposed these actions. Review and approve or reject them.</p>
+              <p className="text-sm text-gray-400">Abel proposed these actions. Review and approve or reject them.</p>
             </CardHeader>
             <CardContent className="p-4">
               <ApprovalQueue />
@@ -806,7 +806,7 @@ export default function BusinessManagerPage() {
                 <Plug className="w-5 h-5 text-sky-400" />
                 Connected Tools
               </CardTitle>
-              <p className="text-sm text-gray-400">Tools Aria can use to manage your business.</p>
+              <p className="text-sm text-gray-400">Tools Abel can use to manage your business.</p>
             </CardHeader>
             <CardContent className="p-4">
               <ConnectorsPanel />
@@ -819,7 +819,7 @@ export default function BusinessManagerPage() {
             <CardHeader className="border-b border-white/10">
               <CardTitle className="text-base flex items-center gap-2">
                 <Settings className="w-5 h-5 text-gray-400" />
-                Aria Settings
+                Abel Settings
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">

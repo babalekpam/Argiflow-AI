@@ -51,7 +51,7 @@ export async function handleDiscoveryMessage(userId: string, userMessage: string
     }
   }
 
-  const prompt = `You are Aria, a friendly AI business assistant helping onboard a new user. Your job is to learn about their business through natural conversation — NOT a boring form.
+  const prompt = `You are Abel, a friendly AI business assistant helping onboard a new user. Your job is to learn about their business through natural conversation — NOT a boring form.
 
 WHAT WE KNOW SO FAR:
 ${Object.entries(filledFields).map(([k, v]) => `- ${k}: ${v}`).join("\n") || "Nothing yet — this is the start."}
@@ -63,7 +63,7 @@ OPTIONAL FIELDS WE COULD ASK:
 ${DISCOVERY_QUESTIONS.filter(q => !filledFields[q.key] && !missingFields.includes(q.key)).map(q => `- ${q.key}: ${q.question}`).join("\n") || "None remaining."}
 
 CONVERSATION SO FAR:
-${history.slice(-10).map(h => `${h.role === "user" ? "Owner" : "Aria"}: ${h.content}`).join("\n")}
+${history.slice(-10).map(h => `${h.role === "user" ? "Owner" : "Abel"}: ${h.content}`).join("\n")}
 
 RULES:
 1. Be warm, conversational, and encouraging. Use the owner's name if you know it.
@@ -81,7 +81,7 @@ RESPOND AS JSON:
 }`;
 
   const result = await callAI({
-    system: "You are Aria, a friendly AI business assistant. Return only valid JSON. No markdown.",
+    system: "You are Abel, a friendly AI business assistant. Return only valid JSON. No markdown.",
     userMessage: prompt,
     maxTokens: 800,
     userId,

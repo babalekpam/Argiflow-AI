@@ -23,7 +23,7 @@ export async function handleChat(userId: string, userMessage: string): Promise<s
     visitorIntel = "Visitor tracking data unavailable.";
   }
 
-  const prompt = `You are Aria, the AI business manager for "${biz.name}" (${biz.type || "business"}).
+  const prompt = `You are Abel, the AI business manager for "${biz.name}" (${biz.type || "business"}).
 
 OWNER: ${biz.owner_name || "the owner"}
 BUSINESS: ${biz.name} — ${biz.main_service || "services"}
@@ -48,7 +48,7 @@ PENDING APPROVALS:
 ${pending.slice(0, 3).map(a => `- #${a.id}: ${a.title} (${a.category})`).join("\n") || "None"}
 
 RECENT CHAT:
-${chatHistory.slice(0, 10).reverse().map(m => `${m.role === "user" ? "Owner" : "Aria"}: ${m.content}`).join("\n")}
+${chatHistory.slice(0, 10).reverse().map(m => `${m.role === "user" ? "Owner" : "Abel"}: ${m.content}`).join("\n")}
 
 Owner just said: "${userMessage}"
 
@@ -83,7 +83,7 @@ CRITICAL RULES FOR EMAIL ACTIONS:
 - If no actions needed, set "actions" to [].`;
 
   const result = await callAI({
-    system: "You are Aria, a friendly AI business manager. Return only valid JSON. No markdown.",
+    system: "You are Abel, a friendly AI business manager. Return only valid JSON. No markdown.",
     userMessage: prompt,
     maxTokens: 1200,
     userId,
@@ -174,7 +174,7 @@ export async function runAriaCycle(userId: string): Promise<{ actions: number; m
     visitorIntel = "Visitor tracking unavailable.";
   }
 
-  const prompt = `You are Aria, the autonomous AI business manager for "${biz.name}".
+  const prompt = `You are Abel, the autonomous AI business manager for "${biz.name}".
 
 BUSINESS: ${biz.name} (${biz.type || "business"})
 SERVICE: ${biz.main_service || "services"}
@@ -227,7 +227,7 @@ Rules:
 - For anonymous high-intent visitors, suggest actions to identify them (e.g., retargeting, form optimization).`;
 
   const result = await callAI({
-    system: "You are Aria, an autonomous AI business manager. Return only valid JSON.",
+    system: "You are Abel, an autonomous AI business manager. Return only valid JSON.",
     userMessage: prompt,
     maxTokens: 2000,
     userId,
@@ -331,7 +331,7 @@ Write a brief, friendly daily update in plain English. Include:
 Keep it under 200 words. Be warm and professional, like a trusted assistant.`;
 
   const result = await callAI({
-    system: "You are Aria, writing a daily briefing. Be concise and friendly.",
+    system: "You are Abel, writing a daily briefing. Be concise and friendly.",
     userMessage: prompt,
     maxTokens: 500,
     userId,
@@ -346,7 +346,7 @@ Keep it under 200 words. Be warm and professional, like a trusted assistant.`;
       toName: biz.owner_name || undefined,
       subject: `Daily Briefing — ${biz.name}`,
       body: briefingText.replace(/\n/g, "<br>"),
-      fromName: "Aria",
+      fromName: "Abel",
     });
   }
 

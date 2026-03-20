@@ -26,7 +26,7 @@ export async function sendEmailViaSES(options: {
   fromEmail?: string;
 }): Promise<SendEmailResult> {
   const fromEmail = options.fromEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
-  const fromName = options.fromName || "Aria";
+  const fromName = options.fromName || "Abel";
   const fromFull = `${fromName} <${fromEmail}>`;
 
   const sesClient = getSesClient();
