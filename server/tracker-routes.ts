@@ -1,6 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { pool } from "./db";
 import { randomUUID } from "crypto";
+import { identifyVisitorByIP } from "./visitor-intelligence";
 
 const requireAuth: RequestHandler = (req, res, next) => {
   if (!req.session?.userId) {
@@ -132,6 +133,28 @@ export function registerTrackerPublicRoutes(app: Express) {
         [session_id, visitor_id, page, element_type, element_text,
          element_id, element_class, href, x, y, is_rage_click || false]
       );
+
+      const ip = getIP(req);
+      if (ip && ip !== "127.0.0.1" && ip !== "unknown" && visitor_id) {
+        const textLower = (element_text || "").toLowerCase();
+        const hrefLower = (href || "").toLowerCase();
+        const pageLower = (page || "").toLowerCase();
+        const isHighIntent = ["billing", "pricing", "service", "contact", "demo", "schedule", "quote", "book", "call"].some(
+          k => textLower.includes(k) || hrefLower.includes(k) || pageLower.includes(k)
+        );
+
+        if (isHighIntent) {
+          try {
+            const ownerResult = await pool.query(`SELECT user_id FROM track_sessions WHERE session_id = $1 LIMIT 1`, [session_id]);
+            const ownerId = ownerResult.rows[0]?.user_id;
+            if (ownerId) {
+              const identity = await identifyVisitorByIP(visitor_id, ip, ownerId);
+              console.log(`[Tracker] High-intent click: "${element_text}" on ${page} — visitor: ${identity?.name || identity?.company || identity?.email || "anonymous"} (${ip})`);
+            }
+          } catch {}
+        }
+      }
+
       res.json({ ok: true });
     } catch (e) { res.json({ ok: false }); }
   });

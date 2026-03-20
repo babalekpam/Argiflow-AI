@@ -1,6 +1,7 @@
 import { callAI } from "./ai-provider";
 import * as memory from "./aria-memory";
 import * as connectors from "./aria-connectors";
+import { getHighIntentVisitors, formatVisitorIntelForAria } from "./visitor-intelligence";
 
 export async function handleChat(userId: string, userMessage: string): Promise<string> {
   const biz = await memory.getBusiness(userId);
@@ -13,6 +14,14 @@ export async function handleChat(userId: string, userMessage: string): Promise<s
   const stats = await memory.getDashboardStats(userId);
   const pending = await memory.getPendingActions(userId);
   const leads = await memory.getLeads(userId, 10);
+
+  let visitorIntel = "";
+  try {
+    const highIntent = await getHighIntentVisitors(userId, 48);
+    visitorIntel = formatVisitorIntelForAria(highIntent);
+  } catch (err: any) {
+    visitorIntel = "Visitor tracking data unavailable.";
+  }
 
   const prompt = `You are Aria, the AI business manager for "${biz.name}" (${biz.type || "business"}).
 
@@ -31,6 +40,9 @@ CURRENT STATE:
 
 RECENT LEADS:
 ${leads.slice(0, 5).map(l => `- ${l.name} (${l.company || "no company"}) — ${l.status} ${l.email ? `[${l.email}]` : ""}`).join("\n") || "None yet"}
+
+WEBSITE VISITOR INTELLIGENCE (last 48 hours):
+${visitorIntel}
 
 PENDING APPROVALS:
 ${pending.slice(0, 3).map(a => `- #${a.id}: ${a.title} (${a.category})`).join("\n") || "None"}
@@ -154,6 +166,14 @@ export async function runAriaCycle(userId: string): Promise<{ actions: number; m
     });
   }
 
+  let visitorIntel = "";
+  try {
+    const highIntent = await getHighIntentVisitors(userId, 24);
+    visitorIntel = formatVisitorIntelForAria(highIntent);
+  } catch {
+    visitorIntel = "Visitor tracking unavailable.";
+  }
+
   const prompt = `You are Aria, the autonomous AI business manager for "${biz.name}".
 
 BUSINESS: ${biz.name} (${biz.type || "business"})
@@ -172,6 +192,9 @@ CURRENT STATE:
 
 LEADS NEEDING FOLLOW-UP:
 ${followups.slice(0, 5).map(l => `- ${l.name} (${l.email || "no email"}) — last contact: ${l.last_contact || "never"}, status: ${l.status}`).join("\n") || "None due"}
+
+WEBSITE VISITOR INTELLIGENCE (last 24 hours):
+${visitorIntel}
 
 YESTERDAY'S SNAPSHOT:
 ${snapshot ? `Revenue: $${snapshot.revenue_mtd}, Leads: ${snapshot.leads_total}, Emails: ${snapshot.emails_sent}` : "No snapshot yet"}
@@ -198,7 +221,10 @@ Rules:
 - If leads need follow-up, draft follow-up emails.
 - If no leads exist, suggest lead gen actions.
 - Be specific. Vague actions are useless.
-- For email actions, include tool_params: { to, subject, body }`;
+- For email actions, include tool_params: { to, subject, body }
+- IMPORTANT: Use the WEBSITE VISITOR INTELLIGENCE to prioritize follow-ups. If a known lead visited billing/pricing pages, they're showing buying intent — draft a personalized follow-up referencing what they looked at.
+- For identified visitors who are existing leads, prioritize immediate outreach based on their behavior.
+- For anonymous high-intent visitors, suggest actions to identify them (e.g., retargeting, form optimization).`;
 
   const result = await callAI({
     system: "You are Aria, an autonomous AI business manager. Return only valid JSON.",

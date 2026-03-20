@@ -3,6 +3,7 @@ import * as memory from "./aria-memory";
 import { handleDiscoveryMessage, getOnboardingStatus } from "./aria-discovery";
 import { handleChat, runAriaCycle, generateBriefing } from "./aria-agent";
 import { getAvailableConnectors, sendEmailViaSES } from "./aria-connectors";
+import { getHighIntentVisitors, getRecentVisitorActivity } from "./visitor-intelligence";
 
 const router = Router();
 
@@ -329,6 +330,48 @@ router.post("/actions/approve-all", async (req: Request, res: Response) => {
     res.json({ approved: results.length, results });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/visitor-intelligence", async (req: Request, res: Response) => {
+  try {
+    const userId = (req.session as any).userId;
+    const hours = Math.min(Math.max(parseInt(req.query.hours as string) || 48, 1), 168);
+    const highIntent = await getHighIntentVisitors(userId, hours);
+    const all = await getRecentVisitorActivity(userId, hours, 30);
+
+    res.json({
+      high_intent: highIntent.map(a => ({
+        visitor_id: a.visitor.visitor_id,
+        identified: a.visitor.identified,
+        name: a.visitor.name,
+        email: a.visitor.email,
+        company: a.visitor.company,
+        lead_id: a.visitor.lead_id,
+        lead_status: a.visitor.lead_status,
+        lead_score: a.visitor.lead_score,
+        match_method: a.visitor.match_method,
+        device: a.visitor.device,
+        browser: a.visitor.browser,
+        visit_count: a.visitor.visit_count,
+        pages: a.pages_viewed.map(p => p.page),
+        clicks: a.clicks.map(c => ({ text: c.element_text, href: c.href })),
+        intent_score: a.intent_score,
+        intent_signals: a.intent_signals,
+        session_duration: a.session_duration,
+        entry_page: a.entry_page,
+        referrer: a.referrer,
+        utm_source: a.utm_source,
+        utm_campaign: a.utm_campaign,
+      })),
+      total_visitors: all.length,
+      identified_count: all.filter(a => a.visitor.identified).length,
+      anonymous_count: all.filter(a => !a.visitor.identified).length,
+      avg_intent_score: all.length > 0 ? Math.round(all.reduce((s, a) => s + a.intent_score, 0) / all.length) : 0,
+    });
+  } catch (err: any) {
+    console.error("[Aria] Visitor intelligence error:", err.message);
+    res.status(500).json({ error: "Failed to load visitor intelligence" });
   }
 });
 
