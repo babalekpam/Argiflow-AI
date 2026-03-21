@@ -136,15 +136,54 @@ export async function resolveProvider(userId?: string): Promise<ResolvedProvider
 export async function callAI(params: AICallParams & { userId?: string }): Promise<AICallResult> {
   const resolved = await resolveProvider(params.userId);
 
-  return callLLM({
-    system: params.system,
-    userMessage: params.userMessage,
-    maxTokens: params.maxTokens || 2000,
-    providerId: resolved.providerId,
-    apiKey: resolved.apiKey,
-    model: resolved.model,
-    baseURL: resolved.baseURL,
-  });
+  try {
+    return await callLLM({
+      system: params.system,
+      userMessage: params.userMessage,
+      maxTokens: params.maxTokens || 2000,
+      providerId: resolved.providerId,
+      apiKey: resolved.apiKey,
+      model: resolved.model,
+      baseURL: resolved.baseURL,
+    });
+  } catch (err: any) {
+    const msg = (err.message || "").toLowerCase();
+    if (resolved.source === "user" && (msg.includes("authentication") || msg.includes("unauthorized") || msg.includes("invalid") || msg.includes("401") || msg.includes("api key"))) {
+      console.warn(`[AI] User key failed (${resolved.providerId}), falling back to system key`);
+      const systemResolved = await resolveProviderSystem();
+      return callLLM({
+        system: params.system,
+        userMessage: params.userMessage,
+        maxTokens: params.maxTokens || 2000,
+        providerId: systemResolved.providerId,
+        apiKey: systemResolved.apiKey,
+        model: systemResolved.model,
+        baseURL: systemResolved.baseURL,
+      });
+    }
+    throw err;
+  }
+}
+
+async function resolveProviderSystem(): Promise<ResolvedProvider> {
+  if (process.env.OPENAI_API_KEY) {
+    return { providerId: "openai", apiKey: process.env.OPENAI_API_KEY, model: "gpt-4o", source: "system" };
+  }
+  if (isValidAnthropicKey(process.env.ANTHROPIC_API_KEY)) {
+    return { providerId: "anthropic", apiKey: process.env.ANTHROPIC_API_KEY!, model: "claude-sonnet-4-20250514", source: "system" };
+  }
+  const proxy = getReplitProxy();
+  if (proxy) {
+    return { providerId: "anthropic", apiKey: proxy.apiKey, model: "claude-sonnet-4-5", source: "replit-proxy", baseURL: proxy.baseURL };
+  }
+  for (const [pid, envVar] of Object.entries(SYSTEM_ENV_KEYS)) {
+    const key = process.env[envVar];
+    if (key) {
+      const reg = REGISTRY[pid];
+      return { providerId: pid, apiKey: key, model: reg?.defaultModel || "gpt-4o-mini", source: "system" };
+    }
+  }
+  throw new Error("AI_NOT_CONFIGURED");
 }
 
 export async function getAnthropicCompatClient(userId?: string): Promise<{ client: AnthropicLikeClient; model: string; provider: string }> {
