@@ -363,10 +363,13 @@ router.get("/visitor-intelligence", async (req: Request, res: Response) => {
         referrer: a.referrer,
         utm_source: a.utm_source,
         utm_campaign: a.utm_campaign,
+        email_engagement: a.email_engagement || [],
+        came_from_email: a.came_from_email || false,
       })),
       total_visitors: all.length,
       identified_count: all.filter(a => a.visitor.identified).length,
       anonymous_count: all.filter(a => !a.visitor.identified).length,
+      from_email_count: all.filter(a => a.came_from_email).length,
       avg_intent_score: all.length > 0 ? Math.round(all.reduce((s, a) => s + a.intent_score, 0) / all.length) : 0,
     });
   } catch (err: any) {

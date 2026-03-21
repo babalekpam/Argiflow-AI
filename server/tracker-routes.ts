@@ -82,7 +82,7 @@ export function registerTrackerPublicRoutes(app: Express) {
 
   app.post("/api/tracker/session", async (req, res) => {
     try {
-      const { session_id, visitor_id, user_id, entry_page, referrer, utm_source, utm_medium, utm_campaign } = req.body;
+      const { session_id, visitor_id, user_id, entry_page, referrer, utm_source, utm_medium, utm_campaign, from_email_token } = req.body;
       const ip = getIP(req);
       const ua = req.headers["user-agent"] || "";
       const { browser, device, isMobile } = parseUA(ua);
@@ -90,13 +90,14 @@ export function registerTrackerPublicRoutes(app: Express) {
       await pool.query(`
         INSERT INTO track_sessions
           (session_id, visitor_id, user_id, entry_page, referrer,
-           utm_source, utm_medium, utm_campaign, ip, browser, device, is_mobile)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+           utm_source, utm_medium, utm_campaign, ip, browser, device, is_mobile, from_email_token)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
         ON CONFLICT (session_id) DO UPDATE SET
           last_activity = NOW(),
-          user_id = COALESCE(EXCLUDED.user_id, track_sessions.user_id)`,
+          user_id = COALESCE(EXCLUDED.user_id, track_sessions.user_id),
+          from_email_token = COALESCE(EXCLUDED.from_email_token, track_sessions.from_email_token)`,
         [session_id, visitor_id, user_id || null, entry_page, referrer,
-         utm_source, utm_medium, utm_campaign, ip, browser, device, isMobile]
+         utm_source, utm_medium, utm_campaign, ip, browser, device, isMobile, from_email_token || null]
       );
       res.json({ ok: true });
     } catch (e) {
@@ -282,7 +283,12 @@ export function registerTrackerPublicRoutes(app: Express) {
         [token, link_id]
       );
 
-      const url = result.rows[0]?.original_url || "/";
+      let url = result.rows[0]?.original_url || "/";
+      try {
+        const parsed = new URL(url, "https://placeholder.com");
+        parsed.searchParams.set("_afref", token);
+        url = url.startsWith("http") ? parsed.toString() : `${parsed.pathname}${parsed.search}`;
+      } catch {}
       res.redirect(302, url);
     } catch (e) {
       res.redirect(302, "/");
@@ -323,6 +329,43 @@ export function registerTrackerPublicRoutes(app: Express) {
       });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/tracker/email/resolve", async (req, res) => {
+    try {
+      const { token, visitor_id } = req.body;
+      if (!token || !visitor_id) return res.json({ identified: false });
+
+      const clickProof = await pool.query(
+        `SELECT ee.ip, es.recipient_email, es.recipient_name, es.user_id
+         FROM track_email_events ee
+         JOIN track_email_sends es ON es.token = ee.token
+         WHERE ee.token = $1 AND ee.event_type = 'click'
+         ORDER BY ee.created_at DESC LIMIT 1`,
+        [token]
+      );
+      if (clickProof.rows.length === 0) return res.json({ identified: false });
+
+      const { recipient_email, recipient_name, user_id } = clickProof.rows[0];
+      if (!recipient_email) return res.json({ identified: false });
+
+      const requestIp = getIP(req);
+      const clickIp = clickProof.rows[0].ip;
+      if (requestIp !== clickIp) return res.json({ identified: false });
+
+      await pool.query(`
+        INSERT INTO track_visitors (visitor_id, user_id, email, name, visit_count, first_seen, last_seen)
+        VALUES ($1, $2, $3, $4, 1, NOW(), NOW())
+        ON CONFLICT (visitor_id)
+        DO UPDATE SET email = COALESCE(EXCLUDED.email, track_visitors.email),
+                      name  = COALESCE(EXCLUDED.name, track_visitors.name),
+                      last_seen = NOW()
+      `, [visitor_id, user_id, recipient_email, recipient_name]);
+
+      res.json({ identified: true });
+    } catch (e) {
+      res.json({ identified: false });
     }
   });
 

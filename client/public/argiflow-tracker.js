@@ -54,8 +54,19 @@
   };
   if(utms.utm_source){sessionStorage.setItem('af_utm_s',utms.utm_source);sessionStorage.setItem('af_utm_m',utms.utm_medium);sessionStorage.setItem('af_utm_c',utms.utm_campaign);sessionStorage.setItem('af_utm_t',utms.utm_term);}
 
+  // Email click-through identity bridge
+  const afref = p.get('_afref');
+  if (afref) {
+    send('/email/resolve', { token: afref, visitor_id: VISITOR_ID });
+    try {
+      const clean = new URL(location.href);
+      clean.searchParams.delete('_afref');
+      history.replaceState(null, '', clean.pathname + clean.search + clean.hash);
+    } catch(e){}
+  }
+
   // Session start
-  send('/session',{session_id:SESSION_ID,visitor_id:VISITOR_ID,user_id:window.__af_uid||null,entry_page:location.pathname,referrer:document.referrer,...utms});
+  send('/session',{session_id:SESSION_ID,visitor_id:VISITOR_ID,user_id:window.__af_uid||null,entry_page:location.pathname,referrer:document.referrer,from_email_token:afref||null,...utms});
 
   // Page views (including SPA)
   let pageCount=0;

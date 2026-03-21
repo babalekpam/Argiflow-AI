@@ -18,6 +18,17 @@ export interface VisitorProfile {
   match_method: string | null;
 }
 
+export interface EmailEngagement {
+  subject: string;
+  sent_at: string;
+  opened: boolean;
+  first_opened_at: string | null;
+  clicked: boolean;
+  first_clicked_at: string | null;
+  opens: number;
+  clicks: number;
+}
+
 export interface VisitorActivity {
   visitor: VisitorProfile;
   pages_viewed: { page: string; title: string | null; time: string }[];
@@ -29,6 +40,8 @@ export interface VisitorActivity {
   utm_campaign: string | null;
   intent_score: number;
   intent_signals: string[];
+  email_engagement: EmailEngagement[];
+  came_from_email: boolean;
 }
 
 const BILLING_KEYWORDS = [
@@ -199,7 +212,7 @@ export async function getRecentVisitorActivity(userId: string, hoursBack: number
     const sessions = await client.query(`
       SELECT s.session_id, s.visitor_id, s.ip, s.browser, s.device,
              s.entry_page, s.exit_page, s.referrer, s.utm_source, s.utm_campaign,
-             s.page_count, s.duration_seconds, s.created_at,
+             s.page_count, s.duration_seconds, s.created_at, s.from_email_token,
              v.email, v.name, v.company, v.visit_count, v.first_seen, v.last_seen
       FROM track_sessions s
       JOIN track_visitors v ON v.visitor_id = s.visitor_id
@@ -247,6 +260,39 @@ export async function getRecentVisitorActivity(userId: string, hoursBack: number
       } catch {}
     }
 
+    const identifiedEmails = new Set<string>();
+    for (const session of sessions.rows) {
+      const identity = identityCache.get(`${session.visitor_id}:${session.ip}`);
+      const email = identity?.email || session.email;
+      if (email) identifiedEmails.add(email);
+    }
+
+    const emailEngagementMap = new Map<string, EmailEngagement[]>();
+    if (identifiedEmails.size > 0) {
+      const emailArr = [...identifiedEmails];
+      const engResult = await client.query(`
+        SELECT recipient_email, subject, opens, clicks,
+               first_opened_at, first_clicked_at, created_at
+        FROM track_email_sends
+        WHERE recipient_email = ANY($1) AND user_id = $2
+        ORDER BY created_at DESC
+      `, [emailArr, userId]);
+      for (const row of engResult.rows) {
+        const key = row.recipient_email.toLowerCase();
+        if (!emailEngagementMap.has(key)) emailEngagementMap.set(key, []);
+        emailEngagementMap.get(key)!.push({
+          subject: row.subject,
+          sent_at: row.created_at,
+          opened: row.opens > 0,
+          first_opened_at: row.first_opened_at,
+          clicked: row.clicks > 0,
+          first_clicked_at: row.first_clicked_at,
+          opens: row.opens,
+          clicks: row.clicks,
+        });
+      }
+    }
+
     const activities: VisitorActivity[] = [];
 
     for (const session of sessions.rows) {
@@ -255,7 +301,18 @@ export async function getRecentVisitorActivity(userId: string, hoursBack: number
       const identity = identityCache.get(`${session.visitor_id}:${session.ip}`) || null;
 
       const pages = sessionPages.map((p: any) => p.page);
-      const { score, signals } = computeIntentScore(pages, sessionClicks);
+      const intentResult = computeIntentScore(pages, sessionClicks);
+      let score = intentResult.score;
+      const signals = intentResult.signals;
+
+      const visitorEmail = identity?.email || session.email || null;
+      const emailEng = visitorEmail ? (emailEngagementMap.get(visitorEmail.toLowerCase()) || []) : [];
+      const cameFromEmail = !!session.from_email_token;
+
+      if (cameFromEmail && emailEng.length > 0) {
+        score = Math.min(score + 15, 100);
+        signals.push(`Arrived from email click-through`);
+      }
 
       const visitor: VisitorProfile = {
         visitor_id: session.visitor_id,
@@ -286,6 +343,8 @@ export async function getRecentVisitorActivity(userId: string, hoursBack: number
         utm_campaign: session.utm_campaign,
         intent_score: score,
         intent_signals: signals,
+        email_engagement: emailEng.slice(0, 5),
+        came_from_email: cameFromEmail,
       });
     }
 
@@ -311,10 +370,25 @@ export function formatVisitorIntelForAria(activities: VisitorActivity[]): string
     const what = a.pages_viewed.map(p => p.page).join(" → ");
     const ctaClicks = a.clicks.filter(c => c.element_text).map(c => `"${c.element_text}"`).join(", ");
 
+    let emailJourney = "";
+    if (a.email_engagement && a.email_engagement.length > 0) {
+      const recent = a.email_engagement.slice(0, 3);
+      const summary = recent.map(e => {
+        let status = "sent";
+        if (e.clicked) status = `opened ${e.opens}x, clicked ${e.clicks}x`;
+        else if (e.opened) status = `opened ${e.opens}x, no clicks yet`;
+        return `"${e.subject}" (${status})`;
+      }).join("; ");
+      emailJourney = `\n   EMAIL HISTORY: ${summary}`;
+      if (a.came_from_email) {
+        emailJourney += `\n   ⚡ THIS VISIT CAME FROM AN EMAIL CLICK — they opened your email and clicked through to your website`;
+      }
+    }
+
     return `${i + 1}. WHO: ${who}
    PAGES: ${what || "none tracked"}
    ${ctaClicks ? `CLICKS: ${ctaClicks}` : ""}
-   INTENT SCORE: ${a.intent_score}/100 — ${a.intent_signals.join("; ") || "browsing"}
+   INTENT SCORE: ${a.intent_score}/100 — ${a.intent_signals.join("; ") || "browsing"}${emailJourney}
    ${a.referrer ? `REFERRER: ${a.referrer}` : ""}
    ${a.utm_source ? `UTM: ${a.utm_source}/${a.utm_campaign || ""}` : ""}
    VISIT #${a.visitor.visit_count}, SESSION: ${a.session_duration ? `${a.session_duration}s` : "active"}`;
