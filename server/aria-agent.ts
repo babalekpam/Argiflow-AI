@@ -3,6 +3,35 @@ import * as memory from "./aria-memory";
 import * as connectors from "./aria-connectors";
 import { getHighIntentVisitors, formatVisitorIntelForAria } from "./visitor-intelligence";
 
+async function callAIWithRetry(params: Parameters<typeof callAI>[0], retries = 2): Promise<{ text: string }> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const result = await callAI(params);
+      if (result && result.text) return result;
+    } catch (err: any) {
+      console.error(`[Abel] AI call attempt ${attempt + 1}/${retries + 1} failed: ${err.message}`);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+      }
+    }
+  }
+  return { text: "" };
+}
+
+function generateFallbackResponse(userMessage: string, stats: any, leads: any[]): string {
+  const msg = userMessage.toLowerCase();
+  if (msg.includes("lead") || msg.includes("prospect")) {
+    return `You currently have ${stats.leads || 0} active leads. ${leads.length > 0 ? `Your most recent lead is ${leads[0]?.name || "unnamed"} (${leads[0]?.status || "new"}).` : ""} I'm having a brief connection issue with my AI engine, but your data is right here. Ask me again in a moment!`;
+  }
+  if (msg.includes("email") || msg.includes("sent") || msg.includes("outreach")) {
+    return `You've sent ${stats.emailsSent || 0} emails so far. ${stats.pendingApprovals > 0 ? `You have ${stats.pendingApprovals} actions waiting for your approval.` : ""} I hit a temporary hiccup — try your question again and I'll have a full answer.`;
+  }
+  if (msg.includes("meeting") || msg.includes("appointment") || msg.includes("call")) {
+    return `You have ${stats.upcomingMeetings || 0} upcoming meetings. I ran into a brief issue connecting — please ask again in a moment and I'll give you the full picture.`;
+  }
+  return `I'm here and your business is running smoothly — ${stats.leads || 0} leads, ${stats.emailsSent || 0} emails sent, ${stats.pendingApprovals || 0} pending approvals. I had a brief hiccup processing your request. Could you try asking again?`;
+}
+
 export async function handleChat(userId: string, userMessage: string): Promise<string> {
   const biz = await memory.getBusiness(userId);
   if (!biz || !biz.onboarded) {
@@ -82,7 +111,7 @@ CRITICAL RULES FOR EMAIL ACTIONS:
 - If sending to multiple recipients, create a separate action for each one.
 - If no actions needed, set "actions" to [].`;
 
-  const result = await callAI({
+  const result = await callAIWithRetry({
     system: "You are Abel, a friendly AI business manager. Return only valid JSON. No markdown.",
     userMessage: prompt,
     maxTokens: 1200,
@@ -91,11 +120,13 @@ CRITICAL RULES FOR EMAIL ACTIONS:
 
   let parsed: any;
   try {
-    let text = result.text.trim();
+    let text = (result.text || "").trim();
+    if (!text) throw new Error("Empty AI response");
     if (text.startsWith("```")) text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
     parsed = JSON.parse(text);
   } catch {
-    parsed = { message: "I'm here! How can I help with your business today?", actions: [] };
+    const fallback = generateFallbackResponse(userMessage, stats, leads);
+    parsed = { message: fallback, actions: [] };
   }
 
   for (const action of (parsed.actions || [])) {
@@ -226,7 +257,7 @@ Rules:
 - For identified visitors who are existing leads, prioritize immediate outreach based on their behavior.
 - For anonymous high-intent visitors, suggest actions to identify them (e.g., retargeting, form optimization).`;
 
-  const result = await callAI({
+  const result = await callAIWithRetry({
     system: "You are Abel, an autonomous AI business manager. Return only valid JSON.",
     userMessage: prompt,
     maxTokens: 2000,
@@ -235,11 +266,12 @@ Rules:
 
   let parsed: any;
   try {
-    let text = result.text.trim();
+    let text = (result.text || "").trim();
+    if (!text) throw new Error("Empty AI response");
     if (text.startsWith("```")) text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
     parsed = JSON.parse(text);
   } catch {
-    parsed = { thought: "Could not analyze", actions: [] };
+    parsed = { thought: "Could not analyze — AI temporarily unavailable", actions: [] };
   }
 
   let actionsExecuted = 0;
@@ -330,14 +362,14 @@ Write a brief, friendly daily update in plain English. Include:
 
 Keep it under 200 words. Be warm and professional, like a trusted assistant.`;
 
-  const result = await callAI({
+  const result = await callAIWithRetry({
     system: "You are Abel, writing a daily briefing. Be concise and friendly.",
     userMessage: prompt,
     maxTokens: 500,
     userId,
   });
 
-  const briefingText = result.text.trim();
+  const briefingText = (result.text || "").trim() || `Daily briefing for ${biz.name}: ${stats.leads || 0} active leads, ${stats.emailsSent || 0} emails sent, ${stats.pendingApprovals || 0} actions pending your review.`;
   await memory.createBriefing(userId, briefingText, biz.briefing_via || "email");
 
   if (biz.briefing_via === "email" && biz.owner_email) {

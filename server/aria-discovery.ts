@@ -1,6 +1,19 @@
 import { callAI } from "./ai-provider";
 import * as memory from "./aria-memory";
 
+async function callAIWithRetry(params: Parameters<typeof callAI>[0], retries = 2): Promise<{ text: string }> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const result = await callAI(params);
+      if (result && result.text) return result;
+    } catch (err: any) {
+      console.error(`[Abel Discovery] AI attempt ${attempt + 1}/${retries + 1} failed: ${err.message}`);
+      if (attempt < retries) await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+    }
+  }
+  return { text: "" };
+}
+
 const DISCOVERY_QUESTIONS = [
   { key: "name", question: "What's the name of your business?" },
   { key: "type", question: "What type of business is it? (e.g., medical billing, consulting, agency, retail)" },
@@ -80,7 +93,7 @@ RESPOND AS JSON:
   "onboarding_complete": true/false
 }`;
 
-  const result = await callAI({
+  const result = await callAIWithRetry({
     system: "You are Abel, a friendly AI business assistant. Return only valid JSON. No markdown.",
     userMessage: prompt,
     maxTokens: 800,
@@ -89,7 +102,8 @@ RESPOND AS JSON:
 
   let parsed: any;
   try {
-    let text = result.text.trim();
+    let text = (result.text || "").trim();
+    if (!text) throw new Error("Empty AI response");
     if (text.startsWith("```")) text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
     parsed = JSON.parse(text);
   } catch {
