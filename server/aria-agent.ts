@@ -39,7 +39,7 @@ export async function handleChat(userId: string, userMessage: string): Promise<s
   }
 
   await memory.addChatMessage(userId, "user", userMessage);
-  const chatHistory = await memory.getChatHistory(userId, 20);
+  const chatHistory = await memory.getChatHistory(userId, 40);
   const stats = await memory.getDashboardStats(userId);
   const pending = await memory.getPendingActions(userId);
   const leads = await memory.getLeads(userId, 10);
@@ -77,7 +77,7 @@ PENDING APPROVALS:
 ${pending.slice(0, 3).map(a => `- #${a.id}: ${a.title} (${a.category})`).join("\n") || "None"}
 
 RECENT CHAT:
-${chatHistory.slice(0, 10).reverse().map(m => `${m.role === "user" ? "Owner" : "Abel"}: ${m.content}`).join("\n")}
+${chatHistory.slice(0, 20).reverse().map(m => `${m.role === "user" ? "Owner" : "Abel"}: ${m.content}`).join("\n")}
 
 Owner just said: "${userMessage}"
 
@@ -109,12 +109,21 @@ CRITICAL RULES FOR EMAIL ACTIONS:
 - The "body" field must contain the COMPLETE email content ready to send — not a summary or description. Write it as if you are writing the actual email.
 - The "description" field is a brief summary for the owner to review. The "body" in tool_params is the actual email content.
 - If sending to multiple recipients, create a separate action for each one.
-- If no actions needed, set "actions" to [].`;
+- If no actions needed, set "actions" to [].
+
+POSTER / FLYER / VISUAL CONTENT:
+- You CAN create professional HTML email posters/flyers. Use tool: "ses" with a rich HTML body.
+- When asked to create a poster or flyer, generate a beautiful HTML email with inline CSS styling (gradients, colors, typography, spacing, call-to-action buttons, etc.)
+- Use <div> containers with background colors/gradients, centered text, large headings, and styled buttons for CTAs.
+- Include the Calendly link as a styled button: https://calendly.com/track-med-info/30min
+- Always include the owner's contact info in the poster footer.
+- You CANNOT generate image files (PNG, JPG). If asked for a downloadable image, explain you can create a professional HTML email poster instead.
+- Make the HTML poster visually impressive with colors, spacing, and professional layout.`;
 
   const result = await callAIWithRetry({
     system: "You are Abel, a friendly AI business manager. Return only valid JSON. No markdown.",
     userMessage: prompt,
-    maxTokens: 1200,
+    maxTokens: 2500,
     userId,
   });
 
