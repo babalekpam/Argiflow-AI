@@ -12,8 +12,104 @@ import {
   Bot, Brain, Play, Send, Zap, TrendingUp, Mail, Users, Calendar,
   BarChart3, Clock, CheckCircle, AlertCircle, Loader2, FileText,
   Settings, Sparkles, Activity, MessageCircle, Shield, ShieldCheck,
-  Rocket, X, Check, Plug, ArrowRight, Star, Sun
+  Rocket, X, Check, Plug, ArrowRight, Star, Sun, Copy, Eye, EyeOff, Code
 } from "lucide-react";
+
+function ChatContent({ content }: { content: string }) {
+  const [showPreview, setShowPreview] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const htmlMatch = content.match(/```html\s*([\s\S]*?)```/);
+  const codeMatch = !htmlMatch ? content.match(/```(\w*)\s*([\s\S]*?)```/) : null;
+
+  const hasHtmlBlock = !!htmlMatch;
+  const hasCodeBlock = !!codeMatch;
+  const htmlCode = htmlMatch?.[1]?.trim() || "";
+  const codeBlock = codeMatch?.[2]?.trim() || "";
+  const codeLang = codeMatch?.[1] || "code";
+
+  const textBefore = hasHtmlBlock
+    ? content.substring(0, content.indexOf("```html")).trim()
+    : hasCodeBlock
+    ? content.substring(0, content.indexOf("```")).trim()
+    : content;
+  const textAfter = hasHtmlBlock
+    ? content.substring(content.lastIndexOf("```") + 3).trim()
+    : hasCodeBlock
+    ? content.substring(content.lastIndexOf("```") + 3).trim()
+    : "";
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!hasHtmlBlock && !hasCodeBlock) {
+    return <span className="whitespace-pre-wrap">{content}</span>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {textBefore && <p className="whitespace-pre-wrap">{textBefore}</p>}
+
+      {hasHtmlBlock && (
+        <div className="border border-white/10 rounded-lg overflow-hidden mt-2">
+          <div className="flex items-center justify-between bg-white/5 px-3 py-1.5 text-xs">
+            <span className="text-sky-400 font-medium flex items-center gap-1"><Code className="w-3 h-3" /> HTML Design</span>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setShowPreview(!showPreview)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 transition text-gray-300"
+                data-testid="toggle-preview"
+              >
+                {showPreview ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                {showPreview ? "Code" : "Preview"}
+              </button>
+              <button
+                onClick={() => handleCopy(htmlCode)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 transition text-gray-300"
+                data-testid="copy-html"
+              >
+                <Copy className="w-3 h-3" /> {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          </div>
+          {showPreview ? (
+            <iframe
+              srcDoc={htmlCode}
+              className="w-full bg-white rounded-b-lg"
+              style={{ minHeight: 300, border: "none" }}
+              sandbox="allow-scripts"
+              title="HTML Preview"
+              data-testid="html-preview"
+            />
+          ) : (
+            <pre className="p-3 text-xs overflow-x-auto max-h-64 bg-black/30 text-green-300"><code>{htmlCode}</code></pre>
+          )}
+        </div>
+      )}
+
+      {hasCodeBlock && !hasHtmlBlock && (
+        <div className="border border-white/10 rounded-lg overflow-hidden mt-2">
+          <div className="flex items-center justify-between bg-white/5 px-3 py-1.5 text-xs">
+            <span className="text-sky-400 font-medium flex items-center gap-1"><Code className="w-3 h-3" /> {codeLang.toUpperCase()}</span>
+            <button
+              onClick={() => handleCopy(codeBlock)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 transition text-gray-300"
+              data-testid="copy-code"
+            >
+              <Copy className="w-3 h-3" /> {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <pre className="p-3 text-xs overflow-x-auto max-h-64 bg-black/30 text-green-300"><code>{codeBlock}</code></pre>
+        </div>
+      )}
+
+      {textAfter && <p className="whitespace-pre-wrap">{textAfter}</p>}
+    </div>
+  );
+}
 
 function AbelAvatar({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const s = size === "sm" ? "w-6 h-6" : size === "lg" ? "w-12 h-12" : "w-8 h-8";
@@ -221,7 +317,7 @@ function ChatPanel() {
                 ? "bg-sky-600 text-white rounded-br-sm"
                 : "bg-white/5 text-gray-200 rounded-bl-sm"
             }`} data-testid={`chat-msg-${msg.id}`}>
-              {msg.content}
+              <ChatContent content={msg.content} />
             </div>
           </div>
         ))}
