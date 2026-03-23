@@ -186,6 +186,33 @@ async function resolveProviderSystem(): Promise<ResolvedProvider> {
   throw new Error("AI_NOT_CONFIGURED");
 }
 
+function wrapClientWithFallback(
+  client: AnthropicLikeClient,
+  resolved: ResolvedProvider,
+  buildClient: (r: ResolvedProvider) => AnthropicLikeClient
+): AnthropicLikeClient {
+  if (resolved.source !== "user") return client;
+
+  return {
+    messages: {
+      create: async (params: any) => {
+        try {
+          return await client.messages.create(params);
+        } catch (err: any) {
+          const msg = (err.message || err.toString() || "").toLowerCase();
+          if (msg.includes("authentication") || msg.includes("unauthorized") || msg.includes("invalid") || msg.includes("401") || msg.includes("api key") || msg.includes("x-api-key")) {
+            console.warn(`[AI] User key failed in client (${resolved.providerId}), falling back to system key`);
+            const systemResolved = await resolveProviderSystem();
+            const fallbackClient = buildClient(systemResolved);
+            return await fallbackClient.messages.create(params);
+          }
+          throw err;
+        }
+      }
+    }
+  };
+}
+
 export async function getAnthropicCompatClient(userId?: string): Promise<{ client: AnthropicLikeClient; model: string; provider: string }> {
   const resolved = await resolveProvider(userId);
 
@@ -194,7 +221,11 @@ export async function getAnthropicCompatClient(userId?: string): Promise<{ clien
       apiKey: resolved.apiKey,
       ...(resolved.baseURL ? { baseURL: resolved.baseURL } : {}),
     });
-    return { client, model: resolved.model, provider: "anthropic" };
+    const wrapped = wrapClientWithFallback(client, resolved, (r) => new Anthropic({
+      apiKey: r.apiKey,
+      ...(r.baseURL ? { baseURL: r.baseURL } : {}),
+    }));
+    return { client: wrapped, model: resolved.model, provider: "anthropic" };
   }
 
   if (resolved.providerId === "openai" || REGISTRY[resolved.providerId]?.format === "openai") {
@@ -267,7 +298,31 @@ export async function getAnthropicCompatClient(userId?: string): Promise<{ clien
       }
     };
 
-    return { client: wrapper, model: resolved.model, provider: resolved.providerId };
+    const buildOpenAIWrapper = (r: ResolvedProvider): AnthropicLikeClient => {
+      const reg2 = REGISTRY[r.providerId];
+      const oai = new OpenAI({
+        apiKey: r.apiKey,
+        ...(reg2 && reg2.baseUrl !== "https://api.openai.com" ? { baseURL: `${reg2.baseUrl}/v1` } : {}),
+      });
+      return {
+        messages: {
+          create: async (ap: any) => {
+            const { max_tokens, system: sys, messages: msgs } = ap;
+            const om: any[] = [];
+            if (sys) om.push({ role: "system", content: typeof sys === "string" ? sys : JSON.stringify(sys) });
+            for (const m of msgs) {
+              if (m.role === "user") om.push({ role: "user", content: typeof m.content === "string" ? m.content : m.content?.map((b: any) => b.text || "").join("\n") });
+              else if (m.role === "assistant") om.push({ role: "assistant", content: typeof m.content === "string" ? m.content : m.content?.map((b: any) => b.text || "").join("\n") });
+            }
+            const resp = await oai.chat.completions.create({ model: r.model, max_tokens: max_tokens || 4096, messages: om });
+            const ch = resp.choices[0];
+            return { content: [{ type: "text", text: ch?.message?.content || "" }], stop_reason: "end_turn", model: resp.model };
+          }
+        }
+      };
+    };
+    const wrappedWrapper = wrapClientWithFallback(wrapper, resolved, buildOpenAIWrapper);
+    return { client: wrappedWrapper, model: resolved.model, provider: resolved.providerId };
   }
 
   if (resolved.providerId === "gemini") {
