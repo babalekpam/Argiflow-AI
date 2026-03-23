@@ -186,10 +186,88 @@ async function resolveProviderSystem(): Promise<ResolvedProvider> {
   throw new Error("AI_NOT_CONFIGURED");
 }
 
+function isAuthError(err: any): boolean {
+  const msg = (err.message || err.toString() || "").toLowerCase();
+  return msg.includes("authentication") || msg.includes("unauthorized") || msg.includes("invalid x-api-key") || msg.includes("invalid api") || (err.status === 401) || msg.includes("401");
+}
+
+async function buildSystemClient(): Promise<AnthropicLikeClient> {
+  const systemResolved = await resolveProviderSystem();
+  if (systemResolved.providerId === "anthropic") {
+    return new Anthropic({
+      apiKey: systemResolved.apiKey,
+      ...(systemResolved.baseURL ? { baseURL: systemResolved.baseURL } : {}),
+    });
+  }
+  const reg = REGISTRY[systemResolved.providerId];
+  const openai = new OpenAI({
+    apiKey: systemResolved.apiKey,
+    ...(reg && reg.baseUrl !== "https://api.openai.com" ? { baseURL: `${reg.baseUrl}/v1` } : {}),
+  });
+  return {
+    messages: {
+      create: async (ap: any) => {
+        const { max_tokens, system: sys, messages: msgs, tools } = ap;
+        const om: any[] = [];
+        if (sys) om.push({ role: "system", content: typeof sys === "string" ? sys : JSON.stringify(sys) });
+        for (const m of msgs) {
+          if (m.role === "assistant") {
+            if (Array.isArray(m.content)) {
+              const text = m.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n");
+              const toolCalls = m.content.filter((b: any) => b.type === "tool_use").map((b: any) => ({
+                id: b.id, type: "function" as const,
+                function: { name: b.name, arguments: JSON.stringify(b.input || {}) }
+              }));
+              om.push({ role: "assistant", content: text || null, ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}) });
+            } else {
+              om.push({ role: "assistant", content: m.content });
+            }
+          } else if (m.role === "user") {
+            if (Array.isArray(m.content)) {
+              const toolResults = m.content.filter((b: any) => b.type === "tool_result");
+              if (toolResults.length > 0) {
+                for (const tr of toolResults) {
+                  om.push({ role: "tool", tool_call_id: tr.tool_use_id, content: typeof tr.content === "string" ? tr.content : JSON.stringify(tr.content) });
+                }
+              } else {
+                const textContent = m.content.map((b: any) => typeof b === "string" ? b : b.type === "text" ? b.text : JSON.stringify(b)).join("\n");
+                om.push({ role: "user", content: textContent });
+              }
+            } else {
+              om.push({ role: "user", content: m.content });
+            }
+          }
+        }
+        let openaiTools: any[] | undefined;
+        if (tools?.length) {
+          openaiTools = tools.filter((t: any) => t.type !== "web_search_20250305").map((t: any) => ({
+            type: "function", function: { name: t.name, description: t.description || "", parameters: t.input_schema || { type: "object", properties: {} } }
+          }));
+          if (openaiTools.length === 0) openaiTools = undefined;
+        }
+        const response = await openai.chat.completions.create({
+          model: systemResolved.model,
+          max_tokens: max_tokens || 4096,
+          messages: om,
+          ...(openaiTools ? { tools: openaiTools } : {}),
+        });
+        const choice = response.choices[0];
+        const content: any[] = [];
+        if (choice?.message?.content) content.push({ type: "text", text: choice.message.content });
+        if (choice?.message?.tool_calls) {
+          for (const tc of choice.message.tool_calls) {
+            content.push({ type: "tool_use", id: tc.id, name: (tc as any).function.name, input: JSON.parse((tc as any).function.arguments || "{}") });
+          }
+        }
+        return { content: content.length > 0 ? content : [{ type: "text", text: "" }], stop_reason: choice?.finish_reason === "tool_calls" ? "tool_use" : "end_turn", model: response.model, usage: response.usage };
+      }
+    }
+  };
+}
+
 function wrapClientWithFallback(
   client: AnthropicLikeClient,
-  resolved: ResolvedProvider,
-  buildClient: (r: ResolvedProvider) => AnthropicLikeClient
+  resolved: ResolvedProvider
 ): AnthropicLikeClient {
   if (resolved.source !== "user") return client;
 
@@ -199,11 +277,9 @@ function wrapClientWithFallback(
         try {
           return await client.messages.create(params);
         } catch (err: any) {
-          const msg = (err.message || err.toString() || "").toLowerCase();
-          if (msg.includes("authentication") || msg.includes("unauthorized") || msg.includes("invalid") || msg.includes("401") || msg.includes("api key") || msg.includes("x-api-key")) {
+          if (isAuthError(err)) {
             console.warn(`[AI] User key failed in client (${resolved.providerId}), falling back to system key`);
-            const systemResolved = await resolveProviderSystem();
-            const fallbackClient = buildClient(systemResolved);
+            const fallbackClient = await buildSystemClient();
             return await fallbackClient.messages.create(params);
           }
           throw err;
@@ -221,10 +297,7 @@ export async function getAnthropicCompatClient(userId?: string): Promise<{ clien
       apiKey: resolved.apiKey,
       ...(resolved.baseURL ? { baseURL: resolved.baseURL } : {}),
     });
-    const wrapped = wrapClientWithFallback(client, resolved, (r) => new Anthropic({
-      apiKey: r.apiKey,
-      ...(r.baseURL ? { baseURL: r.baseURL } : {}),
-    }));
+    const wrapped = wrapClientWithFallback(client, resolved);
     return { client: wrapped, model: resolved.model, provider: "anthropic" };
   }
 
@@ -298,30 +371,7 @@ export async function getAnthropicCompatClient(userId?: string): Promise<{ clien
       }
     };
 
-    const buildOpenAIWrapper = (r: ResolvedProvider): AnthropicLikeClient => {
-      const reg2 = REGISTRY[r.providerId];
-      const oai = new OpenAI({
-        apiKey: r.apiKey,
-        ...(reg2 && reg2.baseUrl !== "https://api.openai.com" ? { baseURL: `${reg2.baseUrl}/v1` } : {}),
-      });
-      return {
-        messages: {
-          create: async (ap: any) => {
-            const { max_tokens, system: sys, messages: msgs } = ap;
-            const om: any[] = [];
-            if (sys) om.push({ role: "system", content: typeof sys === "string" ? sys : JSON.stringify(sys) });
-            for (const m of msgs) {
-              if (m.role === "user") om.push({ role: "user", content: typeof m.content === "string" ? m.content : m.content?.map((b: any) => b.text || "").join("\n") });
-              else if (m.role === "assistant") om.push({ role: "assistant", content: typeof m.content === "string" ? m.content : m.content?.map((b: any) => b.text || "").join("\n") });
-            }
-            const resp = await oai.chat.completions.create({ model: r.model, max_tokens: max_tokens || 4096, messages: om });
-            const ch = resp.choices[0];
-            return { content: [{ type: "text", text: ch?.message?.content || "" }], stop_reason: "end_turn", model: resp.model };
-          }
-        }
-      };
-    };
-    const wrappedWrapper = wrapClientWithFallback(wrapper, resolved, buildOpenAIWrapper);
+    const wrappedWrapper = wrapClientWithFallback(wrapper, resolved);
     return { client: wrappedWrapper, model: resolved.model, provider: resolved.providerId };
   }
 
