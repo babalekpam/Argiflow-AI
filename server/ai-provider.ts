@@ -69,6 +69,10 @@ export interface ResolvedProvider {
 }
 
 export async function resolveProvider(userId?: string): Promise<ResolvedProvider> {
+  if (process.env.OPENAI_API_KEY) {
+    return { providerId: "openai", apiKey: process.env.OPENAI_API_KEY, model: "gpt-4o", source: "system" };
+  }
+
   if (userId) {
     const settings = await storage.getSettingsByUser(userId);
     if (settings) {
@@ -97,20 +101,7 @@ export async function resolveProvider(userId?: string): Promise<ResolvedProvider
           }
         }
       }
-
-      for (const [pid, field] of Object.entries(AI_PROVIDER_KEY_FIELDS)) {
-        const userKey = (settings as any)[field];
-        if (userKey) {
-          if (pid === "anthropic" && !isValidAnthropicKey(userKey)) continue;
-          const reg = REGISTRY[pid];
-          return { providerId: pid, apiKey: userKey, model: reg?.defaultModel || "gpt-4o-mini", source: "user" };
-        }
-      }
     }
-  }
-
-  if (process.env.OPENAI_API_KEY) {
-    return { providerId: "openai", apiKey: process.env.OPENAI_API_KEY, model: "gpt-4o", source: "system" };
   }
 
   if (isValidAnthropicKey(process.env.ANTHROPIC_API_KEY)) {
