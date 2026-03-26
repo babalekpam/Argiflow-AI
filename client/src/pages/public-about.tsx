@@ -83,7 +83,7 @@ export default function PublicAboutPage() {
                 { num: "40+", label: "Built-in Tools" },
                 { num: "9", label: "AI Providers" },
                 { num: "13+", label: "AI Agents" },
-                { num: "500+", label: "Active Businesses" },
+                { num: "2", label: "Markets Served" },
               ].map((s, i) => (
                 <div key={i} className="rounded-xl p-6 text-center bg-white/[0.03] border border-white/[0.08]" data-testid={`stat-${i}`}>
                   <div className="text-3xl font-extrabold tracking-tight text-white mb-1">{s.num}</div>
