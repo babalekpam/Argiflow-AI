@@ -2379,19 +2379,19 @@ export async function registerRoutes(
 
       if (!stripeReconciled) {
         try {
-          const trialEnd = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+          const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
           await storage.createSubscription({
             userId: user.id,
-            plan: "growth",
+            plan: "pro",
             status: "trial",
             amount: 0,
             paymentMethod: "none",
             trialEndsAt: trialEnd,
             currentPeriodStart: new Date(),
             currentPeriodEnd: trialEnd,
-            notes: "15-day Pro trial — full access to all features",
+            notes: "30-day Pro trial — full access to all features",
           });
-          console.log(`15-day Pro trial created for ${email} (expires ${trialEnd.toISOString()})`);
+          console.log(`30-day Pro trial created for ${email} (expires ${trialEnd.toISOString()})`);
         } catch (subErr: any) {
           console.error("Failed to create trial subscription:", subErr?.message || subErr);
         }
@@ -7775,13 +7775,13 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         return res.status(400).json({ message: "Invalid status" });
       }
       const now = new Date();
-      const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+      const trialEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       const sub = await storage.createSubscription({
         userId,
         plan,
         status: status || "trial",
-        amount: amount || (plan === "starter" ? 297 : plan === "growth" ? 597 : 1497),
+        amount: amount || (plan === "starter" ? 0 : plan === "pro" ? 49 : 99),
         paymentMethod: paymentMethod || "venmo",
         venmoHandle: venmoHandle || null,
         trialEndsAt: status === "trial" ? trialEnd : null,
@@ -10972,7 +10972,7 @@ async function fixIncorrectLifetimeTrials() {
     for (const sub of allSubs) {
       if (protectedIds.has(sub.userId)) continue;
       if (sub.notes?.includes("Platform Owner") || sub.notes?.includes("Platform Admin")) continue;
-      const trialEnd = new Date(new Date(sub.createdAt!).getTime() + 14 * 24 * 60 * 60 * 1000);
+      const trialEnd = new Date(new Date(sub.createdAt!).getTime() + 30 * 24 * 60 * 60 * 1000);
       if (trialEnd < new Date()) {
         await storage.updateSubscription(sub.id, {
           plan: "starter",
@@ -10980,7 +10980,7 @@ async function fixIncorrectLifetimeTrials() {
           paymentMethod: "none",
           trialEndsAt: trialEnd,
           currentPeriodEnd: trialEnd,
-          notes: "15-day Pro trial expired — upgrade to continue",
+          notes: "30-day Pro trial expired — upgrade to continue",
         });
       } else {
         await storage.updateSubscription(sub.id, {
@@ -10988,12 +10988,12 @@ async function fixIncorrectLifetimeTrials() {
           paymentMethod: "none",
           trialEndsAt: trialEnd,
           currentPeriodEnd: trialEnd,
-          notes: "15-day Pro trial (corrected from lifetime)",
+          notes: "30-day Pro trial (corrected from lifetime)",
         });
       }
       fixed++;
     }
-    if (fixed > 0) console.log(`[Trial Fix] Corrected ${fixed} incorrect lifetime subscriptions to 15-day trials`);
+    if (fixed > 0) console.log(`[Trial Fix] Corrected ${fixed} incorrect lifetime subscriptions to 30-day trials`);
   } catch (error) {
     console.error("Error fixing lifetime trials:", error);
   }
