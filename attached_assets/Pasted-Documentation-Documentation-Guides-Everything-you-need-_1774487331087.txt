@@ -1,0 +1,82 @@
+Documentation
+Documentation & Guides
+Everything you need to set up, configure, and get the most out of ArgiFlow.
+
+Getting Started
+Quick Start Guide
+Set up your ArgiFlow account and launch your first campaign in under 15 minutes.
+
+Platform Overview
+Understand the core modules — AI Agents, Intelligence, Outreach, CRM, Marketing, and Analytics.
+
+Account Settings
+Configure your profile, team members, billing, and notification preferences.
+
+ARIA Business Manager Setup
+Onboard your autonomous AI business manager and configure approval workflows.
+
+AI Agents
+Agent Catalog
+Explore 13+ specialized AI agents — Lead Scout, Email Writer, Voice Caller, and more.
+
+Configuring Agents
+Customize agent behavior, target markets, outreach tone, and working schedules.
+
+Autonomous Outreach Agent
+Set up the 8-step outreach loop that finds, contacts, and books meetings automatically.
+
+Voice AI Calling
+Configure Twilio integration for AI-powered phone calls with Deepgram speech processing.
+
+Sales Intelligence
+B2B Data Engine
+How ArgiFlow aggregates data from OpenCorporates, SEC EDGAR, Wikidata, and more.
+
+Lead Enrichment
+Auto-enrich contacts with verified emails, phone numbers, social profiles, and tech stack data.
+
+Intent Data & Scoring
+Track buying signals and compute intent scores based on engagement and behavior.
+
+Visitor Intelligence
+Identify anonymous website visitors and cross-reference with email tracking data.
+
+Email & Outreach
+Campaign Builder
+Create multi-step email sequences with A/B testing and smart scheduling.
+
+Email Warmup
+Automated domain warming to maximize deliverability before launching campaigns.
+
+Sending Domains
+Configure SPF, DKIM, DMARC for white-label sending via AWS SES.
+
+Unified Inbox
+AI-classified inbox that auto-labels replies by sentiment and intent.
+
+CRM & Pipeline
+Contact Management
+Organize leads with custom fields, tags, engagement scores, and activity timelines.
+
+Sales Funnels
+Visual Kanban-style pipelines for tracking deals from lead to closed-won.
+
+Calendar & Booking
+Integrated scheduling with automated reminders and booking page links.
+
+Invoicing & E-Signatures
+Generate professional quotes, invoices, and contracts with built-in signing.
+
+Integrations & API
+AI Provider Configuration
+Set up and switch between 9 AI providers — OpenAI, Anthropic, Gemini, Mistral, and more.
+
+Twilio Integration
+Connect Twilio for SMS outreach and Voice AI calling capabilities.
+
+Stripe Payments
+Configure Stripe for subscription billing and payment processing.
+
+Webhook & API Reference
+Connect ArgiFlow to your existing tools with webhooks and REST API.
+
