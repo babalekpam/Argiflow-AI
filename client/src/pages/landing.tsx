@@ -386,7 +386,7 @@ export default function LandingPage() {
                   Lead intelligence, email outreach, voice AI, CRM, marketing automation, and an autonomous business manager — all in one platform.
                 </p>
                 <p className="anim-up-d2 text-[15px] text-indigo-400 font-medium mb-10">
-                  One login. One price. <strong className="text-indigo-300">60 days free.</strong> No credit card required.
+                  One login. One price. <strong className="text-indigo-300">30 days free.</strong> No credit card required.
                 </p>
 
                 <div className="anim-up-d3 flex items-center justify-center gap-3 flex-wrap mb-12">

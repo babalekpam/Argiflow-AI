@@ -834,14 +834,14 @@
       "badge": "Pricing",
       "title": "One Platform. One Price. Everything Included.",
       "descPre": "Every plan starts with",
-      "daysFree": "60 days free",
+      "daysFree": "30 days free",
       "descPost": "with full Pro access. No per-seat charges. No credit limits. No hidden add-ons. Get every single tool from day one.",
       "mostPopular": "Most Popular",
       "perMonth": "/mo",
       "getStarted": "Get Started",
       "starterName": "Starter",
       "starterPrice": "Free",
-      "starterTagline": "Free for 60 days — no credit card required",
+      "starterTagline": "Free for 30 days — no credit card required",
       "starterF0": "500 leads/month",
       "starterF1": "AI email outreach",
       "starterF2": "Basic CRM",
@@ -872,7 +872,7 @@
     },
     "cta2": {
       "title": "Ready to Replace Your Entire Sales Stack?",
-      "desc": "Join 500+ teams who ditched 5+ subscriptions for one platform that does it all. Get 60 days of full access free — no credit card required.",
+      "desc": "Join 500+ teams who ditched 5+ subscriptions for one platform that does it all. Get 30 days of full access free — no credit card required.",
       "ctaDemoFirst": "Watch Demo First"
     },
     "footer2": {
