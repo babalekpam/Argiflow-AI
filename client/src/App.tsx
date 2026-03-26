@@ -16,6 +16,15 @@ import ResetPasswordPage from "@/pages/reset-password";
 import VerifyEmailPage from "@/pages/verify-email";
 import PublicLandingPage from "@/pages/public-landing-page";
 import PublicSitePage from "@/pages/public-site";
+import PublicAboutPage from "@/pages/public-about";
+import PublicBlogPage from "@/pages/public-blog";
+import PublicContactPage from "@/pages/public-contact";
+import PublicDocsPage from "@/pages/public-docs";
+import PublicHelpPage from "@/pages/public-help";
+import PublicStatusPage from "@/pages/public-status";
+import PublicPrivacyPage from "@/pages/public-privacy";
+import PublicTermsPage from "@/pages/public-terms";
+import PublicSecurityPage from "@/pages/public-security";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -59,6 +68,15 @@ function Router() {
       <Route path="/discovery" component={DiscoveryPage} />
       <Route path="/p/:slug" component={PublicLandingPage} />
       <Route path="/site/:slug" component={PublicSitePage} />
+      <Route path="/about" component={PublicAboutPage} />
+      <Route path="/blog" component={PublicBlogPage} />
+      <Route path="/contact" component={PublicContactPage} />
+      <Route path="/docs" component={PublicDocsPage} />
+      <Route path="/help" component={PublicHelpPage} />
+      <Route path="/status" component={PublicStatusPage} />
+      <Route path="/privacy" component={PublicPrivacyPage} />
+      <Route path="/terms" component={PublicTermsPage} />
+      <Route path="/security" component={PublicSecurityPage} />
       <Route path="/dashboard/lp/:slug" component={PublicLandingPage} />
       <Route path="/dashboard" component={DashboardLayout} />
       <Route path="/dashboard/:rest*" component={DashboardLayout} />

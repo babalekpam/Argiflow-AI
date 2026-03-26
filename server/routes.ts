@@ -2296,6 +2296,21 @@ export async function registerRoutes(
 
   registerStripeRoutes(app);
 
+  // ---- CONTACT FORM ----
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const { name, email, company, subject, message } = req.body;
+      if (!name || !email || !message) {
+        return res.status(400).json({ message: "Name, email, and message are required" });
+      }
+      console.log(`[Contact Form] From: ${name} <${email}> | Company: ${company || "N/A"} | Subject: ${subject || "General"} | Message: ${message.substring(0, 200)}`);
+      res.json({ success: true, message: "Message received" });
+    } catch (error) {
+      console.error("Contact form error:", error);
+      res.status(500).json({ message: "Failed to process message" });
+    }
+  });
+
   // ---- AUTH ----
 
   app.post("/api/auth/register", async (req, res) => {

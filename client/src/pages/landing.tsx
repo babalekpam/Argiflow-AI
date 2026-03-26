@@ -725,15 +725,17 @@ export default function LandingPage() {
                 </div>
                 {[
                   { title: t("landing.footer.product"), id: "product", links: [{ id: "features", label: t("landing.footer.features"), action: () => scrollToSection("platform-section") }, { id: "pricing", label: t("landing.footer.pricing"), action: () => scrollToSection("pricing-section") }, { id: "demo", label: t("landing.footer.demo"), action: () => showView("demo") }] },
-                  { title: t("landing.footer.company"), id: "company", links: [{ id: "about", label: t("landing.footer.about") }, { id: "blog", label: t("landing.footer.blog") }, { id: "contact", label: t("landing.footer.contact") }] },
-                  { title: t("landing.footer.resources"), id: "resources", links: [{ id: "docs", label: t("landing.footer.docs") }, { id: "help", label: t("landing.footer.helpCenter") }, { id: "status", label: t("landing.footer.status") }] },
-                  { title: t("landing.footer.legal"), id: "legal", links: [{ id: "privacy", label: t("landing.footer.privacy") }, { id: "terms", label: t("landing.footer.terms") }, { id: "security", label: t("landing.footer.security") }] },
+                  { title: t("landing.footer.company"), id: "company", links: [{ id: "about", label: t("landing.footer.about"), href: "/about" }, { id: "blog", label: t("landing.footer.blog"), href: "/blog" }, { id: "contact", label: t("landing.footer.contact"), href: "/contact" }] },
+                  { title: t("landing.footer.resources"), id: "resources", links: [{ id: "docs", label: t("landing.footer.docs"), href: "/docs" }, { id: "help", label: t("landing.footer.helpCenter"), href: "/help" }, { id: "status", label: t("landing.footer.status"), href: "/status" }] },
+                  { title: t("landing.footer.legal"), id: "legal", links: [{ id: "privacy", label: t("landing.footer.privacy"), href: "/privacy" }, { id: "terms", label: t("landing.footer.terms"), href: "/terms" }, { id: "security", label: t("landing.footer.security"), href: "/security" }] },
                 ].map((col, i) => (
                   <div key={i}>
                     <div className="text-[11px] font-semibold uppercase tracking-wider text-white/25 mb-3">{col.title}</div>
                     <ul className="flex flex-col gap-2">
-                      {col.links.map((link) => (
-                        <li key={link.id} data-testid={`link-footer-${link.id}`} className="text-[13px] text-white/25 hover:text-white/50 cursor-pointer transition-colors" onClick={link.action}>{link.label}</li>
+                      {col.links.map((link: any) => (
+                        <li key={link.id} data-testid={`link-footer-${link.id}`} className="text-[13px] text-white/25 hover:text-white/50 cursor-pointer transition-colors">
+                          {link.href ? <a href={link.href} className="text-inherit no-underline">{link.label}</a> : <span onClick={link.action}>{link.label}</span>}
+                        </li>
                       ))}
                     </ul>
                   </div>
