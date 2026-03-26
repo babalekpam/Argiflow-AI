@@ -68,7 +68,7 @@ export default function LandingPage() {
   const [currentView, setCurrentView] = useState<ViewType>("landing");
   const [activeDemo, setActiveDemo] = useState<DemoTab>("leads");
   const [gsStep, setGsStep] = useState<1 | 2 | 3>(1);
-  const [selectedPlan, setSelectedPlan] = useState({ name: "Growth", price: "$597" });
+  const [selectedPlan, setSelectedPlan] = useState({ name: "Pro", price: "$49" });
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [activePlatformTab, setActivePlatformTab] = useState(0);
@@ -386,7 +386,7 @@ export default function LandingPage() {
                   Lead intelligence, email outreach, voice AI, CRM, marketing automation, and an autonomous business manager — all in one platform.
                 </p>
                 <p className="anim-up-d2 text-[15px] text-indigo-400 font-medium mb-10">
-                  One login. One price. <strong className="text-indigo-300">14 days free.</strong> No credit card required.
+                  One login. One price. <strong className="text-indigo-300">60 days free.</strong> No credit card required.
                 </p>
 
                 <div className="anim-up-d3 flex items-center justify-center gap-3 flex-wrap mb-12">
@@ -569,7 +569,7 @@ export default function LandingPage() {
                 ))}
                 <div className="grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center items-center min-w-[560px] bg-white/5 border-t border-white/10">
                   <div className="p-4 text-left text-[13px] font-bold text-white">{t("landing.comparison.startingPrice")}</div>
-                  <div className="p-4 text-[13px] font-bold text-indigo-400">$297/mo</div>
+                  <div className="p-4 text-[13px] font-bold text-indigo-400">$49/mo</div>
                   <div className="p-4 text-[11px] text-white/25">$49-149/mo</div>
                   <div className="p-4 text-[11px] text-white/25">$14,995/yr</div>
                   <div className="p-4 text-[11px] text-white/25">$297-497</div>
@@ -580,7 +580,7 @@ export default function LandingPage() {
                 <Zap className="w-5 h-5 text-indigo-400 mt-0.5 shrink-0" />
                 <div>
                   <div className="text-sm font-semibold text-white mb-1">{t("landing.comparison.bottomLine")}</div>
-                  <div className="text-[13px] text-white/35 leading-relaxed">{t("landing.comparison.bottomLineText1")} <strong className="text-white/60">{t("landing.comparison.bottomLineNone")}</strong> {t("landing.comparison.bottomLineText2")} <strong className="text-indigo-400">$297/mo</strong>{t("landing.comparison.bottomLineText3")}</div>
+                  <div className="text-[13px] text-white/35 leading-relaxed">{t("landing.comparison.bottomLineText1")} <strong className="text-white/60">{t("landing.comparison.bottomLineNone")}</strong> {t("landing.comparison.bottomLineText2")} <strong className="text-indigo-400">$49/mo</strong>{t("landing.comparison.bottomLineText3")}</div>
                 </div>
               </div>
             </div>
@@ -613,7 +613,7 @@ export default function LandingPage() {
                 <div className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl glass-card">
                   <span className="text-lg font-bold text-red-400/60 line-through">$2,346+/mo</span>
                   <ArrowRight className="w-5 h-5 text-white/20" />
-                  <span className="text-xl font-extrabold gradient-text">$297/mo</span>
+                  <span className="text-xl font-extrabold gradient-text">$49/mo</span>
                   <span className="text-[13px] text-white/30 ml-1">{t("landing.costs.withArgiflow")}</span>
                 </div>
               </div>
@@ -1048,7 +1048,7 @@ export default function LandingPage() {
                       if (checkoutLoading) return;
                       setCheckoutLoading(true);
                       try {
-                        const planKey = selectedPlan.name === "Starter" ? "starter" : selectedPlan.name === "Growth" ? "growth" : "agency";
+                        const planKey = selectedPlan.name === "Starter" ? "starter" : selectedPlan.name === "Pro" ? "pro" : "agency";
                         const resp = await fetch("/api/stripe/create-checkout-session", {
                           method: "POST", headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ plan: planKey, email: gsEmail, name: `${gsFirstName} ${gsLastName}`.trim() }),

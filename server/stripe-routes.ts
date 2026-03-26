@@ -5,9 +5,9 @@ import { subscriptions, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const PLAN_PRICES: Record<string, { amount: number; name: string }> = {
-  starter: { amount: 29700, name: "Starter" },
-  growth: { amount: 59700, name: "Growth" },
-  agency: { amount: 149700, name: "Agency OS" },
+  starter: { amount: 0, name: "Starter" },
+  pro: { amount: 4900, name: "Pro" },
+  agency: { amount: 9900, name: "Agency" },
 };
 
 function getStripe(): Stripe {
