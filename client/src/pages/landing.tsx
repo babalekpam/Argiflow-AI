@@ -413,7 +413,7 @@ export default function LandingPage() {
                       {[1,2,3,4,5].map(i => <Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />)}
                     </div>
                     <span className="text-[13px] text-white/30">
-                      Trusted by <strong className="text-white/60">500+</strong> growing businesses
+                      Trusted by <strong className="text-white/60">growing businesses</strong> worldwide
                     </span>
                   </div>
                 </div>
@@ -696,7 +696,7 @@ export default function LandingPage() {
                       Ready to Automate<br/>Your Growth?
                     </h2>
                     <p className="text-base text-white/40 leading-relaxed mb-8 max-w-[480px]">
-                      Join 500+ businesses using ArgiFlow to find leads, close deals, and scale — all on autopilot.
+                      Join businesses using ArgiFlow to find leads, close deals, and scale — all on autopilot.
                     </p>
                     <div className="flex items-center gap-3 flex-wrap justify-center md:justify-start">
                       <button onClick={() => showView("getstarted")} data-testid="button-bottom-cta" className="px-8 py-3.5 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 shadow-xl shadow-indigo-500/25 transition-all cursor-pointer">
