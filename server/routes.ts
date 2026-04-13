@@ -5662,17 +5662,29 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
   const MEDBILL_USER_EMAIL = "abel@argilette.com";
 
   const MEDBILL_REGIONS = [
-    "Tennessee", "Texas", "Florida", "Georgia", "California",
-    "New York", "Ohio", "Illinois", "Pennsylvania", "North Carolina",
-    "Virginia", "Michigan", "Arizona", "Colorado", "Missouri",
-    "Washington", "Maryland", "New Jersey", "Massachusetts", "Indiana",
+    "Alabama", "Alaska", "Arizona", "Arkansas", "California",
+    "Colorado", "Connecticut", "Delaware", "Florida", "Georgia",
+    "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa",
+    "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland",
+    "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri",
+    "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
+    "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
+    "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
+    "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
+    "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming",
   ];
   let medBillRegionIndex = 0;
 
   const MEDBILL_SPECIALTIES = [
-    "mental health", "chiropractic", "pain management", "urgent care",
-    "physical therapy", "podiatry", "home health", "family medicine",
-    "internal medicine", "dermatology", "orthopedics", "cardiology",
+    "new medical practice", "recently opened clinic", "new dental practice",
+    "new mental health practice", "new chiropractic office", "new urgent care",
+    "new physical therapy clinic", "new family medicine practice",
+    "new dermatology practice", "new orthopedic practice", "new cardiology practice",
+    "new podiatry office", "new home health agency", "new internal medicine practice",
+    "new pain management clinic", "new pediatric practice", "new OB/GYN practice",
+    "new ophthalmology practice", "new ENT practice", "new allergy clinic",
+    "new gastroenterology practice", "new urology practice", "new neurology practice",
+    "new oncology practice", "new pulmonology practice", "new rheumatology practice",
   ];
   let medBillSpecialtyIndex = 0;
 
@@ -5720,33 +5732,33 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         startedAt: new Date(),
       }).returning();
 
-      const medBillPrompt = `You are a specialized B2B lead generation agent for Track-Med Billing Solutions, a Revenue Cycle Management (RCM) company. Your job is to identify and qualify medical practices that are either ACTIVELY seeking medical billing services or LIKELY to need them.
+      const medBillPrompt = `You are a specialized B2B lead generation agent for Track-Med Billing Solutions, a Revenue Cycle Management (RCM) company. Your PRIMARY FOCUS is finding NEW and RECENTLY OPENED medical practices across the USA that need billing services from day one.
 
-CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} specializing in ${specialty}.
+CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} NEW or RECENTLY OPENED practices in ${region} — focus: ${specialty}.
 
 ## LEAD TIERS
 
-**TIER 1 — ACTIVELY LOOKING (Hot Leads)** — practices showing direct signals:
-- Posted job listings for billing specialists, medical coders, or RCM staff
-- Posted on forums asking for billing service recommendations
-- Reviews/complaints about billing on Google, Yelp, Healthgrades ("billing errors", "slow payments", "wrong codes")
-- Advertised for in-house billing roles (frustrated or transitioning)
-- Recent ownership changes, new practice openings, or physician departures
+**TIER 1 — NEW PRACTICES (Hot Leads)** — highest priority targets:
+- Practices opened within the last 6-12 months (2024-2025)
+- New NPI registrations — recently credentialed providers starting their own practice
+- New business filings/LLC registrations for medical practices
+- Physicians who recently left a hospital or group to start their own practice
+- New practice announcements on social media, local news, or medical directories
+- Recently renovated or relocated practices expanding to new locations
+- New providers appearing on Google Maps, Yelp, or Healthgrades with few or no reviews
 
-**TIER 2 — LIKELY TO NEED (Warm Leads)** — matching struggle profiles:
-- Solo practitioners or small group practices (1–5 providers)
-- Complex billing specialties: ${specialty}
-- Low Google ratings citing billing/insurance issues
-- Recently credentialed providers (new practice = billing needed)
-- Rural/underserved areas with limited admin staff
-- Multi-location practices without centralized billing
+**TIER 2 — RECENTLY ESTABLISHED (Warm Leads)** — practices still building their operations:
+- Practices opened 1-3 years ago still growing and establishing workflows
+- Solo practitioners or small group practices (1–5 providers) in ${specialty}
+- Recently credentialed providers who may still be figuring out billing
+- Practices with very few Google reviews (under 20) — indicates newer practice
+- Practices without a dedicated billing department listed on their website
 
-**TIER 3 — COLD PROSPECTS (Small Practices)** — no expressed billing issues, but high potential:
-- Small practices with 1–10 providers in ${specialty}
-- Likely handling billing in-house or using outdated systems
-- Any independent/private practice — they ALL need billing help even if they don't know it yet
-- New practices, recently opened or expanding
-- Practices found in directories, Google Maps, NPI Registry without any billing-related signals
+**TIER 3 — ESTABLISHED SMALL PRACTICES (Cold Prospects)** — older but still need help:
+- Small practices with 1–10 providers likely handling billing in-house
+- Practices with billing-related complaints in reviews
+- Any independent/private practice without outsourced billing
+- Practices found in directories, Google Maps, NPI Registry
 - These get a SOFTER introductory outreach (Template C below)
 
 ## DECISION MAKER TARGETING (MANDATORY)
@@ -5768,14 +5780,16 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} sp
 10. Lead Signal (specific evidence that flagged this lead)
 11. Outreach Angle (personalized hook for cold outreach)
 
-## SEARCH STRATEGY
-1. Use web_search to find "${specialty} practices ${region}" and "${specialty} doctor ${region} contact"
-2. For each practice, search for the decision maker: "[practice name] owner" or "[practice name] CEO" or "[practice name] administrator"
-3. Search for DIRECT contact info: "[decision maker name] phone number" AND "[decision maker name] direct line" AND "[decision maker name] email"
-4. Try LinkedIn: "[decision maker name] [practice name] LinkedIn" — LinkedIn profiles often have direct phone/email
-5. Check the practice's "About Us", "Our Team", or "Staff" pages — these sometimes list direct extensions or cell numbers
-6. Search NPI Registry for the physician's NPI record which may list a direct contact number
-7. Check Google Maps, Yelp, Healthgrades for verified data — but PREFER direct lines over main office numbers
+## SEARCH STRATEGY — FOCUS ON NEW PRACTICES
+1. Use web_search to find "${specialty} ${region} 2024 2025" and "new ${specialty} opened ${region}"
+2. Search "new medical practice opening ${region}" and "new doctor office ${region} 2025"
+3. Search NPI Registry for recently registered providers in ${region} — new NPI = new practice
+4. Search "${specialty} ${region} grand opening" or "${specialty} ${region} now accepting patients"
+5. Check Google Maps for practices with very few reviews (1-10) — strong signal of being new
+6. For each practice, search for the decision maker: "[practice name] owner" or "[practice name] CEO"
+7. Search for DIRECT contact info: "[decision maker name] phone number" AND "[decision maker name] email"
+8. Try LinkedIn: "[decision maker name] [practice name] LinkedIn" — LinkedIn profiles often have direct phone/email
+9. Check the practice's "About Us" or "Our Team" pages for direct extensions or cell numbers
 
 ## CONTACT INFO RULES (MANDATORY)
 - ONLY include contact info you actually found on a real website, directory, or contact page
@@ -5800,13 +5814,13 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} medical practices in ${region} sp
 - In the notes field, SPECIFY what type of phone number you found: "Direct cell", "Direct line", "Office direct", or "Main office (solo practice)"
 
 ## SCORING
-- Practice actively posting for billing help (Tier 1): score 85-95
-- Practice matching struggle profile (Tier 2): score 65-80
-- Cold prospect small practice (Tier 3): score 40-60
+- NEW practice opened within last 12 months (Tier 1): score 85-95
+- Recently established practice 1-3 years (Tier 2): score 65-80
+- Established small practice needing help (Tier 3): score 40-60
 - Decision maker found with direct contact: +15 bonus
 - Decision maker's DIRECT cell/mobile number found: +10 bonus (on top of decision maker bonus)
-- Multiple lead signals: +10 bonus
-- Has billing-related complaints in reviews: +10 bonus
+- Practice confirmed as newly opened (news article, announcement): +10 bonus
+- New NPI registration found: +10 bonus
 
 For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone (DECISION MAKER'S DIRECT line — not front desk), company (practice name), address (physical street address, city, state, zip — extract from Google Maps, Yelp, or website), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + phone type [Direct cell/Direct line/Office direct/Main office solo] + practice details + where contact was found + practice size if known), outreach (use the appropriate template based on the lead's specialty):
 
