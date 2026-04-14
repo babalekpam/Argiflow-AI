@@ -40,7 +40,7 @@ import chatbotRoutes from "./chatbot-routes";
 import marketingSuiteRoutes from "./marketing-suite-routes";
 import marketingAutopilotRoutes from "./marketing-autopilot-routes";
 import { startAutopilotScheduler } from "./marketing-autopilot";
-import { getTemplateInstructions, detectSpecialty, getFollowUpForSpecialty, TRACKMED_SEQUENCES } from "./outreach-templates";
+import { getTemplateInstructions, detectSpecialty, getFollowUpForSpecialty, TRACKMED_SEQUENCES, generateTrackMedHtmlEmail } from "./outreach-templates";
 import postalRoutes from "./postal-routes";
 import postalService from "./postal";
 import emailQuotaRoutes from "./email-quota-routes";
@@ -1228,37 +1228,56 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
     outreachBody = outreachBody.replace(/^Subject:\s*.+\n?/im, "").trim();
   }
 
-  const outreachHasSignature = /Best regards,\s*\n/i.test(outreachBody) ||
-    /Looking forward to connecting,\s*\n/i.test(outreachBody) ||
-    /Warm regards,\s*\n/i.test(outreachBody) ||
-    /Kind regards,\s*\n/i.test(outreachBody) ||
-    /Sincerely,\s*\n/i.test(outreachBody);
+  const isMedBillSender = (user.companyName || "").toLowerCase().includes("track-med");
 
-  let textSignature = "";
-  let htmlSignature = "";
+  let htmlBody: string;
+  let plainText: string;
 
-  if (!outreachHasSignature) {
-    const sigParts: string[] = [];
-    const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
-    if (fullName) sigParts.push(fullName);
-    if ((user as any).jobTitle) sigParts.push((user as any).jobTitle);
-    if (user.companyName) sigParts.push(user.companyName);
-    const phoneNum = userSettings.grasshopperNumber || userSettings.twilioPhoneNumber || "";
-    if (phoneNum) sigParts.push(phoneNum);
-    if (user.website) sigParts.push(user.website);
-    const calLink = userSettings.calendarLink || "";
-    if (calLink) sigParts.push(calLink);
+  if (isMedBillSender) {
+    const firstName = lead.name ? lead.name.split(" ")[0] : "there";
+    const practiceName = lead.company || "your practice";
+    const branded = generateTrackMedHtmlEmail({
+      firstName,
+      practiceName,
+      bodyText: outreachBody,
+      subjectLine,
+    });
+    htmlBody = branded.htmlBody;
+    plainText = branded.plainText;
+    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
+    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+  } else {
+    const outreachHasSignature = /Best regards,\s*\n/i.test(outreachBody) ||
+      /Looking forward to connecting,\s*\n/i.test(outreachBody) ||
+      /Warm regards,\s*\n/i.test(outreachBody) ||
+      /Kind regards,\s*\n/i.test(outreachBody) ||
+      /Sincerely,\s*\n/i.test(outreachBody);
 
-    textSignature = sigParts.length > 0 ? "\n\n--\n" + sigParts.join("\n") : "";
-    htmlSignature = sigParts.length > 0
-      ? `<br><br><div style="border-top:1px solid #e5e7eb;padding-top:12px;margin-top:16px;font-size:13px;color:#6b7280;">${sigParts.map(p => p.startsWith("http") ? `<a href="${p}" style="color:#0ea5e9;">${p}</a>` : p.startsWith("Book a call:") ? `<a href="${p.replace("Book a call: ", "")}" style="color:#0ea5e9;">${p}</a>` : p).join("<br>")}</div>`
-      : "";
+    let textSignature = "";
+    let htmlSignature = "";
+
+    if (!outreachHasSignature) {
+      const sigParts: string[] = [];
+      const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+      if (fullName) sigParts.push(fullName);
+      if ((user as any).jobTitle) sigParts.push((user as any).jobTitle);
+      if (user.companyName) sigParts.push(user.companyName);
+      const phoneNum = userSettings.grasshopperNumber || userSettings.twilioPhoneNumber || "";
+      if (phoneNum) sigParts.push(phoneNum);
+      if (user.website) sigParts.push(user.website);
+      const calLink = userSettings.calendarLink || "";
+      if (calLink) sigParts.push(calLink);
+
+      textSignature = sigParts.length > 0 ? "\n\n--\n" + sigParts.join("\n") : "";
+      htmlSignature = sigParts.length > 0
+        ? `<br><br><div style="border-top:1px solid #e5e7eb;padding-top:12px;margin-top:16px;font-size:13px;color:#6b7280;">${sigParts.map(p => p.startsWith("http") ? `<a href="${p}" style="color:#0ea5e9;">${p}</a>` : p.startsWith("Book a call:") ? `<a href="${p.replace("Book a call: ", "")}" style="color:#0ea5e9;">${p}</a>` : p).join("<br>")}</div>`
+        : "";
+    }
+    htmlBody = outreachBody.replace(/\n/g, "<br>") + htmlSignature;
+    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
+    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+    plainText = outreachBody + textSignature;
   }
-  let htmlBody = outreachBody.replace(/\n/g, "<br>") + htmlSignature;
-  htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
-  htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
-
-  const plainText = outreachBody + textSignature;
 
   const usedProvider = hasCustomSmtp ? "smtp" : "ses";
   try {

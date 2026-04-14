@@ -1,5 +1,169 @@
 export const TRACKMED_SIGNATURE = `Abel Nkawula\nCEO, Track-Med Billing Solutions\n+1 (615) 482-6768\nhttps://www.track-med.com`;
 
+export function generateTrackMedHtmlEmail(options: {
+  firstName: string;
+  practiceName: string;
+  specialty?: string;
+  bodyText: string;
+  subjectLine: string;
+}): { subject: string; htmlBody: string; plainText: string } {
+  const { firstName, practiceName, bodyText, subjectLine } = options;
+
+  const htmlBody = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${subjectLine}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#d4edda;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#d4edda;padding:20px 0;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+<!-- HEADER -->
+<tr><td style="background-color:#1e3a5f;padding:20px 30px;border-radius:8px 8px 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td style="color:#ffffff;font-size:22px;font-weight:bold;letter-spacing:1px;">
+&#x1F6E1; TRACK-MED<br>
+<span style="font-size:11px;font-weight:400;letter-spacing:2px;color:#a0c4e8;">BILLING SOLUTIONS</span>
+</td>
+<td align="right" style="vertical-align:middle;">
+<span style="color:#a0c4e8;font-size:11px;border:1px solid #a0c4e8;padding:4px 10px;border-radius:4px;letter-spacing:1px;">HIPAA COMPLIANT</span>
+</td>
+</tr>
+</table>
+</td></tr>
+
+<!-- HERO SECTION -->
+<tr><td style="background-color:#2a4a6f;padding:40px 30px;text-align:left;">
+<p style="color:#a0c4e8;font-size:11px;letter-spacing:2px;margin:0 0 8px;text-transform:uppercase;">Individual & Small Group Practices</p>
+<h1 style="color:#ffffff;font-size:32px;font-weight:800;margin:0 0 6px;line-height:1.1;">YOUR BILLING.</h1>
+<h1 style="color:#ffffff;font-size:32px;font-weight:800;margin:0 0 16px;line-height:1.1;">FULLY SOLVED.</h1>
+<p style="color:#c8dce8;font-size:14px;line-height:1.6;margin:0 0 20px;">We handle the complexity of insurance and patient billing — improving your cash flow, lowering operating costs, and giving your practice our complete, undivided attention.</p>
+<table role="presentation" cellpadding="0" cellspacing="0">
+<tr>
+<td style="background-color:rgba(255,255,255,0.15);color:#ffffff;font-size:12px;padding:6px 14px;border-radius:20px;margin-right:8px;">Faster Payments</td>
+<td width="8"></td>
+<td style="background-color:rgba(255,255,255,0.15);color:#ffffff;font-size:12px;padding:6px 14px;border-radius:20px;">Fewer Denials</td>
+<td width="8"></td>
+<td style="background-color:rgba(255,255,255,0.15);color:#ffffff;font-size:12px;padding:6px 14px;border-radius:20px;">Live Claim Tracking</td>
+</tr>
+<tr><td colspan="5" height="8"></td></tr>
+<tr>
+<td style="background-color:rgba(255,255,255,0.15);color:#ffffff;font-size:12px;padding:6px 14px;border-radius:20px;">Free Software Included</td>
+<td colspan="4"></td>
+</tr>
+</table>
+</td></tr>
+
+<!-- PERSONALIZED MESSAGE -->
+<tr><td style="background-color:#ffffff;padding:30px;">
+<p style="color:#333333;font-size:15px;line-height:1.7;margin:0;">
+${bodyText.replace(/\n/g, '<br>')}
+</p>
+</td></tr>
+
+<!-- SERVICES SECTION -->
+<tr><td style="background-color:#ffffff;padding:0 30px 20px;">
+<h3 style="color:#1e3a5f;font-size:14px;letter-spacing:1px;margin:0 0 15px;text-transform:uppercase;">What We Handle for You</h3>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:12px 15px;border:1px solid #e8e8e8;border-radius:6px;margin-bottom:6px;"><span style="color:#4a90d9;font-size:14px;">&#9679;</span> <span style="color:#333;font-size:14px;">Medical & Dental Billing</span></td></tr>
+<tr><td height="6"></td></tr>
+<tr><td style="padding:12px 15px;border:1px solid #e8e8e8;border-radius:6px;"><span style="color:#4a90d9;font-size:14px;">&#9679;</span> <span style="color:#333;font-size:14px;">Physician Credentialing</span></td></tr>
+<tr><td height="6"></td></tr>
+<tr><td style="padding:12px 15px;border:1px solid #e8e8e8;border-radius:6px;"><span style="color:#4a90d9;font-size:14px;">&#9679;</span> <span style="color:#333;font-size:14px;">EMR / EHR Software</span></td></tr>
+<tr><td height="6"></td></tr>
+<tr><td style="padding:12px 15px;border:1px solid #e8e8e8;border-radius:6px;"><span style="color:#4a90d9;font-size:14px;">&#9679;</span> <span style="color:#333;font-size:14px;">MD Audit Shield — RAC</span></td></tr>
+<tr><td height="6"></td></tr>
+<tr><td style="padding:12px 15px;border:1px solid #e8e8e8;border-radius:6px;"><span style="color:#4a90d9;font-size:14px;">&#9679;</span> <span style="color:#333;font-size:14px;">CodeMAXX Coding Svcs</span></td></tr>
+<tr><td height="6"></td></tr>
+<tr><td style="padding:12px 15px;border:1px solid #e8e8e8;border-radius:6px;"><span style="color:#4a90d9;font-size:14px;">&#9679;</span> <span style="color:#333;font-size:14px;">Creative Collections</span></td></tr>
+</table>
+</td></tr>
+
+<!-- FREE OFFER -->
+<tr><td style="background-color:#e8f5e9;padding:20px 30px;border-left:4px solid #4caf50;">
+<p style="margin:0;font-size:14px;color:#2e7d32;line-height:1.6;">
+<span style="background-color:#4caf50;color:#fff;font-size:11px;font-weight:bold;padding:3px 8px;border-radius:3px;letter-spacing:1px;">FREE</span>
+<strong style="color:#1e3a5f;"> Practice Management Software — on the house</strong> when you use our billing services. Plus a free CPT & billing cost analysis, no strings attached.
+</p>
+</td></tr>
+
+<!-- STATS -->
+<tr><td style="padding:0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="33%" align="center" style="background-color:#1e3a5f;padding:20px 10px;">
+<span style="color:#ffffff;font-size:24px;font-weight:bold;">15+</span><br>
+<span style="color:#a0c4e8;font-size:11px;">Specialized services</span>
+</td>
+<td width="34%" align="center" style="background-color:#2a4a6f;padding:20px 10px;">
+<span style="color:#ffffff;font-size:24px;font-weight:bold;">100%</span><br>
+<span style="color:#a0c4e8;font-size:11px;">Dedicated per client</span>
+</td>
+<td width="33%" align="center" style="background-color:#1e3a5f;padding:20px 10px;">
+<span style="color:#ffffff;font-size:24px;font-weight:bold;">Free</span><br>
+<span style="color:#a0c4e8;font-size:11px;">Cost analysis always</span>
+</td>
+</tr>
+</table>
+</td></tr>
+
+<!-- CTA -->
+<tr><td style="background-color:#4a6fa5;padding:20px 30px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td>
+<p style="color:#ffffff;font-size:16px;font-weight:bold;margin:0 0 4px;">Ready to solve your billing challenges?</p>
+<p style="color:#c8dce8;font-size:13px;margin:0;">track-med.com &middot; (615) 482-6768</p>
+</td>
+<td align="right" style="vertical-align:middle;">
+<a href="https://calendly.com/track-med-info/30min" style="background-color:#ffffff;color:#1e3a5f;font-size:13px;font-weight:bold;padding:12px 24px;border-radius:6px;text-decoration:none;letter-spacing:1px;display:inline-block;">GET STARTED &rarr;</a>
+</td>
+</tr>
+</table>
+</td></tr>
+
+<!-- FOOTER -->
+<tr><td style="padding:15px 30px;text-align:center;border-radius:0 0 8px 8px;background-color:#f5f5f5;">
+<p style="color:#888;font-size:11px;margin:0;">#MedicalBilling #RCM #TrackMed #HealthcareHeroes #PatientCareFirst #PhysicianCredentialing #MedicalPractice</p>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  const plainText = `Hi ${firstName},
+
+${bodyText}
+
+---
+WHAT WE HANDLE FOR YOU:
+• Medical & Dental Billing
+• Physician Credentialing
+• EMR / EHR Software
+• MD Audit Shield — RAC
+• CodeMAXX Coding Svcs
+• Creative Collections
+
+FREE: Practice Management Software when you use our billing services. Plus a free CPT & billing cost analysis, no strings attached.
+
+15+ Specialized services | 100% Dedicated per client | Free Cost analysis always
+
+Ready to solve your billing challenges?
+Book a call: https://calendly.com/track-med-info/30min
+
+Abel Nkawula
+CEO, Track-Med Billing Solutions
+(615) 482-6768 | track-med.com`;
+
+  return { subject: subjectLine, htmlBody, plainText };
+}
+
 export const TRACKMED_SEQUENCES = {
   private_practice: {
     label: "Private Practice",
