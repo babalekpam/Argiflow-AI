@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Glob|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/skills/graphify/consult-graph.sh 2>/dev/null || true",
+            "statusMessage": "Consulting codebase graph…"
+          }
+        ]
+      }
+    ]
+  }
+}
