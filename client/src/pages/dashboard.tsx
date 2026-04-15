@@ -6,6 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
+import {
   Users,
   Calendar,
   TrendingUp,
@@ -52,6 +64,34 @@ function LeadStatusBadge({ status }: { status: string }) {
     <Badge className={styles[status] || styles.new}>
       {status.toUpperCase()}
     </Badge>
+  );
+}
+
+const statsChartConfig = {
+  value: { label: "Count", color: "hsl(var(--chart-1))" },
+};
+
+function StatsBarChart({ stats }: { stats: DashboardStats }) {
+  const { t } = useTranslation();
+  const data = [
+    { metric: t("dashboard.totalLeads"), value: stats.totalLeads || 0 },
+    { metric: t("dashboard.activeLeads"), value: stats.activeLeads || 0 },
+    { metric: t("dashboard.appointments"), value: stats.appointmentsBooked || 0 },
+  ];
+
+  return (
+    <Card className="p-5" data-testid="stats-bar-chart">
+      <h3 className="font-semibold mb-4">{t("dashboard.activityOverview")}</h3>
+      <ChartContainer config={statsChartConfig} className="h-52">
+        <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="metric" tick={{ fontSize: 11 }} />
+          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+          <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+          <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ChartContainer>
+    </Card>
   );
 }
 
@@ -123,6 +163,8 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {!statsLoading && stats && <StatsBarChart stats={stats} />}
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="p-5">

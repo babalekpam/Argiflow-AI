@@ -1138,7 +1138,8 @@
     "upcomingAppointments": "Rendez-vous à Venir",
     "noAppointments": "Aucun rendez-vous à venir.",
     "aiActivityFeed": "Fil d'Activité IA",
-    "noActivity": "Pas encore d'activité. Vos agents IA enregistreront leurs actions ici."
+    "noActivity": "Pas encore d'activité. Vos agents IA enregistreront leurs actions ici.",
+    "activityOverview": "Aperçu de l'Activité"
   },
   "leads": {
     "title": "Leads & CRM",

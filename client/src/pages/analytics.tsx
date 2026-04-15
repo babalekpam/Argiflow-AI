@@ -29,6 +29,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -310,6 +324,53 @@ function ABTestSection({ abTests }: { abTests: ABTestGroup[] }) {
   );
 }
 
+const campaignChartConfig = {
+  openRate: { label: "Open Rate %", color: "hsl(var(--chart-1))" },
+  clickRate: { label: "Click Rate %", color: "hsl(var(--chart-2))" },
+  replyRate: { label: "Reply Rate %", color: "hsl(var(--chart-3))" },
+};
+
+function CampaignPerformanceChart({ reports }: { reports: CampaignReport[] }) {
+  if (reports.length === 0) return null;
+
+  const data = reports.slice(0, 8).map((r) => ({
+    name: r.name.length > 14 ? r.name.slice(0, 14) + "…" : r.name,
+    openRate:
+      (r.totalSent || 0) > 0
+        ? Math.round(((r.totalOpened || 0) / (r.totalSent || 1)) * 10000) / 100
+        : 0,
+    clickRate:
+      (r.totalSent || 0) > 0
+        ? Math.round(((r.totalClicked || 0) / (r.totalSent || 1)) * 10000) / 100
+        : 0,
+    replyRate:
+      (r.totalSent || 0) > 0
+        ? Math.round(((r.totalReplied || 0) / (r.totalSent || 1)) * 10000) / 100
+        : 0,
+  }));
+
+  return (
+    <Card className="p-6" data-testid="campaign-performance-chart">
+      <div className="flex items-center gap-2 mb-4">
+        <BarChart3 className="w-5 h-5 text-primary" />
+        <h3 className="text-lg font-semibold">Performance Overview</h3>
+      </div>
+      <ChartContainer config={campaignChartConfig} className="h-64">
+        <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+          <YAxis unit="%" tick={{ fontSize: 11 }} domain={[0, 100]} />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <ChartLegend content={<ChartLegendContent />} />
+          <Bar dataKey="openRate" fill="var(--color-openRate)" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="clickRate" fill="var(--color-clickRate)" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="replyRate" fill="var(--color-replyRate)" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ChartContainer>
+    </Card>
+  );
+}
+
 function CreateReportDialog() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -573,6 +634,8 @@ export default function AnalyticsPage() {
 
         {abTests.length > 0 && <ABTestSection abTests={abTests} />}
       </div>
+
+      <CampaignPerformanceChart reports={reports} />
 
       <CampaignTable
         reports={reports}

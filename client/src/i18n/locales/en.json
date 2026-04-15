@@ -1128,7 +1128,8 @@
     "upcomingAppointments": "Upcoming Appointments",
     "noAppointments": "No upcoming appointments.",
     "aiActivityFeed": "AI Activity Feed",
-    "noActivity": "No activity yet. Your AI agents will log actions here."
+    "noActivity": "No activity yet. Your AI agents will log actions here.",
+    "activityOverview": "Activity Overview"
   },
   "leads": {
     "title": "Leads & CRM",
