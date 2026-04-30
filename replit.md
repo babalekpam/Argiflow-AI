@@ -56,3 +56,34 @@ Do not make changes to the file `Y`.
 - **Venmo**: Payment gateway for subscription billing.
 - **Replit AI Integrations**: Platform for integrating Anthropic Claude.
 - **Replit Connectors**: Used for Twilio integration.
+
+## Development Tooling
+
+### Claude Code CLI
+[Claude Code](https://docs.claude.com/en/docs/claude-code/overview) is Anthropic's official CLI for AI-assisted development. Contributors working on this repo can optionally install it globally:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+**Prerequisites**: Node.js (LTS) and npm.
+**Usage**: from the repo root, run `claude` to start an interactive session. The CLI reads project context (including `replit.md`) to assist with code edits, debugging, and reviews.
+**Scope**: developer-only tool. It does not affect the application's runtime AI integrations (OpenAI GPT-4o primary, Anthropic SDK for optional per-user Claude overrides — see **External Dependencies**).
+
+### Optional: oh-my-claudecode
+[oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) is a third-party, opinionated configuration bundle for Claude Code. It is optional.
+
+**Recommended — via Claude Code plugin marketplace** (run inside a Claude Code session):
+
+```
+/plugin marketplace add https://github.com/Yeachan-Heo/oh-my-claudecode
+/plugin install oh-my-claudecode@oh-my-claudecode
+/setup
+```
+
+**Alternative — via npm**:
+
+```bash
+npm i -g oh-my-claude-sisyphus@latest
+omc setup
+```
