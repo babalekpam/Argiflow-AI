@@ -61,6 +61,8 @@ import UnifiedLearningPage from "./unified-learning";
 import BusinessManagerPage from "./business-manager";
 import LlmCouncilPage from "./llm-council";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
+import { CouncilWidget } from "@/components/council-widget";
+import { CouncilProvider } from "@/contexts/council-context";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
@@ -175,6 +177,7 @@ export default function DashboardLayout() {
     : "U";
 
   return (
+    <CouncilProvider>
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
         <AppSidebar />
@@ -272,6 +275,8 @@ export default function DashboardLayout() {
         </div>
       </div>
       <AiChatDialog />
+      <CouncilWidget />
     </SidebarProvider>
+    </CouncilProvider>
   );
 }
