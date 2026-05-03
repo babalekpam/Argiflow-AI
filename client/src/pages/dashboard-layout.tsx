@@ -59,6 +59,7 @@ import UnifiedEmailPage from "./unified-email";
 import UnifiedIntelligencePage from "./unified-intelligence";
 import UnifiedLearningPage from "./unified-learning";
 import BusinessManagerPage from "./business-manager";
+import LlmCouncilPage from "./llm-council";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -260,6 +261,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/forum-prospector" component={ForumProspectorPage} />
               <Route path="/dashboard/platform-promoter" component={PlatformPromoterPage} />
               <Route path="/dashboard/business-manager" component={BusinessManagerPage} />
+              <Route path="/dashboard/council" component={LlmCouncilPage} />
               <Route path="/dashboard/demos" component={DemoBuilderPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
