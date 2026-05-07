@@ -9309,6 +9309,9 @@ The ArgiFlow Team`;
   const { startAriaScheduler } = await import("./aria-agent");
   startAriaScheduler();
 
+  const councilRoutes = (await import("./llm-council-routes")).default;
+  app.use("/api/council", isAuthenticated, councilRoutes);
+
   startAutopilotScheduler();
   app.use("/api/postal", postalRoutes);
   app.use("/api/email", emailQuotaRoutes);
