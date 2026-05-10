@@ -1,6 +1,6 @@
 // ============================================================
-// CANVAS SYSTEM — DATABASE SCHEMA
-// Cloned from workflow-schema.ts for independent canvas rebuild
+// LEARNING SYSTEM — DATABASE SCHEMA
+// Cloned from workflow-schema.ts for independent learning rebuild
 // ============================================================
 
 import { sql } from "drizzle-orm";
@@ -9,10 +9,10 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // ============================================================
-// CANVASES — The master canvas definition
+// LEARNINGS — The master learning definition
 // ============================================================
 
-export const canvases = pgTable("canvases", {
+export const learnings = pgTable("learnings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
@@ -30,17 +30,17 @@ export const canvases = pgTable("canvases", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertCanvasSchema = createInsertSchema(canvases).omit({ id: true, createdAt: true, updatedAt: true });
-export type Canvas = typeof canvases.$inferSelect;
-export type InsertCanvas = z.infer<typeof insertCanvasSchema>;
+export const insertLearningSchema = createInsertSchema(learnings).omit({ id: true, createdAt: true, updatedAt: true });
+export type Learning = typeof learnings.$inferSelect;
+export type InsertLearning = z.infer<typeof insertLearningSchema>;
 
 // ============================================================
-// CANVAS NODES — Individual steps in a canvas
+// LEARNING NODES — Individual steps in a learning
 // ============================================================
 
-export const canvasNodes = pgTable("canvas_nodes", {
+export const learningNodes = pgTable("learning_nodes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  canvasId: varchar("canvas_id").notNull(),
+  learningId: varchar("learning_id").notNull(),
   nodeType: text("node_type").notNull(),
   actionType: text("action_type").notNull(),
   label: text("label").notNull(),
@@ -51,17 +51,17 @@ export const canvasNodes = pgTable("canvas_nodes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertCanvasNodeSchema = createInsertSchema(canvasNodes).omit({ id: true, createdAt: true });
-export type CanvasNode = typeof canvasNodes.$inferSelect;
-export type InsertCanvasNode = z.infer<typeof insertCanvasNodeSchema>;
+export const insertLearningNodeSchema = createInsertSchema(learningNodes).omit({ id: true, createdAt: true });
+export type LearningNode = typeof learningNodes.$inferSelect;
+export type InsertLearningNode = z.infer<typeof insertLearningNodeSchema>;
 
 // ============================================================
-// CANVAS EDGES — Connections between nodes
+// LEARNING EDGES — Connections between nodes
 // ============================================================
 
-export const canvasEdges = pgTable("canvas_edges", {
+export const learningEdges = pgTable("learning_edges", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  canvasId: varchar("canvas_id").notNull(),
+  learningId: varchar("learning_id").notNull(),
   sourceNodeId: varchar("source_node_id").notNull(),
   targetNodeId: varchar("target_node_id").notNull(),
   condition: text("condition").default("default"),
@@ -69,17 +69,17 @@ export const canvasEdges = pgTable("canvas_edges", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertCanvasEdgeSchema = createInsertSchema(canvasEdges).omit({ id: true, createdAt: true });
-export type CanvasEdge = typeof canvasEdges.$inferSelect;
-export type InsertCanvasEdge = z.infer<typeof insertCanvasEdgeSchema>;
+export const insertLearningEdgeSchema = createInsertSchema(learningEdges).omit({ id: true, createdAt: true });
+export type LearningEdge = typeof learningEdges.$inferSelect;
+export type InsertLearningEdge = z.infer<typeof insertLearningEdgeSchema>;
 
 // ============================================================
-// CANVAS EXECUTIONS — Each time a canvas runs
+// LEARNING EXECUTIONS — Each time a learning runs
 // ============================================================
 
-export const canvasExecutions = pgTable("canvas_executions", {
+export const learningExecutions = pgTable("learning_executions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  canvasId: varchar("canvas_id").notNull(),
+  learningId: varchar("learning_id").notNull(),
   userId: varchar("user_id").notNull(),
   status: text("status").notNull().default("running"),
   triggerData: text("trigger_data").default("{}"),
@@ -93,15 +93,15 @@ export const canvasExecutions = pgTable("canvas_executions", {
   completedAt: timestamp("completed_at"),
 });
 
-export const insertCanvasExecutionSchema = createInsertSchema(canvasExecutions).omit({ id: true, startedAt: true });
-export type CanvasExecution = typeof canvasExecutions.$inferSelect;
-export type InsertCanvasExecution = z.infer<typeof insertCanvasExecutionSchema>;
+export const insertLearningExecutionSchema = createInsertSchema(learningExecutions).omit({ id: true, startedAt: true });
+export type LearningExecution = typeof learningExecutions.$inferSelect;
+export type InsertLearningExecution = z.infer<typeof insertLearningExecutionSchema>;
 
 // ============================================================
-// CANVAS EXECUTION STEPS — Detailed log of each node execution
+// LEARNING EXECUTION STEPS — Detailed log of each node execution
 // ============================================================
 
-export const canvasExecutionSteps = pgTable("canvas_execution_steps", {
+export const learningExecutionSteps = pgTable("learning_execution_steps", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   executionId: varchar("execution_id").notNull(),
   nodeId: varchar("node_id").notNull(),
@@ -115,15 +115,15 @@ export const canvasExecutionSteps = pgTable("canvas_execution_steps", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertCanvasExecutionStepSchema = createInsertSchema(canvasExecutionSteps).omit({ id: true, createdAt: true });
-export type CanvasExecutionStep = typeof canvasExecutionSteps.$inferSelect;
-export type InsertCanvasExecutionStep = z.infer<typeof insertCanvasExecutionStepSchema>;
+export const insertLearningExecutionStepSchema = createInsertSchema(learningExecutionSteps).omit({ id: true, createdAt: true });
+export type LearningExecutionStep = typeof learningExecutionSteps.$inferSelect;
+export type InsertLearningExecutionStep = z.infer<typeof insertLearningExecutionStepSchema>;
 
 // ============================================================
-// TRIGGER TYPES — All events that can fire a canvas
+// TRIGGER TYPES — All events that can fire a learning
 // ============================================================
 
-export const CANVAS_TRIGGER_TYPES = {
+export const LEARNING_TRIGGER_TYPES = {
   LEAD_CREATED: "lead_created",
   LEAD_STATUS_CHANGED: "lead_status_changed",
   LEAD_SCORE_THRESHOLD: "lead_score_threshold",
@@ -149,13 +149,13 @@ export const CANVAS_TRIGGER_TYPES = {
   USER_REGISTERED: "user_registered",
 } as const;
 
-export type CanvasTriggerType = (typeof CANVAS_TRIGGER_TYPES)[keyof typeof CANVAS_TRIGGER_TYPES];
+export type LearningTriggerType = (typeof LEARNING_TRIGGER_TYPES)[keyof typeof LEARNING_TRIGGER_TYPES];
 
 // ============================================================
-// ACTION TYPES — All actions a canvas node can perform
+// ACTION TYPES — All actions a learning node can perform
 // ============================================================
 
-export const CANVAS_ACTION_TYPES = {
+export const LEARNING_ACTION_TYPES = {
   TRIGGER_EVENT: "trigger_event",
   TRIGGER_SCHEDULE: "trigger_schedule",
   TRIGGER_WEBHOOK: "trigger_webhook",
@@ -185,32 +185,32 @@ export const CANVAS_ACTION_TYPES = {
   CALL_WEBHOOK: "call_webhook",
   LOG_TO_CRM: "log_to_crm",
   CREATE_TASK: "create_task",
-  TRIGGER_CANVAS: "trigger_canvas",
+  TRIGGER_LEARNING: "trigger_learning",
 } as const;
 
-export type CanvasActionType = (typeof CANVAS_ACTION_TYPES)[keyof typeof CANVAS_ACTION_TYPES];
+export type LearningActionType = (typeof LEARNING_ACTION_TYPES)[keyof typeof LEARNING_ACTION_TYPES];
 
 // ============================================================
-// CANVAS TEMPLATES — Pre-built canvases users can activate
+// LEARNING TEMPLATES — Pre-built learnings users can activate
 // ============================================================
 
-export interface CanvasTemplate {
+export interface LearningTemplate {
   key: string;
   name: string;
   description: string;
   category: string;
-  triggerType: CanvasTriggerType;
-  nodes: Omit<InsertCanvasNode, "canvasId">[];
+  triggerType: LearningTriggerType;
+  nodes: Omit<InsertLearningNode, "learningId">[];
   edges: { sourceIndex: number; targetIndex: number; condition?: string }[];
 }
 
-export const CANVAS_TEMPLATES: CanvasTemplate[] = [
+export const LEARNING_TEMPLATES: LearningTemplate[] = [
   {
     key: "lead-capture-nurture",
     name: "Lead Capture → Nurture Sequence",
     description: "When a new lead is created, AI scores them, routes hot leads to immediate outreach, and starts a nurture drip for warm leads.",
     category: "Lead Management",
-    triggerType: CANVAS_TRIGGER_TYPES.LEAD_CREATED,
+    triggerType: LEARNING_TRIGGER_TYPES.LEAD_CREATED,
     nodes: [
       { nodeType: "trigger", actionType: "trigger_event", label: "New Lead Created", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
       { nodeType: "action", actionType: "ai_score_lead", label: "AI Lead Scoring", config: "{\"model\":\"intent_based\"}", positionX: 350, positionY: 200, sortOrder: 1 },
@@ -236,7 +236,7 @@ export const CANVAS_TEMPLATES: CanvasTemplate[] = [
     name: "Email Engagement → Escalation",
     description: "When a lead opens an email or clicks a link, automatically escalate their status, notify the team, and trigger follow-up.",
     category: "Email Automation",
-    triggerType: CANVAS_TRIGGER_TYPES.LEAD_EMAIL_CLICKED,
+    triggerType: LEARNING_TRIGGER_TYPES.LEAD_EMAIL_CLICKED,
     nodes: [
       { nodeType: "trigger", actionType: "trigger_event", label: "Email Link Clicked", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
       { nodeType: "action", actionType: "update_lead", label: "Set Status → Hot", config: "{\"status\":\"hot\",\"engagementLevel\":\"hot\"}", positionX: 350, positionY: 200, sortOrder: 1 },
@@ -256,7 +256,7 @@ export const CANVAS_TEMPLATES: CanvasTemplate[] = [
     name: "Appointment Booked → Onboarding Flow",
     description: "When an appointment is booked, send confirmation, create a project task, and start the onboarding sequence.",
     category: "Client Onboarding",
-    triggerType: CANVAS_TRIGGER_TYPES.APPOINTMENT_BOOKED,
+    triggerType: LEARNING_TRIGGER_TYPES.APPOINTMENT_BOOKED,
     nodes: [
       { nodeType: "trigger", actionType: "trigger_event", label: "Appointment Booked", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
       { nodeType: "action", actionType: "send_email", label: "Send Confirmation", config: "{\"template\":\"appointment_confirmation\"}", positionX: 350, positionY: 200, sortOrder: 1 },
@@ -276,7 +276,7 @@ export const CANVAS_TEMPLATES: CanvasTemplate[] = [
     name: "Deal Won → Invoice & Project Setup",
     description: "When a deal is marked as won, create an invoice, set up the project, send a welcome email, and notify the team.",
     category: "Revenue",
-    triggerType: CANVAS_TRIGGER_TYPES.DEAL_WON,
+    triggerType: LEARNING_TRIGGER_TYPES.DEAL_WON,
     nodes: [
       { nodeType: "trigger", actionType: "trigger_event", label: "Deal Won", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
       { nodeType: "action", actionType: "send_email", label: "Welcome Email", config: "{\"template\":\"deal_won_welcome\"}", positionX: 350, positionY: 150, sortOrder: 1 },
@@ -297,7 +297,7 @@ export const CANVAS_TEMPLATES: CanvasTemplate[] = [
     name: "AI Content Generation Pipeline",
     description: "Scheduled content creation: AI generates blog posts, social content, and emails, then distributes them.",
     category: "Marketing",
-    triggerType: CANVAS_TRIGGER_TYPES.SCHEDULED,
+    triggerType: LEARNING_TRIGGER_TYPES.SCHEDULED,
     nodes: [
       { nodeType: "trigger", actionType: "trigger_schedule", label: "Every Monday 9 AM", config: "{\"cron\":\"0 9 * * 1\"}", positionX: 100, positionY: 200, sortOrder: 0 },
       { nodeType: "action", actionType: "ai_generate_content", label: "Generate Blog Post", config: "{\"type\":\"blog\",\"topic\":\"industry_trends\"}", positionX: 350, positionY: 200, sortOrder: 1 },
@@ -318,7 +318,7 @@ export const CANVAS_TEMPLATES: CanvasTemplate[] = [
     name: "Service Complete → Review Request",
     description: "After an appointment is completed, wait 24 hours then request a review. If positive sentiment detected, auto-share.",
     category: "Reputation",
-    triggerType: CANVAS_TRIGGER_TYPES.APPOINTMENT_COMPLETED,
+    triggerType: LEARNING_TRIGGER_TYPES.APPOINTMENT_COMPLETED,
     nodes: [
       { nodeType: "trigger", actionType: "trigger_event", label: "Appointment Completed", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
       { nodeType: "delay", actionType: "delay_wait", label: "Wait 24 Hours", config: "{\"hours\":24}", positionX: 350, positionY: 200, sortOrder: 1 },

@@ -1,24 +1,24 @@
 // ============================================================
-// CANVAS SYSTEM — EVENT HOOKS
-// Cloned from workflow-hooks.ts for independent canvas rebuild
+// LEARNING SYSTEM — EVENT HOOKS
+// Cloned from workflow-hooks.ts for independent learning rebuild
 //
 // USAGE: Import and call these from your existing route handlers
-//   import { canvasHooks } from "./canvas-hooks";
+//   import { learningHooks } from "./learning-hooks";
 //   // In your lead creation handler:
-//   canvasHooks.onLeadCreated(userId, lead);
+//   learningHooks.onLeadCreated(userId, lead);
 // ============================================================
 
-import { canvasEventBus, type CanvasEvent } from "./canvas-engine";
-import { CANVAS_TRIGGER_TYPES } from "@shared/canvas-schema";
+import { learningEventBus, type LearningEvent } from "./learning-engine";
+import { LEARNING_TRIGGER_TYPES } from "@shared/learning-schema";
 
-export const canvasHooks = {
+export const learningHooks = {
   // ============================================================
   // LEAD EVENTS
   // ============================================================
 
   async onLeadCreated(userId: string, lead: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.LEAD_CREATED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.LEAD_CREATED,
       userId,
       entityId: lead.id,
       entityType: "lead",
@@ -40,8 +40,8 @@ export const canvasHooks = {
   },
 
   async onLeadStatusChanged(userId: string, lead: any, oldStatus: string, newStatus: string) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.LEAD_STATUS_CHANGED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.LEAD_STATUS_CHANGED,
       userId,
       entityId: lead.id,
       entityType: "lead",
@@ -52,8 +52,8 @@ export const canvasHooks = {
 
   async onLeadScoreChanged(userId: string, lead: any, newScore: number) {
     if (newScore >= 80) {
-      await canvasEventBus.emit({
-        type: CANVAS_TRIGGER_TYPES.LEAD_SCORE_THRESHOLD,
+      await learningEventBus.emit({
+        type: LEARNING_TRIGGER_TYPES.LEAD_SCORE_THRESHOLD,
         userId,
         entityId: lead.id,
         entityType: "lead",
@@ -64,8 +64,8 @@ export const canvasHooks = {
   },
 
   async onLeadEmailOpened(userId: string, lead: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.LEAD_EMAIL_OPENED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.LEAD_EMAIL_OPENED,
       userId,
       entityId: lead.id,
       entityType: "lead",
@@ -82,8 +82,8 @@ export const canvasHooks = {
   },
 
   async onLeadEmailClicked(userId: string, lead: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.LEAD_EMAIL_CLICKED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.LEAD_EMAIL_CLICKED,
       userId,
       entityId: lead.id,
       entityType: "lead",
@@ -99,8 +99,8 @@ export const canvasHooks = {
     });
 
     if ((lead.engagementScore || 0) >= 60) {
-      await canvasEventBus.emit({
-        type: CANVAS_TRIGGER_TYPES.LEAD_ENGAGEMENT_HOT,
+      await learningEventBus.emit({
+        type: LEARNING_TRIGGER_TYPES.LEAD_ENGAGEMENT_HOT,
         userId,
         entityId: lead.id,
         entityType: "lead",
@@ -115,8 +115,8 @@ export const canvasHooks = {
   // ============================================================
 
   async onAppointmentBooked(userId: string, appointment: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.APPOINTMENT_BOOKED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.APPOINTMENT_BOOKED,
       userId,
       entityId: appointment.id,
       entityType: "appointment",
@@ -135,8 +135,8 @@ export const canvasHooks = {
   },
 
   async onAppointmentCompleted(userId: string, appointment: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.APPOINTMENT_COMPLETED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.APPOINTMENT_COMPLETED,
       userId,
       entityId: appointment.id,
       entityType: "appointment",
@@ -146,8 +146,8 @@ export const canvasHooks = {
   },
 
   async onAppointmentCancelled(userId: string, appointment: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.APPOINTMENT_CANCELLED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.APPOINTMENT_CANCELLED,
       userId,
       entityId: appointment.id,
       entityType: "appointment",
@@ -161,8 +161,8 @@ export const canvasHooks = {
   // ============================================================
 
   async onDealCreated(userId: string, deal: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.DEAL_CREATED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.DEAL_CREATED,
       userId,
       entityId: deal.id,
       entityType: "deal",
@@ -172,8 +172,8 @@ export const canvasHooks = {
   },
 
   async onDealStageChanged(userId: string, deal: any, oldStageId: string, newStageId: string) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.DEAL_STAGE_CHANGED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.DEAL_STAGE_CHANGED,
       userId,
       entityId: deal.id,
       entityType: "deal",
@@ -183,8 +183,8 @@ export const canvasHooks = {
   },
 
   async onDealWon(userId: string, deal: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.DEAL_WON,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.DEAL_WON,
       userId,
       entityId: deal.id,
       entityType: "deal",
@@ -198,8 +198,8 @@ export const canvasHooks = {
   // ============================================================
 
   async onAgentRunCompleted(userId: string, agentType: string, result: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.AGENT_RUN_COMPLETED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.AGENT_RUN_COMPLETED,
       userId,
       entityType: "agent",
       data: { agentType, ...result },
@@ -207,8 +207,8 @@ export const canvasHooks = {
     });
 
     if (result.leadsFound && result.leadsFound > 0) {
-      await canvasEventBus.emit({
-        type: CANVAS_TRIGGER_TYPES.AGENT_LEADS_FOUND,
+      await learningEventBus.emit({
+        type: LEARNING_TRIGGER_TYPES.AGENT_LEADS_FOUND,
         userId,
         entityType: "agent",
         data: { agentType, leadsFound: result.leadsFound, ...result },
@@ -222,8 +222,8 @@ export const canvasHooks = {
   // ============================================================
 
   async onVoiceCallCompleted(userId: string, call: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.VOICE_CALL_COMPLETED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.VOICE_CALL_COMPLETED,
       userId,
       entityId: call.id,
       entityType: "voice_call",
@@ -233,8 +233,8 @@ export const canvasHooks = {
   },
 
   async onChatMessageReceived(userId: string, message: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.CHAT_MESSAGE_RECEIVED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.CHAT_MESSAGE_RECEIVED,
       userId,
       entityType: "chat",
       data: { content: message.content, role: message.role },
@@ -247,8 +247,8 @@ export const canvasHooks = {
   // ============================================================
 
   async onDiscoverySubmitted(leadData: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.DISCOVERY_SUBMITTED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.DISCOVERY_SUBMITTED,
       userId: "discovery",
       entityType: "discovery",
       data: { ...leadData },
@@ -257,8 +257,8 @@ export const canvasHooks = {
   },
 
   async onUserRegistered(userId: string, user: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.USER_REGISTERED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.USER_REGISTERED,
       userId,
       entityType: "user",
       data: {
@@ -272,8 +272,8 @@ export const canvasHooks = {
   },
 
   async onWebhookReceived(userId: string, webhookData: any) {
-    await canvasEventBus.emit({
-      type: CANVAS_TRIGGER_TYPES.WEBHOOK_RECEIVED,
+    await learningEventBus.emit({
+      type: LEARNING_TRIGGER_TYPES.WEBHOOK_RECEIVED,
       userId,
       entityType: "webhook",
       data: webhookData,

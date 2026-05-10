@@ -1,10 +1,10 @@
 // ============================================================
-// CANVAS SYSTEM — API ROUTES
-// Cloned from workflow-routes.ts for independent canvas rebuild
+// LEARNING SYSTEM — API ROUTES
+// Cloned from workflow-routes.ts for independent learning rebuild
 //
 // In routes.ts, add:
-//   import { registerCanvasRoutes } from "./canvas-routes";
-//   registerCanvasRoutes(app);
+//   import { registerLearningRoutes } from "./learning-routes";
+//   registerLearningRoutes(app);
 // ============================================================
 
 import type { Express, RequestHandler } from "express";
@@ -13,19 +13,19 @@ import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import {
-  canvases,
-  canvasNodes,
-  canvasEdges,
-  canvasExecutions,
-  canvasExecutionSteps,
-  CANVAS_TRIGGER_TYPES,
-  CANVAS_ACTION_TYPES,
-  CANVAS_TEMPLATES,
-  type InsertCanvas,
-  type InsertCanvasNode,
-  type InsertCanvasEdge,
-} from "@shared/canvas-schema";
-import { canvasEventBus, executeCanvas, type CanvasEvent } from "./canvas-engine";
+  learnings,
+  learningNodes,
+  learningEdges,
+  learningExecutions,
+  learningExecutionSteps,
+  LEARNING_TRIGGER_TYPES,
+  LEARNING_ACTION_TYPES,
+  LEARNING_TEMPLATES,
+  type InsertLearning,
+  type InsertLearningNode,
+  type InsertLearningEdge,
+} from "@shared/learning-schema";
+import { learningEventBus, executeLearning, type LearningEvent } from "./learning-engine";
 import { storage } from "./storage";
 import { marketingStrategies, websiteProfiles, userSettings, businesses } from "@shared/schema";
 
@@ -73,62 +73,62 @@ async function getAIForUser(userId: string): Promise<{ client: Anthropic; model:
 }
 
 // ============================================================
-// REGISTER ALL CANVAS ROUTES
+// REGISTER ALL LEARNING ROUTES
 // ============================================================
 
-export function registerCanvasRoutes(app: Express) {
+export function registerLearningRoutes(app: Express) {
   // ========================================
-  // CANVAS CRUD
+  // LEARNING CRUD
   // ========================================
 
-  app.get("/api/canvases", isAuthenticated, async (req, res) => {
+  app.get("/api/learnings", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const category = req.query.category as string | undefined;
 
       const results = await db
         .select()
-        .from(canvases)
-        .where(eq(canvases.userId, userId))
-        .orderBy(desc(canvases.updatedAt));
+        .from(learnings)
+        .where(eq(learnings.userId, userId))
+        .orderBy(desc(learnings.updatedAt));
 
       const filtered = category ? results.filter(c => c.category === category) : results;
       res.json(filtered);
     } catch (error: any) {
-      console.error("Error fetching canvases:", error);
-      res.status(500).json({ message: "Failed to fetch canvases" });
+      console.error("Error fetching learnings:", error);
+      res.status(500).json({ message: "Failed to fetch learnings" });
     }
   });
 
-  app.get("/api/canvases/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/learnings/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const [canvas] = await db
+      const [learning] = await db
         .select()
-        .from(canvases)
-        .where(and(eq(canvases.id, req.params.id), eq(canvases.userId, userId)));
+        .from(learnings)
+        .where(and(eq(learnings.id, req.params.id), eq(learnings.userId, userId)));
 
-      if (!canvas) return res.status(404).json({ message: "Canvas not found" });
+      if (!learning) return res.status(404).json({ message: "Learning not found" });
 
       const nodes = await db
         .select()
-        .from(canvasNodes)
-        .where(eq(canvasNodes.canvasId, canvas.id))
-        .orderBy(asc(canvasNodes.sortOrder));
+        .from(learningNodes)
+        .where(eq(learningNodes.learningId, learning.id))
+        .orderBy(asc(learningNodes.sortOrder));
 
       const edges = await db
         .select()
-        .from(canvasEdges)
-        .where(eq(canvasEdges.canvasId, canvas.id));
+        .from(learningEdges)
+        .where(eq(learningEdges.learningId, learning.id));
 
-      res.json({ ...canvas, nodes, edges });
+      res.json({ ...learning, nodes, edges });
     } catch (error: any) {
-      console.error("Error fetching canvas:", error);
-      res.status(500).json({ message: "Failed to fetch canvas" });
+      console.error("Error fetching learning:", error);
+      res.status(500).json({ message: "Failed to fetch learning" });
     }
   });
 
-  app.post("/api/canvases", isAuthenticated, async (req, res) => {
+  app.post("/api/learnings", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const schema = z.object({
@@ -145,8 +145,8 @@ export function registerCanvasRoutes(app: Express) {
         return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten() });
       }
 
-      const [canvas] = await db
-        .insert(canvases)
+      const [learning] = await db
+        .insert(learnings)
         .values({
           userId,
           name: parsed.data.name,
@@ -158,14 +158,14 @@ export function registerCanvasRoutes(app: Express) {
         })
         .returning();
 
-      res.json(canvas);
+      res.json(learning);
     } catch (error: any) {
-      console.error("Error creating canvas:", error);
-      res.status(500).json({ message: "Failed to create canvas" });
+      console.error("Error creating learning:", error);
+      res.status(500).json({ message: "Failed to create learning" });
     }
   });
 
-  app.patch("/api/canvases/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/learnings/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const { name, description, triggerType, triggerConfig, status, category } = req.body;
@@ -179,67 +179,67 @@ export function registerCanvasRoutes(app: Express) {
       if (category !== undefined) data.category = category;
 
       const [updated] = await db
-        .update(canvases)
+        .update(learnings)
         .set(data)
-        .where(and(eq(canvases.id, req.params.id), eq(canvases.userId, userId)))
+        .where(and(eq(learnings.id, req.params.id), eq(learnings.userId, userId)))
         .returning();
 
-      if (!updated) return res.status(404).json({ message: "Canvas not found" });
+      if (!updated) return res.status(404).json({ message: "Learning not found" });
       res.json(updated);
     } catch (error: any) {
-      console.error("Error updating canvas:", error);
-      res.status(500).json({ message: "Failed to update canvas" });
+      console.error("Error updating learning:", error);
+      res.status(500).json({ message: "Failed to update learning" });
     }
   });
 
-  app.delete("/api/canvases/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/learnings/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const canvasId = req.params.id;
+      const learningId = req.params.id;
 
-      const [canvas] = await db
+      const [learning] = await db
         .select()
-        .from(canvases)
-        .where(and(eq(canvases.id, canvasId), eq(canvases.userId, userId)));
+        .from(learnings)
+        .where(and(eq(learnings.id, learningId), eq(learnings.userId, userId)));
 
-      if (!canvas) return res.status(404).json({ message: "Canvas not found" });
+      if (!learning) return res.status(404).json({ message: "Learning not found" });
 
       const executions = await db
-        .select({ id: canvasExecutions.id })
-        .from(canvasExecutions)
-        .where(eq(canvasExecutions.canvasId, canvasId));
+        .select({ id: learningExecutions.id })
+        .from(learningExecutions)
+        .where(eq(learningExecutions.learningId, learningId));
 
       for (const exec of executions) {
-        await db.delete(canvasExecutionSteps).where(eq(canvasExecutionSteps.executionId, exec.id));
+        await db.delete(learningExecutionSteps).where(eq(learningExecutionSteps.executionId, exec.id));
       }
 
-      await db.delete(canvasExecutions).where(eq(canvasExecutions.canvasId, canvasId));
-      await db.delete(canvasEdges).where(eq(canvasEdges.canvasId, canvasId));
-      await db.delete(canvasNodes).where(eq(canvasNodes.canvasId, canvasId));
-      await db.delete(canvases).where(eq(canvases.id, canvasId));
+      await db.delete(learningExecutions).where(eq(learningExecutions.learningId, learningId));
+      await db.delete(learningEdges).where(eq(learningEdges.learningId, learningId));
+      await db.delete(learningNodes).where(eq(learningNodes.learningId, learningId));
+      await db.delete(learnings).where(eq(learnings.id, learningId));
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting canvas:", error);
-      res.status(500).json({ message: "Failed to delete canvas" });
+      console.error("Error deleting learning:", error);
+      res.status(500).json({ message: "Failed to delete learning" });
     }
   });
 
   // ========================================
-  // CANVAS NODES
+  // LEARNING NODES
   // ========================================
 
-  app.post("/api/canvases/:id/nodes", isAuthenticated, async (req, res) => {
+  app.post("/api/learnings/:id/nodes", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const canvasId = req.params.id;
+      const learningId = req.params.id;
 
-      const [canvas] = await db
+      const [learning] = await db
         .select()
-        .from(canvases)
-        .where(and(eq(canvases.id, canvasId), eq(canvases.userId, userId)));
+        .from(learnings)
+        .where(and(eq(learnings.id, learningId), eq(learnings.userId, userId)));
 
-      if (!canvas) return res.status(404).json({ message: "Canvas not found" });
+      if (!learning) return res.status(404).json({ message: "Learning not found" });
 
       const schema = z.object({
         nodeType: z.string().min(1),
@@ -257,9 +257,9 @@ export function registerCanvasRoutes(app: Express) {
       }
 
       const [node] = await db
-        .insert(canvasNodes)
+        .insert(learningNodes)
         .values({
-          canvasId,
+          learningId,
           nodeType: parsed.data.nodeType,
           actionType: parsed.data.actionType,
           label: parsed.data.label,
@@ -271,9 +271,9 @@ export function registerCanvasRoutes(app: Express) {
         .returning();
 
       await db
-        .update(canvases)
-        .set({ version: sql`${canvases.version} + 1`, updatedAt: new Date() })
-        .where(eq(canvases.id, canvasId));
+        .update(learnings)
+        .set({ version: sql`${learnings.version} + 1`, updatedAt: new Date() })
+        .where(eq(learnings.id, learningId));
 
       res.json(node);
     } catch (error: any) {
@@ -282,12 +282,12 @@ export function registerCanvasRoutes(app: Express) {
     }
   });
 
-  app.patch("/api/canvas-nodes/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/learning-nodes/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const [node] = await db.select().from(canvasNodes).where(eq(canvasNodes.id, req.params.id));
+      const [node] = await db.select().from(learningNodes).where(eq(learningNodes.id, req.params.id));
       if (!node) return res.status(404).json({ message: "Node not found" });
-      const [cv] = await db.select().from(canvases).where(and(eq(canvases.id, node.canvasId), eq(canvases.userId, userId)));
+      const [cv] = await db.select().from(learnings).where(and(eq(learnings.id, node.learningId), eq(learnings.userId, userId)));
       if (!cv) return res.status(404).json({ message: "Node not found" });
 
       const { label, config, positionX, positionY, sortOrder, actionType } = req.body;
@@ -300,9 +300,9 @@ export function registerCanvasRoutes(app: Express) {
       if (actionType !== undefined) data.actionType = actionType;
 
       const [updated] = await db
-        .update(canvasNodes)
+        .update(learningNodes)
         .set(data)
-        .where(eq(canvasNodes.id, req.params.id))
+        .where(eq(learningNodes.id, req.params.id))
         .returning();
 
       res.json(updated);
@@ -312,18 +312,18 @@ export function registerCanvasRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/canvas-nodes/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/learning-nodes/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const nodeId = req.params.id;
-      const [node] = await db.select().from(canvasNodes).where(eq(canvasNodes.id, nodeId));
+      const [node] = await db.select().from(learningNodes).where(eq(learningNodes.id, nodeId));
       if (!node) return res.status(404).json({ message: "Node not found" });
-      const [cv] = await db.select().from(canvases).where(and(eq(canvases.id, node.canvasId), eq(canvases.userId, userId)));
+      const [cv] = await db.select().from(learnings).where(and(eq(learnings.id, node.learningId), eq(learnings.userId, userId)));
       if (!cv) return res.status(404).json({ message: "Node not found" });
 
-      await db.delete(canvasEdges).where(eq(canvasEdges.sourceNodeId, nodeId));
-      await db.delete(canvasEdges).where(eq(canvasEdges.targetNodeId, nodeId));
-      await db.delete(canvasNodes).where(eq(canvasNodes.id, nodeId));
+      await db.delete(learningEdges).where(eq(learningEdges.sourceNodeId, nodeId));
+      await db.delete(learningEdges).where(eq(learningEdges.targetNodeId, nodeId));
+      await db.delete(learningNodes).where(eq(learningNodes.id, nodeId));
 
       res.json({ success: true });
     } catch (error: any) {
@@ -332,17 +332,17 @@ export function registerCanvasRoutes(app: Express) {
     }
   });
 
-  app.put("/api/canvases/:id/nodes/bulk", isAuthenticated, async (req, res) => {
+  app.put("/api/learnings/:id/nodes/bulk", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const canvasId = req.params.id;
+      const learningId = req.params.id;
 
-      const [canvas] = await db
+      const [learning] = await db
         .select()
-        .from(canvases)
-        .where(and(eq(canvases.id, canvasId), eq(canvases.userId, userId)));
+        .from(learnings)
+        .where(and(eq(learnings.id, learningId), eq(learnings.userId, userId)));
 
-      if (!canvas) return res.status(404).json({ message: "Canvas not found" });
+      if (!learning) return res.status(404).json({ message: "Learning not found" });
 
       const { nodes: nodeUpdates } = req.body;
       if (!Array.isArray(nodeUpdates)) {
@@ -356,7 +356,7 @@ export function registerCanvasRoutes(app: Express) {
           if (update.positionY !== undefined) data.positionY = update.positionY;
           if (update.sortOrder !== undefined) data.sortOrder = update.sortOrder;
           if (Object.keys(data).length > 0) {
-            await db.update(canvasNodes).set(data).where(eq(canvasNodes.id, update.id));
+            await db.update(learningNodes).set(data).where(eq(learningNodes.id, update.id));
           }
         }
       }
@@ -369,12 +369,12 @@ export function registerCanvasRoutes(app: Express) {
   });
 
   // ========================================
-  // CANVAS EDGES
+  // LEARNING EDGES
   // ========================================
 
-  app.post("/api/canvases/:id/edges", isAuthenticated, async (req, res) => {
+  app.post("/api/learnings/:id/edges", isAuthenticated, async (req, res) => {
     try {
-      const canvasId = req.params.id;
+      const learningId = req.params.id;
       const schema = z.object({
         sourceNodeId: z.string().min(1),
         targetNodeId: z.string().min(1),
@@ -388,9 +388,9 @@ export function registerCanvasRoutes(app: Express) {
       }
 
       const [edge] = await db
-        .insert(canvasEdges)
+        .insert(learningEdges)
         .values({
-          canvasId,
+          learningId,
           sourceNodeId: parsed.data.sourceNodeId,
           targetNodeId: parsed.data.targetNodeId,
           condition: parsed.data.condition || "default",
@@ -405,15 +405,15 @@ export function registerCanvasRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/canvas-edges/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/learning-edges/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const [edge] = await db.select().from(canvasEdges).where(eq(canvasEdges.id, req.params.id));
+      const [edge] = await db.select().from(learningEdges).where(eq(learningEdges.id, req.params.id));
       if (!edge) return res.status(404).json({ message: "Edge not found" });
-      const [cv] = await db.select().from(canvases).where(and(eq(canvases.id, edge.canvasId), eq(canvases.userId, userId)));
+      const [cv] = await db.select().from(learnings).where(and(eq(learnings.id, edge.learningId), eq(learnings.userId, userId)));
       if (!cv) return res.status(404).json({ message: "Edge not found" });
 
-      await db.delete(canvasEdges).where(eq(canvasEdges.id, req.params.id));
+      await db.delete(learningEdges).where(eq(learningEdges.id, req.params.id));
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error deleting edge:", error);
@@ -422,24 +422,24 @@ export function registerCanvasRoutes(app: Express) {
   });
 
   // ========================================
-  // CANVAS EXECUTION
+  // LEARNING EXECUTION
   // ========================================
 
-  app.post("/api/canvases/:id/execute", isAuthenticated, async (req, res) => {
+  app.post("/api/learnings/:id/execute", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const [canvas] = await db
+      const [learning] = await db
         .select()
-        .from(canvases)
-        .where(and(eq(canvases.id, req.params.id), eq(canvases.userId, userId)));
+        .from(learnings)
+        .where(and(eq(learnings.id, req.params.id), eq(learnings.userId, userId)));
 
-      if (!canvas) return res.status(404).json({ message: "Canvas not found" });
-      if (canvas.status === "paused") {
-        return res.status(400).json({ message: "Canvas is paused. Activate it first." });
+      if (!learning) return res.status(404).json({ message: "Learning not found" });
+      if (learning.status === "paused") {
+        return res.status(400).json({ message: "Learning is paused. Activate it first." });
       }
 
-      const event: CanvasEvent = {
-        type: canvas.triggerType as any,
+      const event: LearningEvent = {
+        type: learning.triggerType as any,
         userId,
         entityId: req.body.entityId,
         entityType: req.body.entityType,
@@ -447,30 +447,30 @@ export function registerCanvasRoutes(app: Express) {
         timestamp: new Date(),
       };
 
-      const executionId = await executeCanvas(canvas, event);
+      const executionId = await executeLearning(learning, event);
 
       res.json({
         success: true,
         executionId,
-        message: `Canvas "${canvas.name}" triggered`,
+        message: `Learning "${learning.name}" triggered`,
       });
     } catch (error: any) {
-      console.error("Error executing canvas:", error);
-      res.status(500).json({ message: "Failed to execute canvas" });
+      console.error("Error executing learning:", error);
+      res.status(500).json({ message: "Failed to execute learning" });
     }
   });
 
-  app.get("/api/canvases/:id/executions", isAuthenticated, async (req, res) => {
+  app.get("/api/learnings/:id/executions", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const canvasId = req.params.id;
+      const learningId = req.params.id;
       const limit = parseInt(req.query.limit as string) || 20;
 
       const executions = await db
         .select()
-        .from(canvasExecutions)
-        .where(and(eq(canvasExecutions.canvasId, canvasId), eq(canvasExecutions.userId, userId)))
-        .orderBy(desc(canvasExecutions.startedAt))
+        .from(learningExecutions)
+        .where(and(eq(learningExecutions.learningId, learningId), eq(learningExecutions.userId, userId)))
+        .orderBy(desc(learningExecutions.startedAt))
         .limit(limit);
 
       res.json(executions);
@@ -480,29 +480,29 @@ export function registerCanvasRoutes(app: Express) {
     }
   });
 
-  app.get("/api/canvas-executions/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/learning-executions/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const [execution] = await db
         .select()
-        .from(canvasExecutions)
-        .where(and(eq(canvasExecutions.id, req.params.id), eq(canvasExecutions.userId, userId)));
+        .from(learningExecutions)
+        .where(and(eq(learningExecutions.id, req.params.id), eq(learningExecutions.userId, userId)));
 
       if (!execution) return res.status(404).json({ message: "Execution not found" });
 
       const steps = await db
         .select()
-        .from(canvasExecutionSteps)
-        .where(eq(canvasExecutionSteps.executionId, execution.id))
-        .orderBy(asc(canvasExecutionSteps.createdAt));
+        .from(learningExecutionSteps)
+        .where(eq(learningExecutionSteps.executionId, execution.id))
+        .orderBy(asc(learningExecutionSteps.createdAt));
 
       const nodeIds = [...new Set(steps.map(s => s.nodeId))];
       const nodeMap = new Map<string, string>();
       if (nodeIds.length > 0) {
         const nodeRecords = await db
-          .select({ id: canvasNodes.id, label: canvasNodes.label })
-          .from(canvasNodes)
-          .where(sql`${canvasNodes.id} = ANY(ARRAY[${sql.raw(nodeIds.map(id => `'${id}'`).join(","))}]::varchar[])`);
+          .select({ id: learningNodes.id, label: learningNodes.label })
+          .from(learningNodes)
+          .where(sql`${learningNodes.id} = ANY(ARRAY[${sql.raw(nodeIds.map(id => `'${id}'`).join(","))}]::varchar[])`);
         nodeRecords.forEach(n => nodeMap.set(n.id, n.label));
       }
 
@@ -514,13 +514,13 @@ export function registerCanvasRoutes(app: Express) {
     }
   });
 
-  app.post("/api/canvas-executions/:id/cancel", isAuthenticated, async (req, res) => {
+  app.post("/api/learning-executions/:id/cancel", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const [updated] = await db
-        .update(canvasExecutions)
+        .update(learningExecutions)
         .set({ status: "cancelled", completedAt: new Date(), errorMessage: "Manually cancelled by user" })
-        .where(and(eq(canvasExecutions.id, req.params.id), eq(canvasExecutions.userId, userId)))
+        .where(and(eq(learningExecutions.id, req.params.id), eq(learningExecutions.userId, userId)))
         .returning();
 
       if (!updated) return res.status(404).json({ message: "Execution not found" });
@@ -532,10 +532,10 @@ export function registerCanvasRoutes(app: Express) {
   });
 
   // ========================================
-  // ALL EXECUTIONS (across all canvases)
+  // ALL EXECUTIONS (across all learnings)
   // ========================================
 
-  app.get("/api/canvas-executions", isAuthenticated, async (req, res) => {
+  app.get("/api/learning-executions", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -545,16 +545,16 @@ export function registerCanvasRoutes(app: Express) {
       if (status) {
         results = await db
           .select()
-          .from(canvasExecutions)
-          .where(and(eq(canvasExecutions.userId, userId), eq(canvasExecutions.status, status)))
-          .orderBy(desc(canvasExecutions.startedAt))
+          .from(learningExecutions)
+          .where(and(eq(learningExecutions.userId, userId), eq(learningExecutions.status, status)))
+          .orderBy(desc(learningExecutions.startedAt))
           .limit(limit);
       } else {
         results = await db
           .select()
-          .from(canvasExecutions)
-          .where(eq(canvasExecutions.userId, userId))
-          .orderBy(desc(canvasExecutions.startedAt))
+          .from(learningExecutions)
+          .where(eq(learningExecutions.userId, userId))
+          .orderBy(desc(learningExecutions.startedAt))
           .limit(limit);
       }
 
@@ -566,12 +566,12 @@ export function registerCanvasRoutes(app: Express) {
   });
 
   // ========================================
-  // CANVAS TEMPLATES
+  // LEARNING TEMPLATES
   // ========================================
 
-  app.get("/api/canvas-templates", isAuthenticated, async (_req, res) => {
+  app.get("/api/learning-templates", isAuthenticated, async (_req, res) => {
     try {
-      const templates = CANVAS_TEMPLATES.map(t => ({
+      const templates = LEARNING_TEMPLATES.map(t => ({
         key: t.key,
         name: t.name,
         description: t.description,
@@ -586,16 +586,16 @@ export function registerCanvasRoutes(app: Express) {
     }
   });
 
-  app.post("/api/canvas-templates/:key/create", isAuthenticated, async (req, res) => {
+  app.post("/api/learning-templates/:key/create", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const templateKey = req.params.key;
-      const template = CANVAS_TEMPLATES.find(t => t.key === templateKey);
+      const template = LEARNING_TEMPLATES.find(t => t.key === templateKey);
 
       if (!template) return res.status(404).json({ message: "Template not found" });
 
-      const [canvas] = await db
-        .insert(canvases)
+      const [learning] = await db
+        .insert(learnings)
         .values({
           userId,
           name: req.body.name || template.name,
@@ -610,8 +610,8 @@ export function registerCanvasRoutes(app: Express) {
       const createdNodes: { id: string }[] = [];
       for (const nodeTemplate of template.nodes) {
         const [node] = await db
-          .insert(canvasNodes)
-          .values({ canvasId: canvas.id, ...nodeTemplate })
+          .insert(learningNodes)
+          .values({ learningId: learning.id, ...nodeTemplate })
           .returning();
         createdNodes.push(node);
       }
@@ -620,8 +620,8 @@ export function registerCanvasRoutes(app: Express) {
         const sourceNode = createdNodes[edgeTemplate.sourceIndex];
         const targetNode = createdNodes[edgeTemplate.targetIndex];
         if (sourceNode && targetNode) {
-          await db.insert(canvasEdges).values({
-            canvasId: canvas.id,
+          await db.insert(learningEdges).values({
+            learningId: learning.id,
             sourceNodeId: sourceNode.id,
             targetNodeId: targetNode.id,
             condition: edgeTemplate.condition || "default",
@@ -629,21 +629,21 @@ export function registerCanvasRoutes(app: Express) {
         }
       }
 
-      const nodes = await db.select().from(canvasNodes).where(eq(canvasNodes.canvasId, canvas.id));
-      const edges = await db.select().from(canvasEdges).where(eq(canvasEdges.canvasId, canvas.id));
+      const nodes = await db.select().from(learningNodes).where(eq(learningNodes.learningId, learning.id));
+      const edges = await db.select().from(learningEdges).where(eq(learningEdges.learningId, learning.id));
 
-      res.json({ ...canvas, nodes, edges });
+      res.json({ ...learning, nodes, edges });
     } catch (error: any) {
       console.error("Error creating from template:", error);
-      res.status(500).json({ message: "Failed to create canvas from template" });
+      res.status(500).json({ message: "Failed to create learning from template" });
     }
   });
 
-  app.post("/api/canvas-templates/:key/ai-generate", isAuthenticated, async (req, res) => {
+  app.post("/api/learning-templates/:key/ai-generate", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const templateKey = req.params.key;
-      const template = CANVAS_TEMPLATES.find(t => t.key === templateKey);
+      const template = LEARNING_TEMPLATES.find(t => t.key === templateKey);
 
       if (!template) return res.status(404).json({ message: "Template not found" });
 
@@ -678,7 +678,7 @@ export function registerCanvasRoutes(app: Express) {
         config: n.config,
       })), null, 2);
 
-      const prompt = `You are an AI canvas automation expert. A user wants to create a "${template.name}" canvas for their business.
+      const prompt = `You are an AI learning automation expert. A user wants to create a "${template.name}" learning for their business.
 
 COMPANY CONTEXT:
 ${companyContext || "No company information available — use generic professional defaults."}
@@ -699,11 +699,11 @@ For delay nodes: Adjust timing if appropriate for their industry.
 For notification nodes: Write specific alert messages.
 For CRM/task nodes: Use industry-specific terminology.
 
-Also generate a personalized canvas name and description.
+Also generate a personalized learning name and description.
 
 Respond ONLY with valid JSON in this exact format:
 {
-  "name": "Personalized canvas name",
+  "name": "Personalized learning name",
   "description": "Personalized description",
   "nodes": [
     { "index": 0, "label": "Customized Label", "config": "{...customized config JSON string...}" },
@@ -733,8 +733,8 @@ IMPORTANT:
         throw new Error("Failed to parse AI response as JSON");
       }
 
-      const [canvas] = await db
-        .insert(canvases)
+      const [learning] = await db
+        .insert(learnings)
         .values({
           userId,
           name: aiResult.name || template.name,
@@ -757,14 +757,14 @@ IMPORTANT:
             JSON.parse(aiNode.config);
             safeConfig = aiNode.config;
           } catch {
-            console.warn(`[Canvas AI] Invalid config JSON for node ${i}, using template default`);
+            console.warn(`[Learning AI] Invalid config JSON for node ${i}, using template default`);
           }
         }
 
         const [node] = await db
-          .insert(canvasNodes)
+          .insert(learningNodes)
           .values({
-            canvasId: canvas.id,
+            learningId: learning.id,
             nodeType: nodeTemplate.nodeType,
             actionType: nodeTemplate.actionType,
             label: aiNode?.label || nodeTemplate.label,
@@ -781,8 +781,8 @@ IMPORTANT:
         const sourceNode = createdNodes[edgeTemplate.sourceIndex];
         const targetNode = createdNodes[edgeTemplate.targetIndex];
         if (sourceNode && targetNode) {
-          await db.insert(canvasEdges).values({
-            canvasId: canvas.id,
+          await db.insert(learningEdges).values({
+            learningId: learning.id,
             sourceNodeId: sourceNode.id,
             targetNodeId: targetNode.id,
             condition: edgeTemplate.condition || "default",
@@ -790,48 +790,48 @@ IMPORTANT:
         }
       }
 
-      const nodes = await db.select().from(canvasNodes).where(eq(canvasNodes.canvasId, canvas.id));
-      const edges = await db.select().from(canvasEdges).where(eq(canvasEdges.canvasId, canvas.id));
+      const nodes = await db.select().from(learningNodes).where(eq(learningNodes.learningId, learning.id));
+      const edges = await db.select().from(learningEdges).where(eq(learningEdges.learningId, learning.id));
 
-      console.log(`[Canvas AI] Generated personalized canvas "${aiResult.name}" for user ${userId}`);
-      res.json({ ...canvas, nodes, edges });
+      console.log(`[Learning AI] Generated personalized learning "${aiResult.name}" for user ${userId}`);
+      res.json({ ...learning, nodes, edges });
     } catch (error: any) {
-      console.error("Error in AI canvas generation:", error);
+      console.error("Error in AI learning generation:", error);
       if (error.message === "AI_NOT_CONFIGURED") {
         return res.status(400).json({ message: "AI is not configured. Please add your Anthropic API key in Settings." });
       }
-      res.status(500).json({ message: "Failed to generate AI canvas. Please try again." });
+      res.status(500).json({ message: "Failed to generate AI learning. Please try again." });
     }
   });
 
   // ========================================
-  // CANVAS ANALYTICS
+  // LEARNING ANALYTICS
   // ========================================
 
-  app.get("/api/canvas-analytics", isAuthenticated, async (req, res) => {
+  app.get("/api/learning-analytics", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
 
-      const allCanvases = await db.select().from(canvases).where(eq(canvases.userId, userId));
+      const allLearninges = await db.select().from(learnings).where(eq(learnings.userId, userId));
 
-      const activeCount = allCanvases.filter(c => c.status === "active").length;
-      const totalRuns = allCanvases.reduce((sum, c) => sum + (c.totalRuns || 0), 0);
-      const successfulRuns = allCanvases.reduce((sum, c) => sum + (c.successfulRuns || 0), 0);
-      const failedRuns = allCanvases.reduce((sum, c) => sum + (c.failedRuns || 0), 0);
+      const activeCount = allLearninges.filter(c => c.status === "active").length;
+      const totalRuns = allLearninges.reduce((sum, c) => sum + (c.totalRuns || 0), 0);
+      const successfulRuns = allLearninges.reduce((sum, c) => sum + (c.successfulRuns || 0), 0);
+      const failedRuns = allLearninges.reduce((sum, c) => sum + (c.failedRuns || 0), 0);
 
       const recentExecutions = await db
         .select()
-        .from(canvasExecutions)
-        .where(eq(canvasExecutions.userId, userId))
-        .orderBy(desc(canvasExecutions.startedAt))
+        .from(learningExecutions)
+        .where(eq(learningExecutions.userId, userId))
+        .orderBy(desc(learningExecutions.startedAt))
         .limit(10);
 
       const runningCount = recentExecutions.filter(e => e.status === "running").length;
       const waitingCount = recentExecutions.filter(e => e.status === "waiting").length;
 
       res.json({
-        totalCanvases: allCanvases.length,
-        activeCanvases: activeCount,
+        totalLearninges: allLearninges.length,
+        activeLearninges: activeCount,
         totalRuns,
         successfulRuns,
         failedRuns,
@@ -841,7 +841,7 @@ IMPORTANT:
         recentExecutions,
       });
     } catch (error: any) {
-      console.error("Error fetching canvas analytics:", error);
+      console.error("Error fetching learning analytics:", error);
       res.status(500).json({ message: "Failed to fetch analytics" });
     }
   });
@@ -850,11 +850,11 @@ IMPORTANT:
   // REFERENCE DATA
   // ========================================
 
-  app.get("/api/canvas-config", isAuthenticated, async (_req, res) => {
+  app.get("/api/learning-config", isAuthenticated, async (_req, res) => {
     res.json({
-      triggerTypes: CANVAS_TRIGGER_TYPES,
-      actionTypes: CANVAS_ACTION_TYPES,
-      templateCount: CANVAS_TEMPLATES.length,
+      triggerTypes: LEARNING_TRIGGER_TYPES,
+      actionTypes: LEARNING_ACTION_TYPES,
+      templateCount: LEARNING_TEMPLATES.length,
     });
   });
 
@@ -862,24 +862,24 @@ IMPORTANT:
   // EVENT LOG
   // ========================================
 
-  app.get("/api/canvas-events", isAuthenticated, async (req, res) => {
+  app.get("/api/learning-events", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const events = canvasEventBus.getRecentEvents(50).filter(e => e.userId === userId);
+      const events = learningEventBus.getRecentEvents(50).filter(e => e.userId === userId);
       res.json(events);
     } catch (error: any) {
       res.status(500).json({ message: "Failed to fetch events" });
     }
   });
 
-  app.post("/api/canvas-events/emit", isAuthenticated, async (req, res) => {
+  app.post("/api/learning-events/emit", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const { type, entityId, entityType, data } = req.body;
 
       if (!type) return res.status(400).json({ message: "Event type is required" });
 
-      const event: CanvasEvent = {
+      const event: LearningEvent = {
         type,
         userId,
         entityId,
@@ -888,7 +888,7 @@ IMPORTANT:
         timestamp: new Date(),
       };
 
-      await canvasEventBus.emit(event);
+      await learningEventBus.emit(event);
       res.json({ success: true, message: `Event "${type}" emitted` });
     } catch (error: any) {
       console.error("Error emitting event:", error);
@@ -896,5 +896,5 @@ IMPORTANT:
     }
   });
 
-  console.log("[Canvas Routes] ✅ All canvas API routes registered");
+  console.log("[Learning Routes] ✅ All learning API routes registered");
 }

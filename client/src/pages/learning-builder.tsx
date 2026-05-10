@@ -11,9 +11,9 @@ import {
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 
-interface CanvasNode {
+interface LearningNode {
   id: string;
-  canvasId: string;
+  learningId: string;
   nodeType: string;
   actionType: string;
   label: string;
@@ -23,16 +23,16 @@ interface CanvasNode {
   sortOrder: number;
 }
 
-interface CanvasEdge {
+interface LearningEdge {
   id: string;
-  canvasId: string;
+  learningId: string;
   sourceNodeId: string;
   targetNodeId: string;
   condition: string;
   label?: string;
 }
 
-interface CanvasData {
+interface LearningData {
   id: string;
   userId: string;
   name: string;
@@ -46,13 +46,13 @@ interface CanvasData {
   lastRunAt?: string;
   category?: string;
   version: number;
-  nodes?: CanvasNode[];
-  edges?: CanvasEdge[];
+  nodes?: LearningNode[];
+  edges?: LearningEdge[];
 }
 
-interface CanvasExecution {
+interface LearningExecution {
   id: string;
-  canvasId: string;
+  learningId: string;
   status: string;
   stepsCompleted: number;
   totalSteps: number;
@@ -61,7 +61,7 @@ interface CanvasExecution {
   completedAt?: string;
 }
 
-interface CanvasTemplate {
+interface LearningTemplate {
   key: string;
   name: string;
   description: string;
@@ -134,7 +134,7 @@ const ACTION_ICONS: Record<string, any> = {
   call_webhook: Globe,
   log_to_crm: FileText,
   create_task: FileText,
-  trigger_canvas: Workflow,
+  trigger_learning: Workflow,
 };
 
 const ACTION_CATEGORY_COLORS: Record<string, string> = {
@@ -166,7 +166,7 @@ const ACTION_CATEGORY_COLORS: Record<string, string> = {
   call_webhook: "#6366f1",
   log_to_crm: "#6366f1",
   create_task: "#6366f1",
-  trigger_canvas: "#6366f1",
+  trigger_learning: "#6366f1",
 };
 
 const NODE_PALETTE = [
@@ -226,14 +226,14 @@ const NODE_PALETTE = [
     items: [
       { actionType: "run_agent", nodeType: "action", label: "Run Agent", desc: "Trigger AI agent" },
       { actionType: "call_webhook", nodeType: "action", label: "Call Webhook", desc: "POST to external URL" },
-      { actionType: "trigger_canvas", nodeType: "action", label: "Trigger Canvas", desc: "Chain canvases" },
+      { actionType: "trigger_learning", nodeType: "action", label: "Trigger Learning", desc: "Chain learnings" },
       { actionType: "log_to_crm", nodeType: "action", label: "Log Activity", desc: "Record in CRM" },
     ],
   },
 ];
 
-interface CanvasNodeProps {
-  node: CanvasNode;
+interface LearningNodeProps {
+  node: LearningNode;
   isSelected: boolean;
   onSelect: () => void;
   onDragEnd: (x: number, y: number) => void;
@@ -242,13 +242,13 @@ interface CanvasNodeProps {
   isConnecting: boolean;
 }
 
-function CanvasNodeComponent({ node, isSelected, onSelect, onDragEnd, onStartConnect, onEndConnect, isConnecting }: CanvasNodeProps) {
+function LearningNodeComponent({ node, isSelected, onSelect, onDragEnd, onStartConnect, onEndConnect, isConnecting }: LearningNodeProps) {
   const color = ACTION_CATEGORY_COLORS[node.actionType] || "#8b5cf6";
   const Icon = ACTION_ICONS[node.actionType] || Zap;
 
   return (
     <motion.div
-      data-testid={`canvas-node-${node.id}`}
+      data-testid={`learning-node-${node.id}`}
       className="absolute cursor-grab active:cursor-grabbing group"
       style={{ left: node.positionX, top: node.positionY }}
       drag
@@ -277,7 +277,7 @@ function CanvasNodeComponent({ node, isSelected, onSelect, onDragEnd, onStartCon
         <motion.div
           className="absolute -inset-1 rounded-xl"
           style={{ border: `2px solid ${color}`, boxShadow: `0 0 20px ${color}40` }}
-          layoutId="canvasSelectedRing"
+          layoutId="learningSelectedRing"
           initial={false}
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 2, repeat: Infinity }}
@@ -305,7 +305,7 @@ function CanvasNodeComponent({ node, isSelected, onSelect, onDragEnd, onStartCon
 
         {node.nodeType !== "trigger" && (
           <div
-            data-testid={`canvas-node-input-${node.id}`}
+            data-testid={`learning-node-input-${node.id}`}
             className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 cursor-crosshair hover:scale-150 transition-transform"
             style={{ borderColor: color, background: isConnecting ? color : "hsl(var(--card))" }}
             onClick={(e) => { e.stopPropagation(); onEndConnect(node.id); }}
@@ -313,7 +313,7 @@ function CanvasNodeComponent({ node, isSelected, onSelect, onDragEnd, onStartCon
         )}
 
         <div
-          data-testid={`canvas-node-output-${node.id}`}
+          data-testid={`learning-node-output-${node.id}`}
           className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 cursor-crosshair hover:scale-150 transition-transform"
           style={{ borderColor: color, background: "hsl(var(--card))" }}
           onClick={(e) => { e.stopPropagation(); onStartConnect(node.id); }}
@@ -332,7 +332,7 @@ function CanvasNodeComponent({ node, isSelected, onSelect, onDragEnd, onStartCon
   );
 }
 
-function CanvasEdgeComponent({ edge, nodes }: { edge: CanvasEdge; nodes: CanvasNode[] }) {
+function LearningEdgeComponent({ edge, nodes }: { edge: LearningEdge; nodes: LearningNode[] }) {
   const source = nodes.find(n => n.id === edge.sourceNodeId);
   const target = nodes.find(n => n.id === edge.targetNodeId);
 
@@ -351,7 +351,7 @@ function CanvasEdgeComponent({ edge, nodes }: { edge: CanvasEdge; nodes: CanvasN
 
   const path = `M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}`;
   const sourceColor = ACTION_CATEGORY_COLORS[source.actionType] || "#8b5cf6";
-  const gradientId = `canvas-grad-${edge.id}`;
+  const gradientId = `learning-grad-${edge.id}`;
 
   return (
     <g>
@@ -395,20 +395,20 @@ function CanvasEdgeComponent({ edge, nodes }: { edge: CanvasEdge; nodes: CanvasN
   );
 }
 
-interface CanvasProps {
-  canvas: CanvasData;
+interface LearningProps {
+  learning: LearningData;
   onUpdate: () => void;
 }
 
-function CanvasEditor({ canvas, onUpdate }: CanvasProps) {
+function LearningEditor({ learning, onUpdate }: LearningProps) {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(["Triggers"]));
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const learningRef = useRef<HTMLDivElement>(null);
 
-  const nodes = canvas.nodes || [];
-  const edges = canvas.edges || [];
+  const nodes = learning.nodes || [];
+  const edges = learning.edges || [];
 
   const toggleCategory = (cat: string) => {
     setExpandedCategories(prev => {
@@ -421,7 +421,7 @@ function CanvasEditor({ canvas, onUpdate }: CanvasProps) {
   const addNode = async (item: typeof NODE_PALETTE[0]["items"][0]) => {
     const x = 200 + Math.random() * 400;
     const y = 100 + Math.random() * 300;
-    await apiPost(`/api/canvases/${canvas.id}/nodes`, {
+    await apiPost(`/api/learnings/${learning.id}/nodes`, {
       nodeType: item.nodeType,
       actionType: item.actionType,
       label: item.label,
@@ -434,7 +434,7 @@ function CanvasEditor({ canvas, onUpdate }: CanvasProps) {
   };
 
   const updateNodePosition = async (nodeId: string, x: number, y: number) => {
-    await apiPatch(`/api/canvas-nodes/${nodeId}`, {
+    await apiPatch(`/api/learning-nodes/${nodeId}`, {
       positionX: Math.max(0, Math.round(x)),
       positionY: Math.max(0, Math.round(y)),
     });
@@ -443,7 +443,7 @@ function CanvasEditor({ canvas, onUpdate }: CanvasProps) {
 
   const deleteNode = async () => {
     if (!selectedNode) return;
-    await apiDelete(`/api/canvas-nodes/${selectedNode}`);
+    await apiDelete(`/api/learning-nodes/${selectedNode}`);
     setSelectedNode(null);
     onUpdate();
   };
@@ -457,7 +457,7 @@ function CanvasEditor({ canvas, onUpdate }: CanvasProps) {
       setConnectingFrom(null);
       return;
     }
-    await apiPost(`/api/canvases/${canvas.id}/edges`, {
+    await apiPost(`/api/learnings/${learning.id}/edges`, {
       sourceNodeId: connectingFrom,
       targetNodeId: targetId,
       condition: "default",
@@ -466,8 +466,8 @@ function CanvasEditor({ canvas, onUpdate }: CanvasProps) {
     onUpdate();
   };
 
-  const canvasWidth = Math.max(1200, ...nodes.map(n => n.positionX + 250));
-  const canvasHeight = Math.max(800, ...nodes.map(n => n.positionY + 150));
+  const learningWidth = Math.max(1200, ...nodes.map(n => n.positionX + 250));
+  const learningHeight = Math.max(800, ...nodes.map(n => n.positionY + 150));
 
   return (
     <div className="flex h-full">
@@ -549,7 +549,7 @@ function CanvasEditor({ canvas, onUpdate }: CanvasProps) {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 relative overflow-auto" ref={canvasRef} style={{ background: "hsl(var(--background))" }}>
+      <div className="flex-1 relative overflow-auto" ref={learningRef} style={{ background: "hsl(var(--background))" }}>
         <div className="sticky top-0 z-20 flex items-center gap-2 p-3 backdrop-blur-sm border-b" style={{ background: "hsl(var(--card) / 0.8)", borderColor: "hsl(var(--border))" }}>
           {!paletteOpen && (
             <button
@@ -582,28 +582,28 @@ function CanvasEditor({ canvas, onUpdate }: CanvasProps) {
 
         <div
           className="relative"
-          style={{ width: canvasWidth, height: canvasHeight, minHeight: "100%" }}
+          style={{ width: learningWidth, height: learningHeight, minHeight: "100%" }}
           onClick={() => { setSelectedNode(null); setConnectingFrom(null); }}
         >
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
             <defs>
-              <pattern id="canvasDotGrid" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
+              <pattern id="learningDotGrid" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
                 <circle cx="1" cy="1" r="0.5" fill="rgba(139,92,246,0.08)" />
               </pattern>
             </defs>
-            <rect width="100%" height="100%" fill="url(#canvasDotGrid)" />
+            <rect width="100%" height="100%" fill="url(#learningDotGrid)" />
           </svg>
 
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
             {edges.map(edge => (
-              <CanvasEdgeComponent key={edge.id} edge={edge} nodes={nodes} />
+              <LearningEdgeComponent key={edge.id} edge={edge} nodes={nodes} />
             ))}
           </svg>
 
           <div className="absolute inset-0" style={{ zIndex: 2 }}>
             <AnimatePresence>
               {nodes.map(node => (
-                <CanvasNodeComponent
+                <LearningNodeComponent
                   key={node.id}
                   node={node}
                   isSelected={selectedNode === node.id}
@@ -627,8 +627,8 @@ function CanvasEditor({ canvas, onUpdate }: CanvasProps) {
                 <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center mx-auto mb-4">
                   <Workflow size={28} className="text-purple-400" />
                 </div>
-                <p className="text-sm mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Empty canvas</p>
-                <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Add nodes from the palette to build your canvas</p>
+                <p className="text-sm mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Empty learning</p>
+                <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Add nodes from the palette to build your learning</p>
               </motion.div>
             </div>
           )}
@@ -638,39 +638,39 @@ function CanvasEditor({ canvas, onUpdate }: CanvasProps) {
   );
 }
 
-function CanvasCard({ canvas, onClick }: { canvas: CanvasData; onClick: () => void }) {
+function LearningCard({ learning, onClick }: { learning: LearningData; onClick: () => void }) {
   const queryClient = useQueryClient();
   const statusColors: Record<string, string> = {
     active: "#22c55e",
     draft: "#6b7280",
     paused: "#f59e0b",
   };
-  const color = statusColors[canvas.status] || "#6b7280";
+  const color = statusColors[learning.status] || "#6b7280";
 
   const toggleStatus = useMutation({
-    mutationFn: () => apiPatch(`/api/canvases/${canvas.id}`, {
-      status: canvas.status === "active" ? "paused" : "active",
+    mutationFn: () => apiPatch(`/api/learnings/${learning.id}`, {
+      status: learning.status === "active" ? "paused" : "active",
     }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["canvases"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learnings"] }),
   });
 
-  const deleteCanvas = useMutation({
-    mutationFn: () => apiDelete(`/api/canvases/${canvas.id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["canvases"] }),
+  const deleteLearning = useMutation({
+    mutationFn: () => apiDelete(`/api/learnings/${learning.id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learnings"] }),
   });
 
-  const executeCanvas = useMutation({
-    mutationFn: () => apiPost(`/api/canvases/${canvas.id}/execute`, { data: {} }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["canvases"] }),
+  const executeLearning = useMutation({
+    mutationFn: () => apiPost(`/api/learnings/${learning.id}/execute`, { data: {} }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learnings"] }),
   });
 
-  const successRate = canvas.totalRuns > 0
-    ? Math.round((canvas.successfulRuns / canvas.totalRuns) * 100)
+  const successRate = learning.totalRuns > 0
+    ? Math.round((learning.successfulRuns / learning.totalRuns) * 100)
     : 0;
 
   return (
     <motion.div
-      data-testid={`card-canvas-${canvas.id}`}
+      data-testid={`card-learning-${learning.id}`}
       className="group rounded-xl border transition-all cursor-pointer relative overflow-visible"
       style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
       whileHover={{ y: -2 }}
@@ -681,53 +681,53 @@ function CanvasCard({ canvas, onClick }: { canvas: CanvasData; onClick: () => vo
       <div className="p-4">
         <div className="flex items-start justify-between gap-1 mb-3">
           <div className="flex-1 min-w-0">
-            <h3 data-testid={`text-canvas-name-${canvas.id}`} className="text-sm font-bold truncate" style={{ color: "hsl(var(--foreground))" }}>{canvas.name}</h3>
-            <p className="text-[10px] mt-0.5 truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{canvas.description || canvas.triggerType}</p>
+            <h3 data-testid={`text-learning-name-${learning.id}`} className="text-sm font-bold truncate" style={{ color: "hsl(var(--foreground))" }}>{learning.name}</h3>
+            <p className="text-[10px] mt-0.5 truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{learning.description || learning.triggerType}</p>
           </div>
           <div
             className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
             style={{ background: `${color}15`, color }}
           >
-            {canvas.status}
+            {learning.status}
           </div>
         </div>
 
         <div className="flex items-center gap-4 mb-3 flex-wrap">
           <div className="flex items-center gap-1 text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
-            <Activity size={10} /> {canvas.totalRuns} runs
+            <Activity size={10} /> {learning.totalRuns} runs
           </div>
           <div className="flex items-center gap-1 text-[10px] text-green-400/60">
             <CheckCircle2 size={10} /> {successRate}%
           </div>
-          {canvas.category && (
+          {learning.category && (
             <div className="flex items-center gap-1 text-[10px] text-purple-400/60">
-              <FileText size={10} /> {canvas.category}
+              <FileText size={10} /> {learning.category}
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
           <button
-            data-testid={`button-run-canvas-${canvas.id}`}
-            onClick={() => executeCanvas.mutate()}
-            disabled={executeCanvas.isPending}
+            data-testid={`button-run-learning-${learning.id}`}
+            onClick={() => executeLearning.mutate()}
+            disabled={executeLearning.isPending}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-[10px] font-medium transition-colors"
           >
-            {executeCanvas.isPending ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
+            {executeLearning.isPending ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
             Run
           </button>
           <button
-            data-testid={`button-toggle-canvas-${canvas.id}`}
+            data-testid={`button-toggle-learning-${learning.id}`}
             onClick={() => toggleStatus.mutate()}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-colors hover-elevate"
             style={{ color: "hsl(var(--muted-foreground))" }}
           >
-            {canvas.status === "active" ? <Pause size={10} /> : <Play size={10} />}
-            {canvas.status === "active" ? "Pause" : "Activate"}
+            {learning.status === "active" ? <Pause size={10} /> : <Play size={10} />}
+            {learning.status === "active" ? "Pause" : "Activate"}
           </button>
           <button
-            data-testid={`button-delete-canvas-${canvas.id}`}
-            onClick={() => { if (confirm("Delete this canvas?")) deleteCanvas.mutate(); }}
+            data-testid={`button-delete-learning-${learning.id}`}
+            onClick={() => { if (confirm("Delete this learning?")) deleteLearning.mutate(); }}
             className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-red-500/10 text-[10px] transition-colors ml-auto"
             style={{ color: "hsl(var(--muted-foreground))" }}
           >
@@ -739,7 +739,7 @@ function CanvasCard({ canvas, onClick }: { canvas: CanvasData; onClick: () => vo
   );
 }
 
-function TemplateCard({ template, onCreate, onAiGenerate, isAiGenerating }: { template: CanvasTemplate; onCreate: () => void; onAiGenerate: () => void; isAiGenerating: boolean }) {
+function TemplateCard({ template, onCreate, onAiGenerate, isAiGenerating }: { template: LearningTemplate; onCreate: () => void; onAiGenerate: () => void; isAiGenerating: boolean }) {
   const categoryColors: Record<string, string> = {
     "Lead Management": "#3b82f6",
     "Email Automation": "#22c55e",
@@ -799,7 +799,7 @@ function TemplateCard({ template, onCreate, onAiGenerate, isAiGenerating }: { te
   );
 }
 
-function ExecutionRow({ exec }: { exec: CanvasExecution }) {
+function ExecutionRow({ exec }: { exec: LearningExecution }) {
   const statusConfig: Record<string, { color: string; icon: any }> = {
     completed: { color: "#22c55e", icon: CheckCircle2 },
     running: { color: "#3b82f6", icon: Loader2 },
@@ -830,47 +830,47 @@ function ExecutionRow({ exec }: { exec: CanvasExecution }) {
 
 type ViewMode = "list" | "editor" | "templates";
 
-export default function CanvasBuilder() {
-  usePageTitle("Canvas Builder");
+export default function LearningBuilder() {
+  usePageTitle("Learning Builder");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
+  const [selectedLearningId, setSelectedLearningId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [newTrigger, setNewTrigger] = useState("lead_created");
   const queryClient = useQueryClient();
 
-  const { data: canvasList = [], isLoading } = useQuery({
-    queryKey: ["canvases"],
-    queryFn: () => apiGet("/api/canvases"),
+  const { data: learningList = [], isLoading } = useQuery({
+    queryKey: ["learnings"],
+    queryFn: () => apiGet("/api/learnings"),
   });
 
-  const { data: selectedCanvas, refetch: refetchCanvas } = useQuery({
-    queryKey: ["canvas", selectedCanvasId],
-    queryFn: () => apiGet(`/api/canvases/${selectedCanvasId}`),
-    enabled: !!selectedCanvasId && viewMode === "editor",
+  const { data: selectedLearning, refetch: refetchLearning } = useQuery({
+    queryKey: ["learning", selectedLearningId],
+    queryFn: () => apiGet(`/api/learnings/${selectedLearningId}`),
+    enabled: !!selectedLearningId && viewMode === "editor",
   });
 
   const { data: templates = [] } = useQuery({
-    queryKey: ["canvas-templates"],
-    queryFn: () => apiGet("/api/canvas-templates"),
+    queryKey: ["learning-templates"],
+    queryFn: () => apiGet("/api/learning-templates"),
     enabled: viewMode === "templates",
   });
 
   const { data: analytics } = useQuery({
-    queryKey: ["canvas-analytics"],
-    queryFn: () => apiGet("/api/canvas-analytics"),
+    queryKey: ["learning-analytics"],
+    queryFn: () => apiGet("/api/learning-analytics"),
   });
 
   const { data: executions = [] } = useQuery({
-    queryKey: ["canvas-executions"],
-    queryFn: () => apiGet("/api/canvas-executions?limit=20"),
+    queryKey: ["learning-executions"],
+    queryFn: () => apiGet("/api/learning-executions?limit=20"),
   });
 
-  const createCanvas = useMutation({
-    mutationFn: (data: any) => apiPost("/api/canvases", data),
+  const createLearning = useMutation({
+    mutationFn: (data: any) => apiPost("/api/learnings", data),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["canvases"] });
-      setSelectedCanvasId(data.id);
+      queryClient.invalidateQueries({ queryKey: ["learnings"] });
+      setSelectedLearningId(data.id);
       setViewMode("editor");
       setShowCreateModal(false);
       setNewName("");
@@ -878,10 +878,10 @@ export default function CanvasBuilder() {
   });
 
   const createFromTemplate = useMutation({
-    mutationFn: (key: string) => apiPost(`/api/canvas-templates/${key}/create`, {}),
+    mutationFn: (key: string) => apiPost(`/api/learning-templates/${key}/create`, {}),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["canvases"] });
-      setSelectedCanvasId(data.id);
+      queryClient.invalidateQueries({ queryKey: ["learnings"] });
+      setSelectedLearningId(data.id);
       setViewMode("editor");
     },
   });
@@ -891,11 +891,11 @@ export default function CanvasBuilder() {
   const aiGenerateFromTemplate = useMutation({
     mutationFn: (key: string) => {
       setAiGeneratingKey(key);
-      return apiPost(`/api/canvas-templates/${key}/ai-generate`, {});
+      return apiPost(`/api/learning-templates/${key}/ai-generate`, {});
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["canvases"] });
-      setSelectedCanvasId(data.id);
+      queryClient.invalidateQueries({ queryKey: ["learnings"] });
+      setSelectedLearningId(data.id);
       setViewMode("editor");
       setAiGeneratingKey(null);
     },
@@ -904,14 +904,14 @@ export default function CanvasBuilder() {
     },
   });
 
-  const openCanvas = (id: string) => {
-    setSelectedCanvasId(id);
+  const openLearning = (id: string) => {
+    setSelectedLearningId(id);
     setViewMode("editor");
   };
 
   const backToList = () => {
     setViewMode("list");
-    setSelectedCanvasId(null);
+    setSelectedLearningId(null);
   };
 
   return (
@@ -935,7 +935,7 @@ export default function CanvasBuilder() {
               </div>
               <div>
                 <h1 className="text-sm font-bold">
-                  {viewMode === "editor" && selectedCanvas ? selectedCanvas.name : "Canvas Builder"}
+                  {viewMode === "editor" && selectedLearning ? selectedLearning.name : "Learning Builder"}
                 </h1>
                 <p className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
                   {viewMode === "editor" ? "Visual Editor" : "Build, automate, scale"}
@@ -949,13 +949,13 @@ export default function CanvasBuilder() {
               <>
                 <div className="flex items-center rounded-lg p-0.5" style={{ background: "hsl(var(--muted) / 0.3)" }}>
                   <button
-                    data-testid="button-view-canvases"
+                    data-testid="button-view-learnings"
                     onClick={() => setViewMode("list")}
                     className={`px-3 py-1 rounded-md text-[10px] font-medium transition-all ${
                       viewMode === "list" ? "bg-purple-500/20 text-purple-400" : "text-muted-foreground"
                     }`}
                   >
-                    <List size={12} className="inline mr-1" /> Canvases
+                    <List size={12} className="inline mr-1" /> Learnings
                   </button>
                   <button
                     data-testid="button-view-templates"
@@ -969,45 +969,45 @@ export default function CanvasBuilder() {
                 </div>
 
                 <button
-                  data-testid="button-new-canvas"
+                  data-testid="button-new-learning"
                   onClick={() => setShowCreateModal(true)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-500 hover:to-red-500 text-white text-xs font-bold transition-all"
                 >
-                  <Plus size={14} /> New Canvas
+                  <Plus size={14} /> New Learning
                 </button>
               </>
             )}
 
-            {viewMode === "editor" && selectedCanvas && (
+            {viewMode === "editor" && selectedLearning && (
               <div className="flex items-center gap-2">
                 <span
-                  data-testid="text-canvas-status"
+                  data-testid="text-learning-status"
                   className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
                   style={{
-                    background: selectedCanvas.status === "active" ? "#22c55e15" : "#6b728015",
-                    color: selectedCanvas.status === "active" ? "#22c55e" : "#6b7280",
+                    background: selectedLearning.status === "active" ? "#22c55e15" : "#6b728015",
+                    color: selectedLearning.status === "active" ? "#22c55e" : "#6b7280",
                   }}
                 >
-                  {selectedCanvas.status}
+                  {selectedLearning.status}
                 </span>
                 <button
                   data-testid="button-toggle-status"
                   onClick={async () => {
-                    await apiPatch(`/api/canvases/${selectedCanvas.id}`, {
-                      status: selectedCanvas.status === "active" ? "paused" : "active",
+                    await apiPatch(`/api/learnings/${selectedLearning.id}`, {
+                      status: selectedLearning.status === "active" ? "paused" : "active",
                     });
-                    refetchCanvas();
-                    queryClient.invalidateQueries({ queryKey: ["canvases"] });
+                    refetchLearning();
+                    queryClient.invalidateQueries({ queryKey: ["learnings"] });
                   }}
                   className="px-3 py-1.5 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs font-bold flex items-center gap-1"
                 >
-                  {selectedCanvas.status === "active" ? <><Pause size={12} /> Pause</> : <><Play size={12} /> Activate</>}
+                  {selectedLearning.status === "active" ? <><Pause size={12} /> Pause</> : <><Play size={12} /> Activate</>}
                 </button>
                 <button
                   data-testid="button-test-run"
                   onClick={async () => {
-                    await apiPost(`/api/canvases/${selectedCanvas.id}/execute`, { data: {} });
-                    queryClient.invalidateQueries({ queryKey: ["canvas-executions"] });
+                    await apiPost(`/api/learnings/${selectedLearning.id}/execute`, { data: {} });
+                    queryClient.invalidateQueries({ queryKey: ["learning-executions"] });
                   }}
                   className="px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-xs font-bold flex items-center gap-1"
                 >
@@ -1027,7 +1027,7 @@ export default function CanvasBuilder() {
           transition={{ delay: 0.1 }}
         >
           {[
-            { label: "Active Canvases", value: analytics.activeCanvases, icon: Workflow, color: "#8b5cf6" },
+            { label: "Active Learnings", value: analytics.activeLearnings, icon: Workflow, color: "#8b5cf6" },
             { label: "Total Runs", value: analytics.totalRuns, icon: Activity, color: "#3b82f6" },
             { label: "Success Rate", value: `${analytics.successRate}%`, icon: TrendingUp, color: "#22c55e" },
             { label: "Running Now", value: analytics.runningExecutions, icon: Loader2, color: "#f59e0b" },
@@ -1060,13 +1060,13 @@ export default function CanvasBuilder() {
                 <div className="flex items-center justify-center py-20">
                   <Loader2 size={24} className="text-purple-400 animate-spin" />
                 </div>
-              ) : canvasList.length === 0 ? (
+              ) : learningList.length === 0 ? (
                 <motion.div className="text-center py-20" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center mx-auto mb-4">
                     <Workflow size={28} className="text-purple-400" />
                   </div>
-                  <h3 className="text-sm font-bold mb-2">No canvases yet</h3>
-                  <p className="text-xs mb-4" style={{ color: "hsl(var(--muted-foreground))" }}>Create your first canvas or start from a template</p>
+                  <h3 className="text-sm font-bold mb-2">No learnings yet</h3>
+                  <p className="text-xs mb-4" style={{ color: "hsl(var(--muted-foreground))" }}>Create your first learning or start from a template</p>
                   <div className="flex items-center gap-2 justify-center flex-wrap">
                     <button
                       data-testid="button-create-blank"
@@ -1087,14 +1087,14 @@ export default function CanvasBuilder() {
                 </motion.div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {canvasList.map((cv: CanvasData, i: number) => (
+                  {learningList.map((cv: LearningData, i: number) => (
                     <motion.div
                       key={cv.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
                     >
-                      <CanvasCard canvas={cv} onClick={() => openCanvas(cv.id)} />
+                      <LearningCard learning={cv} onClick={() => openLearning(cv.id)} />
                     </motion.div>
                   ))}
                 </div>
@@ -1112,7 +1112,7 @@ export default function CanvasBuilder() {
                     {executions.length === 0 ? (
                       <div className="p-6 text-center text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>No executions yet</div>
                     ) : (
-                      executions.slice(0, 15).map((exec: CanvasExecution) => (
+                      executions.slice(0, 15).map((exec: LearningExecution) => (
                         <ExecutionRow key={exec.id} exec={exec} />
                       ))
                     )}
@@ -1123,12 +1123,12 @@ export default function CanvasBuilder() {
           </div>
         )}
 
-        {viewMode === "editor" && selectedCanvas && (
+        {viewMode === "editor" && selectedLearning && (
           <motion.div className="py-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="rounded-xl border overflow-hidden" style={{ height: "calc(100vh - 240px)", borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
-              <CanvasEditor
-                canvas={selectedCanvas}
-                onUpdate={() => refetchCanvas()}
+              <LearningEditor
+                learning={selectedLearning}
+                onUpdate={() => refetchLearning()}
               />
             </div>
           </motion.div>
@@ -1137,11 +1137,11 @@ export default function CanvasBuilder() {
         {viewMode === "templates" && (
           <motion.div className="py-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="mb-6">
-              <h2 className="text-lg font-bold mb-1">Canvas Templates</h2>
+              <h2 className="text-lg font-bold mb-1">Learning Templates</h2>
               <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Pre-built automations — use AI Generate to customize for your business automatically</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {templates.map((template: CanvasTemplate, i: number) => (
+              {templates.map((template: LearningTemplate, i: number) => (
                 <motion.div
                   key={template.key}
                   initial={{ opacity: 0, y: 20 }}
@@ -1178,13 +1178,13 @@ export default function CanvasBuilder() {
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-base font-bold mb-4">Create New Canvas</h2>
+              <h2 className="text-base font-bold mb-4">Create New Learning</h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-[11px] font-medium mb-1 block" style={{ color: "hsl(var(--muted-foreground))" }}>Canvas Name</label>
+                  <label className="text-[11px] font-medium mb-1 block" style={{ color: "hsl(var(--muted-foreground))" }}>Learning Name</label>
                   <input
-                    data-testid="input-canvas-name"
+                    data-testid="input-learning-name"
                     type="text"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
@@ -1248,15 +1248,15 @@ export default function CanvasBuilder() {
                 </button>
                 <button
                   data-testid="button-submit-create"
-                  onClick={() => createCanvas.mutate({
-                    name: newName || "Untitled Canvas",
+                  onClick={() => createLearning.mutate({
+                    name: newName || "Untitled Learning",
                     triggerType: newTrigger,
                     status: "draft",
                   })}
-                  disabled={createCanvas.isPending}
+                  disabled={createLearning.isPending}
                   className="flex-1 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-red-600 text-white text-xs font-bold flex items-center justify-center gap-1"
                 >
-                  {createCanvas.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                  {createLearning.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
                   Create
                 </button>
               </div>

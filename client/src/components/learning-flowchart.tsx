@@ -26,7 +26,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-interface CanvasFlowNode {
+interface LearningFlowNode {
   id: string;
   x: number;
   y: number;
@@ -40,7 +40,7 @@ interface CanvasFlowNode {
   glow: string;
 }
 
-interface CanvasFlowEdge {
+interface LearningFlowEdge {
   from: string;
   to: string;
   label?: string;
@@ -48,7 +48,7 @@ interface CanvasFlowEdge {
   path?: string;
 }
 
-export interface CanvasNodeData {
+export interface LearningNodeData {
   id: string;
   nodeType: string;
   actionType: string;
@@ -59,7 +59,7 @@ export interface CanvasNodeData {
   sortOrder: number;
 }
 
-export interface CanvasEdgeData {
+export interface LearningEdgeData {
   id: string;
   sourceNodeId: string;
   targetNodeId: string;
@@ -67,13 +67,13 @@ export interface CanvasEdgeData {
   label?: string | null;
 }
 
-export interface CanvasData {
+export interface LearningData {
   id: string;
   name: string;
   description?: string | null;
   status: string;
-  nodes: CanvasNodeData[];
-  edges: CanvasEdgeData[];
+  nodes: LearningNodeData[];
+  edges: LearningEdgeData[];
 }
 
 const ACTION_VISUAL: Record<string, { icon: LucideIcon; color: string; glow: string }> = {
@@ -120,10 +120,10 @@ function getFlowNodeType(nodeType: string, index: number, total: number): "start
   return "process";
 }
 
-function convertCanvasToFlowData(data: CanvasData): { nodes: CanvasFlowNode[]; edges: CanvasFlowEdge[] } {
+function convertLearningToFlowData(data: LearningData): { nodes: LearningFlowNode[]; edges: LearningFlowEdge[] } {
   const sorted = [...data.nodes].sort((a, b) => a.sortOrder - b.sortOrder);
-  const mainColumn: CanvasNodeData[] = [];
-  const branchColumn: CanvasNodeData[] = [];
+  const mainColumn: LearningNodeData[] = [];
+  const branchColumn: LearningNodeData[] = [];
 
   const edgeTargets = new Map<string, string[]>();
   for (const e of data.edges) {
@@ -164,7 +164,7 @@ function convertCanvasToFlowData(data: CanvasData): { nodes: CanvasFlowNode[]; e
   const mainX = 80;
   const branchX = 340;
 
-  const flowNodes: CanvasFlowNode[] = [];
+  const flowNodes: LearningFlowNode[] = [];
 
   for (let i = 0; i < mainColumn.length; i++) {
     const n = mainColumn[i];
@@ -219,7 +219,7 @@ function convertCanvasToFlowData(data: CanvasData): { nodes: CanvasFlowNode[]; e
     });
   }
 
-  const flowEdges: CanvasFlowEdge[] = data.edges.map(e => {
+  const flowEdges: LearningFlowEdge[] = data.edges.map(e => {
     let edgeType: "yes" | "no" | "default" = "default";
     if (e.condition === "true" || e.label === "Yes") edgeType = "yes";
     else if (e.condition === "false" || e.label === "No") edgeType = "no";
@@ -237,7 +237,7 @@ function convertCanvasToFlowData(data: CanvasData): { nodes: CanvasFlowNode[]; e
   return { nodes: flowNodes, edges: flowEdges };
 }
 
-const DEFAULT_CANVAS_NODES: CanvasFlowNode[] = [
+const DEFAULT_LEARNING_NODES: LearningFlowNode[] = [
   { id: "traffic", x: 80, y: 40, width: 160, height: 60, label: "Traffic Sources", sublabel: "Ads, SEO, Social, Cold Outreach", type: "start", icon: Globe, color: "#38bdf8", glow: "rgba(56,189,248,0.3)" },
   { id: "landing", x: 80, y: 150, width: 160, height: 60, label: "Landing Page", sublabel: "Lead capture form & chatbot", type: "process", icon: Target, color: "#38bdf8", glow: "rgba(56,189,248,0.2)" },
   { id: "qualified", x: 80, y: 260, width: 140, height: 70, label: "Lead\nQualified?", sublabel: "", type: "decision", icon: Users, color: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
@@ -252,7 +252,7 @@ const DEFAULT_CANVAS_NODES: CanvasFlowNode[] = [
   { id: "lost", x: 340, y: 830, width: 160, height: 60, label: "Back to Nurture", sublabel: "Re-enter pipeline", type: "process", icon: TrendingUp, color: "#f87171", glow: "rgba(248,113,113,0.2)" },
 ];
 
-const DEFAULT_CANVAS_EDGES: CanvasFlowEdge[] = [
+const DEFAULT_LEARNING_EDGES: LearningFlowEdge[] = [
   { from: "traffic", to: "landing", type: "default" },
   { from: "landing", to: "qualified", type: "default" },
   { from: "qualified", to: "ai_engage", type: "yes" },
@@ -269,11 +269,11 @@ const DEFAULT_CANVAS_EDGES: CanvasFlowEdge[] = [
   { from: "lost", to: "nurture", type: "default" },
 ];
 
-function getNodeCenter(node: CanvasFlowNode) {
+function getNodeCenter(node: LearningFlowNode) {
   return { x: node.x + node.width / 2, y: node.y + node.height / 2 };
 }
 
-function buildEdgePath(from: CanvasFlowNode, to: CanvasFlowNode, _edgeType?: string): string {
+function buildEdgePath(from: LearningFlowNode, to: LearningFlowNode, _edgeType?: string): string {
   const fc = getNodeCenter(from);
   const tc = getNodeCenter(to);
 
@@ -307,14 +307,14 @@ function buildEdgePath(from: CanvasFlowNode, to: CanvasFlowNode, _edgeType?: str
   return `M ${fc.x} ${from.y + from.height} L ${tc.x} ${to.y}`;
 }
 
-function DiamondShape({ node, isActive, onClick }: { node: CanvasFlowNode; isActive: boolean; onClick: () => void }) {
+function DiamondShape({ node, isActive, onClick }: { node: LearningFlowNode; isActive: boolean; onClick: () => void }) {
   const cx = node.x + node.width / 2;
   const cy = node.y + node.height / 2;
   const rx = node.width / 2;
   const ry = node.height / 2;
 
   return (
-    <g className="cursor-pointer" onClick={onClick} data-testid={`canvas-flownode-${node.id}`}>
+    <g className="cursor-pointer" onClick={onClick} data-testid={`learning-flownode-${node.id}`}>
       {isActive && (
         <polygon
           points={`${cx},${cy - ry - 6} ${cx + rx + 6},${cy} ${cx},${cy + ry + 6} ${cx - rx - 6},${cy}`}
@@ -349,12 +349,12 @@ function DiamondShape({ node, isActive, onClick }: { node: CanvasFlowNode; isAct
   );
 }
 
-function RectNode({ node, isActive, onClick }: { node: CanvasFlowNode; isActive: boolean; onClick: () => void }) {
+function RectNode({ node, isActive, onClick }: { node: LearningFlowNode; isActive: boolean; onClick: () => void }) {
   const isEnd = node.type === "end";
   const isStart = node.type === "start";
 
   return (
-    <g className="cursor-pointer" onClick={onClick} data-testid={`canvas-flownode-${node.id}`}>
+    <g className="cursor-pointer" onClick={onClick} data-testid={`learning-flownode-${node.id}`}>
       {isActive && (
         <rect
           x={node.x - 4}
@@ -446,34 +446,34 @@ function EdgeLabel({ x, y, text, type }: { x: number; y: number; text: string; t
   );
 }
 
-interface CanvasFlowchartProps {
+interface LearningFlowchartProps {
   compact?: boolean;
-  canvasData?: CanvasData | null;
+  learningData?: LearningData | null;
 }
 
-export function CanvasFlowchart({ compact = false, canvasData }: CanvasFlowchartProps) {
+export function LearningFlowchart({ compact = false, learningData }: LearningFlowchartProps) {
   const [activeNode, setActiveNode] = useState<string | null>(null);
   const [visibleNodes, setVisibleNodes] = useState<Set<string>>(new Set());
 
   const { nodes: displayNodes, edges: displayEdges, title, subtitle, statusLabel } = useMemo(() => {
-    if (canvasData && canvasData.nodes.length > 0) {
-      const converted = convertCanvasToFlowData(canvasData);
+    if (learningData && learningData.nodes.length > 0) {
+      const converted = convertLearningToFlowData(learningData);
       return {
         nodes: converted.nodes,
         edges: converted.edges,
-        title: canvasData.name,
-        subtitle: canvasData.description || "Your custom automation canvas",
-        statusLabel: canvasData.status === "active" ? "Live" : canvasData.status === "draft" ? "Draft" : canvasData.status,
+        title: learningData.name,
+        subtitle: learningData.description || "Your custom automation learning",
+        statusLabel: learningData.status === "active" ? "Live" : learningData.status === "draft" ? "Draft" : learningData.status,
       };
     }
     return {
-      nodes: DEFAULT_CANVAS_NODES,
-      edges: DEFAULT_CANVAS_EDGES,
+      nodes: DEFAULT_LEARNING_NODES,
+      edges: DEFAULT_LEARNING_EDGES,
       title: "AI Client Acquisition Pipeline",
       subtitle: "Click any step to learn more",
       statusLabel: "Live",
     };
-  }, [canvasData]);
+  }, [learningData]);
 
   useEffect(() => {
     setVisibleNodes(new Set());
@@ -498,7 +498,7 @@ export function CanvasFlowchart({ compact = false, canvasData }: CanvasFlowchart
   const svgWidth = Math.max(560, maxX + 40);
   const svgHeight = compact ? Math.min(maxY + 60, 700) : maxY + 60;
 
-  const getEdgeLabelPos = (edge: CanvasFlowEdge): { x: number; y: number } | null => {
+  const getEdgeLabelPos = (edge: LearningFlowEdge): { x: number; y: number } | null => {
     if (!edge.type || edge.type === "default") return null;
     const from = nodeMap[edge.from];
     const to = nodeMap[edge.to];
@@ -522,13 +522,13 @@ export function CanvasFlowchart({ compact = false, canvasData }: CanvasFlowchart
   const statusColor = statusLabel === "Live" || statusLabel === "active" ? "text-emerald-400" : "text-amber-400";
 
   return (
-    <Card className="p-0 overflow-visible relative" data-testid="card-canvas-flowchart">
+    <Card className="p-0 overflow-visible relative" data-testid="card-learning-flowchart">
       <div className="p-4 pb-2 flex items-center gap-3">
         <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center">
           <Zap className="w-4 h-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold truncate" data-testid="text-canvas-flowchart-title">{title}</h3>
+          <h3 className="text-sm font-semibold truncate" data-testid="text-learning-flowchart-title">{title}</h3>
           <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
         </div>
         <Badge variant="outline" className="text-[10px] shrink-0 no-default-hover-elevate no-default-active-elevate">
@@ -547,23 +547,23 @@ export function CanvasFlowchart({ compact = false, canvasData }: CanvasFlowchart
           height="100%"
           style={{ minWidth: compact ? 340 : 520, maxHeight: compact ? 480 : 700 }}
           className="block mx-auto"
-          data-testid="svg-canvas-flowchart"
+          data-testid="svg-learning-flowchart"
         >
           <defs>
-            <marker id="canvas-arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <marker id="learning-arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#475569" />
             </marker>
-            <marker id="canvas-arrowhead-active" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <marker id="learning-arrowhead-active" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#38bdf8" />
             </marker>
-            <filter id="canvas-glow">
+            <filter id="learning-glow">
               <feGaussianBlur stdDeviation="3" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-            <linearGradient id="canvasFlowGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <linearGradient id="learningFlowGradient" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
               <stop offset="100%" stopColor="#34d399" stopOpacity="0.8" />
             </linearGradient>
@@ -585,7 +585,7 @@ export function CanvasFlowchart({ compact = false, canvasData }: CanvasFlowchart
                   stroke={isHighlighted ? edgeColor : `${edgeColor}88`}
                   strokeWidth={isHighlighted ? "2" : "1.2"}
                   strokeDasharray={edge.type === "no" ? "4 3" : "none"}
-                  markerEnd={isHighlighted ? "url(#canvas-arrowhead-active)" : "url(#canvas-arrowhead)"}
+                  markerEnd={isHighlighted ? "url(#learning-arrowhead-active)" : "url(#learning-arrowhead)"}
                   className="transition-all duration-500"
                 />
                 <AnimatedParticle path={path} delay={i * 0.5} color={edgeColor} />
@@ -634,7 +634,7 @@ export function CanvasFlowchart({ compact = false, canvasData }: CanvasFlowchart
       {activeNodeData && (
         <div
           className="absolute bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border p-4 z-10 rounded-b-md"
-          data-testid="canvas-flowchart-detail-panel"
+          data-testid="learning-flowchart-detail-panel"
         >
           <div className="flex items-start gap-3">
             <div
@@ -652,7 +652,7 @@ export function CanvasFlowchart({ compact = false, canvasData }: CanvasFlowchart
             <button
               onClick={() => setActiveNode(null)}
               className="text-muted-foreground hover:text-foreground shrink-0"
-              data-testid="button-close-canvas-detail"
+              data-testid="button-close-learning-detail"
             >
               <XCircle className="w-4 h-4" />
             </button>
@@ -671,16 +671,16 @@ export function CanvasFlowchart({ compact = false, canvasData }: CanvasFlowchart
         </div>
         <div>
           <p className="text-base font-bold" style={{ color: "#a78bfa" }}>
-            {canvasData ? (canvasData.status === "active" ? "ON" : "OFF") : "24/7"}
+            {learningData ? (learningData.status === "active" ? "ON" : "OFF") : "24/7"}
           </p>
-          <p className="text-[10px] text-muted-foreground">{canvasData ? "Status" : "Always Active"}</p>
+          <p className="text-[10px] text-muted-foreground">{learningData ? "Status" : "Always Active"}</p>
         </div>
       </div>
     </Card>
   );
 }
 
-export function CompactCanvasFlowchart() {
+export function CompactLearningFlowchart() {
   const [activeStep, setActiveStep] = useState(0);
   const [hoveredStep, setHoveredStep] = useState<number | null>(null);
 
@@ -701,7 +701,7 @@ export function CompactCanvasFlowchart() {
   ];
 
   return (
-    <div className="relative" data-testid="compact-canvas-flowchart">
+    <div className="relative" data-testid="compact-learning-flowchart">
       <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border/50 -translate-y-1/2 hidden lg:block" />
       <div className="absolute top-1/2 left-0 right-0 h-0.5 -translate-y-1/2 hidden lg:block overflow-hidden">
         <div
@@ -726,7 +726,7 @@ export function CompactCanvasFlowchart() {
               className="flex flex-col items-center text-center cursor-pointer group"
               onMouseEnter={() => setHoveredStep(i)}
               onMouseLeave={() => setHoveredStep(null)}
-              data-testid={`canvas-flow-step-${i}`}
+              data-testid={`learning-flow-step-${i}`}
             >
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center mb-2 transition-all duration-500 relative"

@@ -1,6 +1,6 @@
 // ============================================================
-// CANVAS SYSTEM — CORE ENGINE
-// Cloned from workflow-engine.ts for independent canvas rebuild
+// LEARNING SYSTEM — CORE ENGINE
+// Cloned from workflow-engine.ts for independent learning rebuild
 // ============================================================
 
 import { db } from "./db";
@@ -8,27 +8,27 @@ import { eq, and, desc, sql, lte, isNull } from "drizzle-orm";
 import { storage } from "./storage";
 import Anthropic from "@anthropic-ai/sdk";
 import {
-  canvases,
-  canvasNodes,
-  canvasEdges,
-  canvasExecutions,
-  canvasExecutionSteps,
-  CANVAS_TRIGGER_TYPES,
-  type Canvas,
-  type CanvasNode,
-  type CanvasEdge,
-  type CanvasExecution,
-  type CanvasTriggerType,
-} from "@shared/canvas-schema";
+  learnings,
+  learningNodes,
+  learningEdges,
+  learningExecutions,
+  learningExecutionSteps,
+  LEARNING_TRIGGER_TYPES,
+  type Learning,
+  type LearningNode,
+  type LearningEdge,
+  type LearningExecution,
+  type LearningTriggerType,
+} from "@shared/learning-schema";
 
 // ============================================================
-// EVENT BUS — Central event dispatcher for canvas events
+// EVENT BUS — Central event dispatcher for learning events
 // ============================================================
 
-type CanvasEventHandler = (event: CanvasEvent) => Promise<void>;
+type LearningEventHandler = (event: LearningEvent) => Promise<void>;
 
-export interface CanvasEvent {
-  type: CanvasTriggerType;
+export interface LearningEvent {
+  type: LearningTriggerType;
   userId: string;
   entityId?: string;
   entityType?: string;
@@ -36,84 +36,84 @@ export interface CanvasEvent {
   timestamp: Date;
 }
 
-class CanvasEventBus {
-  private handlers: Map<string, CanvasEventHandler[]> = new Map();
-  private eventLog: CanvasEvent[] = [];
+class LearningEventBus {
+  private handlers: Map<string, LearningEventHandler[]> = new Map();
+  private eventLog: LearningEvent[] = [];
   private maxLogSize = 1000;
 
-  on(eventType: string, handler: CanvasEventHandler) {
+  on(eventType: string, handler: LearningEventHandler) {
     const existing = this.handlers.get(eventType) || [];
     existing.push(handler);
     this.handlers.set(eventType, existing);
   }
 
-  async emit(event: CanvasEvent) {
+  async emit(event: LearningEvent) {
     this.eventLog.push(event);
     if (this.eventLog.length > this.maxLogSize) {
       this.eventLog = this.eventLog.slice(-this.maxLogSize);
     }
 
-    console.log(`[Canvas EventBus] Event: ${event.type} | User: ${event.userId} | Entity: ${event.entityType}:${event.entityId}`);
+    console.log(`[Learning EventBus] Event: ${event.type} | User: ${event.userId} | Entity: ${event.entityType}:${event.entityId}`);
 
     const handlers = this.handlers.get(event.type) || [];
     for (const handler of handlers) {
       try {
         await handler(event);
       } catch (err: any) {
-        console.error(`[Canvas EventBus] Handler error for ${event.type}:`, err?.message);
+        console.error(`[Learning EventBus] Handler error for ${event.type}:`, err?.message);
       }
     }
 
     try {
-      await matchAndExecuteCanvases(event);
+      await matchAndExecuteLearninges(event);
     } catch (err: any) {
-      console.error(`[Canvas EventBus] Canvas matching error:`, err?.message);
+      console.error(`[Learning EventBus] Learning matching error:`, err?.message);
     }
   }
 
-  getRecentEvents(count = 50): CanvasEvent[] {
+  getRecentEvents(count = 50): LearningEvent[] {
     return this.eventLog.slice(-count);
   }
 }
 
-export const canvasEventBus = new CanvasEventBus();
+export const learningEventBus = new LearningEventBus();
 
 // ============================================================
-// CANVAS MATCHER — Finds active canvases for an event
+// LEARNING MATCHER — Finds active learnings for an event
 // ============================================================
 
-async function matchAndExecuteCanvases(event: CanvasEvent) {
-  const activeCanvases = await db
+async function matchAndExecuteLearninges(event: LearningEvent) {
+  const activeLearninges = await db
     .select()
-    .from(canvases)
+    .from(learnings)
     .where(
       and(
-        eq(canvases.userId, event.userId),
-        eq(canvases.triggerType, event.type),
-        eq(canvases.status, "active")
+        eq(learnings.userId, event.userId),
+        eq(learnings.triggerType, event.type),
+        eq(learnings.status, "active")
       )
     );
 
-  if (activeCanvases.length === 0) return;
+  if (activeLearninges.length === 0) return;
 
-  console.log(`[Canvas Engine] ${activeCanvases.length} canvas(es) matched for ${event.type}`);
+  console.log(`[Learning Engine] ${activeLearninges.length} learning(s) matched for ${event.type}`);
 
-  for (const canvas of activeCanvases) {
+  for (const learning of activeLearninges) {
     try {
-      if (!matchesTriggerConfig(canvas, event)) {
-        console.log(`[Canvas Engine] Canvas "${canvas.name}" skipped — trigger config mismatch`);
+      if (!matchesTriggerConfig(learning, event)) {
+        console.log(`[Learning Engine] Learning "${learning.name}" skipped — trigger config mismatch`);
         continue;
       }
-      await executeCanvas(canvas, event);
+      await executeLearning(learning, event);
     } catch (err: any) {
-      console.error(`[Canvas Engine] Failed to execute canvas "${canvas.name}":`, err?.message);
+      console.error(`[Learning Engine] Failed to execute learning "${learning.name}":`, err?.message);
     }
   }
 }
 
-function matchesTriggerConfig(canvas: Canvas, event: CanvasEvent): boolean {
+function matchesTriggerConfig(learning: Learning, event: LearningEvent): boolean {
   try {
-    const config = JSON.parse(canvas.triggerConfig || "{}");
+    const config = JSON.parse(learning.triggerConfig || "{}");
     if (Object.keys(config).length === 0) return true;
     if (config.status && event.data.status !== config.status) return false;
     if (config.scoreThreshold && (event.data.score || 0) < config.scoreThreshold) return false;
@@ -127,26 +127,26 @@ function matchesTriggerConfig(canvas: Canvas, event: CanvasEvent): boolean {
 }
 
 // ============================================================
-// CANVAS EXECUTOR — Runs a canvas from start to finish
+// LEARNING EXECUTOR — Runs a learning from start to finish
 // ============================================================
 
-export async function executeCanvas(
-  canvas: Canvas,
-  event: CanvasEvent,
+export async function executeLearning(
+  learning: Learning,
+  event: LearningEvent,
   startNodeId?: string
 ): Promise<string> {
   const nodes = await db
     .select()
-    .from(canvasNodes)
-    .where(eq(canvasNodes.canvasId, canvas.id));
+    .from(learningNodes)
+    .where(eq(learningNodes.learningId, learning.id));
 
   const edges = await db
     .select()
-    .from(canvasEdges)
-    .where(eq(canvasEdges.canvasId, canvas.id));
+    .from(learningEdges)
+    .where(eq(learningEdges.learningId, learning.id));
 
   if (nodes.length === 0) {
-    console.warn(`[Canvas Engine] Canvas "${canvas.name}" has no nodes`);
+    console.warn(`[Learning Engine] Learning "${learning.name}" has no nodes`);
     return "";
   }
 
@@ -155,14 +155,14 @@ export async function executeCanvas(
     : nodes.find(n => n.nodeType === "trigger");
 
   if (!triggerNode) {
-    console.warn(`[Canvas Engine] No trigger node found in "${canvas.name}"`);
+    console.warn(`[Learning Engine] No trigger node found in "${learning.name}"`);
     return "";
   }
 
   const [execution] = await db
-    .insert(canvasExecutions)
+    .insert(learningExecutions)
     .values({
-      canvasId: canvas.id,
+      learningId: learning.id,
       userId: event.userId,
       status: "running",
       triggerData: JSON.stringify(event.data),
@@ -172,17 +172,17 @@ export async function executeCanvas(
     })
     .returning();
 
-  console.log(`[Canvas Engine] Execution started: ${execution.id} for "${canvas.name}"`);
+  console.log(`[Learning Engine] Execution started: ${execution.id} for "${learning.name}"`);
 
   try {
     let context = { ...event.data };
-    let currentNode: CanvasNode | undefined = triggerNode;
+    let currentNode: LearningNode | undefined = triggerNode;
     let stepsCompleted = 0;
 
     while (currentNode) {
       const stepStart = Date.now();
       const [step] = await db
-        .insert(canvasExecutionSteps)
+        .insert(learningExecutionSteps)
         .values({
           executionId: execution.id,
           nodeId: currentNode.id,
@@ -198,20 +198,20 @@ export async function executeCanvas(
 
         const durationMs = Date.now() - stepStart;
         await db
-          .update(canvasExecutionSteps)
+          .update(learningExecutionSteps)
           .set({
             status: "completed",
             outputData: JSON.stringify(result.output),
             durationMs,
             completedAt: new Date(),
           })
-          .where(eq(canvasExecutionSteps.id, step.id));
+          .where(eq(learningExecutionSteps.id, step.id));
 
         stepsCompleted++;
 
         if (currentNode.nodeType === "delay" && result.delayUntil) {
           await db
-            .update(canvasExecutions)
+            .update(learningExecutions)
             .set({
               status: "waiting",
               resumeAt: result.delayUntil,
@@ -219,9 +219,9 @@ export async function executeCanvas(
               contextData: JSON.stringify(context),
               stepsCompleted,
             })
-            .where(eq(canvasExecutions.id, execution.id));
+            .where(eq(learningExecutions.id, execution.id));
 
-          console.log(`[Canvas Engine] Execution ${execution.id} paused until ${result.delayUntil.toISOString()}`);
+          console.log(`[Learning Engine] Execution ${execution.id} paused until ${result.delayUntil.toISOString()}`);
           return execution.id;
         }
 
@@ -241,7 +241,7 @@ export async function executeCanvas(
             if (parallelNode) {
               setImmediate(() => {
                 executeNodeChain(execution.id, parallelNode, nodes, edges, context, event.userId)
-                  .catch(err => console.error(`[Canvas Engine] Parallel branch error:`, err?.message));
+                  .catch(err => console.error(`[Learning Engine] Parallel branch error:`, err?.message));
               });
             }
           }
@@ -251,79 +251,79 @@ export async function executeCanvas(
         }
       } catch (nodeError: any) {
         await db
-          .update(canvasExecutionSteps)
+          .update(learningExecutionSteps)
           .set({
             status: "failed",
             errorMessage: nodeError?.message || "Unknown error",
             durationMs: Date.now() - stepStart,
             completedAt: new Date(),
           })
-          .where(eq(canvasExecutionSteps.id, step.id));
+          .where(eq(learningExecutionSteps.id, step.id));
 
-        console.error(`[Canvas Engine] Node "${currentNode!.label}" failed:`, nodeError?.message);
+        console.error(`[Learning Engine] Node "${currentNode!.label}" failed:`, nodeError?.message);
 
         await db
-          .update(canvasExecutions)
+          .update(learningExecutions)
           .set({
             status: "failed",
             errorMessage: `Step "${currentNode!.label}" failed: ${nodeError?.message}`,
             stepsCompleted,
             completedAt: new Date(),
           })
-          .where(eq(canvasExecutions.id, execution.id));
+          .where(eq(learningExecutions.id, execution.id));
 
         await db
-          .update(canvases)
+          .update(learnings)
           .set({
-            totalRuns: sql`${canvases.totalRuns} + 1`,
-            failedRuns: sql`${canvases.failedRuns} + 1`,
+            totalRuns: sql`${learnings.totalRuns} + 1`,
+            failedRuns: sql`${learnings.failedRuns} + 1`,
             lastRunAt: new Date(),
           })
-          .where(eq(canvases.id, canvas.id));
+          .where(eq(learnings.id, learning.id));
 
         return execution.id;
       }
     }
 
     await db
-      .update(canvasExecutions)
+      .update(learningExecutions)
       .set({
         status: "completed",
         stepsCompleted,
         completedAt: new Date(),
         contextData: JSON.stringify(context),
       })
-      .where(eq(canvasExecutions.id, execution.id));
+      .where(eq(learningExecutions.id, execution.id));
 
     await db
-      .update(canvases)
+      .update(learnings)
       .set({
-        totalRuns: sql`${canvases.totalRuns} + 1`,
-        successfulRuns: sql`${canvases.successfulRuns} + 1`,
+        totalRuns: sql`${learnings.totalRuns} + 1`,
+        successfulRuns: sql`${learnings.successfulRuns} + 1`,
         lastRunAt: new Date(),
       })
-      .where(eq(canvases.id, canvas.id));
+      .where(eq(learnings.id, learning.id));
 
-    console.log(`[Canvas Engine] Execution ${execution.id} completed — ${stepsCompleted} steps`);
+    console.log(`[Learning Engine] Execution ${execution.id} completed — ${stepsCompleted} steps`);
     return execution.id;
   } catch (error: any) {
     await db
-      .update(canvasExecutions)
+      .update(learningExecutions)
       .set({
         status: "failed",
         errorMessage: error?.message || "Unexpected execution error",
         completedAt: new Date(),
       })
-      .where(eq(canvasExecutions.id, execution.id));
+      .where(eq(learningExecutions.id, execution.id));
 
     await db
-      .update(canvases)
+      .update(learnings)
       .set({
-        totalRuns: sql`${canvases.totalRuns} + 1`,
-        failedRuns: sql`${canvases.failedRuns} + 1`,
+        totalRuns: sql`${learnings.totalRuns} + 1`,
+        failedRuns: sql`${learnings.failedRuns} + 1`,
         lastRunAt: new Date(),
       })
-      .where(eq(canvases.id, canvas.id));
+      .where(eq(learnings.id, learning.id));
 
     return execution.id;
   }
@@ -331,18 +331,18 @@ export async function executeCanvas(
 
 async function executeNodeChain(
   executionId: string,
-  startNode: CanvasNode,
-  allNodes: CanvasNode[],
-  allEdges: CanvasEdge[],
+  startNode: LearningNode,
+  allNodes: LearningNode[],
+  allEdges: LearningEdge[],
   context: Record<string, any>,
   userId: string
 ) {
-  let currentNode: CanvasNode | undefined = startNode;
+  let currentNode: LearningNode | undefined = startNode;
   while (currentNode) {
     const result = await executeNode(currentNode, context, userId);
     context = { ...context, ...result.output };
 
-    await db.insert(canvasExecutionSteps).values({
+    await db.insert(learningExecutionSteps).values({
       executionId,
       nodeId: currentNode.id,
       status: "completed",
@@ -357,7 +357,7 @@ async function executeNodeChain(
 }
 
 // ============================================================
-// NODE EXECUTOR — Executes a single canvas node
+// NODE EXECUTOR — Executes a single learning node
 // ============================================================
 
 interface NodeResult {
@@ -367,7 +367,7 @@ interface NodeResult {
 }
 
 async function executeNode(
-  node: CanvasNode,
+  node: LearningNode,
   context: Record<string, any>,
   userId: string
 ): Promise<NodeResult> {
@@ -463,12 +463,12 @@ async function executeNode(
         email: resolveTemplate(config.email || "{{email}}", context),
         phone: resolveTemplate(config.phone || "{{phone}}", context) || "",
         company: resolveTemplate(config.company || "{{company}}", context) || "",
-        source: config.source || "Canvas Automation",
+        source: config.source || "Learning Automation",
         status: config.status || "new",
         score: config.score || context.score || 50,
-        notes: resolveTemplate(config.notes || "Created by canvas", context),
+        notes: resolveTemplate(config.notes || "Created by learning", context),
         outreach: resolveTemplate(config.outreach || "", context),
-        intentSignal: config.intentSignal || "canvas_generated",
+        intentSignal: config.intentSignal || "learning_generated",
       };
       const lead = await storage.createLead(leadData);
       return { output: { leadId: lead.id, leadName: lead.name, leadCreated: true } };
@@ -494,8 +494,8 @@ async function executeNode(
         company: resolveTemplate(config.company || "{{company}}", context) || null,
         type: config.type || "Discovery Call",
         date: config.date ? new Date(config.date) : new Date(Date.now() + 48 * 60 * 60 * 1000),
-        notes: resolveTemplate(config.notes || "Auto-scheduled by canvas", context) || null,
-        source: "canvas",
+        notes: resolveTemplate(config.notes || "Auto-scheduled by learning", context) || null,
+        source: "learning",
         status: "scheduled",
       };
       const appt = await storage.createAppointment(apptData);
@@ -612,15 +612,15 @@ async function executeNode(
       return { output: { callRequested: false, error: "No phone number" } };
     }
     case "send_notification": {
-      const title = resolveTemplate(config.title || "Canvas Notification", context);
-      const message = resolveTemplate(config.message || "A canvas action completed.", context);
+      const title = resolveTemplate(config.title || "Learning Notification", context);
+      const message = resolveTemplate(config.message || "A learning action completed.", context);
       await storage.createNotification({
         userId,
         type: config.notificationType || "system",
         title,
         message,
         priority: config.priority || "normal",
-        agentType: "canvas",
+        agentType: "learning",
       });
       return { output: { notificationSent: true, title } };
     }
@@ -631,8 +631,8 @@ async function executeNode(
         await storage.createAgentTask({
           userId,
           agentType,
-          taskType: "canvas_triggered",
-          description: `Triggered by canvas: ${context._canvasName || "unknown"}`,
+          taskType: "learning_triggered",
+          description: `Triggered by learning: ${context._learningName || "unknown"}`,
           status: "pending",
         });
         return { output: { agentTriggered: true, agentType } };
@@ -646,7 +646,7 @@ async function executeNode(
     case "call_webhook": {
       const url = config.url;
       const method = config.method || "POST";
-      const payload = { ...context, canvasEvent: true };
+      const payload = { ...context, learningEvent: true };
 
       if (url) {
         try {
@@ -663,39 +663,39 @@ async function executeNode(
       return { output: { webhookCalled: false, error: "No URL specified" } };
     }
     case "log_to_crm": {
-      const note = resolveTemplate(config.note || "Canvas action logged", context);
-      console.log(`[Canvas CRM Log] User: ${userId} | ${note}`);
+      const note = resolveTemplate(config.note || "Learning action logged", context);
+      console.log(`[Learning CRM Log] User: ${userId} | ${note}`);
       return { output: { logged: true, note } };
     }
     case "create_task": {
       const title = resolveTemplate(config.title || "New Task", context);
       const description = resolveTemplate(config.description || "", context);
-      console.log(`[Canvas Task] User: ${userId} | Task: ${title}`);
+      console.log(`[Learning Task] User: ${userId} | Task: ${title}`);
       return { output: { taskCreated: true, title, description } };
     }
-    case "trigger_canvas": {
-      const targetCanvasId = config.canvasId;
-      if (targetCanvasId) {
-        const [targetCanvas] = await db
+    case "trigger_learning": {
+      const targetLearningId = config.learningId;
+      if (targetLearningId) {
+        const [targetLearning] = await db
           .select()
-          .from(canvases)
-          .where(and(eq(canvases.id, targetCanvasId), eq(canvases.userId, userId)));
-        if (targetCanvas) {
-          const event: CanvasEvent = {
-            type: CANVAS_TRIGGER_TYPES.MANUAL,
+          .from(learnings)
+          .where(and(eq(learnings.id, targetLearningId), eq(learnings.userId, userId)));
+        if (targetLearning) {
+          const event: LearningEvent = {
+            type: LEARNING_TRIGGER_TYPES.MANUAL,
             userId,
             data: context,
             timestamp: new Date(),
           };
-          setImmediate(() => executeCanvas(targetCanvas, event));
-          return { output: { canvasTriggered: true, targetCanvasId } };
+          setImmediate(() => executeLearning(targetLearning, event));
+          return { output: { learningTriggered: true, targetLearningId } };
         }
       }
-      return { output: { canvasTriggered: false, error: "Target canvas not found" } };
+      return { output: { learningTriggered: false, error: "Target learning not found" } };
     }
 
     default:
-      console.warn(`[Canvas Engine] Unknown action type: ${node.actionType}`);
+      console.warn(`[Learning Engine] Unknown action type: ${node.actionType}`);
       return { output: { error: `Unknown action: ${node.actionType}` } };
   }
 }
@@ -731,7 +731,7 @@ async function callAI(userId: string, prompt: string): Promise<string> {
       .join("\n")
       .trim();
   } catch (err: any) {
-    console.error(`[Canvas AI] Error:`, err?.message);
+    console.error(`[Learning AI] Error:`, err?.message);
     return "[AI temporarily unavailable]";
   }
 }
@@ -775,35 +775,35 @@ function evaluateCondition(fieldValue: any, operator: string, compareValue: any)
 // DELAY RESUME PROCESSOR
 // ============================================================
 
-export async function processDelayedCanvasExecutions() {
+export async function processDelayedLearningExecutions() {
   try {
     const now = new Date();
     const waiting = await db
       .select()
-      .from(canvasExecutions)
+      .from(learningExecutions)
       .where(
         and(
-          eq(canvasExecutions.status, "waiting"),
-          lte(canvasExecutions.resumeAt!, now)
+          eq(learningExecutions.status, "waiting"),
+          lte(learningExecutions.resumeAt!, now)
         )
       );
 
     if (waiting.length === 0) return;
 
-    console.log(`[Canvas Engine] Resuming ${waiting.length} delayed execution(s)`);
+    console.log(`[Learning Engine] Resuming ${waiting.length} delayed execution(s)`);
 
     for (const exec of waiting) {
       try {
-        const [canvas] = await db
+        const [learning] = await db
           .select()
-          .from(canvases)
-          .where(eq(canvases.id, exec.canvasId));
+          .from(learnings)
+          .where(eq(learnings.id, exec.learningId));
 
-        if (!canvas || canvas.status !== "active") {
+        if (!learning || learning.status !== "active") {
           await db
-            .update(canvasExecutions)
-            .set({ status: "cancelled", completedAt: new Date(), errorMessage: "Canvas no longer active" })
-            .where(eq(canvasExecutions.id, exec.id));
+            .update(learningExecutions)
+            .set({ status: "cancelled", completedAt: new Date(), errorMessage: "Learning no longer active" })
+            .where(eq(learningExecutions.id, exec.id));
           continue;
         }
 
@@ -812,42 +812,42 @@ export async function processDelayedCanvasExecutions() {
 
         const allEdges = await db
           .select()
-          .from(canvasEdges)
-          .where(eq(canvasEdges.canvasId, canvas.id));
+          .from(learningEdges)
+          .where(eq(learningEdges.learningId, learning.id));
 
         const nextEdge = allEdges.find(e => e.sourceNodeId === currentNodeId);
         if (!nextEdge) {
           await db
-            .update(canvasExecutions)
+            .update(learningExecutions)
             .set({ status: "completed", completedAt: new Date() })
-            .where(eq(canvasExecutions.id, exec.id));
+            .where(eq(learningExecutions.id, exec.id));
           continue;
         }
 
         const context = JSON.parse(exec.contextData || "{}");
-        const event: CanvasEvent = {
-          type: CANVAS_TRIGGER_TYPES.MANUAL,
+        const event: LearningEvent = {
+          type: LEARNING_TRIGGER_TYPES.MANUAL,
           userId: exec.userId,
           data: context,
           timestamp: new Date(),
         };
 
         await db
-          .update(canvasExecutions)
+          .update(learningExecutions)
           .set({ status: "running", resumeAt: null })
-          .where(eq(canvasExecutions.id, exec.id));
+          .where(eq(learningExecutions.id, exec.id));
 
-        await executeCanvas(canvas, event, nextEdge.targetNodeId);
+        await executeLearning(learning, event, nextEdge.targetNodeId);
       } catch (resumeErr: any) {
-        console.error(`[Canvas Engine] Failed to resume execution ${exec.id}:`, resumeErr?.message);
+        console.error(`[Learning Engine] Failed to resume execution ${exec.id}:`, resumeErr?.message);
         await db
-          .update(canvasExecutions)
+          .update(learningExecutions)
           .set({ status: "failed", errorMessage: `Resume failed: ${resumeErr?.message}`, completedAt: new Date() })
-          .where(eq(canvasExecutions.id, exec.id));
+          .where(eq(learningExecutions.id, exec.id));
       }
     }
   } catch (error: any) {
-    console.error("[Canvas Engine] Delay processor error:", error?.message);
+    console.error("[Learning Engine] Delay processor error:", error?.message);
   }
 }
 
@@ -855,9 +855,9 @@ export async function processDelayedCanvasExecutions() {
 // INITIALIZATION
 // ============================================================
 
-export function startCanvasEngine() {
-  console.log("[Canvas Engine] Starting background processors...");
-  setInterval(processDelayedCanvasExecutions, 60 * 1000);
-  setTimeout(processDelayedCanvasExecutions, 30 * 1000);
-  console.log("[Canvas Engine] ✅ Engine started — listening for events");
+export function startLearningEngine() {
+  console.log("[Learning Engine] Starting background processors...");
+  setInterval(processDelayedLearningExecutions, 60 * 1000);
+  setTimeout(processDelayedLearningExecutions, 30 * 1000);
+  console.log("[Learning Engine] ✅ Engine started — listening for events");
 }
