@@ -1,0 +1,334 @@
+// ============================================================
+// CANVAS SYSTEM — DATABASE SCHEMA
+// Cloned from workflow-schema.ts for independent canvas rebuild
+// ============================================================
+
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, integer, timestamp, boolean, real, jsonb } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// ============================================================
+// CANVASES — The master canvas definition
+// ============================================================
+
+export const canvases = pgTable("canvases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  triggerType: text("trigger_type").notNull(),
+  triggerConfig: text("trigger_config").default("{}"),
+  status: text("status").notNull().default("draft"),
+  totalRuns: integer("total_runs").default(0),
+  successfulRuns: integer("successful_runs").default(0),
+  failedRuns: integer("failed_runs").default(0),
+  lastRunAt: timestamp("last_run_at"),
+  category: text("category"),
+  version: integer("version").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCanvasSchema = createInsertSchema(canvases).omit({ id: true, createdAt: true, updatedAt: true });
+export type Canvas = typeof canvases.$inferSelect;
+export type InsertCanvas = z.infer<typeof insertCanvasSchema>;
+
+// ============================================================
+// CANVAS NODES — Individual steps in a canvas
+// ============================================================
+
+export const canvasNodes = pgTable("canvas_nodes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  canvasId: varchar("canvas_id").notNull(),
+  nodeType: text("node_type").notNull(),
+  actionType: text("action_type").notNull(),
+  label: text("label").notNull(),
+  config: text("config").default("{}"),
+  positionX: integer("position_x").default(0),
+  positionY: integer("position_y").default(0),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCanvasNodeSchema = createInsertSchema(canvasNodes).omit({ id: true, createdAt: true });
+export type CanvasNode = typeof canvasNodes.$inferSelect;
+export type InsertCanvasNode = z.infer<typeof insertCanvasNodeSchema>;
+
+// ============================================================
+// CANVAS EDGES — Connections between nodes
+// ============================================================
+
+export const canvasEdges = pgTable("canvas_edges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  canvasId: varchar("canvas_id").notNull(),
+  sourceNodeId: varchar("source_node_id").notNull(),
+  targetNodeId: varchar("target_node_id").notNull(),
+  condition: text("condition").default("default"),
+  label: text("label"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCanvasEdgeSchema = createInsertSchema(canvasEdges).omit({ id: true, createdAt: true });
+export type CanvasEdge = typeof canvasEdges.$inferSelect;
+export type InsertCanvasEdge = z.infer<typeof insertCanvasEdgeSchema>;
+
+// ============================================================
+// CANVAS EXECUTIONS — Each time a canvas runs
+// ============================================================
+
+export const canvasExecutions = pgTable("canvas_executions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  canvasId: varchar("canvas_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  status: text("status").notNull().default("running"),
+  triggerData: text("trigger_data").default("{}"),
+  contextData: text("context_data").default("{}"),
+  stepsCompleted: integer("steps_completed").default(0),
+  totalSteps: integer("total_steps").default(0),
+  errorMessage: text("error_message"),
+  resumeAt: timestamp("resume_at"),
+  currentNodeId: varchar("current_node_id"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertCanvasExecutionSchema = createInsertSchema(canvasExecutions).omit({ id: true, startedAt: true });
+export type CanvasExecution = typeof canvasExecutions.$inferSelect;
+export type InsertCanvasExecution = z.infer<typeof insertCanvasExecutionSchema>;
+
+// ============================================================
+// CANVAS EXECUTION STEPS — Detailed log of each node execution
+// ============================================================
+
+export const canvasExecutionSteps = pgTable("canvas_execution_steps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  executionId: varchar("execution_id").notNull(),
+  nodeId: varchar("node_id").notNull(),
+  status: text("status").notNull().default("pending"),
+  inputData: text("input_data").default("{}"),
+  outputData: text("output_data").default("{}"),
+  errorMessage: text("error_message"),
+  durationMs: integer("duration_ms").default(0),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCanvasExecutionStepSchema = createInsertSchema(canvasExecutionSteps).omit({ id: true, createdAt: true });
+export type CanvasExecutionStep = typeof canvasExecutionSteps.$inferSelect;
+export type InsertCanvasExecutionStep = z.infer<typeof insertCanvasExecutionStepSchema>;
+
+// ============================================================
+// TRIGGER TYPES — All events that can fire a canvas
+// ============================================================
+
+export const CANVAS_TRIGGER_TYPES = {
+  LEAD_CREATED: "lead_created",
+  LEAD_STATUS_CHANGED: "lead_status_changed",
+  LEAD_SCORE_THRESHOLD: "lead_score_threshold",
+  LEAD_EMAIL_OPENED: "lead_email_opened",
+  LEAD_EMAIL_CLICKED: "lead_email_clicked",
+  LEAD_ENGAGEMENT_HOT: "lead_engagement_hot",
+  APPOINTMENT_BOOKED: "appointment_booked",
+  APPOINTMENT_COMPLETED: "appointment_completed",
+  APPOINTMENT_CANCELLED: "appointment_cancelled",
+  DEAL_CREATED: "deal_created",
+  DEAL_STAGE_CHANGED: "deal_stage_changed",
+  DEAL_WON: "deal_won",
+  DEAL_LOST: "deal_lost",
+  AGENT_RUN_COMPLETED: "agent_run_completed",
+  AGENT_LEADS_FOUND: "agent_leads_found",
+  INBOUND_SMS: "inbound_sms",
+  VOICE_CALL_COMPLETED: "voice_call_completed",
+  CHAT_MESSAGE_RECEIVED: "chat_message_received",
+  WEBHOOK_RECEIVED: "webhook_received",
+  SCHEDULED: "scheduled",
+  MANUAL: "manual",
+  DISCOVERY_SUBMITTED: "discovery_submitted",
+  USER_REGISTERED: "user_registered",
+} as const;
+
+export type CanvasTriggerType = (typeof CANVAS_TRIGGER_TYPES)[keyof typeof CANVAS_TRIGGER_TYPES];
+
+// ============================================================
+// ACTION TYPES — All actions a canvas node can perform
+// ============================================================
+
+export const CANVAS_ACTION_TYPES = {
+  TRIGGER_EVENT: "trigger_event",
+  TRIGGER_SCHEDULE: "trigger_schedule",
+  TRIGGER_WEBHOOK: "trigger_webhook",
+  TRIGGER_MANUAL: "trigger_manual",
+  CONDITION_IF: "condition_if",
+  CONDITION_SWITCH: "condition_switch",
+  DELAY_WAIT: "delay_wait",
+  DELAY_WAIT_UNTIL: "delay_wait_until",
+  SPLITTER_AB: "splitter_ab",
+  AI_CLASSIFY: "ai_classify",
+  AI_GENERATE_CONTENT: "ai_generate_content",
+  AI_SCORE_LEAD: "ai_score_lead",
+  AI_SUMMARIZE: "ai_summarize",
+  AI_EXTRACT: "ai_extract",
+  CREATE_LEAD: "create_lead",
+  UPDATE_LEAD: "update_lead",
+  CREATE_APPOINTMENT: "create_appointment",
+  MOVE_DEAL: "move_deal",
+  CREATE_FUNNEL_DEAL: "create_funnel_deal",
+  UPDATE_STATS: "update_stats",
+  SEND_EMAIL: "send_email",
+  SEND_SMS: "send_sms",
+  MAKE_VOICE_CALL: "make_voice_call",
+  SEND_NOTIFICATION: "send_notification",
+  RUN_AGENT: "run_agent",
+  TRIGGER_LEAD_GEN: "trigger_lead_gen",
+  CALL_WEBHOOK: "call_webhook",
+  LOG_TO_CRM: "log_to_crm",
+  CREATE_TASK: "create_task",
+  TRIGGER_CANVAS: "trigger_canvas",
+} as const;
+
+export type CanvasActionType = (typeof CANVAS_ACTION_TYPES)[keyof typeof CANVAS_ACTION_TYPES];
+
+// ============================================================
+// CANVAS TEMPLATES — Pre-built canvases users can activate
+// ============================================================
+
+export interface CanvasTemplate {
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+  triggerType: CanvasTriggerType;
+  nodes: Omit<InsertCanvasNode, "canvasId">[];
+  edges: { sourceIndex: number; targetIndex: number; condition?: string }[];
+}
+
+export const CANVAS_TEMPLATES: CanvasTemplate[] = [
+  {
+    key: "lead-capture-nurture",
+    name: "Lead Capture → Nurture Sequence",
+    description: "When a new lead is created, AI scores them, routes hot leads to immediate outreach, and starts a nurture drip for warm leads.",
+    category: "Lead Management",
+    triggerType: CANVAS_TRIGGER_TYPES.LEAD_CREATED,
+    nodes: [
+      { nodeType: "trigger", actionType: "trigger_event", label: "New Lead Created", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
+      { nodeType: "action", actionType: "ai_score_lead", label: "AI Lead Scoring", config: "{\"model\":\"intent_based\"}", positionX: 350, positionY: 200, sortOrder: 1 },
+      { nodeType: "condition", actionType: "condition_switch", label: "Route by Score", config: "{\"field\":\"score\",\"rules\":[{\"op\":\"gte\",\"value\":80,\"branch\":\"hot\"},{\"op\":\"gte\",\"value\":50,\"branch\":\"warm\"}]}", positionX: 600, positionY: 200, sortOrder: 2 },
+      { nodeType: "action", actionType: "send_email", label: "Send Hot Outreach", config: "{\"template\":\"hot_lead_immediate\",\"priority\":\"high\"}", positionX: 850, positionY: 100, sortOrder: 3 },
+      { nodeType: "action", actionType: "send_notification", label: "Alert: Hot Lead!", config: "{\"priority\":\"high\",\"title\":\"🔥 Hot Lead Detected\"}", positionX: 1100, positionY: 100, sortOrder: 4 },
+      { nodeType: "delay", actionType: "delay_wait", label: "Wait 2 Days", config: "{\"hours\":48}", positionX: 850, positionY: 300, sortOrder: 5 },
+      { nodeType: "action", actionType: "send_email", label: "Send Warm Nurture #1", config: "{\"template\":\"warm_nurture_1\"}", positionX: 1100, positionY: 300, sortOrder: 6 },
+      { nodeType: "action", actionType: "log_to_crm", label: "Log Cold to CRM", config: "{\"status\":\"cold\",\"note\":\"Low score — added to cold pool\"}", positionX: 850, positionY: 500, sortOrder: 7 },
+    ],
+    edges: [
+      { sourceIndex: 0, targetIndex: 1 },
+      { sourceIndex: 1, targetIndex: 2 },
+      { sourceIndex: 2, targetIndex: 3, condition: "hot" },
+      { sourceIndex: 3, targetIndex: 4 },
+      { sourceIndex: 2, targetIndex: 5, condition: "warm" },
+      { sourceIndex: 5, targetIndex: 6 },
+      { sourceIndex: 2, targetIndex: 7, condition: "default" },
+    ],
+  },
+  {
+    key: "email-engagement-escalator",
+    name: "Email Engagement → Escalation",
+    description: "When a lead opens an email or clicks a link, automatically escalate their status, notify the team, and trigger follow-up.",
+    category: "Email Automation",
+    triggerType: CANVAS_TRIGGER_TYPES.LEAD_EMAIL_CLICKED,
+    nodes: [
+      { nodeType: "trigger", actionType: "trigger_event", label: "Email Link Clicked", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
+      { nodeType: "action", actionType: "update_lead", label: "Set Status → Hot", config: "{\"status\":\"hot\",\"engagementLevel\":\"hot\"}", positionX: 350, positionY: 200, sortOrder: 1 },
+      { nodeType: "action", actionType: "send_notification", label: "Notify Team", config: "{\"title\":\"Lead clicked email link!\",\"priority\":\"high\"}", positionX: 600, positionY: 200, sortOrder: 2 },
+      { nodeType: "delay", actionType: "delay_wait", label: "Wait 1 Hour", config: "{\"hours\":1}", positionX: 850, positionY: 200, sortOrder: 3 },
+      { nodeType: "action", actionType: "send_sms", label: "Send SMS Follow-up", config: "{\"template\":\"hot_lead_sms\"}", positionX: 1100, positionY: 200, sortOrder: 4 },
+    ],
+    edges: [
+      { sourceIndex: 0, targetIndex: 1 },
+      { sourceIndex: 1, targetIndex: 2 },
+      { sourceIndex: 2, targetIndex: 3 },
+      { sourceIndex: 3, targetIndex: 4 },
+    ],
+  },
+  {
+    key: "appointment-booked-onboarding",
+    name: "Appointment Booked → Onboarding Flow",
+    description: "When an appointment is booked, send confirmation, create a project task, and start the onboarding sequence.",
+    category: "Client Onboarding",
+    triggerType: CANVAS_TRIGGER_TYPES.APPOINTMENT_BOOKED,
+    nodes: [
+      { nodeType: "trigger", actionType: "trigger_event", label: "Appointment Booked", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
+      { nodeType: "action", actionType: "send_email", label: "Send Confirmation", config: "{\"template\":\"appointment_confirmation\"}", positionX: 350, positionY: 200, sortOrder: 1 },
+      { nodeType: "action", actionType: "send_sms", label: "SMS Reminder", config: "{\"template\":\"appointment_reminder_sms\"}", positionX: 600, positionY: 200, sortOrder: 2 },
+      { nodeType: "action", actionType: "create_task", label: "Create Onboarding Task", config: "{\"title\":\"Prepare for discovery call\",\"assignee\":\"auto\"}", positionX: 850, positionY: 200, sortOrder: 3 },
+      { nodeType: "action", actionType: "update_lead", label: "Move to Qualified", config: "{\"status\":\"qualified\"}", positionX: 1100, positionY: 200, sortOrder: 4 },
+    ],
+    edges: [
+      { sourceIndex: 0, targetIndex: 1 },
+      { sourceIndex: 1, targetIndex: 2 },
+      { sourceIndex: 2, targetIndex: 3 },
+      { sourceIndex: 3, targetIndex: 4 },
+    ],
+  },
+  {
+    key: "deal-won-billing-pipeline",
+    name: "Deal Won → Invoice & Project Setup",
+    description: "When a deal is marked as won, create an invoice, set up the project, send a welcome email, and notify the team.",
+    category: "Revenue",
+    triggerType: CANVAS_TRIGGER_TYPES.DEAL_WON,
+    nodes: [
+      { nodeType: "trigger", actionType: "trigger_event", label: "Deal Won", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
+      { nodeType: "action", actionType: "send_email", label: "Welcome Email", config: "{\"template\":\"deal_won_welcome\"}", positionX: 350, positionY: 150, sortOrder: 1 },
+      { nodeType: "action", actionType: "create_task", label: "Setup Project", config: "{\"title\":\"Client onboarding project\",\"steps\":[\"Kickoff call\",\"Data gathering\",\"System setup\",\"Go-live\"]}", positionX: 350, positionY: 350, sortOrder: 2 },
+      { nodeType: "action", actionType: "send_notification", label: "Notify Team: New Client!", config: "{\"title\":\"🎉 New client signed!\",\"priority\":\"high\"}", positionX: 600, positionY: 200, sortOrder: 3 },
+      { nodeType: "action", actionType: "log_to_crm", label: "Log Revenue", config: "{\"type\":\"revenue_event\"}", positionX: 850, positionY: 200, sortOrder: 4 },
+    ],
+    edges: [
+      { sourceIndex: 0, targetIndex: 1 },
+      { sourceIndex: 0, targetIndex: 2 },
+      { sourceIndex: 1, targetIndex: 3 },
+      { sourceIndex: 2, targetIndex: 3 },
+      { sourceIndex: 3, targetIndex: 4 },
+    ],
+  },
+  {
+    key: "ai-content-pipeline",
+    name: "AI Content Generation Pipeline",
+    description: "Scheduled content creation: AI generates blog posts, social content, and emails, then distributes them.",
+    category: "Marketing",
+    triggerType: CANVAS_TRIGGER_TYPES.SCHEDULED,
+    nodes: [
+      { nodeType: "trigger", actionType: "trigger_schedule", label: "Every Monday 9 AM", config: "{\"cron\":\"0 9 * * 1\"}", positionX: 100, positionY: 200, sortOrder: 0 },
+      { nodeType: "action", actionType: "ai_generate_content", label: "Generate Blog Post", config: "{\"type\":\"blog\",\"topic\":\"industry_trends\"}", positionX: 350, positionY: 200, sortOrder: 1 },
+      { nodeType: "action", actionType: "ai_generate_content", label: "Generate Social Posts", config: "{\"type\":\"social\",\"platforms\":[\"linkedin\",\"twitter\"]}", positionX: 600, positionY: 100, sortOrder: 2 },
+      { nodeType: "action", actionType: "ai_generate_content", label: "Generate Newsletter", config: "{\"type\":\"email\",\"template\":\"weekly_newsletter\"}", positionX: 600, positionY: 300, sortOrder: 3 },
+      { nodeType: "action", actionType: "send_notification", label: "Content Ready", config: "{\"title\":\"📝 Weekly content ready for review\"}", positionX: 850, positionY: 200, sortOrder: 4 },
+    ],
+    edges: [
+      { sourceIndex: 0, targetIndex: 1 },
+      { sourceIndex: 1, targetIndex: 2 },
+      { sourceIndex: 1, targetIndex: 3 },
+      { sourceIndex: 2, targetIndex: 4 },
+      { sourceIndex: 3, targetIndex: 4 },
+    ],
+  },
+  {
+    key: "reputation-review-engine",
+    name: "Service Complete → Review Request",
+    description: "After an appointment is completed, wait 24 hours then request a review. If positive sentiment detected, auto-share.",
+    category: "Reputation",
+    triggerType: CANVAS_TRIGGER_TYPES.APPOINTMENT_COMPLETED,
+    nodes: [
+      { nodeType: "trigger", actionType: "trigger_event", label: "Appointment Completed", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
+      { nodeType: "delay", actionType: "delay_wait", label: "Wait 24 Hours", config: "{\"hours\":24}", positionX: 350, positionY: 200, sortOrder: 1 },
+      { nodeType: "action", actionType: "send_email", label: "Request Review", config: "{\"template\":\"review_request\"}", positionX: 600, positionY: 200, sortOrder: 2 },
+      { nodeType: "action", actionType: "send_sms", label: "SMS Review Nudge", config: "{\"template\":\"review_sms_nudge\"}", positionX: 850, positionY: 200, sortOrder: 3 },
+    ],
+    edges: [
+      { sourceIndex: 0, targetIndex: 1 },
+      { sourceIndex: 1, targetIndex: 2 },
+      { sourceIndex: 2, targetIndex: 3 },
+    ],
+  },
+];
