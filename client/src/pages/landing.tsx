@@ -283,7 +283,7 @@ export default function LandingPage() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         @keyframes fadeUp { from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);} }
         @keyframes fadeIn { from{opacity:0;}to{opacity:1;} }
-        @keyframes voicePulse { 0%{box-shadow:0 0 0 0 rgba(99,102,241,.5);}70%{box-shadow:0 0 0 24px rgba(99,102,241,0);}100%{box-shadow:0 0 0 0 rgba(99,102,241,0);} }
+        @keyframes voicePulse { 0%{box-shadow:0 0 0 0 rgba(6,182,212,.5);}70%{box-shadow:0 0 0 24px rgba(6,182,212,0);}100%{box-shadow:0 0 0 0 rgba(6,182,212,0);} }
         @keyframes toastIn { from{transform:translateY(-12px);opacity:0;}to{transform:translateY(0);opacity:1;} }
         @keyframes float { 0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);} }
         @keyframes shimmer { 0%{background-position:-200% 0;}100%{background-position:200% 0;} }
@@ -297,11 +297,11 @@ export default function LandingPage() {
         .anim-up-d4 { animation: fadeUp .7s cubic-bezier(.22,1,.36,1) .48s both; }
         .anim-up-d5 { animation: fadeUp .7s cubic-bezier(.22,1,.36,1) .6s both; }
         .voice-pulse { animation: voicePulse 1.5s infinite; }
-        .gradient-text { background: linear-gradient(135deg, #818cf8, #c084fc, #818cf8); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: shimmer 3s linear infinite; }
+        .gradient-text { background: linear-gradient(135deg, #22d3ee, #38bdf8, #22d3ee); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: shimmer 3s linear infinite; }
         .glass-card { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); }
         .glass-card-light { background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.5); }
         .feature-card { transition: all .3s cubic-bezier(.22,1,.36,1); }
-        .feature-card:hover { transform: translateY(-4px); box-shadow: 0 20px 60px -12px rgba(99,102,241,0.15); }
+        .feature-card:hover { transform: translateY(-4px); box-shadow: 0 20px 60px -12px rgba(6,182,212,0.15); }
         .glow-orb { animation: glow 4s ease-in-out infinite; }
       `}</style>
 
@@ -309,7 +309,7 @@ export default function LandingPage() {
 
         {toast && (
           <div className="fixed top-20 right-6 z-[200] px-5 py-3.5 rounded-2xl flex items-center gap-3 text-sm font-medium bg-white/10 backdrop-blur-xl shadow-2xl border border-white/10" style={{ animation: "toastIn .3s ease" }}>
-            <span className="text-indigo-400">
+            <span className="text-cyan-400">
               {toast.icon === "check" && <Check className="w-4 h-4" />}
               {toast.icon === "mail" && <Mail className="w-4 h-4" />}
               {toast.icon === "calendar" && <Calendar className="w-4 h-4" />}
@@ -322,7 +322,7 @@ export default function LandingPage() {
         <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${scrolled ? "bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/5 shadow-lg shadow-black/20" : "bg-transparent"}`}>
           <div className="max-w-[1200px] mx-auto flex items-center justify-between px-6 h-16">
             <div className="cursor-pointer flex items-center gap-2.5" onClick={() => showView("landing")} data-testid="link-home">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
                 <Zap className="w-4.5 h-4.5 text-white" />
               </div>
               <span className="text-xl font-extrabold tracking-tight">Argi<span className="gradient-text">Flow</span></span>
@@ -341,7 +341,7 @@ export default function LandingPage() {
                 <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
                 Live Demo
               </button>
-              <button onClick={() => showView("getstarted")} data-testid="button-get-started" className="px-5 py-2 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 transition-all cursor-pointer shadow-lg shadow-indigo-500/25 hover:-translate-y-0.5">
+              <button onClick={() => showView("getstarted")} data-testid="button-get-started" className="px-5 py-2 rounded-lg text-[13px] font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all cursor-pointer shadow-lg shadow-cyan-500/25 hover:-translate-y-0.5">
                 Get Started
               </button>
               <button className="md:hidden p-2 text-white/60" onClick={() => setMobileMenu(!mobileMenu)}><Menu className="w-5 h-5" /></button>
@@ -359,50 +359,60 @@ export default function LandingPage() {
 
         {currentView === "landing" && (
           <div className="relative">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] rounded-full bg-gradient-to-b from-indigo-600/8 via-violet-600/5 to-transparent blur-3xl pointer-events-none" />
-            <div className="absolute top-20 right-0 w-[500px] h-[500px] rounded-full bg-violet-600/5 blur-3xl pointer-events-none glow-orb" />
-            <div className="absolute top-40 left-0 w-[400px] h-[400px] rounded-full bg-indigo-600/5 blur-3xl pointer-events-none glow-orb" style={{ animationDelay: "2s" }} />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] rounded-full bg-gradient-to-b from-cyan-600/8 via-blue-600/5 to-transparent blur-3xl pointer-events-none" />
+            <div className="absolute top-20 right-0 w-[500px] h-[500px] rounded-full bg-blue-600/5 blur-3xl pointer-events-none glow-orb" />
+            <div className="absolute top-40 left-0 w-[400px] h-[400px] rounded-full bg-cyan-600/5 blur-3xl pointer-events-none glow-orb" style={{ animationDelay: "2s" }} />
 
             <div className="relative pt-32 pb-24 px-6 max-w-[1200px] mx-auto">
               <div className="text-center max-w-[900px] mx-auto">
                 <div className="anim-up flex items-center justify-center gap-3 mb-8 flex-wrap">
-                  <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-indigo-300 uppercase tracking-widest px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+                  <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-cyan-300 uppercase tracking-widest px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20">
                     <Sparkles className="w-3.5 h-3.5" />
-                    AI-Powered Growth Engine
+                    All-In-One Revenue OS
                   </span>
                   <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-amber-300 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20">
                     <Shield className="w-3.5 h-3.5" />
-                    Replaces 7+ Tools
+                    Saves $2,297/mo vs. the Stack
                   </span>
                 </div>
 
                 <h1 className="anim-up-d1 text-[clamp(40px,6vw,72px)] font-extrabold leading-[1.05] tracking-tight mb-6">
-                  Your Entire Sales &<br/>
-                  Marketing Team —<br/>
-                  <span className="gradient-text">Powered by AI</span>
+                  Find Leads. Write Emails.<br/>
+                  Make Calls. Close Deals —<br/>
+                  <span className="gradient-text">While You Sleep.</span>
                 </h1>
 
                 <p className="anim-up-d2 text-lg md:text-xl text-white/40 font-normal leading-relaxed mb-4 max-w-[640px] mx-auto">
-                  Lead intelligence, email outreach, voice AI, CRM, marketing automation, and an autonomous business manager — all in one platform.
+                  ArgiFlow replaces Apollo, ZoomInfo, GoHighLevel, HubSpot, Calendly, and DocuSign. One AI-native platform runs your entire revenue operation — around the clock, without the headcount.
                 </p>
-                <p className="anim-up-d2 text-[15px] text-indigo-400 font-medium mb-10">
-                  One login. One price. <strong className="text-indigo-300">30 days free.</strong> No credit card required.
+                <p className="anim-up-d2 text-[15px] text-cyan-400 font-medium mb-10">
+                  One login. One price. <strong className="text-cyan-300">30 days free.</strong> No credit card required.
                 </p>
 
                 <div className="anim-up-d3 flex items-center justify-center gap-3 flex-wrap mb-12">
-                  <button onClick={() => showView("getstarted")} data-testid="button-start-trial" className="group px-8 py-4 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 shadow-xl shadow-indigo-500/25 hover:shadow-2xl hover:shadow-indigo-500/30 hover:-translate-y-1 transition-all cursor-pointer flex items-center gap-2">
+                  <button onClick={() => showView("getstarted")} data-testid="button-start-trial" className="group px-8 py-4 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-xl shadow-cyan-500/25 hover:shadow-2xl hover:shadow-cyan-500/30 hover:-translate-y-1 transition-all cursor-pointer flex items-center gap-2">
                     Start Free Trial
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
                   <button onClick={() => showView("demo")} data-testid="button-watch-demo" className="px-8 py-4 rounded-xl text-[15px] font-medium text-white/80 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer flex items-center gap-2">
-                    <Play className="w-4 h-4 text-indigo-400" />
+                    <Play className="w-4 h-4 text-cyan-400" />
                     Watch Live Demo
                   </button>
                 </div>
 
+                <div className="anim-up-d3 mb-8 flex items-center justify-center gap-3 flex-wrap text-[11px] text-white/20 font-medium">
+                  <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />Lead qualified</span>
+                  <span className="text-white/10">·</span>
+                  <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" style={{ animationDelay: "0.5s" }} />Email sent</span>
+                  <span className="text-white/10">·</span>
+                  <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" style={{ animationDelay: "1s" }} />Meeting booked</span>
+                  <span className="text-white/10">·</span>
+                  <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-pulse" style={{ animationDelay: "1.5s" }} />Deal closed</span>
+                </div>
+
                 <div className="anim-up-d4 flex items-center justify-center gap-5">
                   <div className="flex -space-x-2">
-                    {["bg-indigo-500", "bg-emerald-500", "bg-amber-500", "bg-rose-400", "bg-violet-500"].map((c, i) => (
+                    {["bg-cyan-500", "bg-emerald-500", "bg-amber-500", "bg-rose-400", "bg-violet-500"].map((c, i) => (
                       <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-[#0a0a0f] ${c}`}>
                         {["JM", "SK", "AT", "RC", "LP"][i]}
                       </div>
@@ -413,21 +423,35 @@ export default function LandingPage() {
                       {[1,2,3,4,5].map(i => <Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />)}
                     </div>
                     <span className="text-[13px] text-white/30">
-                      Trusted by <strong className="text-white/60">growing businesses</strong> worldwide
+                      Trusted by <strong className="text-white/60">500+ businesses</strong> cutting their SaaS stack
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden anim-up-d5" style={{ background: "rgba(255,255,255,0.05)" }}>
+              <div className="mt-12 mb-2 flex justify-center relative anim-up-d5">
+                <div className="relative inline-block">
+                  <img src={botHeroImg} alt="ArgiFlow AI" className="w-[180px] md:w-[240px] object-contain drop-shadow-2xl opacity-90" style={{ animation: "float 5s ease-in-out infinite" }} />
+                  <div className="absolute -top-2 -left-28 hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-[11px] font-medium whitespace-nowrap shadow-xl" style={{ animation: "slideInLeft 0.8s ease 0.6s both" }}>
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                    <span className="text-white/50">Lead scored: <span className="text-emerald-400 font-semibold">94/100</span></span>
+                  </div>
+                  <div className="absolute bottom-6 -right-32 hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-[11px] font-medium whitespace-nowrap shadow-xl" style={{ animation: "fadeIn 0.8s ease 1s both" }}>
+                    <Phone className="w-3 h-3 text-cyan-400" />
+                    <span className="text-white/50">Meeting booked: <span className="text-white font-semibold">Thu 2:00pm</span></span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden anim-up-d5" style={{ background: "rgba(255,255,255,0.05)" }}>
                 {[
-                  { num: "40+", label: "Tools Built In", icon: Layers },
-                  { num: "$0", label: "Extra Costs", icon: CreditCard },
-                  { num: "24/7", label: "AI Availability", icon: Bot },
-                  { num: "10x", label: "Pipeline Growth", icon: TrendingUp },
+                  { num: "7", label: "Tools Replaced", icon: Layers },
+                  { num: "$2,297", label: "Saved Per Month", icon: CreditCard },
+                  { num: "24/7", label: "AI Works For You", icon: Bot },
+                  { num: "30", label: "Days Free Trial", icon: TrendingUp },
                 ].map((s, i) => (
                   <div key={i} className="bg-[#0f0f17] py-8 px-6 text-center group hover:bg-[#141420] transition-colors">
-                    <s.icon className="w-5 h-5 text-indigo-500/50 mx-auto mb-3 group-hover:text-indigo-400 transition-colors" />
+                    <s.icon className="w-5 h-5 text-cyan-500/50 mx-auto mb-3 group-hover:text-cyan-400 transition-colors" />
                     <div className="text-3xl font-extrabold tracking-tight text-white mb-1">{s.num}</div>
                     <div className="text-[11px] text-white/30 uppercase tracking-wider font-medium">{s.label}</div>
                   </div>
@@ -448,13 +472,13 @@ export default function LandingPage() {
 
             <div id="platform-section" className="py-24 px-6 max-w-[1200px] mx-auto scroll-mt-20">
               <div className="text-center mb-16">
-                <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-indigo-300 uppercase tracking-widest px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-5">
+                <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-cyan-300 uppercase tracking-widest px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-5">
                   <CircuitBoard className="w-3.5 h-3.5" />
                   The Complete Platform
                 </span>
                 <h2 className="text-[clamp(28px,4vw,48px)] font-extrabold tracking-tight mb-4">
-                  Everything You Need to<br/>
-                  <span className="gradient-text">Acquire & Grow Clients</span>
+                  One Platform Does It All —<br/>
+                  <span className="gradient-text">No Duct Tape Required</span>
                 </h2>
                 <p className="text-base text-white/35 max-w-[560px] mx-auto leading-relaxed">
                   Six powerful modules working together — AI agents, sales intelligence, email infrastructure, CRM, marketing, and analytics.
@@ -469,7 +493,7 @@ export default function LandingPage() {
                     data-testid={`button-platform-tab-${i}`}
                     className={`flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-medium whitespace-nowrap cursor-pointer transition-all ${
                       activePlatformTab === i
-                        ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 shadow-lg shadow-indigo-500/10"
+                        ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-lg shadow-cyan-500/10"
                         : "text-white/40 hover:text-white/60 border border-transparent hover:border-white/10 hover:bg-white/5"
                     }`}
                   >
@@ -481,9 +505,9 @@ export default function LandingPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" style={{ animation: "fadeUp .5s ease both" }} key={activePlatformTab}>
                 {platformTabs[activePlatformTab].features.map((f, i) => (
-                  <div key={i} className="feature-card rounded-2xl p-6 glass-card hover:border-indigo-500/20 cursor-default" data-testid={`card-feature-${activePlatformTab}-${i}`}>
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/10 flex items-center justify-center mb-4">
-                      <f.icon className="w-5 h-5 text-indigo-400" />
+                  <div key={i} className="feature-card rounded-2xl p-6 glass-card hover:border-cyan-500/20 cursor-default" data-testid={`card-feature-${activePlatformTab}-${i}`}>
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500/20 to-violet-500/20 border border-cyan-500/10 flex items-center justify-center mb-4">
+                      <f.icon className="w-5 h-5 text-cyan-400" />
                     </div>
                     <div className="text-[15px] font-semibold text-white mb-2">{f.title}</div>
                     <div className="text-[13px] text-white/35 leading-relaxed">{f.desc}</div>
@@ -494,20 +518,20 @@ export default function LandingPage() {
 
             <div className="py-24 px-6 max-w-[1100px] mx-auto" data-testid="section-ai-agents">
               <div className="text-center mb-14">
-                <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-indigo-300 uppercase tracking-widest px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-5">
+                <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-cyan-300 uppercase tracking-widest px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-5">
                   <Bot className="w-3.5 h-3.5" />
                   AI-Powered Workforce
                 </span>
                 <h2 className="text-[clamp(28px,4vw,48px)] font-extrabold tracking-tight mb-4">
-                  Meet Your <span className="gradient-text">AI Agents</span>
+                  Your <span className="gradient-text">AI Revenue Team</span>
                 </h2>
                 <p className="text-base text-white/35 max-w-[540px] mx-auto leading-relaxed">
-                  Purpose-built autonomous agents that handle every part of your sales pipeline — working around the clock.
+                  Four autonomous agents, one mission: fill your pipeline while you focus on closing.
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 {[
-                  { img: botLeadScoutImg, name: "Lead Scout", desc: "Discovers and qualifies high-value prospects from 10+ data sources", icon: Search, gradient: "from-indigo-500/20 to-blue-500/20", border: "border-indigo-500/15" },
+                  { img: botLeadScoutImg, name: "Lead Scout", desc: "Discovers and qualifies high-value prospects from 10+ data sources", icon: Search, gradient: "from-cyan-500/20 to-blue-500/20", border: "border-cyan-500/15" },
                   { img: botEmailWriterImg, name: "Email Writer", desc: "Crafts personalized sequences that convert — writes, sends, follows up", icon: Mail, gradient: "from-violet-500/20 to-purple-500/20", border: "border-violet-500/15" },
                   { img: botVoiceCallerImg, name: "Voice Caller", desc: "Natural AI phone calls — qualifies leads, handles objections, books meetings", icon: PhoneCall, gradient: "from-emerald-500/20 to-teal-500/20", border: "border-emerald-500/15" },
                   { img: botAnalyticsImg, name: "Analytics Brain", desc: "Monitors intent signals, tracks engagement, optimizes your campaigns", icon: BarChart3, gradient: "from-amber-500/20 to-orange-500/20", border: "border-amber-500/15" },
@@ -518,13 +542,45 @@ export default function LandingPage() {
                     </div>
                     <div className="p-5">
                       <div className="flex items-center gap-2.5 mb-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/10 flex items-center justify-center">
-                          <agent.icon className="w-4 h-4 text-indigo-400" />
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/20 border border-cyan-500/10 flex items-center justify-center">
+                          <agent.icon className="w-4 h-4 text-cyan-400" />
                         </div>
                         <span className="text-[15px] font-semibold text-white">{agent.name}</span>
                       </div>
                       <p className="text-[13px] text-white/35 leading-relaxed">{agent.desc}</p>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="py-24 px-6 max-w-[1100px] mx-auto" data-testid="section-how-it-works">
+              <div className="text-center mb-14">
+                <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-cyan-300 uppercase tracking-widest px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-5">
+                  <RotateCw className="w-3.5 h-3.5" />
+                  Up &amp; Running in 5 Minutes
+                </span>
+                <h2 className="text-[clamp(28px,4vw,48px)] font-extrabold tracking-tight mb-4">
+                  How <span className="gradient-text">ArgiFlow Works</span>
+                </h2>
+                <p className="text-base text-white/35 max-w-[520px] mx-auto leading-relaxed">
+                  No complex setup. No consultants. Three steps and your AI revenue team is running.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+                <div className="hidden md:block absolute top-[52px] left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-px bg-gradient-to-r from-cyan-500/20 via-cyan-500/40 to-cyan-500/20 pointer-events-none" />
+                {[
+                  { step: "01", icon: Settings, title: "Connect Your Business", desc: "Add your company info, target customers, and connect your email or phone in under 5 minutes. No IT team needed.", accent: "text-cyan-400", border: "border-cyan-500/15", grad: "from-cyan-500/20 to-sky-500/20" },
+                  { step: "02", icon: Brain, title: "Train Your AI Team", desc: "Tell ArgiFlow who your ideal clients are, what problems you solve, and your preferred tone. The AI internalises it all.", accent: "text-sky-400", border: "border-sky-500/15", grad: "from-sky-500/20 to-blue-500/20" },
+                  { step: "03", icon: Rocket, title: "Watch the Pipeline Fill", desc: "Your agents find prospects, send personalised emails, make qualifying calls, and book meetings — automatically, around the clock.", accent: "text-blue-400", border: "border-blue-500/15", grad: "from-blue-500/20 to-cyan-500/20" },
+                ].map((item, i) => (
+                  <div key={i} className={`relative rounded-2xl p-8 glass-card hover:${item.border} transition-all feature-card`}>
+                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${item.grad} border ${item.border} flex items-center justify-center mb-6`}>
+                      <item.icon className={`w-6 h-6 ${item.accent}`} />
+                    </div>
+                    <div className="absolute top-6 right-6 text-[52px] font-black text-white/[0.03] leading-none select-none">{item.step}</div>
+                    <h3 className="text-[17px] font-bold text-white mb-3">{item.title}</h3>
+                    <p className="text-[13px] text-white/35 leading-relaxed">{item.desc}</p>
                   </div>
                 ))}
               </div>
@@ -540,7 +596,7 @@ export default function LandingPage() {
               <div className="rounded-2xl overflow-hidden overflow-x-auto glass-card">
                 <div className="grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center min-w-[560px] bg-white/5 border-b border-white/5">
                   <div className="p-4 text-left text-[12px] font-semibold text-white/30 uppercase tracking-wide">{t("landing.comparison.capability")}</div>
-                  <div className="p-4 text-[13px] font-bold text-indigo-400">ArgiFlow</div>
+                  <div className="p-4 text-[13px] font-bold text-cyan-400">ArgiFlow</div>
                   <div className="p-4 text-[13px] font-medium text-white/25">Apollo</div>
                   <div className="p-4 text-[13px] font-medium text-white/25">ZoomInfo</div>
                   <div className="p-4 text-[13px] font-medium text-white/25">GHL</div>
@@ -559,9 +615,9 @@ export default function LandingPage() {
                   { feat: t("landing.comparison.feat10"), a: true, b: false, c: false, d: true },
                   { feat: t("landing.comparison.feat11"), a: true, b: false, c: false, d: "add-on" },
                 ].map((row, i) => (
-                  <div key={i} className={`grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center items-center min-w-[560px] hover:bg-indigo-500/5 transition-colors ${i % 2 === 0 ? "bg-transparent" : "bg-white/[0.02]"}`} style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                  <div key={i} className={`grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center items-center min-w-[560px] hover:bg-cyan-500/5 transition-colors ${i % 2 === 0 ? "bg-transparent" : "bg-white/[0.02]"}`} style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
                     <div className="p-3 md:p-4 text-left text-[12px] md:text-[13px] text-white/50">{row.feat}</div>
-                    <div className="p-3 md:p-4">{row.a === true ? <Check className="w-4 h-4 text-indigo-400 mx-auto" /> : <span className="text-[11px] text-white/25">{String(row.a)}</span>}</div>
+                    <div className="p-3 md:p-4">{row.a === true ? <Check className="w-4 h-4 text-cyan-400 mx-auto" /> : <span className="text-[11px] text-white/25">{String(row.a)}</span>}</div>
                     <div className="p-3 md:p-4">{row.b === true ? <Check className="w-4 h-4 text-blue-400/50 mx-auto" /> : row.b === false ? <X className="w-4 h-4 text-white/10 mx-auto" /> : <span className="text-[11px] text-white/25">{String(row.b)}</span>}</div>
                     <div className="p-3 md:p-4">{row.c === true ? <Check className="w-4 h-4 text-blue-400/50 mx-auto" /> : row.c === false ? <X className="w-4 h-4 text-white/10 mx-auto" /> : <span className="text-[11px] text-white/25">{String(row.c)}</span>}</div>
                     <div className="p-3 md:p-4">{row.d === true ? <Check className="w-4 h-4 text-blue-400/50 mx-auto" /> : row.d === false ? <X className="w-4 h-4 text-white/10 mx-auto" /> : <span className="text-[11px] text-amber-400/60">{String(row.d)}</span>}</div>
@@ -569,7 +625,7 @@ export default function LandingPage() {
                 ))}
                 <div className="grid grid-cols-[1fr_90px_90px_90px_90px] md:grid-cols-[1fr_110px_110px_110px_110px] text-center items-center min-w-[560px] bg-white/5 border-t border-white/10">
                   <div className="p-4 text-left text-[13px] font-bold text-white">{t("landing.comparison.startingPrice")}</div>
-                  <div className="p-4 text-[13px] font-bold text-indigo-400">$49/mo</div>
+                  <div className="p-4 text-[13px] font-bold text-cyan-400">$49/mo</div>
                   <div className="p-4 text-[11px] text-white/25">$49-149/mo</div>
                   <div className="p-4 text-[11px] text-white/25">$14,995/yr</div>
                   <div className="p-4 text-[11px] text-white/25">$297-497</div>
@@ -577,10 +633,10 @@ export default function LandingPage() {
               </div>
 
               <div className="mt-6 p-5 rounded-xl glass-card flex items-start gap-3">
-                <Zap className="w-5 h-5 text-indigo-400 mt-0.5 shrink-0" />
+                <Zap className="w-5 h-5 text-cyan-400 mt-0.5 shrink-0" />
                 <div>
                   <div className="text-sm font-semibold text-white mb-1">{t("landing.comparison.bottomLine")}</div>
-                  <div className="text-[13px] text-white/35 leading-relaxed">{t("landing.comparison.bottomLineText1")} <strong className="text-white/60">{t("landing.comparison.bottomLineNone")}</strong> {t("landing.comparison.bottomLineText2")} <strong className="text-indigo-400">$49/mo</strong>{t("landing.comparison.bottomLineText3")}</div>
+                  <div className="text-[13px] text-white/35 leading-relaxed">{t("landing.comparison.bottomLineText1")} <strong className="text-white/60">{t("landing.comparison.bottomLineNone")}</strong> {t("landing.comparison.bottomLineText2")} <strong className="text-cyan-400">$49/mo</strong>{t("landing.comparison.bottomLineText3")}</div>
                 </div>
               </div>
             </div>
@@ -623,26 +679,26 @@ export default function LandingPage() {
               <div className="text-center mb-12">
                 <span className="inline-flex items-center text-[11px] font-semibold text-white/40 uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-5">{t("landing.pricing2.badge")}</span>
                 <h2 className="text-[clamp(28px,4vw,48px)] font-extrabold tracking-tight mb-4">{t("landing.pricing2.title")}</h2>
-                <p className="text-base text-white/30 max-w-[480px] mx-auto leading-relaxed">{t("landing.pricing2.descPre")} <strong className="text-indigo-400">{t("landing.pricing2.daysFree")}</strong> {t("landing.pricing2.descPost")}</p>
+                <p className="text-base text-white/30 max-w-[480px] mx-auto leading-relaxed">{t("landing.pricing2.descPre")} <strong className="text-cyan-400">{t("landing.pricing2.daysFree")}</strong> {t("landing.pricing2.descPost")}</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {plans.map((p, i) => (
-                  <div key={i} className={`rounded-2xl p-8 relative transition-all hover:-translate-y-1 ${p.popular ? "bg-gradient-to-b from-indigo-600 to-violet-700 text-white shadow-2xl shadow-indigo-500/20 scale-[1.02] border border-indigo-400/20" : "glass-card hover:border-indigo-500/20"}`} data-testid={`card-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`}>
+                  <div key={i} className={`rounded-2xl p-8 relative transition-all hover:-translate-y-1 ${p.popular ? "bg-gradient-to-b from-cyan-600 to-blue-700 text-white shadow-2xl shadow-cyan-500/20 scale-[1.02] border border-cyan-400/20" : "glass-card hover:border-cyan-500/20"}`} data-testid={`card-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`}>
                     {p.popular && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-900 text-[10px] font-bold uppercase tracking-wider px-4 py-1 rounded-full shadow-lg">{t("landing.pricing2.mostPopular")}</div>
                     )}
-                    <div className={`text-[15px] font-semibold mb-1 ${p.popular ? "text-indigo-100" : "text-white/40"}`}>{p.name}</div>
-                    <div className="text-4xl font-extrabold tracking-tight leading-none mb-1">{p.price}<sub className={`text-[14px] font-normal ml-0.5 ${p.popular ? "text-indigo-200" : "text-white/25"}`}>{t("landing.pricing2.perMonth")}</sub></div>
-                    <div className={`text-[13px] mb-6 ${p.popular ? "text-indigo-200" : "text-white/25"}`}>{p.tagline}</div>
+                    <div className={`text-[15px] font-semibold mb-1 ${p.popular ? "text-cyan-100" : "text-white/40"}`}>{p.name}</div>
+                    <div className="text-4xl font-extrabold tracking-tight leading-none mb-1">{p.price}<sub className={`text-[14px] font-normal ml-0.5 ${p.popular ? "text-cyan-200" : "text-white/25"}`}>{t("landing.pricing2.perMonth")}</sub></div>
+                    <div className={`text-[13px] mb-6 ${p.popular ? "text-cyan-200" : "text-white/25"}`}>{p.tagline}</div>
                     <ul className="flex flex-col gap-2.5 mb-8">
                       {p.features.map((f, j) => (
-                        <li key={j} className={`text-[13px] flex gap-2 items-start ${p.popular ? "text-indigo-100" : "text-white/40"}`}>
-                          <Check className={`w-4 h-4 mt-0.5 shrink-0 ${p.popular ? "text-emerald-300" : "text-indigo-400"}`} />
+                        <li key={j} className={`text-[13px] flex gap-2 items-start ${p.popular ? "text-cyan-100" : "text-white/40"}`}>
+                          <Check className={`w-4 h-4 mt-0.5 shrink-0 ${p.popular ? "text-emerald-300" : "text-cyan-400"}`} />
                           {f}
                         </li>
                       ))}
                     </ul>
-                    <button onClick={() => startPlan(p.name, p.price)} data-testid={`button-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`} className={`w-full py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all ${p.popular ? "bg-white text-indigo-700 hover:bg-indigo-50 shadow-lg" : "bg-white/10 text-white hover:bg-white/15 border border-white/10"}`}>
+                    <button onClick={() => startPlan(p.name, p.price)} data-testid={`button-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`} className={`w-full py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all ${p.popular ? "bg-white text-cyan-700 hover:bg-cyan-50 shadow-lg" : "bg-white/10 text-white hover:bg-white/15 border border-white/10"}`}>
                       {t("landing.pricing2.getStarted")}
                     </button>
                   </div>
@@ -653,18 +709,18 @@ export default function LandingPage() {
             <div className="py-24 px-6 max-w-[1100px] mx-auto">
               <div className="text-center mb-12">
                 <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-white/40 uppercase tracking-widest px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-5">
-                  <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+                  <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
                   {t("landing.testimonials.badge")}
                 </span>
                 <h2 className="text-[clamp(28px,4vw,48px)] font-extrabold tracking-tight">{t("landing.testimonials.title")}</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {[
-                  { nameKey: "landing.testimonials.t0Name", roleKey: "landing.testimonials.t0Role", quoteKey: "landing.testimonials.t0Quote", color: "bg-indigo-500" },
+                  { nameKey: "landing.testimonials.t0Name", roleKey: "landing.testimonials.t0Role", quoteKey: "landing.testimonials.t0Quote", color: "bg-cyan-500" },
                   { nameKey: "landing.testimonials.t1Name", roleKey: "landing.testimonials.t1Role", quoteKey: "landing.testimonials.t1Quote", color: "bg-violet-500" },
                   { nameKey: "landing.testimonials.t2Name", roleKey: "landing.testimonials.t2Role", quoteKey: "landing.testimonials.t2Quote", color: "bg-emerald-500" },
                 ].map((testimonial, i) => (
-                  <div key={i} className="rounded-2xl p-7 glass-card hover:border-indigo-500/15 transition-all flex flex-col feature-card" data-testid={`card-testimonial-${i}`}>
+                  <div key={i} className="rounded-2xl p-7 glass-card hover:border-cyan-500/15 transition-all flex flex-col feature-card" data-testid={`card-testimonial-${i}`}>
                     <div className="flex items-center gap-0.5 mb-4">
                       {[1,2,3,4,5].map(s => <Star key={s} className="w-4 h-4 text-amber-400 fill-amber-400" />)}
                     </div>
@@ -684,22 +740,22 @@ export default function LandingPage() {
             </div>
 
             <div className="py-20 px-6 max-w-[1100px] mx-auto">
-              <div className="rounded-3xl p-12 md:p-16 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.15) 50%, rgba(99,102,241,0.1) 100%)" }}>
-                <div className="absolute inset-0 border border-indigo-500/20 rounded-3xl pointer-events-none" />
-                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="rounded-3xl p-12 md:p-16 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(6,182,212,0.12) 0%, rgba(14,165,233,0.12) 50%, rgba(6,182,212,0.08) 100%)" }}>
+                <div className="absolute inset-0 border border-cyan-500/20 rounded-3xl pointer-events-none" />
+                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
                 <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
                   <div className="hidden md:block flex-shrink-0" data-testid="img-cta-bots">
                     <img src={botTeamImg} alt="AI Agent Team" className="w-[260px] object-contain drop-shadow-2xl opacity-80" style={{ animation: "float 5s ease-in-out infinite" }} />
                   </div>
                   <div className="text-center md:text-left flex-1">
                     <h2 className="text-[clamp(28px,4vw,44px)] font-extrabold tracking-tight text-white mb-4">
-                      Ready to Automate<br/>Your Growth?
+                      Stop Paying for<br/>7 Tools. Start Closing.
                     </h2>
                     <p className="text-base text-white/40 leading-relaxed mb-8 max-w-[480px]">
-                      Join businesses using ArgiFlow to find leads, close deals, and scale — all on autopilot.
+                      Replace your entire sales stack with one AI-native platform. ArgiFlow starts at $49/mo and works every hour you don't.
                     </p>
                     <div className="flex items-center gap-3 flex-wrap justify-center md:justify-start">
-                      <button onClick={() => showView("getstarted")} data-testid="button-bottom-cta" className="px-8 py-3.5 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 shadow-xl shadow-indigo-500/25 transition-all cursor-pointer">
+                      <button onClick={() => showView("getstarted")} data-testid="button-bottom-cta" className="px-8 py-3.5 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-xl shadow-cyan-500/25 transition-all cursor-pointer">
                         Start Free Trial
                       </button>
                       <button onClick={() => showView("demo")} data-testid="button-bottom-demo" className="px-8 py-3.5 rounded-xl text-[15px] font-medium text-white/70 border border-white/15 hover:bg-white/5 transition-all cursor-pointer flex items-center gap-2">
@@ -716,7 +772,7 @@ export default function LandingPage() {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
                 <div className="col-span-2 md:col-span-1">
                   <div className="flex items-center gap-2 mb-3 cursor-pointer" onClick={() => showView("landing")}>
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                       <Zap className="w-3.5 h-3.5 text-white" />
                     </div>
                     <span className="text-[16px] font-extrabold">Argi<span className="gradient-text">Flow</span></span>
@@ -743,7 +799,7 @@ export default function LandingPage() {
               </div>
               <div className="flex items-center justify-between pt-5 text-[12px] text-white/15 border-t border-white/5">
                 <span>{t("landing.footer.copyright")}</span>
-                <span className="text-indigo-400/60">info@argilette.com</span>
+                <span className="text-cyan-400/60">info@argilette.com</span>
               </div>
             </footer>
           </div>
@@ -752,7 +808,7 @@ export default function LandingPage() {
         {currentView === "demo" && (
           <div className="relative min-h-screen pt-24 pb-16 px-6 max-w-[1100px] mx-auto" style={{ animation: "fadeUp .5s ease both" }}>
             <div className="mb-6">
-              <span className="inline-flex items-center text-[11px] font-semibold text-indigo-300 uppercase tracking-widest px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-3">{t("landing.demo.badge")}</span>
+              <span className="inline-flex items-center text-[11px] font-semibold text-cyan-300 uppercase tracking-widest px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-3">{t("landing.demo.badge")}</span>
               <h2 className="text-[clamp(24px,3.5vw,40px)] font-extrabold tracking-tight mb-2">{t("landing.demo.title")}</h2>
               <p className="text-sm text-white/35">{t("landing.demo.desc")}</p>
             </div>
@@ -768,17 +824,17 @@ export default function LandingPage() {
               <div style={{ animation: "fadeUp .4s ease both" }}>
                 <div className="rounded-2xl p-7 glass-card mb-5">
                   <div className="flex gap-3 mb-5 flex-wrap">
-                    <input value={demoIndustry} onChange={e => setDemoIndustry(e.target.value)} placeholder={t("landing.demo.industryPlaceholder")} data-testid="input-demo-industry" className="flex-1 min-w-[160px] rounded-xl px-4 py-3 text-sm text-white outline-none border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all bg-white/5 placeholder:text-white/25" />
-                    <input value={demoLocation} onChange={e => setDemoLocation(e.target.value)} placeholder={t("landing.demo.locationPlaceholder")} data-testid="input-demo-location" className="flex-1 min-w-[160px] rounded-xl px-4 py-3 text-sm text-white outline-none border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all bg-white/5 placeholder:text-white/25" />
-                    <input value={demoTitle} onChange={e => setDemoTitle(e.target.value)} placeholder={t("landing.demo.titlePlaceholder")} data-testid="input-demo-title" className="flex-1 min-w-[160px] rounded-xl px-4 py-3 text-sm text-white outline-none border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all bg-white/5 placeholder:text-white/25" />
-                    <button onClick={runLeadGen} disabled={leadRunning} data-testid="button-run-lead-gen" className="px-6 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-600 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-indigo-500/20 transition-all">
+                    <input value={demoIndustry} onChange={e => setDemoIndustry(e.target.value)} placeholder={t("landing.demo.industryPlaceholder")} data-testid="input-demo-industry" className="flex-1 min-w-[160px] rounded-xl px-4 py-3 text-sm text-white outline-none border border-white/10 focus:border-cyan-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all bg-white/5 placeholder:text-white/25" />
+                    <input value={demoLocation} onChange={e => setDemoLocation(e.target.value)} placeholder={t("landing.demo.locationPlaceholder")} data-testid="input-demo-location" className="flex-1 min-w-[160px] rounded-xl px-4 py-3 text-sm text-white outline-none border border-white/10 focus:border-cyan-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all bg-white/5 placeholder:text-white/25" />
+                    <input value={demoTitle} onChange={e => setDemoTitle(e.target.value)} placeholder={t("landing.demo.titlePlaceholder")} data-testid="input-demo-title" className="flex-1 min-w-[160px] rounded-xl px-4 py-3 text-sm text-white outline-none border border-white/10 focus:border-cyan-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all bg-white/5 placeholder:text-white/25" />
+                    <button onClick={runLeadGen} disabled={leadRunning} data-testid="button-run-lead-gen" className="px-6 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-cyan-500/20 transition-all">
                       {t("landing.demo.generateLeads")}
                     </button>
                   </div>
-                  {leadStatus && <div className="text-sm text-white/50 py-3 flex items-center gap-2"><div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />{leadStatus}</div>}
+                  {leadStatus && <div className="text-sm text-white/50 py-3 flex items-center gap-2"><div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />{leadStatus}</div>}
                   {leadResults.length > 0 && (
                     <div style={{ animation: "fadeUp .4s ease both" }}>
-                      <div className="text-[13px] text-white/40 mb-3"><strong className="text-indigo-400">{leadResults.length}</strong> {t("landing.demo.leadsFound")}</div>
+                      <div className="text-[13px] text-white/40 mb-3"><strong className="text-cyan-400">{leadResults.length}</strong> {t("landing.demo.leadsFound")}</div>
                       <div className="overflow-x-auto rounded-xl border border-white/10">
                         <table className="w-full border-collapse">
                           <thead>
@@ -790,11 +846,11 @@ export default function LandingPage() {
                           </thead>
                           <tbody>
                             {leadResults.map((l, i) => (
-                              <tr key={i} className="hover:bg-indigo-500/5 transition-colors">
+                              <tr key={i} className="hover:bg-cyan-500/5 transition-colors">
                                 <td className="px-3 py-3 text-[13px] font-medium text-white/70 border-b border-white/5">{l.name}</td>
                                 <td className="px-3 py-3 text-[13px] text-white/35 border-b border-white/5">{l.title}</td>
                                 <td className="px-3 py-3 text-[13px] text-white/50 border-b border-white/5">{l.company}</td>
-                                <td className="px-3 py-3 text-[13px] text-indigo-400 border-b border-white/5">{l.email}</td>
+                                <td className="px-3 py-3 text-[13px] text-cyan-400 border-b border-white/5">{l.email}</td>
                                 <td className="px-3 py-3 text-[13px] text-white/35 border-b border-white/5">{l.phone}</td>
                                 <td className="px-3 py-3 text-[13px] border-b border-white/5">
                                   <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${l.stype === "high" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>{l.score}</span>
@@ -821,7 +877,7 @@ export default function LandingPage() {
                       { label: t("landing.demo.replied"), count: 23, sub: t("landing.demo.rate17") },
                       { label: t("landing.demo.meetingLabel"), count: 11, sub: t("landing.demo.booked") },
                     ].map((s, i, arr) => (
-                      <div key={i} className={`flex-1 min-w-[90px] px-3 py-3.5 text-center relative rounded-lg mx-0.5 ${s.done ? "bg-emerald-500/10 border border-emerald-500/20" : s.active ? "bg-indigo-500/10 border border-indigo-500/20" : "bg-white/5 border border-white/10"}`}>
+                      <div key={i} className={`flex-1 min-w-[90px] px-3 py-3.5 text-center relative rounded-lg mx-0.5 ${s.done ? "bg-emerald-500/10 border border-emerald-500/20" : s.active ? "bg-cyan-500/10 border border-cyan-500/20" : "bg-white/5 border border-white/10"}`}>
                         <div className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">{s.label}</div>
                         <div className="text-xl font-extrabold tracking-tight my-0.5 text-white">{s.count}</div>
                         <div className="text-[10px] text-white/25">{s.sub}</div>
@@ -831,18 +887,18 @@ export default function LandingPage() {
                   </div>
                   <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
                     <span className="text-sm font-semibold text-white/70">{t("landing.demo.liveActivity")}</span>
-                    <button onClick={simulateOutreach} data-testid="button-run-outreach" className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-600 cursor-pointer hover:shadow-lg hover:shadow-indigo-500/20 transition-all">
+                    <button onClick={simulateOutreach} data-testid="button-run-outreach" className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 cursor-pointer hover:shadow-lg hover:shadow-cyan-500/20 transition-all">
                       {t("landing.demo.runNextCycle")}
                     </button>
                   </div>
                   <div className="flex flex-col">
                     {activityItems.map((item, i) => (
                       <div key={i} className="flex items-start gap-3 py-3" style={{ borderBottom: i < activityItems.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${item.icon === "cal" ? "bg-blue-500/10" : "bg-indigo-500/10"}`}>
-                          {item.icon === "mail" && <Mail className="w-4 h-4 text-indigo-400" />}
-                          {item.icon === "reply" && <MessageSquare className="w-4 h-4 text-indigo-400" />}
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${item.icon === "cal" ? "bg-blue-500/10" : "bg-cyan-500/10"}`}>
+                          {item.icon === "mail" && <Mail className="w-4 h-4 text-cyan-400" />}
+                          {item.icon === "reply" && <MessageSquare className="w-4 h-4 text-cyan-400" />}
                           {item.icon === "cal" && <Calendar className="w-4 h-4 text-blue-400" />}
-                          {item.icon === "send" && <Send className="w-4 h-4 text-indigo-400" />}
+                          {item.icon === "send" && <Send className="w-4 h-4 text-cyan-400" />}
                         </div>
                         <div>
                           <div className="text-[13px] font-medium text-white/70">{t(item.titleKey)}</div>
@@ -859,14 +915,14 @@ export default function LandingPage() {
               <div style={{ animation: "fadeUp .4s ease both" }}>
                 <div className="rounded-2xl p-7 glass-card">
                   <div className="flex flex-col items-center py-10 gap-5">
-                    <button onClick={simulateCall} data-testid="button-simulate-call" className={`w-24 h-24 rounded-full border-none cursor-pointer flex items-center justify-center transition-all hover:scale-105 bg-gradient-to-br from-indigo-500 to-violet-600 shadow-xl shadow-indigo-500/30 ${callState === "calling" ? "voice-pulse" : ""}`}>
+                    <button onClick={simulateCall} data-testid="button-simulate-call" className={`w-24 h-24 rounded-full border-none cursor-pointer flex items-center justify-center transition-all hover:scale-105 bg-gradient-to-br from-cyan-500 to-blue-600 shadow-xl shadow-cyan-500/30 ${callState === "calling" ? "voice-pulse" : ""}`}>
                       {callState === "calling" ? <PhoneCall className="w-8 h-8 text-white" /> : <Phone className="w-8 h-8 text-white" />}
                     </button>
                     <div className="text-[15px] font-semibold text-white/70">{callStatus || t("landing.demo.clickToSimulate")}</div>
                     {showTranscript && (
                       <div ref={transcriptRef} className="bg-white/5 rounded-xl p-5 w-full max-w-[500px] max-h-[220px] overflow-y-auto text-[13px] leading-relaxed border border-white/10">
                         {callTranscript.map((line, i) => (
-                          <div key={i} className={`mb-2 ${line.role === "ai" ? "text-indigo-400" : "text-white/50"}`}>
+                          <div key={i} className={`mb-2 ${line.role === "ai" ? "text-cyan-400" : "text-white/50"}`}>
                             <strong>{line.role === "ai" ? "AI:" : "Dr. Torres:"}</strong> {line.text}
                           </div>
                         ))}
@@ -904,7 +960,7 @@ export default function LandingPage() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
-                      { label: t("landing.demo.activeDomains"), val: "4", color: "text-indigo-400" },
+                      { label: t("landing.demo.activeDomains"), val: "4", color: "text-cyan-400" },
                       { label: t("landing.demo.avgReputation"), val: "92%", color: "text-emerald-400" },
                       { label: t("landing.demo.bounceRate"), val: "0.1%", color: "text-white" },
                       { label: t("landing.demo.openRate"), val: "47%", color: "text-amber-400" },
@@ -926,8 +982,8 @@ export default function LandingPage() {
             <div className="flex items-center justify-center gap-0 mb-12">
               {[1, 2, 3].map((n) => (
                 <div key={n} className="flex items-center gap-0">
-                  <div className={`flex items-center gap-2 text-[13px] font-medium ${n < gsStep ? "text-indigo-400" : n === gsStep ? "text-white" : "text-white/25"}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold ${n === gsStep ? "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/30" : n < gsStep ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "bg-white/5 text-white/25 border border-white/10"}`}>
+                  <div className={`flex items-center gap-2 text-[13px] font-medium ${n < gsStep ? "text-cyan-400" : n === gsStep ? "text-white" : "text-white/25"}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold ${n === gsStep ? "bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30" : n < gsStep ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" : "bg-white/5 text-white/25 border border-white/10"}`}>
                       {n < gsStep ? <Check className="w-3 h-3" /> : n}
                     </div>
                     <span className="hidden sm:inline">{[t("landing.getstarted.step1"), t("landing.getstarted.step2"), t("landing.getstarted.step3")][n - 1]}</span>
@@ -941,28 +997,28 @@ export default function LandingPage() {
               <div style={{ animation: "fadeUp .4s ease both" }}>
                 <div className="text-center mb-8">
                   <h2 className="text-2xl font-extrabold tracking-tight mb-2">{t("landing.getstarted.chooseTitle")}</h2>
-                  <p className="text-sm text-white/35">{t("landing.getstarted.choosePre")} <strong className="text-indigo-400">{t("landing.getstarted.freeTrial")}</strong> {t("landing.getstarted.choosePost")}</p>
+                  <p className="text-sm text-white/35">{t("landing.getstarted.choosePre")} <strong className="text-cyan-400">{t("landing.getstarted.freeTrial")}</strong> {t("landing.getstarted.choosePost")}</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                   {plans.map((p) => (
-                    <div key={p.name} onClick={() => setSelectedPlan({ name: p.name, price: p.price })} data-testid={`button-select-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`} className={`rounded-2xl p-6 cursor-pointer relative transition-all hover:-translate-y-0.5 glass-card ${selectedPlan.name === p.name ? "border-indigo-500/50 shadow-lg shadow-indigo-500/10" : "hover:border-white/15"}`}>
-                      <div className={`absolute top-4 right-4 w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center transition-opacity ${selectedPlan.name === p.name ? "opacity-100" : "opacity-0"}`}>
+                    <div key={p.name} onClick={() => setSelectedPlan({ name: p.name, price: p.price })} data-testid={`button-select-plan-${p.name.toLowerCase().replace(/\s/g, "-")}`} className={`rounded-2xl p-6 cursor-pointer relative transition-all hover:-translate-y-0.5 glass-card ${selectedPlan.name === p.name ? "border-cyan-500/50 shadow-lg shadow-cyan-500/10" : "hover:border-white/15"}`}>
+                      <div className={`absolute top-4 right-4 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center transition-opacity ${selectedPlan.name === p.name ? "opacity-100" : "opacity-0"}`}>
                         <Check className="w-3 h-3 text-white" />
                       </div>
-                      {p.popular && <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-indigo-300 px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 mb-3">{t("landing.pricing2.mostPopular")}</span>}
+                      {p.popular && <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-cyan-300 px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/25 mb-3">{t("landing.pricing2.mostPopular")}</span>}
                       <div className="text-[15px] font-semibold text-white/70 mb-1">{p.name}</div>
                       <div className="text-3xl font-extrabold tracking-tight mb-0.5">{p.price}<sub className="text-sm font-normal text-white/25">{t("landing.pricing2.perMonth")}</sub></div>
                       <div className="text-[12px] text-white/25 mb-4">{p.tagline}</div>
                       <ul className="flex flex-col gap-1.5">
                         {p.features.map((f, j) => (
-                          <li key={j} className="text-[12px] flex gap-1.5 text-white/40"><Check className="w-3 h-3 text-indigo-400 mt-0.5 shrink-0" />{f}</li>
+                          <li key={j} className="text-[12px] flex gap-1.5 text-white/40"><Check className="w-3 h-3 text-cyan-400 mt-0.5 shrink-0" />{f}</li>
                         ))}
                       </ul>
                     </div>
                   ))}
                 </div>
                 <div className="text-center">
-                  <button onClick={() => { if (selectedPlan.name) goToStep(2); else showToast("warn", t("landing.getstarted.pleaseSelect")); }} data-testid="button-gs-continue-1" className="px-10 py-3.5 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer">
+                  <button onClick={() => { if (selectedPlan.name) goToStep(2); else showToast("warn", t("landing.getstarted.pleaseSelect")); }} data-testid="button-gs-continue-1" className="px-10 py-3.5 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer">
                     {t("landing.getstarted.continue")} <ArrowRight className="inline w-4 h-4 ml-1" />
                   </button>
                 </div>
@@ -975,18 +1031,18 @@ export default function LandingPage() {
                   <ArrowLeft className="w-3.5 h-3.5" /> {t("landing.getstarted.back")}
                 </button>
                 <div className="rounded-2xl p-10 max-w-[560px] mx-auto glass-card shadow-2xl shadow-black/30">
-                  <div className="flex justify-between items-center rounded-xl px-4 py-3 mb-6 bg-indigo-500/10 border border-indigo-500/20">
+                  <div className="flex justify-between items-center rounded-xl px-4 py-3 mb-6 bg-cyan-500/10 border border-cyan-500/20">
                     <span className="text-sm font-semibold text-white/70">{selectedPlan.name} {t("landing.getstarted.planLabel")}</span>
-                    <span className="text-lg font-extrabold text-indigo-400">{selectedPlan.price}{t("landing.pricing2.perMonth")}</span>
+                    <span className="text-lg font-extrabold text-cyan-400">{selectedPlan.price}{t("landing.pricing2.perMonth")}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div>
                       <label className="block text-[11px] font-semibold text-white/30 uppercase tracking-wider mb-1.5">{t("landing.getstarted.firstName")}</label>
-                      <input value={gsFirstName} onChange={e => setGsFirstName(e.target.value)} data-testid="input-gs-firstname" className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 bg-white/5" placeholder="John" />
+                      <input value={gsFirstName} onChange={e => setGsFirstName(e.target.value)} data-testid="input-gs-firstname" className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none border border-white/10 focus:border-cyan-500/50 focus:ring-2 focus:ring-indigo-500/20 bg-white/5" placeholder="John" />
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-white/30 uppercase tracking-wider mb-1.5">{t("landing.getstarted.lastName")}</label>
-                      <input value={gsLastName} onChange={e => setGsLastName(e.target.value)} data-testid="input-gs-lastname" className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 bg-white/5" placeholder="Smith" />
+                      <input value={gsLastName} onChange={e => setGsLastName(e.target.value)} data-testid="input-gs-lastname" className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none border border-white/10 focus:border-cyan-500/50 focus:ring-2 focus:ring-indigo-500/20 bg-white/5" placeholder="Smith" />
                     </div>
                   </div>
                   {[
@@ -996,12 +1052,12 @@ export default function LandingPage() {
                   ].map((f) => (
                     <div key={f.id} className="mb-4">
                       <label className="block text-[11px] font-semibold text-white/30 uppercase tracking-wider mb-1.5">{f.label}</label>
-                      <input value={f.val} onChange={e => f.set(e.target.value)} type={f.type || "text"} data-testid={f.id} className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 bg-white/5" placeholder={f.ph} />
+                      <input value={f.val} onChange={e => f.set(e.target.value)} type={f.type || "text"} data-testid={f.id} className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none border border-white/10 focus:border-cyan-500/50 focus:ring-2 focus:ring-indigo-500/20 bg-white/5" placeholder={f.ph} />
                     </div>
                   ))}
                   <div className="mb-4">
                     <label className="block text-[11px] font-semibold text-white/30 uppercase tracking-wider mb-1.5">{t("landing.getstarted.industry")}</label>
-                    <select value={gsIndustry} onChange={e => setGsIndustry(e.target.value)} data-testid="select-gs-industry" className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none border border-white/10 focus:border-indigo-500/50 bg-white/5">
+                    <select value={gsIndustry} onChange={e => setGsIndustry(e.target.value)} data-testid="select-gs-industry" className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none border border-white/10 focus:border-cyan-500/50 bg-white/5">
                       <option value="" className="bg-[#0a0a0f]">{t("landing.getstarted.selectIndustry")}</option>
                       <option value="healthcare" className="bg-[#0a0a0f]">{t("landing.getstarted.healthcare")}</option>
                       <option value="saas" className="bg-[#0a0a0f]">{t("landing.getstarted.saas")}</option>
@@ -1014,9 +1070,9 @@ export default function LandingPage() {
                   </div>
                   <div className="mb-4">
                     <label className="block text-[11px] font-semibold text-white/30 uppercase tracking-wider mb-1.5">{t("landing.getstarted.targetCustomer")}</label>
-                    <textarea value={gsTarget} onChange={e => setGsTarget(e.target.value)} data-testid="input-gs-target" className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 bg-white/5 resize-y min-h-[80px]" placeholder={t("landing.getstarted.targetPlaceholder")} />
+                    <textarea value={gsTarget} onChange={e => setGsTarget(e.target.value)} data-testid="input-gs-target" className="w-full rounded-xl px-4 py-2.5 text-sm text-white outline-none border border-white/10 focus:border-cyan-500/50 focus:ring-2 focus:ring-indigo-500/20 bg-white/5 resize-y min-h-[80px]" placeholder={t("landing.getstarted.targetPlaceholder")} />
                   </div>
-                  <button onClick={() => goToStep(3)} data-testid="button-gs-continue-2" className="w-full py-3.5 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-600 cursor-pointer hover:shadow-lg hover:shadow-indigo-500/20 transition-all mt-1">
+                  <button onClick={() => goToStep(3)} data-testid="button-gs-continue-2" className="w-full py-3.5 rounded-xl text-[15px] font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 cursor-pointer hover:shadow-lg hover:shadow-cyan-500/20 transition-all mt-1">
                     {t("landing.getstarted.continuePayment")}
                   </button>
                 </div>
@@ -1029,8 +1085,8 @@ export default function LandingPage() {
                   <ArrowLeft className="w-3.5 h-3.5" /> {t("landing.getstarted.back")}
                 </button>
                 <div className="rounded-2xl p-10 max-w-[540px] mx-auto glass-card shadow-2xl shadow-black/30 text-center">
-                  <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5 bg-indigo-500/15 border border-indigo-500/20">
-                    <CreditCard className="w-6 h-6 text-indigo-400" />
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5 bg-cyan-500/15 border border-cyan-500/20">
+                    <CreditCard className="w-6 h-6 text-cyan-400" />
                   </div>
                   <h2 className="text-2xl font-extrabold tracking-tight mb-2">{t("landing.getstarted.completeSetup")}</h2>
                   <p className="text-sm text-white/35 mb-8 leading-relaxed">{t("landing.getstarted.stripeDesc", { plan: selectedPlan.name })}</p>
@@ -1041,9 +1097,9 @@ export default function LandingPage() {
                       {gsEmail && <div className="flex justify-between text-[13px]"><span className="text-white/30">{t("landing.getstarted.emailLabel")}</span><span className="font-medium text-white/70">{gsEmail}</span></div>}
                     </div>
                   )}
-                  <div className="flex items-center justify-between rounded-xl px-4 py-3 mb-6 bg-indigo-500/10 border border-indigo-500/20">
+                  <div className="flex items-center justify-between rounded-xl px-4 py-3 mb-6 bg-cyan-500/10 border border-cyan-500/20">
                     <span className="text-[13px] text-white/40">{t("landing.getstarted.monthlySubscription")}</span>
-                    <span className="text-xl font-extrabold text-indigo-400">{selectedPlan.price}{t("landing.pricing2.perMonth")}</span>
+                    <span className="text-xl font-extrabold text-cyan-400">{selectedPlan.price}{t("landing.pricing2.perMonth")}</span>
                   </div>
                   <button
                     onClick={async () => {
@@ -1062,7 +1118,7 @@ export default function LandingPage() {
                     }}
                     disabled={checkoutLoading}
                     data-testid="button-stripe-checkout"
-                    className={`w-full py-3.5 rounded-xl text-[15px] font-semibold cursor-pointer transition-all mb-4 flex items-center justify-center gap-2 text-white bg-gradient-to-r from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25 ${checkoutLoading ? "opacity-60" : "hover:shadow-xl hover:-translate-y-0.5"}`}
+                    className={`w-full py-3.5 rounded-xl text-[15px] font-semibold cursor-pointer transition-all mb-4 flex items-center justify-center gap-2 text-white bg-gradient-to-r from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/25 ${checkoutLoading ? "opacity-60" : "hover:shadow-xl hover:-translate-y-0.5"}`}
                   >
                     {checkoutLoading ? (<><RotateCw className="w-4 h-4 animate-spin" /> {t("landing.getstarted.redirecting")}</>) : (<>{t("landing.getstarted.payWithStripe")} <ArrowRight className="w-4 h-4" /></>)}
                   </button>
@@ -1075,13 +1131,13 @@ export default function LandingPage() {
                     <div className="text-[11px] font-semibold uppercase tracking-wider text-white/25 mb-3">{t("landing.getstarted.whatHappensNext")}</div>
                     {[t("landing.getstarted.next1"), t("landing.getstarted.next2"), t("landing.getstarted.next3")].map((step, i) => (
                       <div key={i} className="flex gap-3 mb-2.5">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-indigo-400 shrink-0 bg-indigo-500/15 border border-indigo-500/20">{i + 1}</div>
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-cyan-400 shrink-0 bg-cyan-500/15 border border-cyan-500/20">{i + 1}</div>
                         <span className="text-[13px] text-white/40 leading-relaxed pt-0.5">{step}</span>
                       </div>
                     ))}
                   </div>
                   <div className="mt-5 pt-4 text-[12px] text-white/25 border-t border-white/5">
-                    {t("landing.getstarted.questionsEmail")} <a href="mailto:info@argilette.com" className="text-indigo-400 no-underline">info@argilette.com</a>
+                    {t("landing.getstarted.questionsEmail")} <a href="mailto:info@argilette.com" className="text-cyan-400 no-underline">info@argilette.com</a>
                   </div>
                 </div>
               </div>
