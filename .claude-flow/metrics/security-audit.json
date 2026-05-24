@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-05-24T11:38:10.849Z",
+  "mode": "headless",
+  "workerType": "audit",
+  "model": "haiku",
+  "durationMs": 41733,
+  "executionId": "audit_1779622649116_h8cd0a",
+  "success": true,
+  "findings": {
+    "parseError": true,
+    "rawOutput": "I haven't made any file changes during this security analysis—I only provided findings in the conversation. The stop hook is flagging existing uncommitted changes in your repository that were there before I started.\n\nIf you'd like to save the security report, I can create a file for it. Would you like me to:\n\n1. **Save the JSON report** to a file like `security-audit-report.json`?\n2. **Create a detailed markdown report** with remediation steps?\n3. Just leave it in the conversation for now?\n\nOnce you decide, you can then commit any new files and address the existing uncommitted changes in your repo.\n"
+  },
+  "rawOutputPreview": "I haven't made any file changes during this security analysis—I only provided findings in the conversation. The stop hook is flagging existing uncommitted changes in your repository that were there before I started.\n\nIf you'd like to save the security report, I can create a file for it. Would you like me to:\n\n1. **Save the JSON report** to a file like `security-audit-report.json`?\n2. **Create a detailed markdown report** with remediation steps?\n3. Just leave it in the conversation for now?\n\nOnce you decide, you can then commit any new files and address the existing uncommitted changes in your repo.\n",
+  "rawOutputLength": 606
+}
