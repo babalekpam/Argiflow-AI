@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-05-24T11:35:29.112Z",
+  "projectRoot": "/home/user/Argiflow-AI",
+  "structure": {
+    "hasPackageJson": true,
+    "hasTsConfig": true,
+    "hasClaudeConfig": true,
+    "hasClaudeFlow": true
+  },
+  "scannedAt": 1779622529112
+}
