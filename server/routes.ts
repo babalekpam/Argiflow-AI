@@ -9310,6 +9310,10 @@ The ArgiFlow Team`;
   startAriaScheduler();
 
   startAutopilotScheduler();
+
+  const iptrcSkillsRoutes = (await import("./iptrc-skills-routes")).default;
+  app.use("/api/iptrc", isAuthenticated, iptrcSkillsRoutes);
+
   app.use("/api/postal", postalRoutes);
   app.use("/api/email", emailQuotaRoutes);
   app.use("/api/domains", domainRoutes);

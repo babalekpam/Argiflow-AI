@@ -59,6 +59,7 @@ import {
   Eye,
   Palette,
   Brain,
+  Network,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -122,6 +123,10 @@ export function AppSidebar() {
     { title: "Membership", icon: GraduationCap, url: "/dashboard/membership" },
     { title: "A/B Testing", icon: FlaskConical, url: "/dashboard/ab-testing" },
     { title: "Affiliates", icon: DollarSign, url: "/dashboard/affiliates" },
+  ];
+
+  const iptrcNav: NavItem[] = [
+    { title: "IPTRC Ops Copilot", icon: Network, url: "/dashboard/iptrc-copilot", badge: "Ops" },
   ];
 
   const growthNav: NavItem[] = [
@@ -226,6 +231,29 @@ export function AppSidebar() {
                       <span>{item.title}</span>
                       {item.badge && (
                         <Badge className="ml-auto text-[10px] py-0 px-1.5 bg-chart-3/10 text-chart-3 border-chart-3/20">
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Network Ops</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {iptrcNav.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.title}</span>
+                      {item.badge && (
+                        <Badge className="ml-auto text-[10px] py-0 px-1.5 bg-primary/10 text-primary border-primary/20">
                           {item.badge}
                         </Badge>
                       )}

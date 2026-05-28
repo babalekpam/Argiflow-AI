@@ -59,6 +59,7 @@ import UnifiedEmailPage from "./unified-email";
 import UnifiedIntelligencePage from "./unified-intelligence";
 import UnifiedLearningPage from "./unified-learning";
 import BusinessManagerPage from "./business-manager";
+import IptrcOpsCopilotPage from "./iptrc-ops-copilot";
 import { AiChatDialog } from "@/components/ai-chat-dialog";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -261,6 +262,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/platform-promoter" component={PlatformPromoterPage} />
               <Route path="/dashboard/business-manager" component={BusinessManagerPage} />
               <Route path="/dashboard/demos" component={DemoBuilderPage} />
+              <Route path="/dashboard/iptrc-copilot" component={IptrcOpsCopilotPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route>
                 <DashboardPage />
