@@ -44,6 +44,7 @@ import { getTemplateInstructions, detectSpecialty, getFollowUpForSpecialty, TRAC
 import postalRoutes from "./postal-routes";
 import postalService from "./postal";
 import emailQuotaRoutes from "./email-quota-routes";
+import apilayerRoutes from "./apilayer-routes";
 
 let tavilyRateLimitedUntil = 0;
 
@@ -9313,6 +9314,7 @@ The ArgiFlow Team`;
   app.use("/api/postal", postalRoutes);
   app.use("/api/email", emailQuotaRoutes);
   app.use("/api/domains", domainRoutes);
+  app.use("/api/enrichment", apilayerRoutes);
 
   app.get("/api/test-email", async (req, res) => {
     const t = nodemailer.createTransport({
