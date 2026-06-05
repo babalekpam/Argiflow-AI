@@ -3,14 +3,19 @@
 // Mount: app.use("/api/postal", postalRoutes)
 // ============================================================
 
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import postalService from "./postal";
+
+const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+  next();
+};
 
 const router = Router();
 
 // ── SEND SINGLE EMAIL ─────────────────────────────────────────
 // POST /api/postal/send
-router.post("/send", async (req, res) => {
+router.post("/send", requireAuth, async (req, res) => {
   try {
     const { to, from, fromName, replyTo, subject, htmlBody, plainBody, tag } = req.body;
 
@@ -30,7 +35,7 @@ router.post("/send", async (req, res) => {
 
 // ── SEND SEQUENCE EMAIL (with variable substitution) ──────────
 // POST /api/postal/sequence
-router.post("/sequence", async (req, res) => {
+router.post("/sequence", requireAuth, async (req, res) => {
   try {
     const { to, firstName, lastName, company, subject, htmlBody, from, fromName, sequenceName, stepNumber } = req.body;
 
@@ -50,7 +55,7 @@ router.post("/sequence", async (req, res) => {
 
 // ── SEND BULK EMAILS ──────────────────────────────────────────
 // POST /api/postal/bulk
-router.post("/bulk", async (req, res) => {
+router.post("/bulk", requireAuth, async (req, res) => {
   try {
     const { emails, delayMs } = req.body;
 
@@ -71,7 +76,7 @@ router.post("/bulk", async (req, res) => {
 
 // ── SEND WELCOME EMAIL ────────────────────────────────────────
 // POST /api/postal/welcome
-router.post("/welcome", async (req, res) => {
+router.post("/welcome", requireAuth, async (req, res) => {
   try {
     const { to, name } = req.body;
     if (!to || !name) return res.status(400).json({ error: "to and name are required" });
@@ -85,7 +90,7 @@ router.post("/welcome", async (req, res) => {
 
 // ── SEND LEAD NOTIFICATION ────────────────────────────────────
 // POST /api/postal/lead-notification
-router.post("/lead-notification", async (req, res) => {
+router.post("/lead-notification", requireAuth, async (req, res) => {
   try {
     const { to, leadName, leadEmail, leadCompany } = req.body;
     if (!to || !leadName || !leadEmail) {
@@ -101,7 +106,7 @@ router.post("/lead-notification", async (req, res) => {
 
 // ── CHECK MESSAGE STATUS ──────────────────────────────────────
 // GET /api/postal/status/:messageId
-router.get("/status/:messageId", async (req, res) => {
+router.get("/status/:messageId", requireAuth, async (req, res) => {
   try {
     const result = await postalService.getMessageStatus(req.params.messageId);
     res.json(result);
@@ -112,7 +117,7 @@ router.get("/status/:messageId", async (req, res) => {
 
 // ── TEST ENDPOINT ─────────────────────────────────────────────
 // POST /api/postal/test
-router.post("/test", async (req, res) => {
+router.post("/test", requireAuth, async (req, res) => {
   try {
     const { to } = req.body;
     if (!to) return res.status(400).json({ error: "to is required" });

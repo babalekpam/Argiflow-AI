@@ -1,10 +1,17 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { db } from "./db";
 import { eq, desc, and, gte } from "drizzle-orm";
 import { businessManager, managerDecisions, managerDailyReports } from "@shared/business-manager-schema";
 import { runManagerCycle, generateDailyReport } from "./business-manager";
 
 const router = Router();
+
+const requireAuth = (req: any, res: any, next: NextFunction) => {
+  if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+  next();
+};
+
+router.use(requireAuth);
 
 router.get("/config", async (req: Request, res: Response) => {
   try {

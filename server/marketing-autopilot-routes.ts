@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 import { marketingAutopilot, autopilotActions } from "@shared/schema";
@@ -10,6 +10,13 @@ import {
 import { z } from "zod";
 
 const router = Router();
+
+const requireAuth = (req: any, res: any, next: NextFunction) => {
+  if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+  next();
+};
+
+router.use(requireAuth);
 
 router.get("/config", async (req: Request, res: Response) => {
   try {

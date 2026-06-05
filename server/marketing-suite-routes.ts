@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import fs from "fs";
 import path from "path";
 import { z } from "zod";
@@ -6,6 +6,17 @@ import { getSkill, buildSkillPrompt, buildAutoPrompt, listSkills } from "./marke
 import { callAI } from "./ai-provider";
 
 const router = Router();
+
+const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+  if (!(req.session as any)?.userId) return res.status(401).json({ message: "Unauthorized" });
+  next();
+};
+
+// Apply auth to all routes except the public skills listing
+router.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "GET" && req.path === "/skills") return next();
+  return requireAuth(req, res, next);
+});
 
 function safeError(err: unknown): string {
   if (err instanceof z.ZodError) {

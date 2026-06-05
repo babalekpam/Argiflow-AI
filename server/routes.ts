@@ -376,6 +376,25 @@ const isAuthenticated: RequestHandler = (req, res, next) => {
   next();
 };
 
+// Simple in-memory rate limiter for auth endpoints: 10 attempts per 15 minutes per IP
+const authAttempts = new Map<string, { count: number; resetAt: number }>();
+const authRateLimit: RequestHandler = (req, res, next) => {
+  const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim() || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxAttempts = 10;
+  const record = authAttempts.get(ip);
+  if (record && now < record.resetAt) {
+    if (record.count >= maxAttempts) {
+      return res.status(429).json({ message: "Too many attempts. Try again in 15 minutes." });
+    }
+    record.count++;
+  } else {
+    authAttempts.set(ip, { count: 1, resetAt: now + windowMs });
+  }
+  next();
+};
+
 const isAdmin: RequestHandler = (req, res, next) => {
   if (!req.session?.adminId) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -2468,7 +2487,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authRateLimit, async (req, res) => {
     try {
       const parsed = loginSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -7589,7 +7608,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
     }
   });
 
-  app.post("/api/admin/login", async (req, res) => {
+  app.post("/api/admin/login", authRateLimit, async (req, res) => {
     try {
       const { email, password } = req.body;
       if (!email || !password) {

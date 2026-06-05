@@ -212,7 +212,22 @@ export async function executeWorkflow(
     let currentNode: WorkflowNode | undefined = triggerNode;
     let stepsCompleted = 0;
 
+    const MAX_STEPS = 200;
+    const visitedNodes = new Set<string>();
     while (currentNode) {
+      // Guard against runaway loops and cycles
+      if (stepsCompleted >= MAX_STEPS) {
+        console.error(`[Workflow Engine] Execution ${execution.id} exceeded ${MAX_STEPS} steps — aborting`);
+        await db.update(workflowExecutions).set({ status: "failed" }).where(eq(workflowExecutions.id, execution.id));
+        break;
+      }
+      if (visitedNodes.has(currentNode.id)) {
+        console.error(`[Workflow Engine] Cycle detected at node ${currentNode.id} in execution ${execution.id} — aborting`);
+        await db.update(workflowExecutions).set({ status: "failed" }).where(eq(workflowExecutions.id, execution.id));
+        break;
+      }
+      visitedNodes.add(currentNode.id);
+
       // Log step start
       const stepStart = Date.now();
       const [step] = await db
@@ -425,7 +440,10 @@ async function executeNode(
   context: Record<string, any>,
   userId: string
 ): Promise<NodeResult> {
-  const config = JSON.parse(node.config || "{}");
+  let config: Record<string, any> = {};
+  try { config = JSON.parse(node.config || "{}"); } catch {
+    console.error(`[Workflow Engine] Malformed config on node ${node.id} — using empty config`);
+  }
 
   switch (node.actionType) {
     // ---- TRIGGERS (pass-through, just provide context) ----
@@ -565,7 +583,7 @@ async function executeNode(
       const dealId = context.dealId || context.entityId;
       const targetStageId = config.stageId;
       if (dealId && targetStageId) {
-        await storage.updateFunnelDeal(dealId, { stageId: targetStageId });
+        await storage.updateFunnelDeal(dealId, context.userId, { stageId: targetStageId });
         return { output: { dealId, movedToStage: targetStageId } };
       }
       return { output: { error: "Missing dealId or stageId" } };
@@ -899,7 +917,10 @@ export async function processDelayedExecutions() {
         }
 
         // Resume from next node
-        const context = JSON.parse(exec.contextData || "{}");
+        let context: Record<string, any> = {};
+        try { context = JSON.parse(exec.contextData || "{}"); } catch {
+          console.error(`[Workflow Engine] Malformed contextData for execution ${exec.id}`);
+        }
         const event: WorkflowEvent = {
           type: TRIGGER_TYPES.MANUAL,
           userId: exec.userId,

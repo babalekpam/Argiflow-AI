@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import * as memory from "./aria-memory";
 import { handleDiscoveryMessage, getOnboardingStatus } from "./aria-discovery";
 import { handleChat, runAriaCycle, generateBriefing } from "./aria-agent";
@@ -6,6 +6,13 @@ import { getAvailableConnectors, sendEmailViaSES } from "./aria-connectors";
 import { getHighIntentVisitors, getRecentVisitorActivity } from "./visitor-intelligence";
 
 const router = Router();
+
+const requireAuth = (req: any, res: any, next: NextFunction) => {
+  if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+  next();
+};
+
+router.use(requireAuth);
 
 async function executeApprovedAction(userId: string, action: any): Promise<{ executed: boolean; result?: string; error?: string }> {
   if (!action.category || action.category !== "email") {
