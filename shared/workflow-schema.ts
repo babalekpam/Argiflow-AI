@@ -6,7 +6,7 @@
 // ============================================================
 
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean, real, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean, real, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -116,7 +116,10 @@ export const workflowExecutions = pgTable("workflow_executions", {
   currentNodeId: varchar("current_node_id"),
   startedAt: timestamp("started_at").defaultNow(),
   completedAt: timestamp("completed_at"),
-});
+}, (table) => [
+  index("workflow_exec_status_idx").on(table.status, table.resumeAt),
+  index("workflow_exec_user_idx").on(table.userId),
+]);
 
 export const insertWorkflowExecutionSchema = createInsertSchema(workflowExecutions).omit({ id: true, startedAt: true });
 export type WorkflowExecution = typeof workflowExecutions.$inferSelect;
