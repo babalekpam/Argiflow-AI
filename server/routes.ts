@@ -376,6 +376,15 @@ const isAuthenticated: RequestHandler = (req, res, next) => {
   next();
 };
 
+function isSafeExternalUrl(rawUrl: string): boolean {
+  let parsed: URL;
+  try { parsed = new URL(rawUrl); } catch { return false; }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+  const h = parsed.hostname.toLowerCase();
+  const blockedPatterns = [/^localhost$/, /^127\./, /^0\.0\.0\.0$/, /^::1$/, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./, /^169\.254\./];
+  return !blockedPatterns.some(re => re.test(h));
+}
+
 // Simple in-memory rate limiter for auth endpoints: 10 attempts per 15 minutes per IP
 const authAttempts = new Map<string, { count: number; resetAt: number }>();
 const authRateLimit: RequestHandler = (req, res, next) => {
@@ -3091,10 +3100,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No website URL provided. Add your website in Company Profile first." });
       }
 
-      try {
-        new URL(websiteUrl);
-      } catch {
-        return res.status(400).json({ message: "Invalid website URL. Please enter a valid URL starting with https://" });
+      if (!isSafeExternalUrl(websiteUrl)) {
+        return res.status(400).json({ message: "Invalid or disallowed URL" });
       }
 
       await storage.upsertWebsiteProfile({

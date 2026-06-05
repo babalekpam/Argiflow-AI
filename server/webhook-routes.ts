@@ -4,6 +4,36 @@ import { webhookEndpoints, webhookDeliveries } from "@shared/schema";
 import { eq, sql, desc, count } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
+function validateWebhookUrl(url: string): { valid: boolean; error?: string } {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { valid: false, error: "Invalid URL format" };
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    return { valid: false, error: "Only http and https URLs are allowed" };
+  }
+  const hostname = parsed.hostname.toLowerCase();
+  // Block loopback, link-local, and private ranges
+  const blocked = [
+    /^localhost$/,
+    /^127\./,
+    /^0\.0\.0\.0$/,
+    /^::1$/,
+    /^10\./,
+    /^172\.(1[6-9]|2\d|3[01])\./,
+    /^192\.168\./,
+    /^169\.254\./,
+    /^fc00:/,
+    /^fe80:/,
+  ];
+  if (blocked.some(re => re.test(hostname))) {
+    return { valid: false, error: "URL resolves to a blocked address" };
+  }
+  return { valid: true };
+}
+
 export function registerWebhookRoutes(app: Express) {
   app.get("/api/webhooks/stats", async (req, res) => {
     const userId = (req.session as any)?.userId;
@@ -53,6 +83,11 @@ export function registerWebhookRoutes(app: Express) {
         return res.status(400).json({ message: "Name, URL, and events are required" });
       }
 
+      const urlCheck = validateWebhookUrl(url);
+      if (!urlCheck.valid) {
+        return res.status(400).json({ message: urlCheck.error || "Invalid webhook URL" });
+      }
+
       const generatedSecret = secret || randomBytes(32).toString("hex");
 
       const [endpoint] = await db
@@ -83,7 +118,11 @@ export function registerWebhookRoutes(app: Express) {
     try {
       const updateData: any = {};
       if (name !== undefined) updateData.name = name;
-      if (url !== undefined) updateData.url = url;
+      if (url !== undefined) {
+        const urlCheck = validateWebhookUrl(url);
+        if (!urlCheck.valid) return res.status(400).json({ message: urlCheck.error || "Invalid webhook URL" });
+        updateData.url = url;
+      }
       if (secret !== undefined) updateData.secret = secret;
       if (events !== undefined) updateData.events = Array.isArray(events) ? events.join(",") : events;
       if (status !== undefined) updateData.status = status;
@@ -155,6 +194,11 @@ export function registerWebhookRoutes(app: Express) {
           endpoint_name: endpoint.name,
         },
       };
+
+      const urlCheck = validateWebhookUrl(endpoint.url);
+      if (!urlCheck.valid) {
+        return res.status(400).json({ message: "Stored webhook URL is invalid or blocked" });
+      }
 
       let responseStatus = 0;
       let responseBody = "";

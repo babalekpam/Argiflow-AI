@@ -372,6 +372,20 @@ export function registerTrackerPublicRoutes(app: Express) {
   app.post("/api/tracker/identify", async (req, res) => {
     try {
       const { visitor_id, user_id, email, name, company } = req.body;
+      if (!visitor_id || typeof visitor_id !== "string" || visitor_id.length > 200) {
+        return res.json({ ok: false });
+      }
+      // Only allow identification if the visitor has no existing user_id,
+      // or the provided user_id matches what's already stored
+      const existing = await pool.query(
+        `SELECT user_id FROM track_visitors WHERE visitor_id = $1 LIMIT 1`,
+        [visitor_id]
+      );
+      const currentUserId = existing.rows[0]?.user_id;
+      if (currentUserId && user_id && currentUserId !== user_id) {
+        // Visitor already claimed by a different user — reject
+        return res.json({ ok: false });
+      }
       await pool.query(`
         UPDATE track_visitors
         SET user_id  = COALESCE($2, user_id),
@@ -379,7 +393,7 @@ export function registerTrackerPublicRoutes(app: Express) {
             name     = COALESCE($4, name),
             company  = COALESCE($5, company)
         WHERE visitor_id = $1`,
-        [visitor_id, user_id, email, name, company]
+        [visitor_id, user_id || null, email || null, name || null, company || null]
       );
       await pool.query(
         `UPDATE track_sessions SET user_id=$1 WHERE visitor_id=$2 AND user_id IS NULL`,

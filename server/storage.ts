@@ -265,16 +265,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertStats(stats: InsertDashboardStats): Promise<DashboardStats> {
-    const existing = await this.getStatsByUser(stats.userId);
-    if (existing) {
-      const [result] = await db
-        .update(dashboardStats)
-        .set({ ...stats, updatedAt: new Date() })
-        .where(eq(dashboardStats.userId, stats.userId))
-        .returning();
-      return result;
-    }
-    const [result] = await db.insert(dashboardStats).values(stats).returning();
+    const [result] = await db
+      .insert(dashboardStats)
+      .values(stats)
+      .onConflictDoUpdate({ target: dashboardStats.userId, set: { ...stats, updatedAt: new Date() } })
+      .returning();
     return result;
   }
   async getAdminByEmail(email: string): Promise<Admin | undefined> {
@@ -314,16 +309,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertSettings(settings: InsertUserSettings): Promise<UserSettings> {
-    const existing = await this.getSettingsByUser(settings.userId);
-    if (existing) {
-      const [result] = await db
-        .update(userSettings)
-        .set({ ...settings, updatedAt: new Date() })
-        .where(eq(userSettings.userId, settings.userId))
-        .returning();
-      return result;
-    }
-    const [result] = await db.insert(userSettings).values(settings).returning();
+    const [result] = await db
+      .insert(userSettings)
+      .values(settings)
+      .onConflictDoUpdate({ target: userSettings.userId, set: { ...settings, updatedAt: new Date() } })
+      .returning();
     return result;
   }
 
@@ -351,16 +341,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertMarketingStrategy(strategy: InsertMarketingStrategy): Promise<MarketingStrategy> {
-    const existing = await this.getMarketingStrategy(strategy.userId);
-    if (existing) {
-      const [result] = await db
-        .update(marketingStrategies)
-        .set({ ...strategy, updatedAt: new Date() })
-        .where(eq(marketingStrategies.userId, strategy.userId))
-        .returning();
-      return result;
-    }
-    const [result] = await db.insert(marketingStrategies).values(strategy).returning();
+    const [result] = await db
+      .insert(marketingStrategies)
+      .values(strategy)
+      .onConflictDoUpdate({ target: marketingStrategies.userId, set: { ...strategy, updatedAt: new Date() } })
+      .returning();
     return result;
   }
 
@@ -430,16 +415,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertWebsiteProfile(profile: InsertWebsiteProfile): Promise<WebsiteProfile> {
-    const existing = await this.getWebsiteProfile(profile.userId);
-    if (existing) {
-      const [result] = await db
-        .update(websiteProfiles)
-        .set(profile)
-        .where(eq(websiteProfiles.userId, profile.userId))
-        .returning();
-      return result;
-    }
-    const [result] = await db.insert(websiteProfiles).values(profile).returning();
+    const [result] = await db
+      .insert(websiteProfiles)
+      .values(profile)
+      .onConflictDoUpdate({ target: websiteProfiles.userId, set: { ...profile } })
+      .returning();
     return result;
   }
 
