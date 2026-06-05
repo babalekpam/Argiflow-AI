@@ -30,6 +30,49 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, asc, isNull, sql, lte } from "drizzle-orm";
+import { encrypt, decrypt } from "./encryption";
+
+// Credential fields in userSettings that are encrypted at rest
+const SETTINGS_CREDENTIAL_FIELDS = [
+  "sendgridApiKey", "smtpPassword", "twilioAccountSid", "twilioAuthToken",
+  "anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey",
+  "groqApiKey", "togetherApiKey", "cohereApiKey", "openrouterApiKey", "youApiKey",
+] as const;
+
+function encryptSettings<T extends Record<string, any>>(s: T): T {
+  const out = { ...s };
+  for (const field of SETTINGS_CREDENTIAL_FIELDS) {
+    if (field in out) (out as any)[field] = encrypt((out as any)[field]);
+  }
+  return out;
+}
+
+function decryptSettings<T extends Record<string, any>>(s: T): T {
+  const out = { ...s };
+  for (const field of SETTINGS_CREDENTIAL_FIELDS) {
+    if (field in out) (out as any)[field] = decrypt((out as any)[field]);
+  }
+  return out;
+}
+
+// Credential fields in crmConnections that are encrypted at rest
+const CRM_CREDENTIAL_FIELDS = ["accessToken", "refreshToken", "apiKey"] as const;
+
+function encryptCrm<T extends Record<string, any>>(c: T): T {
+  const out = { ...c };
+  for (const field of CRM_CREDENTIAL_FIELDS) {
+    if (field in out) (out as any)[field] = encrypt((out as any)[field]);
+  }
+  return out;
+}
+
+function decryptCrm<T extends Record<string, any>>(c: T): T {
+  const out = { ...c };
+  for (const field of CRM_CREDENTIAL_FIELDS) {
+    if (field in out) (out as any)[field] = decrypt((out as any)[field]);
+  }
+  return out;
+}
 
 export interface IStorage {
   getUserById(id: string): Promise<User | undefined>;
@@ -265,16 +308,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertStats(stats: InsertDashboardStats): Promise<DashboardStats> {
-    const existing = await this.getStatsByUser(stats.userId);
-    if (existing) {
-      const [result] = await db
-        .update(dashboardStats)
-        .set({ ...stats, updatedAt: new Date() })
-        .where(eq(dashboardStats.userId, stats.userId))
-        .returning();
-      return result;
-    }
-    const [result] = await db.insert(dashboardStats).values(stats).returning();
+    const [result] = await db
+      .insert(dashboardStats)
+      .values(stats)
+      .onConflictDoUpdate({ target: dashboardStats.userId, set: { ...stats, updatedAt: new Date() } })
+      .returning();
     return result;
   }
   async getAdminByEmail(email: string): Promise<Admin | undefined> {
@@ -310,21 +348,17 @@ export class DatabaseStorage implements IStorage {
 
   async getSettingsByUser(userId: string): Promise<UserSettings | undefined> {
     const [result] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
-    return result;
+    return result ? decryptSettings(result) : undefined;
   }
 
   async upsertSettings(settings: InsertUserSettings): Promise<UserSettings> {
-    const existing = await this.getSettingsByUser(settings.userId);
-    if (existing) {
-      const [result] = await db
-        .update(userSettings)
-        .set({ ...settings, updatedAt: new Date() })
-        .where(eq(userSettings.userId, settings.userId))
-        .returning();
-      return result;
-    }
-    const [result] = await db.insert(userSettings).values(settings).returning();
-    return result;
+    const encrypted = encryptSettings(settings);
+    const [result] = await db
+      .insert(userSettings)
+      .values(encrypted)
+      .onConflictDoUpdate({ target: userSettings.userId, set: { ...encrypted, updatedAt: new Date() } })
+      .returning();
+    return decryptSettings(result);
   }
 
   async getChatMessages(userId: string): Promise<AiChatMessage[]> {
@@ -351,16 +385,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertMarketingStrategy(strategy: InsertMarketingStrategy): Promise<MarketingStrategy> {
-    const existing = await this.getMarketingStrategy(strategy.userId);
-    if (existing) {
-      const [result] = await db
-        .update(marketingStrategies)
-        .set({ ...strategy, updatedAt: new Date() })
-        .where(eq(marketingStrategies.userId, strategy.userId))
-        .returning();
-      return result;
-    }
-    const [result] = await db.insert(marketingStrategies).values(strategy).returning();
+    const [result] = await db
+      .insert(marketingStrategies)
+      .values(strategy)
+      .onConflictDoUpdate({ target: marketingStrategies.userId, set: { ...strategy, updatedAt: new Date() } })
+      .returning();
     return result;
   }
 
@@ -430,16 +459,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertWebsiteProfile(profile: InsertWebsiteProfile): Promise<WebsiteProfile> {
-    const existing = await this.getWebsiteProfile(profile.userId);
-    if (existing) {
-      const [result] = await db
-        .update(websiteProfiles)
-        .set(profile)
-        .where(eq(websiteProfiles.userId, profile.userId))
-        .returning();
-      return result;
-    }
-    const [result] = await db.insert(websiteProfiles).values(profile).returning();
+    const [result] = await db
+      .insert(websiteProfiles)
+      .values(profile)
+      .onConflictDoUpdate({ target: websiteProfiles.userId, set: { ...profile } })
+      .returning();
     return result;
   }
 

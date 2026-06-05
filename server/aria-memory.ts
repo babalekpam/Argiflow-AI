@@ -207,14 +207,15 @@ export async function getMeetings(userId: string, limit = 20) {
 
 export async function createSnapshot(userId: string) {
   const biz = await getBusiness(userId);
-  const leads = await getLeads(userId, 9999);
+  const leadCountResult = await q("SELECT COUNT(*) as cnt FROM aria_leads WHERE user_id = $1", [userId]);
+  const leadCount = parseInt(leadCountResult[0]?.cnt || "0");
   const emails = await q("SELECT COUNT(*) as cnt FROM aria_emails WHERE user_id = $1 AND status = 'sent'", [userId]);
   const meetings = await q("SELECT COUNT(*) as cnt FROM aria_meetings WHERE user_id = $1", [userId]);
   const actions = await q("SELECT COUNT(*) as cnt FROM aria_actions WHERE user_id = $1 AND created_at >= CURRENT_DATE", [userId]);
 
   const rows = await q(
     "INSERT INTO aria_snapshots (user_id, revenue_mtd, leads_total, emails_sent, meetings_booked, invoices_overdue, actions_taken) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
-    [userId, biz?.monthly_revenue || 0, leads.length, parseInt(emails[0]?.cnt || "0"), parseInt(meetings[0]?.cnt || "0"), biz?.overdue_invoices || 0, parseInt(actions[0]?.cnt || "0")]
+    [userId, biz?.monthly_revenue || 0, leadCount, parseInt(emails[0]?.cnt || "0"), parseInt(meetings[0]?.cnt || "0"), biz?.overdue_invoices || 0, parseInt(actions[0]?.cnt || "0")]
   );
   return rows[0];
 }
@@ -246,21 +247,27 @@ export async function getToolToken(userId: string, tool: string) {
 }
 
 export async function getDashboardStats(userId: string) {
-  const biz = await getBusiness(userId);
-  const leadCount = await q("SELECT COUNT(*) as cnt FROM aria_leads WHERE user_id = $1", [userId]);
-  const pendingCount = await q("SELECT COUNT(*) as cnt FROM aria_actions WHERE user_id = $1 AND status = 'pending'", [userId]);
-  const todayActions = await q("SELECT COUNT(*) as cnt FROM aria_actions WHERE user_id = $1 AND created_at >= CURRENT_DATE", [userId]);
-  const emailsSent = await q("SELECT COUNT(*) as cnt FROM aria_emails WHERE user_id = $1 AND status = 'sent'", [userId]);
-  const upcomingMeetings = await q("SELECT COUNT(*) as cnt FROM aria_meetings WHERE user_id = $1 AND start_time >= NOW()", [userId]);
-  const recentActions = await getActions(userId, 10);
+  const [biz, stats, recentActions] = await Promise.all([
+    getBusiness(userId),
+    q(`
+      SELECT
+        (SELECT COUNT(*) FROM aria_leads     WHERE user_id = $1) AS lead_count,
+        (SELECT COUNT(*) FROM aria_actions   WHERE user_id = $1 AND status = 'pending') AS pending_count,
+        (SELECT COUNT(*) FROM aria_actions   WHERE user_id = $1 AND created_at >= CURRENT_DATE) AS today_actions,
+        (SELECT COUNT(*) FROM aria_emails    WHERE user_id = $1 AND status = 'sent') AS emails_sent,
+        (SELECT COUNT(*) FROM aria_meetings  WHERE user_id = $1 AND start_time >= NOW()) AS upcoming_meetings
+    `, [userId]),
+    getActions(userId, 10),
+  ]);
+  const row = stats[0] || {};
 
   return {
     business: biz,
-    leads: parseInt(leadCount[0]?.cnt || "0"),
-    pendingApprovals: parseInt(pendingCount[0]?.cnt || "0"),
-    todayActions: parseInt(todayActions[0]?.cnt || "0"),
-    emailsSent: parseInt(emailsSent[0]?.cnt || "0"),
-    upcomingMeetings: parseInt(upcomingMeetings[0]?.cnt || "0"),
+    leads: parseInt(row.lead_count || "0"),
+    pendingApprovals: parseInt(row.pending_count || "0"),
+    todayActions: parseInt(row.today_actions || "0"),
+    emailsSent: parseInt(row.emails_sent || "0"),
+    upcomingMeetings: parseInt(row.upcoming_meetings || "0"),
     recentActions,
   };
 }

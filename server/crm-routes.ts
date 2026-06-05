@@ -2,6 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { db } from "./db";
 import { eq, sql, desc } from "drizzle-orm";
 import { crmConnections } from "@shared/schema";
+import { encrypt, decrypt } from "./encryption";
 
 const isAuthenticated: RequestHandler = (req, res, next) => {
   if (!req.session?.userId) {
@@ -19,7 +20,7 @@ export function registerCrmRoutes(app: Express) {
         .from(crmConnections)
         .where(eq(crmConnections.userId, userId))
         .orderBy(desc(crmConnections.createdAt));
-      res.json(connections);
+      res.json(connections.map(c => ({ ...c, apiKey: decrypt(c.apiKey) })));
     } catch (error: any) {
       console.error("[CRM] List connections error:", error);
       res.status(500).json({ message: "Failed to fetch CRM connections" });
@@ -49,7 +50,7 @@ export function registerCrmRoutes(app: Express) {
         .values({
           userId,
           provider,
-          apiKey: apiKey || null,
+          apiKey: encrypt(apiKey || null),
           instanceUrl: instanceUrl || null,
           syncDirection: syncDirection || "bidirectional",
           fieldMapping: fieldMapping || null,
@@ -57,7 +58,7 @@ export function registerCrmRoutes(app: Express) {
         })
         .returning();
 
-      res.json(connection);
+      res.json({ ...connection, apiKey: decrypt(connection.apiKey) });
     } catch (error: any) {
       console.error("[CRM] Create connection error:", error);
       res.status(500).json({ message: "Failed to create CRM connection" });
@@ -73,7 +74,7 @@ export function registerCrmRoutes(app: Express) {
       const updates: Record<string, any> = { updatedAt: new Date() };
       if (syncDirection !== undefined) updates.syncDirection = syncDirection;
       if (fieldMapping !== undefined) updates.fieldMapping = fieldMapping;
-      if (apiKey !== undefined) updates.apiKey = apiKey;
+      if (apiKey !== undefined) updates.apiKey = encrypt(apiKey);
       if (instanceUrl !== undefined) updates.instanceUrl = instanceUrl;
 
       const [updated] = await db
@@ -86,7 +87,7 @@ export function registerCrmRoutes(app: Express) {
         return res.status(404).json({ message: "Connection not found" });
       }
 
-      res.json(updated);
+      res.json({ ...updated, apiKey: decrypt(updated.apiKey) });
     } catch (error: any) {
       console.error("[CRM] Update connection error:", error);
       res.status(500).json({ message: "Failed to update CRM connection" });

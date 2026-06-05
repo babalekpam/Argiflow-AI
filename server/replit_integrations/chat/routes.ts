@@ -28,6 +28,8 @@ export function registerChatRoutes(app: Express): void {
   // Get all conversations
   app.get("/api/conversations", async (req: Request, res: Response) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
       const conversations = await chatStorage.getAllConversations();
       res.json(conversations);
     } catch (error) {
@@ -39,6 +41,8 @@ export function registerChatRoutes(app: Express): void {
   // Get single conversation with messages
   app.get("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
       const id = parseInt(req.params.id);
       const conversation = await chatStorage.getConversation(id);
       if (!conversation) {
@@ -55,6 +59,8 @@ export function registerChatRoutes(app: Express): void {
   // Create new conversation
   app.post("/api/conversations", async (req: Request, res: Response) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
       const { title } = req.body;
       const conversation = await chatStorage.createConversation(title || "New Chat");
       res.status(201).json(conversation);
@@ -67,6 +73,8 @@ export function registerChatRoutes(app: Express): void {
   // Delete conversation
   app.delete("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
       const id = parseInt(req.params.id);
       await chatStorage.deleteConversation(id);
       res.status(204).send();
@@ -79,6 +87,8 @@ export function registerChatRoutes(app: Express): void {
   // Send message and get AI response (streaming)
   app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
     try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
       const conversationId = parseInt(req.params.id);
       const { content } = req.body;
 

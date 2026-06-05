@@ -1007,7 +1007,7 @@ export function registerGhlRoutes(app: Express) {
     }
   });
 
-  app.put("/api/documents/:id/sign", async (req, res) => {
+  app.put("/api/documents/:id/sign", requireAuth, async (req, res) => {
     try {
       const [row] = await db.update(documents).set({ status: "signed", signedAt: new Date(), signatureData: req.body.signatureData || null, updatedAt: new Date() }).where(eq(documents.id, req.params.id)).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
@@ -1471,7 +1471,7 @@ export function registerGhlRoutes(app: Express) {
     }
   });
 
-  app.put("/api/proposals/:id/accept", async (req, res) => {
+  app.put("/api/proposals/:id/accept", requireAuth, async (req, res) => {
     try {
       const [row] = await db.update(proposals).set({ status: "accepted", acceptedAt: new Date(), updatedAt: new Date() }).where(eq(proposals.id, req.params.id)).returning();
       if (!row) return res.status(404).json({ message: "Not found" });

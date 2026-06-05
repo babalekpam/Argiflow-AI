@@ -11,7 +11,12 @@ export const CREDIT_COSTS: Record<string, number> = {
   email_sequence: 30,
 };
 
-const UNLIMITED_EMAILS = ["abel@argilette.com"];
+// Comma-separated list of emails that bypass credit deduction.
+// Set UNLIMITED_USER_EMAILS env var in production; never hardcode here.
+const UNLIMITED_EMAILS: string[] = (process.env.UNLIMITED_USER_EMAILS || "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
 
 async function isUnlimitedUser(userId: string): Promise<boolean> {
   try {

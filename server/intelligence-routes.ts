@@ -485,6 +485,7 @@ router.post("/intent/detect", async (req, res) => {
 
 router.get("/intent/dashboard", async (req, res) => {
   try {
+    // intentSignals has no userId column — signals are company-level shared data, intentionally global
     const signals = await db.select().from(intentSignals)
       .orderBy(desc(intentSignals.score))
       .limit(50);
@@ -610,6 +611,7 @@ router.post("/org-chart/:companyId/build", async (req, res) => {
 
 router.get("/events/recent", async (req, res) => {
   try {
+    // companyEvents has no userId column — events are company-level shared data, intentionally global
     const events = await db.select().from(companyEvents)
       .orderBy(desc(companyEvents.eventDate))
       .limit(20);
