@@ -29,6 +29,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useCouncil } from "@/contexts/council-context";
 import {
   Users,
   Plus,
@@ -70,6 +71,7 @@ import {
   UserSearch,
   MapPin,
   Download,
+  Crown,
 } from "lucide-react";
 import type { Lead, Business, EmailReply } from "@shared/schema";
 import { useState, useEffect, useMemo } from "react";
@@ -1320,6 +1322,7 @@ export default function LeadsPage() {
   const { t } = useTranslation();
   usePageTitle(t("leads.title"));
   const { toast } = useToast();
+  const { openCouncil } = useCouncil();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"new" | "engaged" | "hot" | "followups">("new");
@@ -1849,6 +1852,23 @@ export default function LeadsPage() {
               })()}
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const hotCount = allLeads.filter((l: any) => l.status === "hot").length;
+              const totalCount = allLeads.length;
+              openCouncil(
+                `I'm reviewing my leads pipeline. Total leads: ${totalCount}. Hot leads: ${hotCount}. ` +
+                `What's the best outreach strategy to convert more leads right now — should I focus on hot leads with high-touch follow-ups, ` +
+                `warm leads with automated sequences, or invest more in top-of-funnel acquisition?`
+              );
+            }}
+            data-testid="button-council-leads"
+          >
+            <Crown className="w-4 h-4 mr-2 text-purple-400" />
+            Council This
+          </Button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-lead">

@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useCouncil } from "@/contexts/council-context";
 import { useState, useEffect } from "react";
 import {
   Sparkles,
@@ -42,6 +43,7 @@ import {
   MessageSquare,
   Bot,
   Save,
+  Crown,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AnimatedFlowchart, type WorkflowData } from "@/components/animated-flowchart";
@@ -436,6 +438,7 @@ export default function StrategyPage() {
   usePageTitle(t("strategy.title"));
   const { toast } = useToast();
   const { user } = useAuth();
+  const { openCouncil } = useCouncil();
   const queryClient = useQueryClient();
 
   const { data: strategy, isLoading } = useQuery<MarketingStrategy | null>({
@@ -565,16 +568,31 @@ export default function StrategyPage() {
             {t("strategy.customStrategyFor")} <span className="text-foreground font-medium">{strategy.companyName}</span> {t("strategy.in")} <span className="text-foreground font-medium">{strategy.industry}</span>
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => regenerateMutation.mutate()}
-          disabled={regenerateMutation.isPending || isGenerating}
-          data-testid="button-regenerate-strategy"
-        >
-          <RefreshCw className={`w-4 h-4 mr-1.5 ${regenerateMutation.isPending ? "animate-spin" : ""}`} />
-          {t("strategy.regenerate")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openCouncil(
+              `My marketing strategy is for "${strategy.companyName}" in the ${strategy.industry} industry. ` +
+              `Here's the current strategy summary:\n\n${strategy.strategy?.slice(0, 800) ?? "(no content yet)"}` +
+              `\n\nShould I proceed with this strategy or pivot? What's the biggest risk and the biggest missed opportunity?`
+            )}
+            data-testid="button-council-strategy"
+          >
+            <Crown className="w-4 h-4 mr-1.5 text-purple-400" />
+            Council This
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => regenerateMutation.mutate()}
+            disabled={regenerateMutation.isPending || isGenerating}
+            data-testid="button-regenerate-strategy"
+          >
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${regenerateMutation.isPending ? "animate-spin" : ""}`} />
+            {t("strategy.regenerate")}
+          </Button>
+        </div>
       </div>
 
       {isGenerating ? (

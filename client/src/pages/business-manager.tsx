@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useCouncil } from "@/contexts/council-context";
 import {
   Bot, Brain, Play, Send, Zap, TrendingUp, Mail, Users, Calendar,
   BarChart3, Clock, CheckCircle, AlertCircle, Loader2, FileText,
   Settings, Sparkles, Activity, MessageCircle, Shield, ShieldCheck,
-  Rocket, X, Check, Plug, ArrowRight, Star, Sun, Copy, Eye, EyeOff, Code
+  Rocket, X, Check, Plug, ArrowRight, Star, Sun, Copy, Eye, EyeOff, Code, Crown
 } from "lucide-react";
 
 function ChatContent({ content }: { content: string }) {
@@ -605,6 +606,7 @@ function SettingsPanel() {
 
 export default function BusinessManagerPage() {
   const { toast } = useToast();
+  const { openCouncil } = useCouncil();
   const [activeTab, setActiveTab] = useState("overview");
 
   const { data: ariaStatus, isLoading: statusLoading } = useQuery<any>({
@@ -703,6 +705,19 @@ export default function BusinessManagerPage() {
         </div>
         <div className="flex items-center gap-3">
           <AutonomyBadge level={biz?.autonomy || "supervised"} />
+          <Button
+            variant="outline"
+            onClick={() => openCouncil(
+              `My AI Business Manager is running for "${biz?.name || "my business"}". Autonomy: ${biz?.autonomy || "supervised"}. ` +
+              `Current pipeline: ${dashboard?.pipeline?.total_deals ?? 0} deals, $${dashboard?.pipeline?.total_value ?? 0} in value. ` +
+              `What's the highest-leverage action I should have Abel focus on this week, and should I increase or decrease autonomy?`
+            )}
+            className="border-white/10"
+            data-testid="button-council-this"
+          >
+            <Crown className="w-4 h-4 mr-2 text-purple-400" />
+            Council This
+          </Button>
           <Button
             variant="outline"
             onClick={() => syncLeadsMut.mutate()}
