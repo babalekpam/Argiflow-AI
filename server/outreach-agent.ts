@@ -27,6 +27,13 @@ import { instantlyEngine } from "./instantly-engine";
 import nodemailer from "nodemailer";
 import { storage } from "./storage";
 
+// Public origin used for open/click tracking URLs embedded in outbound email.
+function trackingBaseUrl(): string {
+  if (process.env.REPLIT_DOMAINS) return `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;
+  if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  return "https://argilette.co";
+}
+
 // ============================================================
 // TYPES
 // ============================================================
@@ -510,7 +517,7 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
           );
 
           // SEND THE EMAIL
-          const sent = await this.sendEmail(account, lead.email, subject, body, campaign.trackOpens ?? true);
+          const sent = await this.sendEmail(account, lead.email, subject, body, campaign.trackOpens ?? true, lead.id);
 
           if (sent) {
             sentCount++;
@@ -1033,11 +1040,13 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
 
   // ── EMAIL SENDING ─────────────────────────────────────────
 
-  private async sendEmail(account: any, toEmail: string, subject: string, body: string, trackOpens: boolean = true): Promise<boolean> {
+  private async sendEmail(account: any, toEmail: string, subject: string, body: string, trackOpens: boolean = true, leadId?: string): Promise<boolean> {
     try {
       let htmlBody = body.replace(/\n/g, "<br>");
-      if (trackOpens) {
-        htmlBody += `<img src="/api/pixel/open/${Date.now()}" width="1" height="1" style="display:none" />`;
+      // The pixel must be an absolute URL keyed by lead id — a relative path never
+      // resolves in an email client, and a timestamp key is not attributable.
+      if (trackOpens && leadId) {
+        htmlBody += `<img src="${trackingBaseUrl()}/t/o/${leadId}" width="1" height="1" style="display:none;border:0;" alt="" />`;
       }
 
       const transporter = nodemailer.createTransport({

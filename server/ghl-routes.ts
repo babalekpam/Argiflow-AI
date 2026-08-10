@@ -1,7 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { db } from "./db";
-import { eq, and, desc, lte } from "drizzle-orm";
+import { eq, and, desc, lte, sql } from "drizzle-orm";
 import {
+  leads,
   landingPages, landingPageSteps,
   formBuilders, formSubmissions,
   chatWidgets, chatConversations, chatMessages,
@@ -36,6 +37,51 @@ function parseDates(body: any, dateFields: string[]) {
   return result;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function clientIp(req: Request): string | null {
+  const fwd = req.headers["x-forwarded-for"];
+  const raw = (Array.isArray(fwd) ? fwd[0] : fwd) || req.ip || req.socket.remoteAddress;
+  return raw ? String(raw).split(",")[0].trim() : null;
+}
+
+// A public form submission is the conversion event for the whole funnel. Turn it
+// into a CRM lead so the outreach agents can pick it up — dedupe on (userId, email)
+// so a repeat submitter updates rather than duplicates.
+async function captureLead(opts: {
+  userId: string;
+  email: string;
+  name?: string | null;
+  phone?: string | null;
+  company?: string | null;
+  source: string;
+  notes?: string | null;
+}): Promise<void> {
+  const email = opts.email.trim().toLowerCase();
+  const [existing] = await db.select({ id: leads.id })
+    .from(leads)
+    .where(and(eq(leads.userId, opts.userId), eq(leads.email, email)))
+    .limit(1);
+
+  if (existing) {
+    await db.update(leads)
+      .set({ status: "warm", lastEngagedAt: new Date() })
+      .where(eq(leads.id, existing.id));
+    return;
+  }
+
+  await db.insert(leads).values({
+    userId: opts.userId,
+    name: (opts.name || "").trim() || email.split("@")[0],
+    email,
+    phone: opts.phone || null,
+    company: opts.company || null,
+    source: opts.source,
+    status: "new",
+    notes: opts.notes || null,
+  });
+}
+
 export function registerGhlRoutes(app: Express) {
 
   // ============================================================
@@ -54,11 +100,63 @@ export function registerGhlRoutes(app: Express) {
         totalConversions: landingPages.totalConversions,
       }).from(landingPages).where(and(eq(landingPages.slug, req.params.slug), eq(landingPages.status, "published")));
       if (!row) return res.status(404).json({ message: "Page not found" });
-      await db.update(landingPages).set({ totalVisits: (row.totalVisits || 0) + 1 }).where(eq(landingPages.id, row.id));
+      await db.update(landingPages)
+        .set({ totalVisits: sql`${landingPages.totalVisits} + 1` })
+        .where(eq(landingPages.id, row.id));
       res.json(row);
     } catch (e: any) {
       console.error("[LandingPages] Public fetch error:", e.message);
       res.status(500).json({ message: "Failed to fetch page" });
+    }
+  });
+
+  // Lead capture for the public landing page templates. Records the submission,
+  // counts the conversion, and creates the CRM lead.
+  app.post("/api/public/landing-pages/:slug/submit", async (req, res) => {
+    try {
+      const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+      const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+      const phone = typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
+
+      if (!EMAIL_RE.test(email)) {
+        return res.status(400).json({ message: "A valid email address is required" });
+      }
+
+      const [page] = await db.select({
+        id: landingPages.id,
+        userId: landingPages.userId,
+        slug: landingPages.slug,
+      }).from(landingPages)
+        .where(and(eq(landingPages.slug, req.params.slug), eq(landingPages.status, "published")))
+        .limit(1);
+      if (!page) return res.status(404).json({ message: "Page not found" });
+
+      // Landing pages have no form_builders row of their own, so submissions are
+      // stored against the page id. Page ids and form ids never collide.
+      await db.insert(formSubmissions).values({
+        formId: page.id,
+        data: JSON.stringify({ name, email, phone }),
+        contactEmail: email,
+        ipAddress: clientIp(req),
+        sourceUrl: typeof req.body?.sourceUrl === "string" ? req.body.sourceUrl : null,
+      });
+
+      await db.update(landingPages)
+        .set({ totalConversions: sql`${landingPages.totalConversions} + 1`, updatedAt: new Date() })
+        .where(eq(landingPages.id, page.id));
+
+      await captureLead({
+        userId: page.userId,
+        email,
+        name,
+        phone: phone || null,
+        source: `landing_page:${page.slug || page.id}`,
+      });
+
+      res.json({ success: true });
+    } catch (e: any) {
+      console.error("[LandingPages] Submit error:", e.message);
+      res.status(500).json({ message: "Failed to submit" });
     }
   });
 
@@ -234,10 +332,39 @@ export function registerGhlRoutes(app: Express) {
 
   app.post("/api/forms/:id/submit", async (req, res) => {
     try {
-      const [row] = await db.insert(formSubmissions).values({ formId: req.params.id, data: JSON.stringify(req.body.data), contactEmail: req.body.contactEmail || null, ipAddress: (req.ip || req.socket.remoteAddress) ?? null, sourceUrl: req.body.sourceUrl || null }).returning();
-      await db.update(formBuilders).set({ submissionCount: formBuilders.submissionCount }).where(eq(formBuilders.id, req.params.id));
+      const [form] = await db.select({ id: formBuilders.id, userId: formBuilders.userId, name: formBuilders.name })
+        .from(formBuilders).where(eq(formBuilders.id, req.params.id)).limit(1);
+      if (!form) return res.status(404).json({ message: "Form not found" });
+
+      const contactEmail = typeof req.body?.contactEmail === "string" ? req.body.contactEmail.trim() : "";
+
+      const [row] = await db.insert(formSubmissions).values({
+        formId: req.params.id,
+        data: JSON.stringify(req.body.data),
+        contactEmail: contactEmail || null,
+        ipAddress: clientIp(req),
+        sourceUrl: req.body.sourceUrl || null,
+      }).returning();
+
+      await db.update(formBuilders)
+        .set({ submissionCount: sql`${formBuilders.submissionCount} + 1`, updatedAt: new Date() })
+        .where(eq(formBuilders.id, req.params.id));
+
+      if (EMAIL_RE.test(contactEmail)) {
+        const fields = req.body?.data && typeof req.body.data === "object" ? req.body.data : {};
+        await captureLead({
+          userId: form.userId,
+          email: contactEmail,
+          name: fields.name || fields.fullName || "",
+          phone: fields.phone || null,
+          company: fields.company || null,
+          source: `form:${form.name}`,
+        });
+      }
+
       res.json(row);
     } catch (e: any) {
+      console.error("[Forms] Submit error:", e.message);
       res.status(500).json({ message: "Failed to submit form" });
     }
   });

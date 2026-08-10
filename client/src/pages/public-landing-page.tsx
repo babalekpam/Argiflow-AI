@@ -75,7 +75,7 @@ function BlankTemplate({ page, content }: { page: PageData; content: any }) {
         <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
           {content?.subheadline || "Welcome to our page. We're building something amazing."}
         </p>
-        <LeadForm buttonText={content?.ctaText || "Get Started"} />
+        <LeadForm slug={page.slug} buttonText={content?.ctaText || "Get Started"} />
       </div>
     </div>
   );
@@ -109,7 +109,7 @@ function LeadCaptureTemplate({ page, content }: { page: PageData; content: any }
                 <h2 className="text-2xl font-bold">Get Instant Access</h2>
                 <p className="text-gray-400 text-sm">Fill out the form below to get started</p>
               </div>
-              <LeadForm buttonText={content?.ctaText || "Get Free Access"} showName />
+              <LeadForm slug={page.slug} buttonText={content?.ctaText || "Get Free Access"} showName />
               <p className="text-xs text-gray-500 text-center">We respect your privacy. Unsubscribe at any time.</p>
             </div>
           </div>
@@ -142,7 +142,7 @@ function WebinarTemplate({ page, content }: { page: PageData; content: any }) {
           </div>
           <div className="max-w-md mx-auto bg-[#0d1119] border border-gray-800 rounded-2xl p-8 space-y-6">
             <h2 className="text-xl font-bold">Reserve Your Spot</h2>
-            <LeadForm buttonText={content?.ctaText || "Register Now"} showName />
+            <LeadForm slug={page.slug} buttonText={content?.ctaText || "Register Now"} showName />
           </div>
         </div>
       </div>
@@ -176,7 +176,12 @@ function SalesTemplate({ page, content }: { page: PageData; content: any }) {
             {content?.subheadline || "The all-in-one solution that helps businesses grow faster with AI-powered automation."}
           </p>
           <div className="flex justify-center gap-4">
-            <Button size="lg" className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-8">
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-8"
+              onClick={() => document.getElementById("lead-form")?.scrollIntoView({ behavior: "smooth" })}
+              data-testid="button-hero-cta"
+            >
               {content?.ctaText || "Start Free Trial"} <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
@@ -199,9 +204,9 @@ function SalesTemplate({ page, content }: { page: PageData; content: any }) {
           ))}
         </div>
       </div>
-      <div className="max-w-md mx-auto px-6 py-16 text-center">
+      <div id="lead-form" className="max-w-md mx-auto px-6 py-16 text-center">
         <h2 className="text-2xl font-bold mb-6">Ready to Get Started?</h2>
-        <LeadForm buttonText={content?.ctaText || "Get Started Now"} showName />
+        <LeadForm slug={page.slug} buttonText={content?.ctaText || "Get Started Now"} showName />
       </div>
     </div>
   );
@@ -225,7 +230,7 @@ function ProductLaunchTemplate({ page, content }: { page: PageData; content: any
             {content?.subheadline || "Be the first to know when we launch. Join our waitlist for early access and exclusive perks."}
           </p>
           <div className="max-w-md mx-auto">
-            <LeadForm buttonText={content?.ctaText || "Join the Waitlist"} />
+            <LeadForm slug={page.slug} buttonText={content?.ctaText || "Join the Waitlist"} />
           </div>
           <p className="text-sm text-gray-500">Join 1,000+ others already on the waitlist</p>
         </div>
@@ -234,10 +239,35 @@ function ProductLaunchTemplate({ page, content }: { page: PageData; content: any
   );
 }
 
-function LeadForm({ buttonText, showName = false }: { buttonText: string; showName?: boolean }) {
+function LeadForm({ slug, buttonText, showName = false }: { slug: string; buttonText: string; showName?: boolean }) {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/public/landing-pages/${encodeURIComponent(slug)}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, sourceUrl: window.location.href }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message || "Something went wrong. Please try again.");
+      }
+      setSubmitted(true);
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (submitted) {
     return (
@@ -249,10 +279,7 @@ function LeadForm({ buttonText, showName = false }: { buttonText: string; showNa
   }
 
   return (
-    <form
-      onSubmit={(e) => { e.preventDefault(); setSubmitted(true); }}
-      className="space-y-3"
-    >
+    <form onSubmit={handleSubmit} className="space-y-3">
       {showName && (
         <Input
           value={name}
@@ -271,12 +298,20 @@ function LeadForm({ buttonText, showName = false }: { buttonText: string; showNa
         className="bg-[#131a26] border-gray-700 h-12 text-white placeholder:text-gray-500"
         data-testid="input-lead-email"
       />
+      {error && (
+        <p className="text-sm text-red-400" data-testid="text-lead-error">{error}</p>
+      )}
       <Button
         type="submit"
-        className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold"
+        disabled={submitting}
+        className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold disabled:opacity-60"
         data-testid="button-submit-lead"
       >
-        {buttonText} <ArrowRight className="w-4 h-4 ml-2" />
+        {submitting ? (
+          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending…</>
+        ) : (
+          <>{buttonText} <ArrowRight className="w-4 h-4 ml-2" /></>
+        )}
       </Button>
     </form>
   );
