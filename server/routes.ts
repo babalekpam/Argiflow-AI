@@ -5,6 +5,7 @@ import { db } from "./db";
 import { registerTrackerPublicRoutes, registerTrackerDashboardRoutes } from "./tracker-routes";
 import { eq, and, sql, desc, or, ilike, isNull } from "drizzle-orm";
 import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts } from "@shared/schema";
+import { campaigns, campaignLeads } from "@shared/instantly-schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
@@ -826,7 +827,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
       const allLeads = await storage.getLeadsByUser(userId);
       const stats = await storage.getStatsByUser(userId);
       const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
-      await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
+      await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: computeConversionRate(allLeads), revenue: stats?.revenue || 0 });
 
       let funnelMessage = "";
       if (agentType && AGENT_FUNNEL_STAGES[agentType]) {
@@ -1189,6 +1190,49 @@ Schedule a discovery call with our team to discuss your custom strategy in detai
 *Your full AI-generated strategy will be available shortly. Check back in a few minutes, or refresh your dashboard.*`,
       status: "completed",
     });
+  }
+}
+
+// ============================================================
+// CONVERSION RATE (single definition shared by the dashboard + analytics)
+// ============================================================
+
+// A lead counts as converted once it reaches a closed/qualified state. Statuses
+// like "contacted" or "warm" are pipeline progress, not conversions.
+const CONVERTED_LEAD_STATUSES = new Set(["qualified", "won", "customer", "converted"]);
+
+function computeConversionRate(leadList: Array<{ status?: string | null }>): number {
+  if (!leadList.length) return 0;
+  const converted = leadList.filter(l => CONVERTED_LEAD_STATUSES.has((l.status || "").toLowerCase())).length;
+  return Math.round((converted / leadList.length) * 1000) / 10;
+}
+
+// Lead-level engagement is tracked per lead, but the campaign dashboards read the
+// per-campaign counters. Roll an open/click up into every campaign the lead is
+// enrolled in, so campaign open rates stop reading zero.
+async function rollUpEngagementToCampaigns(leadId: string, kind: "open" | "click"): Promise<void> {
+  try {
+    const enrollments = await db.select({ id: campaignLeads.id, campaignId: campaignLeads.campaignId, status: campaignLeads.status })
+      .from(campaignLeads)
+      .where(eq(campaignLeads.leadId, leadId));
+    if (!enrollments.length) return;
+
+    for (const enrollment of enrollments) {
+      await db.update(campaignLeads)
+        .set(kind === "open"
+          ? { openCount: sql`${campaignLeads.openCount} + 1`, status: enrollment.status === "sent" ? "opened" : enrollment.status }
+          : { clickCount: sql`${campaignLeads.clickCount} + 1` })
+        .where(eq(campaignLeads.id, enrollment.id));
+
+      // Only the first open per enrollment counts toward the campaign total.
+      if (kind === "open" && enrollment.status === "sent") {
+        await db.update(campaigns)
+          .set({ emailsOpened: sql`${campaigns.emailsOpened} + 1`, updatedAt: new Date() })
+          .where(eq(campaigns.id, enrollment.campaignId));
+      }
+    }
+  } catch (err) {
+    console.error("Campaign engagement roll-up error:", err);
   }
 }
 
@@ -2994,8 +3038,7 @@ export async function registerRoutes(
       const responseRate = outreachedLeads.length > 0
         ? Math.round((engagedLeads.length / outreachedLeads.length) * 100) : 0;
 
-      const qualifiedLeads = allLeads.filter(l => l.status === "qualified" || l.status === "warm" || l.status === "hot" || l.status === "contacted");
-      const conversionRate = allLeads.length > 0 ? Math.round((qualifiedLeads.length / allLeads.length) * 100) : 0;
+      const conversionRate = computeConversionRate(allLeads);
 
       const now = new Date();
       const leadsTrend: { date: string; count: number }[] = [];
@@ -3068,7 +3111,7 @@ export async function registerRoutes(
         totalLeads: allLeads.length,
         activeLeads: activeCount,
         appointmentsBooked: allAppts.length,
-        conversionRate: cachedStats?.conversionRate || 0,
+        conversionRate: computeConversionRate(allLeads),
         revenue: cachedStats?.revenue || 0,
       });
     } catch (error) {
@@ -6551,6 +6594,7 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
         else if (level === "warm" && lead.status === "new") statusUpdate.status = "warm";
         await storage.updateLead(lead.id, statusUpdate);
         workflowHooks.onLeadEmailOpened(lead.userId, { ...lead, emailOpens: newOpens, engagementScore: score });
+        await rollUpEngagementToCampaigns(lead.id, "open");
 
         try {
           await storage.createEmailEvent({
@@ -6602,6 +6646,7 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
         else if (level === "warm" && (lead.status === "new" || lead.status === "cold")) statusUpdate.status = "warm";
         await storage.updateLead(lead.id, statusUpdate);
         workflowHooks.onLeadEmailClicked(lead.userId, { ...lead, emailClicks: newClicks, engagementScore: score });
+        await rollUpEngagementToCampaigns(lead.id, "click");
 
         try {
           await storage.createEmailEvent({
@@ -8548,7 +8593,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
           const allLeads = await storage.getLeadsByUser(userId);
           const stats = await storage.getStatsByUser(userId);
           const activeCount = allLeads.filter(l => l.status === "hot" || l.status === "qualified" || l.status === "warm").length;
-          await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: stats?.conversionRate || 0, revenue: stats?.revenue || 0 });
+          await storage.upsertStats({ userId, totalLeads: allLeads.length, activeLeads: activeCount, appointmentsBooked: stats?.appointmentsBooked || 0, conversionRate: computeConversionRate(allLeads), revenue: stats?.revenue || 0 });
 
           await storage.updateAgentTask(task.id, { status: "completed", completedAt: new Date(), result: JSON.stringify({ leadsFound, analyzed: true, addedToFunnel: !!funnelInfo, aiPowered: true }) });
           await storage.updateAgentConfig(configId, userId, { isRunning: false, totalLeadsFound: (config.totalLeadsFound || 0) + leadsFound } as any);
