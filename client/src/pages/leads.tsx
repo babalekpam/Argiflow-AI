@@ -1740,13 +1740,8 @@ export default function LeadsPage() {
 
   const newLeads = sourceFilteredLeads.filter(l => !l.outreachSentAt);
   const engagedLeads = sourceFilteredLeads.filter(l => !!l.outreachSentAt);
-  const hotLeads = sourceFilteredLeads.filter(l =>
-    l.status === "hot" ||
-    l.engagementLevel === "hot" ||
-    l.engagementLevel === "warm" ||
-    l.engagementLevel === "interested" ||
-    (l.emailOpens && l.emailOpens > 0) ||
-    (l.emailClicks && l.emailClicks > 0)
+  const hotLeads = sourceFilteredLeads.filter(
+    l => !!l.outreachSentAt && l.engagementLevel === "hot"
   );
 
   const currentLeads = activeTab === "new" ? newLeads : activeTab === "engaged" ? engagedLeads : hotLeads;

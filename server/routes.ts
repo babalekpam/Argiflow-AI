@@ -3467,7 +3467,11 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       const limit = Math.min(5000, Math.max(1, requestedLimit));
       let allLeads = await storage.getLeadsByUser(userId);
       if (source) allLeads = allLeads.filter(l => l.source === source);
-      if (status) allLeads = allLeads.filter(l => l.status === status);
+      if (status === "hot") {
+        allLeads = allLeads.filter(l => !!l.outreachSentAt && l.engagementLevel === "hot");
+      } else if (status) {
+        allLeads = allLeads.filter(l => l.status === status);
+      }
       const totalLeads = allLeads.length;
       const totalPages = Math.ceil(totalLeads / limit);
       const startIndex = (page - 1) * limit;
