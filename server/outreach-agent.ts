@@ -25,6 +25,7 @@ import {
 } from "../shared/schema";
 import { instantlyEngine } from "./instantly-engine";
 import nodemailer from "nodemailer";
+import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
 import { storage } from "./storage";
 
 // Public origin used for open/click tracking URLs embedded in outbound email.
@@ -1042,6 +1043,15 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
 
   private async sendEmail(account: any, toEmail: string, subject: string, body: string, trackOpens: boolean = true, leadId?: string): Promise<boolean> {
     try {
+      if (!isValidRecipientEmail(toEmail)) {
+        console.log(`[OutreachAgent] Invalid recipient email, skipping lead ${leadId || "unknown"}`);
+        return false;
+      }
+      const userId = this.config?.userId;
+      if (userId && await isEmailSuppressed(userId, toEmail)) {
+        console.log(`[OutreachAgent] Suppressed unsubscribed recipient ${toEmail}`);
+        return false;
+      }
       let htmlBody = body.replace(/\n/g, "<br>");
       // The pixel must be an absolute URL keyed by lead id — a relative path never
       // resolves in an email client, and a timestamp key is not attributable.

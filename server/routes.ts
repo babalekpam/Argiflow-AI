@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { registerTrackerPublicRoutes, registerTrackerDashboardRoutes } from "./tracker-routes";
 import { eq, and, sql, desc, or, ilike, isNull } from "drizzle-orm";
-import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts } from "@shared/schema";
+import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnelStages, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts } from "@shared/schema";
 import { campaigns, campaignLeads } from "@shared/instantly-schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
@@ -14,6 +14,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import sgMail from "@sendgrid/mail";
 import nodemailer from "nodemailer";
+import { simpleParser } from "mailparser";
 import { AGENT_CATALOG, getAgentsByRegion, getAgentByType, V5_AGENT_META, VERTICAL_CONFIG, VERTICAL_ORDER } from "./agent-catalog";
 import { REGIONS, detectRegion, getRegionConfig } from "./region-config";
 import { registerWorkflowRoutes } from "./workflow-routes";
@@ -45,6 +46,7 @@ import { getTemplateInstructions, detectSpecialty, getFollowUpForSpecialty, TRAC
 import postalRoutes from "./postal-routes";
 import postalService from "./postal";
 import emailQuotaRoutes from "./email-quota-routes";
+import { isEmailSuppressed, isValidRecipientEmail, suppressEmail } from "./email-suppression";
 
 let tavilyRateLimitedUntil = 0;
 
@@ -536,6 +538,72 @@ async function findOrCreateAgentFunnel(userId: string, agentType: string): Promi
   return { funnelId: targetFunnel.id, firstStageId: stages[0].id };
 }
 
+async function ensureReplyOpportunity(userId: string, lead: { name: string; email?: string | null }): Promise<void> {
+  await db.transaction(async tx => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`${userId}:sales-pipeline`}))`);
+
+    const [existingFunnel] = await tx.select().from(funnels)
+      .where(and(eq(funnels.userId, userId), ilike(funnels.name, "Sales Pipeline")))
+      .limit(1);
+    let funnel = existingFunnel;
+
+    if (!funnel) {
+      [funnel] = await tx.insert(funnels).values({
+        userId,
+        name: "Sales Pipeline",
+        description: "Qualified opportunities created from genuine prospect replies",
+        isActive: true,
+      }).returning();
+      const defaultStages = [
+        { name: "New Lead", color: "#3b82f6" },
+        { name: "Contacted", color: "#8b5cf6" },
+        { name: "Qualified", color: "#f59e0b" },
+        { name: "Proposal Sent", color: "#f97316" },
+        { name: "Closed Won", color: "#22c55e" },
+      ];
+      await tx.insert(funnelStages).values(defaultStages.map((stage, position) => ({
+        funnelId: funnel.id,
+        position,
+        ...stage,
+      })));
+    }
+
+    const stages = await tx.select().from(funnelStages)
+      .where(eq(funnelStages.funnelId, funnel.id))
+      .orderBy(funnelStages.position);
+    if (stages.length === 0) return;
+    const contactedStage = stages.find(stage => stage.name.toLowerCase() === "contacted") || stages[0];
+    const email = (lead.email || "").toLowerCase().trim();
+    const existingDeals = await tx.select().from(funnelDeals)
+      .where(eq(funnelDeals.funnelId, funnel.id));
+    const existing = existingDeals.find(deal =>
+      email
+        ? (deal.contactEmail || "").toLowerCase().trim() === email
+        : deal.contactName.toLowerCase().trim() === lead.name.toLowerCase().trim()
+    );
+
+    if (!existing) {
+      await tx.insert(funnelDeals).values({
+        funnelId: funnel.id,
+        stageId: contactedStage.id,
+        userId,
+        contactName: lead.name,
+        contactEmail: lead.email || "",
+        value: 0,
+        status: "open",
+      });
+      return;
+    }
+
+    const existingStage = stages.find(stage => stage.id === existing.stageId);
+    if (!existingStage || existingStage.position < contactedStage.position) {
+      await tx.update(funnelDeals)
+        .set({ stageId: contactedStage.id, status: "open" })
+        .where(and(eq(funnelDeals.id, existing.id), eq(funnelDeals.userId, userId)));
+    }
+  });
+}
+
 async function addLeadsToAgentFunnel(userId: string, agentType: string, leadsToAdd: { name: string; email?: string; value?: number }[]): Promise<string> {
   const funnelInfo = await findOrCreateAgentFunnel(userId, agentType);
   if (!funnelInfo) return "";
@@ -763,7 +831,7 @@ async function executeAction(userId: string, action: string, params: any): Promi
             }
           }
         }
-        const hasRealEmail = lead.email && lead.email.trim().length > 3 && lead.email.includes("@") && lead.email.includes(".");
+        const hasRealEmail = isValidRecipientEmail(lead.email);
         const hasRealPhone = lead.phone && lead.phone.replace(/\D/g, '').length >= 10;
         if (!hasRealEmail || !hasRealPhone) {
           const missing = !hasRealEmail && !hasRealPhone ? "phone AND email" : !hasRealEmail ? "email" : "phone";
@@ -799,8 +867,8 @@ async function executeAction(userId: string, action: string, params: any): Promi
           company: lead.company || "",
           address: lead.address || "",
           source: standardSource || lead.source || "Web Research",
-          status: lead.status || "new",
-          score: lead.score || randomInt(50, 85),
+          status: "new",
+          score: 0,
           notes: lead.notes || "",
           outreach: lead.outreach || "",
           intentSignal: lead.intentSignal || lead.intent_signal || "",
@@ -1271,6 +1339,12 @@ function injectTrackingPixel(html: string, leadId: string, baseUrl: string): str
 export async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string }> {
   if (!lead.email || !lead.outreach) {
     return { success: false, error: "Lead has no email or outreach draft" };
+  }
+  if (!isValidRecipientEmail(lead.email)) {
+    return { success: false, error: "Lead has an invalid email address" };
+  }
+  if (await isEmailSuppressed(lead.userId || user?.id, lead.email)) {
+    return { success: false, error: "Recipient has unsubscribed" };
   }
 
   if (!user?.companyName) {
@@ -3449,6 +3523,18 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       if (parsed.data.phone) {
         parsed.data.phone = normalizePhoneNumber(parsed.data.phone);
       }
+      const normalizedEmail = parsed.data.email.toLowerCase().trim();
+      if (!isValidRecipientEmail(normalizedEmail)) {
+        return res.status(400).json({ message: "Enter a valid email address" });
+      }
+      const existingLeads = await storage.getLeadsByUser(userId);
+      const isSuppressed = existingLeads.some(existing =>
+        existing.email.toLowerCase().trim() === normalizedEmail &&
+        existing.status === "unsubscribed"
+      );
+      if (isSuppressed) {
+        return res.status(409).json({ message: "This email address previously opted out and cannot be added again" });
+      }
       const lead = await storage.createLead(parsed.data);
       workflowHooks.onLeadCreated(userId, lead);
       res.json(lead);
@@ -4684,6 +4770,14 @@ RULES:
     const fPlainText = emailBody + fTextSig;
 
     try {
+      if (!isValidRecipientEmail(lead.email)) {
+        await storage.updateLead(lead.id, { followUpStatus: "completed", followUpNextAt: null });
+        return { success: false, error: "Lead has an invalid email address" };
+      }
+      if (await isEmailSuppressed(lead.userId || user.id, lead.email)) {
+        await storage.updateLead(lead.id, { followUpStatus: "completed", followUpNextAt: null });
+        return { success: false, error: "Recipient has unsubscribed" };
+      }
       if (hasCustomSmtp) {
         const transporter = nodemailer.createTransport({
           host: customSmtpHost,
@@ -4897,28 +4991,44 @@ RULES:
             const existing = messageId ? await storage.getEmailReplyByMessageId(messageId) : null;
             if (existing) continue;
 
-            const toAddresses = (msg.envelope.to || []).map((t: any) => t?.address?.toLowerCase()).filter(Boolean);
-            const isToUs = toAddresses.some((addr: string) => addr === imapUser.toLowerCase());
-            if (!isToUs) {
+            const canonicalAddress = (address: string) => {
+              const [local, domain] = address.toLowerCase().trim().split("@");
+              if (!local || !domain) return address.toLowerCase().trim();
+              return `${local.split("+")[0]}@${domain}`;
+            };
+            const recipientAddresses = [...(msg.envelope.to || []), ...(msg.envelope.cc || [])]
+              .map((recipient: any) => recipient?.address)
+              .filter(Boolean)
+              .map(canonicalAddress);
+            if (!recipientAddresses.includes(canonicalAddress(imapUser))) {
               continue;
             }
 
-            let matchedLead = null;
-            let matchedUser = null;
+            const matches: Array<{ lead: any; user: any }> = [];
 
             for (const user of allUsers) {
               const userLeads = await storage.getLeadsByUser(user.id);
-              const lead = userLeads.find(l =>
-                l.email?.toLowerCase() === fromEmail &&
+              const matchingLeads = userLeads.filter(l =>
+                l.email?.toLowerCase().trim() === fromEmail.trim() &&
                 l.outreachSentAt
               );
-              if (lead) {
-                matchedLead = lead;
-                matchedUser = user;
-                break;
+              for (const lead of matchingLeads) {
+                matches.push({ lead, user });
               }
             }
 
+            if (matches.length !== 1) {
+              if (matches.length > 1) {
+                console.warn(`[INBOX] Ambiguous reply from ${fromEmail} matched ${matches.length} sent leads; quarantining without CRM or AI action`);
+                await client.messageFlagsAdd(uid, ["\\Seen"]);
+              } else {
+                console.log(`[INBOX] No matching lead for ${fromEmail}, skipping`);
+              }
+              continue;
+            }
+
+            const matchedLead = matches[0].lead;
+            const matchedUser = matches[0].user;
             if (!matchedLead || !matchedUser) {
               console.log(`[INBOX] No matching lead for ${fromEmail}, skipping`);
               continue;
@@ -4928,18 +5038,17 @@ RULES:
             inboxMonitorStatus.repliesFound++;
 
             let bodyText = "";
+            let parsedMessage: Awaited<ReturnType<typeof simpleParser>> | null = null;
             if (msg.source) {
-              const rawSource = msg.source.toString();
-              const bodyStart = rawSource.indexOf("\r\n\r\n");
-              if (bodyStart > -1) {
-                bodyText = rawSource.substring(bodyStart + 4);
-                bodyText = bodyText
-                  .replace(/<[^>]*>/g, "")
-                  .replace(/=\r?\n/g, "")
-                  .replace(/=([0-9A-Fa-f]{2})/g, (_: string, hex: string) => String.fromCharCode(parseInt(hex, 16)))
-                  .replace(/\r\n/g, "\n")
-                  .trim();
+              try {
+                parsedMessage = await simpleParser(msg.source);
+                bodyText = (parsedMessage.text || "").trim();
+                if (!bodyText && typeof parsedMessage.html === "string") {
+                  bodyText = parsedMessage.html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+                }
                 if (bodyText.length > 2000) bodyText = bodyText.substring(0, 2000);
+              } catch (parseErr: any) {
+                console.warn(`[INBOX] Could not safely parse reply from ${fromEmail}:`, parseErr?.message);
               }
             }
 
@@ -4956,12 +5065,44 @@ RULES:
               status: "received",
             });
 
+            const normalizedReply = bodyText.toLowerCase();
+            const isOptOut = /\b(unsubscribe|remove me|take me off|stop (?:emailing|contacting|sending)|do not (?:email|contact)|don't (?:email|contact)|no more emails|opt me out|opt-out)\b/.test(normalizedReply);
+            const isNegative = isOptOut || /\b(not interested|no interest|not a fit|no thank|please don't|wrong person)\b/.test(normalizedReply);
+            const autoSubmitted = String(parsedMessage?.headers.get("auto-submitted") || "").toLowerCase();
+            const precedence = String(parsedMessage?.headers.get("precedence") || "").toLowerCase();
+            const isAutomatedReply =
+              /\b(out of office|automatic reply|auto.?reply|away from (?:the )?office|delivery status notification|undeliverable|mail delivery subsystem|vacation responder)\b/.test(`${subject} ${normalizedReply}`) ||
+              (!!autoSubmitted && autoSubmitted !== "no") ||
+              /^(bulk|junk|list)$/.test(precedence) ||
+              parsedMessage?.contentType === "multipart/report" ||
+              !bodyText;
+
+            if (isOptOut) {
+              await suppressEmail(matchedUser.id, fromEmail);
+              const sameAddressLeads = (await storage.getLeadsByUser(matchedUser.id))
+                .filter(lead => lead.email.toLowerCase().trim() === fromEmail.trim());
+              await Promise.all(sameAddressLeads.map(lead =>
+                storage.updateLead(lead.id, {
+                  status: "unsubscribed",
+                  engagementLevel: "none",
+                  nextStep: "Do not contact — prospect opted out",
+                  followUpStatus: "completed",
+                })
+              ));
+            }
+
             await storage.updateLead(matchedLead.id, {
-              status: "contacted",
-              engagementScore: Math.min((matchedLead.engagementScore || 0) + 40, 100),
-              engagementLevel: "hot",
+              status: isOptOut ? "unsubscribed" : isNegative ? "cold" : isAutomatedReply ? matchedLead.status : "contacted",
+              engagementScore: isNegative || isAutomatedReply ? matchedLead.engagementScore || 0 : Math.min((matchedLead.engagementScore || 0) + 40, 100),
+              engagementLevel: isNegative ? "none" : isAutomatedReply ? matchedLead.engagementLevel || "none" : "hot",
               lastEngagedAt: new Date(),
-              nextStep: "Lead replied to outreach — AI auto-reply sent",
+              nextStep: isOptOut
+                ? "Do not contact — prospect opted out"
+                : isNegative
+                  ? "Prospect declined — stop outreach"
+                  : isAutomatedReply
+                    ? "Automated reply received — wait for a human response"
+                    : "Prospect replied — review and continue the conversation",
               followUpStatus: "completed",
             });
 
@@ -4970,15 +5111,23 @@ RULES:
               console.log(`[INBOX] Auto-stopped ${seqsStopped} sequence(s) for ${matchedLead.name} after reply`);
             }
 
+            if (!isNegative && !isAutomatedReply) {
+              try {
+                await ensureReplyOpportunity(matchedUser.id, matchedLead);
+              } catch (dealErr: any) {
+                console.error(`[INBOX] Could not create opportunity for ${matchedLead.name}:`, dealErr?.message);
+              }
+            }
+
             await storage.createNotification({
               userId: matchedUser.id,
-              title: `Reply from ${matchedLead.name}`,
-              message: `${matchedLead.name} (${matchedLead.company || fromEmail}) replied to your outreach.${seqsStopped > 0 ? ` ${seqsStopped} active sequence(s) auto-stopped.` : ""} AI auto-reply has been sent.`,
+              title: isOptOut ? `Opt-out from ${matchedLead.name}` : `Reply from ${matchedLead.name}`,
+              message: `${matchedLead.name} (${matchedLead.company || fromEmail}) ${isOptOut ? "asked to stop receiving outreach" : isNegative ? "declined the outreach" : isAutomatedReply ? "sent an automated reply" : "replied and was added to the sales pipeline"}.${seqsStopped > 0 ? ` ${seqsStopped} active sequence(s) auto-stopped.` : ""}`,
               type: "lead_reply",
               read: false,
             });
 
-            try {
+            if (!isNegative && !isAutomatedReply) try {
               const userSettings = await storage.getSettingsByUser(matchedUser.id);
               const existingThread = await storage.getEmailRepliesByLead(matchedLead.id);
 
@@ -6542,24 +6691,20 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
 
   function calculateEngagement(opens: number, clicks: number): { score: number; level: string; nextStep: string } {
     let score = 0;
-    if (opens >= 1) score += 25;
-    if (opens >= 2) score += 15;
-    if (opens >= 3) score += 10;
-    if (clicks >= 1) score += 35;
-    if (clicks >= 2) score += 15;
+    if (clicks >= 1) score = 10;
+    if (clicks >= 2) score = 20;
     score = Math.min(score, 100);
 
     let level: string;
     let nextStep: string;
-    if (score >= 40) {
-      level = "hot";
-      nextStep = "Schedule a call immediately — this lead is highly engaged";
-    } else if (score >= 25) {
-      level = "warm";
-      nextStep = "Send a follow-up email with a case study or booking link";
-    } else if (score >= 10) {
+    if (score >= 10) {
       level = "interested";
-      nextStep = "Send a value-add follow-up in 2-3 days";
+      nextStep = clicks > 1
+        ? "Multiple link requests recorded — verify interest through a reply before qualifying"
+        : "A link request was recorded — wait for a reply before treating it as buying intent";
+    } else if (opens > 0) {
+      level = "none";
+      nextStep = "Open recorded but not treated as intent because privacy systems may preload email";
     } else {
       level = "none";
       nextStep = "Wait for engagement or try a different channel (SMS/call)";
@@ -6590,8 +6735,6 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
           lastEngagedAt: new Date(),
           nextStep,
         };
-        if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
-        else if (level === "warm" && lead.status === "new") statusUpdate.status = "warm";
         await storage.updateLead(lead.id, statusUpdate);
         workflowHooks.onLeadEmailOpened(lead.userId, { ...lead, emailOpens: newOpens, engagementScore: score });
         await rollUpEngagementToCampaigns(lead.id, "open");
@@ -6642,8 +6785,6 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
           lastEngagedAt: new Date(),
           nextStep,
         };
-        if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
-        else if (level === "warm" && (lead.status === "new" || lead.status === "cold")) statusUpdate.status = "warm";
         await storage.updateLead(lead.id, statusUpdate);
         workflowHooks.onLeadEmailClicked(lead.userId, { ...lead, emailClicks: newClicks, engagementScore: score });
         await rollUpEngagementToCampaigns(lead.id, "click");
@@ -8001,7 +8142,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       const userEmail = owner.email.toLowerCase();
 
       const validLeads = allLeads.filter(l =>
-        l.email &&
+            isValidRecipientEmail(l.email) &&
         !isFakeName(l.name || "") &&
         !isFakeEmail(l.email || "") &&
         !(l.email || "").toLowerCase().includes(userEmail)
@@ -11257,21 +11398,15 @@ async function repairSentLeads() {
         const realClicks = events.filter(e => e.eventType === "click").length;
         if (realOpens !== (lead.emailOpens || 0) || realClicks !== (lead.emailClicks || 0)) {
           let score = 0;
-          if (realOpens >= 1) score += 25;
-          if (realOpens >= 2) score += 15;
-          if (realOpens >= 3) score += 10;
-          if (realClicks >= 1) score += 35;
-          if (realClicks >= 2) score += 15;
+          if (realClicks >= 1) score = 10;
+          if (realClicks >= 2) score = 20;
           score = Math.min(score, 100);
           let level = "none";
           let nextStep = "Wait for engagement or try a different channel (SMS/call)";
-          if (score >= 40) { level = "hot"; nextStep = "Schedule a call immediately — this lead is highly engaged"; }
-          else if (score >= 25) { level = "warm"; nextStep = "Send a follow-up email with a case study or booking link"; }
-          else if (score >= 10) { level = "interested"; nextStep = "Send a value-add follow-up in 2-3 days"; }
+          if (score >= 10) { level = "interested"; nextStep = "Link activity recorded — wait for a reply before qualifying"; }
+          else if (realOpens > 0) { nextStep = "Open recorded but not treated as intent because privacy systems may preload email"; }
           const engUpdate: any = { emailOpens: realOpens, emailClicks: realClicks, engagementScore: score, engagementLevel: level, nextStep };
           if (realOpens > 0 || realClicks > 0) engUpdate.lastEngagedAt = events[events.length - 1].createdAt;
-          if (level === "hot" && lead.status !== "qualified") engUpdate.status = "hot";
-          else if (level === "warm" && lead.status === "new") engUpdate.status = "warm";
           await storage.updateLead(lead.id, engUpdate);
           repairedEngagement++;
         }

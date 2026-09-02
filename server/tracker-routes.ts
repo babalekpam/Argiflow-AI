@@ -16,6 +16,20 @@ const getIP = (req: any): string =>
   req.socket?.remoteAddress ||
   "unknown";
 
+const EMAIL_SCANNER_PATTERNS = [
+  "googlebot", "bingbot", "crawler", "spider", "headless", "phantomjs",
+  "barracuda", "proofpoint", "mimecast", "fireeye", "forcepoint", "symantec",
+  "mcafee", "sophos", "trendmicro", "fortinet", "cisco", "ironport",
+  "messagelabs", "urldefense", "safelinks", "protection.outlook",
+  "wget", "curl", "python-requests", "node-fetch", "axios",
+];
+
+const isAutomatedEmailEvent = (req: any): boolean => {
+  const ua = String(req.headers["user-agent"] || "").toLowerCase();
+  if (!ua || ua.length < 20) return true;
+  return EMAIL_SCANNER_PATTERNS.some(pattern => ua.includes(pattern));
+};
+
 const parseUA = (ua: string = "") => {
   const browser =
     ua.includes("Chrome") && !ua.includes("Edg") ? "Chrome" :
@@ -227,23 +241,25 @@ export function registerTrackerPublicRoutes(app: Express) {
       const ua = req.headers["user-agent"] || "";
       const { browser, device, isMobile } = parseUA(ua);
 
-      await pool.query(`
-        INSERT INTO track_email_events
-          (token, event_type, ip, user_agent, browser, device, is_mobile)
-        VALUES ($1,'open',$2,$3,$4,$5,$6)`,
-        [token, ip, ua, browser, device, isMobile]
-      );
+      if (!isAutomatedEmailEvent(req)) {
+        await pool.query(`
+          INSERT INTO track_email_events
+            (token, event_type, ip, user_agent, browser, device, is_mobile)
+          VALUES ($1,'open',$2,$3,$4,$5,$6)`,
+          [token, ip, ua, browser, device, isMobile]
+        );
 
-      await pool.query(`
-        UPDATE track_email_sends
-        SET opens = opens + 1,
-            first_opened_at = COALESCE(first_opened_at, NOW()),
-            last_opened_at  = NOW(),
-            open_device     = $2,
-            open_browser    = $3
-        WHERE token = $1`,
-        [token, device, browser]
-      );
+        await pool.query(`
+          UPDATE track_email_sends
+          SET opens = opens + 1,
+              first_opened_at = COALESCE(first_opened_at, NOW()),
+              last_opened_at  = NOW(),
+              open_device     = $2,
+              open_browser    = $3
+          WHERE token = $1`,
+          [token, device, browser]
+        );
+      }
 
       const gif = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
       res.set({ "Content-Type": "image/gif", "Cache-Control": "no-store, no-cache" });
@@ -262,21 +278,23 @@ export function registerTrackerPublicRoutes(app: Express) {
       const ua = req.headers["user-agent"] || "";
       const { browser, device, isMobile } = parseUA(ua);
 
-      await pool.query(`
-        INSERT INTO track_email_events
-          (token, event_type, link_id, ip, user_agent, browser, device, is_mobile)
-        VALUES ($1,'click',$2,$3,$4,$5,$6,$7)`,
-        [token, link_id, ip, ua, browser, device, isMobile]
-      );
+      if (!isAutomatedEmailEvent(req)) {
+        await pool.query(`
+          INSERT INTO track_email_events
+            (token, event_type, link_id, ip, user_agent, browser, device, is_mobile)
+          VALUES ($1,'click',$2,$3,$4,$5,$6,$7)`,
+          [token, link_id, ip, ua, browser, device, isMobile]
+        );
 
-      await pool.query(`
-        UPDATE track_email_sends
-        SET clicks = clicks + 1,
-            first_clicked_at = COALESCE(first_clicked_at, NOW()),
-            last_clicked_at  = NOW()
-        WHERE token = $1`,
-        [token]
-      );
+        await pool.query(`
+          UPDATE track_email_sends
+          SET clicks = clicks + 1,
+              first_clicked_at = COALESCE(first_clicked_at, NOW()),
+              last_clicked_at  = NOW()
+          WHERE token = $1`,
+          [token]
+        );
+      }
 
       const result = await pool.query(
         `SELECT original_url FROM track_email_links WHERE token=$1 AND link_id=$2`,

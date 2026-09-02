@@ -6,6 +6,7 @@ import {
 } from "@shared/schema";
 import { storage } from "./storage";
 import nodemailer from "nodemailer";
+import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
 
 const automationStatus = {
   running: false,
@@ -51,6 +52,14 @@ async function sendSequenceEmail(
       const reason = !leadRecord.email ? "Lead has no email" : "SMTP not configured";
       console.log(`[SeqAuto] ${reason}, skipping send`);
       await logSequenceEmail({ userId, leadId: leadRecord.id, recipientEmail: leadRecord.email || "none", recipientName: leadRecord.name, subject, status: "failed", errorMessage: reason });
+      return false;
+    }
+    if (!isValidRecipientEmail(leadRecord.email)) {
+      console.log(`[SeqAuto] Invalid recipient email, skipping lead ${leadRecord.id}`);
+      return false;
+    }
+    if (await isEmailSuppressed(userId, leadRecord.email)) {
+      console.log(`[SeqAuto] Suppressed unsubscribed recipient ${leadRecord.email}`);
       return false;
     }
 
@@ -144,6 +153,7 @@ export async function processSequenceAutomation(): Promise<void> {
         }
 
         if (
+          await isEmailSuppressed(seq.userId, leadRecord.email) ||
           leadRecord.followUpStatus === "completed" ||
           leadRecord.engagementLevel === "hot" ||
           leadRecord.status === "contacted"
@@ -247,6 +257,10 @@ export async function autoEnrollLeadInSequence(
       .where(sql`${leads.id} = ${leadId} AND ${leads.userId} = ${userId}`);
     if (!leadRecord) {
       console.warn(`[SeqAuto] Lead ${leadId} not found or not owned by user ${userId}`);
+      return false;
+    }
+    if (await isEmailSuppressed(userId, leadRecord.email)) {
+      console.warn(`[SeqAuto] Refusing to enroll unsubscribed recipient ${leadRecord.email}`);
       return false;
     }
 

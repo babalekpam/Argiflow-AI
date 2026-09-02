@@ -1,0 +1,1 @@
+- [Outreach safety boundaries](outreach-safety-boundaries.md) — Treat tracking as untrusted, fail closed on ambiguous replies, and persist opt-outs outside deletable lead records.
