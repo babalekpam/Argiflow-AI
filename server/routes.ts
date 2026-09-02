@@ -3461,8 +3461,10 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       const userId = req.session.userId!;
       const source = req.query.source as string | undefined;
       const status = req.query.status as string | undefined;
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const requestedPage = parseInt(req.query.page as string) || 1;
+      const requestedLimit = parseInt(req.query.limit as string) || 10;
+      const page = Math.max(1, requestedPage);
+      const limit = Math.min(5000, Math.max(1, requestedLimit));
       let allLeads = await storage.getLeadsByUser(userId);
       if (source) allLeads = allLeads.filter(l => l.source === source);
       if (status) allLeads = allLeads.filter(l => l.status === status);

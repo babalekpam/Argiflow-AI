@@ -1326,6 +1326,7 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"new" | "engaged" | "hot" | "followups">("new");
+  const [exportLimit, setExportLimit] = useState(10);
   const [smsLead, setSmsLead] = useState<Lead | null>(null);
   const [smsBody, setSmsBody] = useState("");
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
@@ -1806,15 +1807,33 @@ export default function LeadsPage() {
               {deleteAllMutation.isPending ? t("leads.clearing") : t("leads.clearAll")}
             </Button>
           )}
+          <div className="flex items-center gap-2">
+            <label htmlFor="lead-export-quantity" className="text-sm text-muted-foreground whitespace-nowrap">
+              Leads per export
+            </label>
+            <Input
+              id="lead-export-quantity"
+              type="number"
+              min={1}
+              max={5000}
+              value={exportLimit}
+              onChange={(event) => {
+                const value = Number.parseInt(event.target.value, 10);
+                setExportLimit(Number.isFinite(value) ? Math.min(5000, Math.max(1, value)) : 10);
+              }}
+              className="h-9 w-24"
+              data-testid="input-export-quantity"
+            />
+          </div>
           <Select onValueChange={(val) => {
             const [filter, pg] = val.split("|");
             const page = pg || "1";
-            const params = new URLSearchParams({ page, limit: "10", status: filter });
+            const params = new URLSearchParams({ page, limit: String(exportLimit), status: filter });
             window.open(`/api/leads/export/csv?${params.toString()}`, "_blank");
           }}>
-            <SelectTrigger className="w-[190px]" data-testid="button-export-csv">
+            <SelectTrigger className="w-[220px]" data-testid="button-export-csv">
               <Download className="w-4 h-4 mr-2" />
-              Export 10 Leads
+              Export up to {exportLimit} Leads
             </SelectTrigger>
             <SelectContent>
               {(() => {
@@ -1832,10 +1851,10 @@ export default function LeadsPage() {
                   const filtered = Array.isArray(leads) ? leads.filter((l: any) => l.status === sf.value) : [];
                   const count = filtered.length;
                   if (count === 0) continue;
-                  const sfPages = Math.max(1, Math.ceil(count / 10));
+                  const sfPages = Math.max(1, Math.ceil(count / exportLimit));
                   for (let p = 1; p <= sfPages; p++) {
-                    const start = (p - 1) * 10 + 1;
-                    const end = Math.min(p * 10, count);
+                    const start = (p - 1) * exportLimit + 1;
+                    const end = Math.min(p * exportLimit, count);
                     items.push(
                       <SelectItem key={`${sf.value}-${p}`} value={`${sf.value}|${p}`} data-testid={`export-${sf.value}-page-${p}`}>
                         {sf.label} ({count}) — #{start}–{end}
