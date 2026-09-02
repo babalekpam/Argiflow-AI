@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "./db";
-import { businesses, marketingStrategies, users, websiteProfiles } from "@shared/schema";
+import { businesses, marketingStrategies, users, userSettings, websiteProfiles } from "@shared/schema";
 
 const FACTUAL_GROUNDING_RULES = `
 FACTUAL GROUNDING RULES:
@@ -16,11 +16,12 @@ export async function getVerifiedTenantBusinessContext(
   userId: string,
   ownerProvidedContext?: string | null,
 ): Promise<string> {
-  const [[user], [business], [website], [strategy]] = await Promise.all([
+  const [[user], [business], [website], [strategy], [settings]] = await Promise.all([
     db.select().from(users).where(eq(users.id, userId)).limit(1),
     db.select().from(businesses).where(eq(businesses.userId, userId)).limit(1),
     db.select().from(websiteProfiles).where(eq(websiteProfiles.userId, userId)).limit(1),
     db.select().from(marketingStrategies).where(eq(marketingStrategies.userId, userId)).limit(1),
+    db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1),
   ]);
 
   if (!user) throw new Error("Tenant business owner not found");
@@ -34,6 +35,7 @@ export async function getVerifiedTenantBusinessContext(
     `Website-sourced value propositions: ${website?.status === "trained" ? website.valuePropositions || "Not provided" : "Not verified"}`,
     `Website-sourced target audience: ${website?.status === "trained" ? website.targetAudience || "Not provided" : "Not verified"}`,
     `Website-sourced pricing: ${website?.status === "trained" ? website.pricing || "Not provided" : "Not verified"}`,
+    `Verified booking link: ${settings?.calendarLink || "Not provided"}`,
     `Owner-provided agent context: ${ownerProvidedContext?.trim() || "Not provided"}`,
   ];
 
