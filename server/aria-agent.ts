@@ -652,6 +652,7 @@ CODE GENERATION:
 
     if (shouldExecute && isEmailAction) {
       const emailResult = await connectors.sendEmailViaSES({
+        userId,
         to: action.tool_params.to,
         toName: action.tool_params.to_name,
         subject: action.tool_params.subject || `Follow-up from ${biz.name}`,
@@ -798,6 +799,7 @@ Rules:
 
     if (isAutoExecute && action.tool === "ses" && action.tool_params?.to) {
       const emailResult = await connectors.sendEmailViaSES({
+        userId,
         to: action.tool_params.to,
         toName: action.tool_params.to_name,
         subject: action.tool_params.subject || `Follow-up from ${biz.name}`,
@@ -891,6 +893,7 @@ Keep it under 200 words. Be warm and professional, like a trusted assistant.`;
 
   if (biz.briefing_via === "email" && biz.owner_email) {
     await connectors.sendEmailViaSES({
+      userId,
       to: biz.owner_email,
       toName: biz.owner_name || undefined,
       subject: `Daily Briefing — ${biz.name}`,

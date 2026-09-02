@@ -50,6 +50,7 @@ async function executeApprovedAction(userId: string, action: any): Promise<{ exe
 
   try {
     const emailResult = await sendEmailViaSES({
+      userId,
       to: toEmail,
       subject,
       body: body.replace(/\n/g, "<br>"),

@@ -4,6 +4,7 @@ import {
   sequences, sequenceSteps, sequenceEnrollments, leads,
   notifications, funnelDeals, emailLogs,
 } from "@shared/schema";
+import { emailReplies } from "@shared/outreach-schema";
 import { storage } from "./storage";
 import nodemailer from "nodemailer";
 import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
@@ -43,13 +44,15 @@ async function sendSequenceEmail(
   content: string
 ): Promise<boolean> {
   try {
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587;
-    const smtpUser = process.env.SMTP_USERNAME;
-    const smtpPass = process.env.SMTP_PASSWORD;
+    const tenantSettings = await storage.getSettingsByUser(userId);
+    const smtpHost = tenantSettings?.smtpHost;
+    const smtpPort = tenantSettings?.smtpPort || 587;
+    const smtpUser = tenantSettings?.smtpUsername;
+    const smtpPass = tenantSettings?.smtpPassword;
+    const senderEmail = tenantSettings?.senderEmail || smtpUser;
 
     if (!smtpHost || !smtpUser || !smtpPass || !leadRecord.email) {
-      const reason = !leadRecord.email ? "Lead has no email" : "SMTP not configured";
+      const reason = !leadRecord.email ? "Lead has no email" : "Tenant SMTP not configured";
       console.log(`[SeqAuto] ${reason}, skipping send`);
       await logSequenceEmail({ userId, leadId: leadRecord.id, recipientEmail: leadRecord.email || "none", recipientName: leadRecord.name, subject, status: "failed", errorMessage: reason });
       return false;
@@ -69,7 +72,7 @@ async function sendSequenceEmail(
     const transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
-      secure: smtpPort === 465,
+      secure: tenantSettings?.smtpSecure ?? smtpPort === 465,
       auth: { user: smtpUser, pass: smtpPass },
       connectionTimeout: 10000,
       greetingTimeout: 10000,
@@ -77,7 +80,7 @@ async function sendSequenceEmail(
     });
 
     await transporter.sendMail({
-      from: `"${senderName}" <${smtpUser}>`,
+      from: `"${senderName}" <${senderEmail}>`,
       to: leadRecord.email,
       subject: subject || "Following up",
       html: content,
@@ -152,17 +155,23 @@ export async function processSequenceAutomation(): Promise<void> {
           continue;
         }
 
-        if (
-          await isEmailSuppressed(seq.userId, leadRecord.email) ||
-          leadRecord.followUpStatus === "completed" ||
-          leadRecord.engagementLevel === "hot" ||
-          leadRecord.status === "contacted"
-        ) {
+        const suppressed = await isEmailSuppressed(seq.userId, leadRecord.email);
+        const [inboundReply] = await db
+          .select({ id: emailReplies.id })
+          .from(emailReplies)
+          .where(and(
+            eq(emailReplies.userId, seq.userId),
+            eq(emailReplies.leadId, leadRecord.id),
+            eq(emailReplies.direction, "inbound"),
+          ))
+          .limit(1);
+
+        if (suppressed || inboundReply) {
           await db.update(sequenceEnrollments)
-            .set({ status: "replied", completedAt: now })
+            .set({ status: suppressed ? "unsubscribed" : "replied", completedAt: now })
             .where(eq(sequenceEnrollments.id, enrollment.id));
           automationStatus.sequencesStopped++;
-          console.log(`[SeqAuto] Stopped sequence for ${leadRecord.name} — lead replied/engaged`);
+          console.log(`[SeqAuto] Stopped sequence for ${leadRecord.name} — ${suppressed ? "recipient suppressed" : "inbound reply recorded"}`);
           continue;
         }
 
@@ -288,8 +297,6 @@ export async function autoEnrollLeadInSequence(
         sql`${sequenceEnrollments.sequenceId} = ${targetSeqId} AND ${sequenceEnrollments.leadId} = ${leadId}`
       );
 
-    if (existing.length > 0) return false;
-
     const [firstStep] = await db.select().from(sequenceSteps)
       .where(
         sql`${sequenceSteps.sequenceId} = ${targetSeqId} AND ${sequenceSteps.stepNumber} = 1`
@@ -299,6 +306,32 @@ export async function autoEnrollLeadInSequence(
       ((firstStep?.delayDays ?? 0) * 86400000) +
       ((firstStep?.delayHours ?? 1) * 3600000);
     const nextSendAt = new Date(Date.now() + (delayMs > 0 ? delayMs : 3600000));
+
+    if (existing.length > 0) {
+      const enrollment = existing[0];
+      if (enrollment.status !== "replied" || (enrollment.currentStep || 0) !== 0) return false;
+
+      const [inboundReply] = await db
+        .select({ id: emailReplies.id })
+        .from(emailReplies)
+        .where(and(
+          eq(emailReplies.userId, userId),
+          eq(emailReplies.leadId, leadId),
+          eq(emailReplies.direction, "inbound"),
+        ))
+        .limit(1);
+      if (inboundReply) return false;
+
+      await db.update(sequenceEnrollments)
+        .set({
+          status: "active",
+          nextSendAt,
+          completedAt: null,
+        })
+        .where(eq(sequenceEnrollments.id, enrollment.id));
+      console.log(`[SeqAuto] Reactivated falsely stopped enrollment for lead ${leadId}`);
+      return true;
+    }
 
     await db.insert(sequenceEnrollments).values({
       sequenceId: targetSeqId,

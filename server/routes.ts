@@ -7237,7 +7237,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
         settings = await storage.upsertSettings({ userId, emailNotifications: true, smsNotifications: false, aiAutoRespond: true, leadScoring: true, appointmentReminders: true, weeklyReport: true, darkMode: true, twoFactorAuth: false });
       }
       const result: any = { ...settings };
-      const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "cohereApiKey", "openrouterApiKey", "youApiKey", "sendgridApiKey"];
+      const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "cohereApiKey", "openrouterApiKey", "youApiKey", "sendgridApiKey", "smtpPassword"];
       for (const k of sensitiveKeys) {
         if (result[k]) {
           const key = result[k];
@@ -7259,7 +7259,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
     try {
       const userId = req.session.userId!;
       const body = { ...req.body };
-      const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "cohereApiKey", "openrouterApiKey", "youApiKey", "sendgridApiKey"];
+      const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "cohereApiKey", "openrouterApiKey", "youApiKey", "sendgridApiKey", "smtpPassword"];
       for (const k of sensitiveKeys) {
         if (body[k] && body[k].includes("...")) delete body[k];
         if (body[k] === "") body[k] = null;
@@ -9531,20 +9531,23 @@ The ArgiFlow Team`;
   app.use("/api/domains", domainRoutes);
 
   app.get("/api/test-email", isAuthenticated, async (req, res) => {
-    const smtpHost = process.env.SES_SMTP_HOST || process.env.SMTP_HOST;
-    const smtpPort = parseInt(process.env.SES_SMTP_PORT || process.env.SMTP_PORT || "587");
-    const smtpUser = process.env.SES_SMTP_USER || process.env.SMTP_USERNAME;
-    const smtpPass = process.env.SES_SMTP_PASS || process.env.SMTP_PASSWORD;
-    const senderEmail = process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+    const userId = req.session.userId!;
+    const tenantSettings = await storage.getSettingsByUser(userId);
+    const user = await storage.getUserById(userId);
+    const smtpHost = tenantSettings?.smtpHost;
+    const smtpPort = tenantSettings?.smtpPort || 587;
+    const smtpUser = tenantSettings?.smtpUsername;
+    const smtpPass = tenantSettings?.smtpPassword;
+    const senderEmail = tenantSettings?.senderEmail || smtpUser;
 
-    if (!smtpHost || !smtpUser || !smtpPass) {
-      return res.status(503).json({ success: false, error: "Email delivery is not configured" });
+    if (!smtpHost || !smtpUser || !smtpPass || !senderEmail || !user?.email) {
+      return res.status(503).json({ success: false, error: "Tenant email delivery is not configured" });
     }
 
     const t = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
-      secure: smtpPort === 465,
+      secure: tenantSettings?.smtpSecure ?? smtpPort === 465,
       auth: { user: smtpUser, pass: smtpPass },
       connectionTimeout: 10000,
       greetingTimeout: 10000,
@@ -9553,9 +9556,9 @@ The ArgiFlow Team`;
     try {
       const r = await t.sendMail({
         from: senderEmail,
-        to: "abel@argilette.com",
-        subject: "Test from routes",
-        html: "<p>Working!</p>",
+        to: user.email,
+        subject: "Track-Med SMTP test",
+        html: "<p>Your Track-Med tenant SMTP configuration is working.</p>",
       });
       res.json({ success: true, messageId: r.messageId });
     } catch (e: any) {

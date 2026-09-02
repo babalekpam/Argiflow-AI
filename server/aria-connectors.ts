@@ -1,5 +1,6 @@
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import nodemailer from "nodemailer";
+import { storage } from "./storage";
 
 export interface SendEmailResult {
   success: boolean;
@@ -18,6 +19,7 @@ function getSesClient(): SESClient | null {
 }
 
 export async function sendEmailViaSES(options: {
+  userId?: string;
   to: string;
   toName?: string;
   subject: string;
@@ -25,11 +27,45 @@ export async function sendEmailViaSES(options: {
   fromName?: string;
   fromEmail?: string;
 }): Promise<SendEmailResult> {
-  // The business owner email is a reply/contact address, not necessarily an
-  // SES-verified sending identity. Always send through the configured,
-  // verified platform identity to avoid production SES rejections.
-  const fromEmail = process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
   const fromName = options.fromName || "Abel";
+  const tenantSettings = options.userId
+    ? await storage.getSettingsByUser(options.userId)
+    : undefined;
+
+  if (tenantSettings?.smtpHost && tenantSettings.smtpUsername && tenantSettings.smtpPassword) {
+    const port = tenantSettings.smtpPort || 587;
+    const fromEmail = tenantSettings.senderEmail || tenantSettings.smtpUsername;
+    try {
+      const transporter = nodemailer.createTransport({
+        host: tenantSettings.smtpHost,
+        port,
+        secure: tenantSettings.smtpSecure ?? port === 465,
+        auth: {
+          user: tenantSettings.smtpUsername,
+          pass: tenantSettings.smtpPassword,
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+      });
+      const result = await transporter.sendMail({
+        from: `${fromName} <${fromEmail}>`,
+        to: options.toName ? `"${options.toName}" <${options.to}>` : options.to,
+        subject: options.subject,
+        html: options.body,
+      });
+      console.log(`[Aria] Email sent via tenant SMTP to ${options.to} — MessageId: ${result.messageId}`);
+      return { success: true, messageId: result.messageId };
+    } catch (err: any) {
+      return { success: false, error: `Tenant SMTP send failed: ${err.message}` };
+    }
+  }
+
+  if (options.userId) {
+    return { success: false, error: "Tenant SMTP is not configured" };
+  }
+
+  const fromEmail = process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
   const fromFull = `${fromName} <${fromEmail}>`;
 
   const sesClient = getSesClient();
