@@ -3,6 +3,7 @@ import { eq, desc, and, gte, sql, count } from "drizzle-orm";
 import { businessManager, managerDecisions, managerDailyReports } from "@shared/business-manager-schema";
 import { leads, appointments, emailAccounts } from "@shared/schema";
 import { callAI } from "./ai-provider";
+import { getVerifiedTenantBusinessContext } from "./tenant-business-context";
 
 const CAPABILITY_LABELS: Record<string, string> = {
   lead_generation: "Lead Generation & Prospecting",
@@ -64,13 +65,13 @@ async function getBusinessSnapshot(userId: string) {
   };
 }
 
-async function thinkAndDecide(userId: string, config: any, snapshot: any): Promise<Array<{ category: string; decision: string; reasoning: string; actions: Array<{ type: string; detail: string }> ; priority: string }>> {
+async function thinkAndDecide(userId: string, config: any, snapshot: any, verifiedContext: string): Promise<Array<{ category: string; decision: string; reasoning: string; actions: Array<{ type: string; detail: string }> ; priority: string }>> {
   const capabilities = (config.activeCapabilities || []).map((c: string) => CAPABILITY_LABELS[c] || c).join(", ");
 
   const prompt = `You are the AI Business Manager for this company. You ARE the business operator — think and act like the CEO/COO.
 
 BUSINESS CONTEXT:
-${config.businessContext || "No specific business context provided."}
+${verifiedContext}
 
 GOALS:
 ${(config.goals || []).join("\n- ") || "Grow the business, generate leads, close deals."}
@@ -106,6 +107,8 @@ Rules:
 - Don't repeat decisions already made recently
 - Prioritize high-impact actions
 - Be specific — vague decisions are useless
+- Do not create campaign claims or offers that are absent from VERIFIED TENANT FACTS
+- Draft outreach around the tenant's actual service, not this platform's software features
 - Return 1-5 decisions per cycle based on what actually needs doing
 - If nothing urgent needs doing, return an empty array []
 
@@ -133,7 +136,7 @@ Respond with ONLY the JSON array.`;
   }
 }
 
-async function executeDecisionActions(userId: string, decision: any, config: any): Promise<Array<{ type: string; detail: string; result: string }>> {
+async function executeDecisionActions(userId: string, decision: any, config: any, verifiedContext: string): Promise<Array<{ type: string; detail: string; result: string }>> {
   const results: Array<{ type: string; detail: string; result: string }> = [];
 
   for (const action of (decision.actions || [])) {
@@ -155,8 +158,8 @@ async function executeDecisionActions(userId: string, decision: any, config: any
         case "draft_email":
         case "draft_follow_up": {
           const email = await callAI({
-            system: `You are a professional email writer. Write compelling, concise emails. Personality: ${config.personality || "professional"}`,
-            userMessage: `Draft an email: ${action.detail}. Keep it under 150 words, professional, and with a clear CTA.`,
+            system: `You are a professional B2B email writer. Write factual, concise emails. Personality: ${config.personality || "professional"}\n\n${verifiedContext}`,
+            userMessage: `Draft an email for the verified tenant business: ${action.detail}. Keep it under 120 words, lead with a relevant operational problem, state only a verified offer, use one low-friction CTA, and include a polite opt-out. Never describe ArgiFlow platform features as the tenant's service.`,
             maxTokens: 600,
             userId,
           });
@@ -167,8 +170,8 @@ async function executeDecisionActions(userId: string, decision: any, config: any
         case "generate_content":
         case "create_post": {
           const content = await callAI({
-            system: "You are a content strategist. Create engaging, value-driven content.",
-            userMessage: `Create this content: ${action.detail}`,
+            system: `You are a factual content strategist.\n\n${verifiedContext}`,
+            userMessage: `Create this content using only verified tenant facts: ${action.detail}`,
             maxTokens: 1000,
             userId,
           });
@@ -190,7 +193,7 @@ async function executeDecisionActions(userId: string, decision: any, config: any
 
           const prioritization = await callAI({
             system: "You are a sales prioritization expert. Rank leads and explain why.",
-            userMessage: `Prioritize these leads for outreach. Business context: ${config.businessContext || "B2B services"}. Leads: ${JSON.stringify(leadData)}`,
+            userMessage: `Prioritize these leads for outreach.\n${verifiedContext}\nLeads: ${JSON.stringify(leadData)}`,
             maxTokens: 1000,
             userId,
           });
@@ -202,7 +205,7 @@ async function executeDecisionActions(userId: string, decision: any, config: any
         case "suggest_improvement": {
           const strategy = await callAI({
             system: "You are a business strategist. Provide specific, actionable recommendations.",
-            userMessage: `Based on this context, what should we do? ${action.detail}. Business: ${config.businessContext || "B2B company"}`,
+            userMessage: `Based on this verified tenant context, what should we do? ${action.detail}\n${verifiedContext}`,
             maxTokens: 800,
             userId,
           });
@@ -243,7 +246,8 @@ export async function runManagerCycle(userId: string): Promise<{ decisions: numb
   }).where(eq(businessManager.userId, userId));
 
   const snapshot = await getBusinessSnapshot(userId);
-  const decisions = await thinkAndDecide(userId, config, snapshot);
+  const verifiedContext = await getVerifiedTenantBusinessContext(userId, config.businessContext);
+  const decisions = await thinkAndDecide(userId, config, snapshot, verifiedContext);
 
   if (decisions.length === 0) {
     await db.update(businessManager).set({
@@ -265,7 +269,7 @@ export async function runManagerCycle(userId: string): Promise<{ decisions: numb
       updatedAt: new Date(),
     }).where(eq(businessManager.userId, userId));
 
-    const actionResults = await executeDecisionActions(userId, decision, config);
+    const actionResults = await executeDecisionActions(userId, decision, config, verifiedContext);
     totalActions += actionResults.length;
 
     await db.insert(managerDecisions).values({

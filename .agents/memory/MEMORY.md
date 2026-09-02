@@ -1,2 +1,3 @@
 - [Outreach safety boundaries](outreach-safety-boundaries.md) — Treat tracking as untrusted, fail closed on ambiguous replies, and persist opt-outs outside deletable lead records.
 - [Tenant campaign sender identity](tenant-campaign-sender-identity.md) — Tenant campaigns must use that tenant's saved SMTP; the partnership mailbox is for platform mail only.
+- [Tenant agent factual grounding](tenant-agent-factual-grounding.md) — Agent marketing must use verified tenant facts, never platform features or prior AI prose as tenant truth.

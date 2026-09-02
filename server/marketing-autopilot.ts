@@ -12,9 +12,12 @@ import {
   sequenceSteps,
   sequenceEnrollments,
 } from "@shared/schema";
-import { sendEmail } from "./postal";
 import { getSkill, buildSkillPrompt, detectSkills } from "./marketing-skills/skills-loader";
 import { callAI } from "./ai-provider";
+import { getVerifiedTenantBusinessContext } from "./tenant-business-context";
+import { storage } from "./storage";
+import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
+import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
 
@@ -92,6 +95,7 @@ export async function studyBusiness(userId: string): Promise<string> {
     .where(eq(leads.userId, userId))
     .orderBy(desc(leads.createdAt))
     .limit(20);
+  const verifiedContext = await getVerifiedTenantBusinessContext(userId);
 
   const businessContext = `
 # BUSINESS INTELLIGENCE REPORT
@@ -130,9 +134,9 @@ ${strategy ? strategy.strategy : "No marketing strategy generated yet."}
 ${recentLeads.map((l) => `- ${l.name} (${l.company || "unknown"}) — ${l.status}, score: ${l.score}`).join("\n")}
 `;
 
-  const systemPrompt = `You are an expert business analyst and marketing strategist. Study this business thoroughly and create a comprehensive profile that will be used by an autonomous AI marketing agent to run all marketing operations.
+  const systemPrompt = `You are an expert business analyst and marketing strategist. Build a factual tenant profile. Never use ArgiFlow platform capabilities as facts about the tenant.
 
-${PRODUCT_CONTEXT}`;
+${verifiedContext}`;
 
   const profile = await aiGenerate(
     systemPrompt,
@@ -167,17 +171,20 @@ export async function generateMarketingPlan(userId: string): Promise<string> {
   if (!config?.businessProfile) {
     throw new Error("Business profile not generated yet. Study the business first.");
   }
+  const verifiedContext = await getVerifiedTenantBusinessContext(userId);
 
   const skillPrompt = buildSkillPrompt(
     ["cold-email", "email-sequence", "content-strategy", "launch-strategy", "pricing-strategy", "marketing-ideas"],
-    PRODUCT_CONTEXT
+    verifiedContext
   );
 
   const plan = await aiGenerate(
     `You are an autonomous AI marketing director. You have been given full ownership of this business's marketing operations. Create a comprehensive, actionable marketing plan that YOU will execute autonomously.
 
 ${skillPrompt}`,
-    `Based on this business profile, create a detailed 30-day autonomous marketing execution plan:
+    `Based on the verified tenant context and derived profile, create a detailed 30-day autonomous marketing execution plan:
+
+${verifiedContext}
 
 ${config.businessProfile}
 
@@ -308,11 +315,12 @@ async function runEmailCampaignAction(userId: string, profile: string, plan: str
 
   const coldEmailSkill = getSkill("cold-email");
   const lead = newLeads[0];
+  const verifiedContext = await getVerifiedTenantBusinessContext(userId);
 
   const emailContent = await aiGenerate(
     `You are an expert cold email writer working for this business. Write a personalized cold email.
 
-${PRODUCT_CONTEXT}
+  ${verifiedContext}
 
 ## Business Profile
 ${profile}
@@ -327,8 +335,11 @@ ${coldEmailSkill}`,
 
 Requirements:
 - Subject line (compelling, under 50 chars)
-- Body (3-4 paragraphs, personalized, no brackets/placeholders)
-- Clear CTA
+- Body under 120 words, personalized, no brackets/placeholders
+- State only services and offers present in VERIFIED_TENANT_CONTEXT
+- Never describe ArgiFlow platform features as this tenant's service
+- Lead with one relevant operational pain point; avoid generic introductions
+- One low-friction CTA and a polite opt-out
 - Professional sign-off
 
 Output ONLY in this exact format:
@@ -346,13 +357,33 @@ SUBJECT: [subject line]
   if (body.length > 50) {
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     try {
-      await sendEmail({
+      const tenantSettings = await storage.getSettingsByUser(userId);
+      if (!isValidRecipientEmail(lead.email)) throw new Error("Invalid recipient email");
+      if (await isEmailSuppressed(userId, lead.email)) throw new Error("Recipient is suppressed");
+      if (!tenantSettings?.smtpHost || !tenantSettings.smtpUsername || !tenantSettings.smtpPassword) {
+        throw new Error("Tenant SMTP is not configured");
+      }
+
+      const smtpPort = tenantSettings.smtpPort || 587;
+      const senderEmail = tenantSettings.senderEmail || tenantSettings.smtpUsername;
+      const senderName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.companyName || "Team";
+      const transporter = nodemailer.createTransport({
+        host: tenantSettings.smtpHost,
+        port: smtpPort,
+        secure: tenantSettings.smtpSecure ?? smtpPort === 465,
+        auth: {
+          user: tenantSettings.smtpUsername,
+          pass: tenantSettings.smtpPassword,
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+      });
+      await transporter.sendMail({
         to: lead.email,
-        from: user?.email || process.env.SES_FROM_EMAIL,
-        fromName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "ArgiFlow",
+        from: `"${senderName}" <${senderEmail}>`,
         subject: subjectLine,
         html: body.replace(/\n/g, "<br>"),
-        tag: "autopilot-cold-email",
       });
 
       await db
