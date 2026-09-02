@@ -35,6 +35,13 @@ export async function sendEmailViaSES(options: {
   if (options.userId && await isEmailSuppressed(options.userId, recipient)) {
     return { success: false, error: "Recipient is suppressed" };
   }
+  if (options.userId) {
+    const accountUser = await storage.getUserById(options.userId);
+    const accountEmail = accountUser?.email?.trim().toLowerCase();
+    if (accountEmail && looksLikeMistypedAccountEmail(recipient, accountEmail)) {
+      return { success: false, error: "Recipient resembles the account email but contains a likely typo" };
+    }
+  }
   options.to = recipient;
 
   const fromName = options.fromName || "Abel";
@@ -130,6 +137,38 @@ export async function sendEmailViaSES(options: {
   } catch (err: any) {
     return { success: false, error: err.message };
   }
+}
+
+function looksLikeMistypedAccountEmail(recipient: string, accountEmail: string): boolean {
+  if (recipient === accountEmail) return false;
+  const [recipientLocal, recipientDomain] = recipient.split("@");
+  const [accountLocal, accountDomain] = accountEmail.split("@");
+  if (!recipientLocal || !recipientDomain || !accountLocal || !accountDomain) return false;
+  if (recipientLocal !== accountLocal) return false;
+  return editDistanceAtMostOne(recipientDomain, accountDomain);
+}
+
+function editDistanceAtMostOne(left: string, right: string): boolean {
+  if (Math.abs(left.length - right.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < left.length && j < right.length) {
+    if (left[i] === right[j]) {
+      i++;
+      j++;
+      continue;
+    }
+    if (++edits > 1) return false;
+    if (left.length > right.length) i++;
+    else if (right.length > left.length) j++;
+    else {
+      i++;
+      j++;
+    }
+  }
+  if (i < left.length || j < right.length) edits++;
+  return edits <= 1;
 }
 
 export async function sendSMS(to: string, body: string): Promise<{ success: boolean; error?: string }> {

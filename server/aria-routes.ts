@@ -4,6 +4,7 @@ import { handleDiscoveryMessage, getOnboardingStatus } from "./aria-discovery";
 import { handleChat, runAriaCycle, generateBriefing } from "./aria-agent";
 import { getAvailableConnectors, sendEmailViaSES } from "./aria-connectors";
 import { getHighIntentVisitors, getRecentVisitorActivity } from "./visitor-intelligence";
+import { storage } from "./storage";
 
 const router = Router();
 
@@ -21,6 +22,7 @@ async function executeApprovedAction(userId: string, action: any): Promise<{ exe
   }
 
   const biz = await memory.getBusiness(userId);
+  const accountUser = await storage.getUserById(userId);
   let toEmail = "";
   let subject = "";
   let body = "";
@@ -47,6 +49,12 @@ async function executeApprovedAction(userId: string, action: any): Promise<{ exe
 
   if (!subject) subject = action.title || `Follow-up from ${biz?.name || "ArgiFlow"}`;
   if (!body) body = action.description || action.output_preview || action.title;
+  const isSelfTestOrPreview = /\b(test|preview|resend.*(?:to abel|to me)|send.*to me)\b/i.test(
+    `${action.title || ""} ${action.description || ""}`,
+  );
+  if (isSelfTestOrPreview && accountUser?.email) {
+    toEmail = accountUser.email;
+  }
 
   try {
     const emailResult = await sendEmailViaSES({

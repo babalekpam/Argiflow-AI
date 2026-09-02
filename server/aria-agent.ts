@@ -2,6 +2,7 @@ import { callAI } from "./ai-provider";
 import * as memory from "./aria-memory";
 import * as connectors from "./aria-connectors";
 import { getHighIntentVisitors, formatVisitorIntelForAria } from "./visitor-intelligence";
+import { storage } from "./storage";
 
 async function callAIWithRetry(params: Parameters<typeof callAI>[0], retries = 2): Promise<{ text: string }> {
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -34,6 +35,7 @@ function generateFallbackResponse(userMessage: string, stats: any, leads: any[])
 
 export async function handleChat(userId: string, userMessage: string): Promise<string> {
   const biz = await memory.getBusiness(userId);
+  const accountUser = await storage.getUserById(userId);
   if (!biz || !biz.onboarded) {
     return "Let's finish setting up first! Tell me about your business.";
   }
@@ -612,7 +614,7 @@ CRITICAL RULES FOR EMAIL ACTIONS:
 - The "body" field must contain the COMPLETE email content ready to send — not a summary or description. Write it as if you are writing the actual email.
 - The "description" field is a brief summary for the owner to review. The "body" in tool_params is the actual email content.
 - If sending to multiple recipients, create a separate action for each one.
-- When the owner asks for a test email, preview, or to "send it to me", use the exact owner email ${biz.owner_email || "shown above"}. Never guess, retype, or alter an email address.
+- When the owner asks for a test email, preview, or to "send it to me", use the exact authenticated account email ${accountUser?.email || "shown above"}. Never guess, retype, or alter an email address.
 - If no actions needed, set "actions" to [].
 
 DESIGN & VISUAL CONTENT (POSTER / FLYER / GRAPHICS):
@@ -653,8 +655,8 @@ CODE GENERATION:
 
     if (shouldExecute && isEmailAction) {
       const ownerTestRequest = /\b(test|preview|resend|send it to me|my email|mail not received|mail not recieved)\b/i.test(userMessage);
-      const requestedRecipient = ownerTestRequest && biz.owner_email
-        ? biz.owner_email
+      const requestedRecipient = ownerTestRequest && accountUser?.email
+        ? accountUser.email
         : action.tool_params.to;
       const emailResult = await connectors.sendEmailViaSES({
         userId,
