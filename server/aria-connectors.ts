@@ -1,6 +1,7 @@
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import nodemailer from "nodemailer";
 import { storage } from "./storage";
+import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
 
 export interface SendEmailResult {
   success: boolean;
@@ -27,6 +28,15 @@ export async function sendEmailViaSES(options: {
   fromName?: string;
   fromEmail?: string;
 }): Promise<SendEmailResult> {
+  const recipient = options.to.trim().toLowerCase();
+  if (!isValidRecipientEmail(recipient)) {
+    return { success: false, error: "Invalid recipient email" };
+  }
+  if (options.userId && await isEmailSuppressed(options.userId, recipient)) {
+    return { success: false, error: "Recipient is suppressed" };
+  }
+  options.to = recipient;
+
   const fromName = options.fromName || "Abel";
   const tenantSettings = options.userId
     ? await storage.getSettingsByUser(options.userId)

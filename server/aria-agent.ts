@@ -612,6 +612,7 @@ CRITICAL RULES FOR EMAIL ACTIONS:
 - The "body" field must contain the COMPLETE email content ready to send — not a summary or description. Write it as if you are writing the actual email.
 - The "description" field is a brief summary for the owner to review. The "body" in tool_params is the actual email content.
 - If sending to multiple recipients, create a separate action for each one.
+- When the owner asks for a test email, preview, or to "send it to me", use the exact owner email ${biz.owner_email || "shown above"}. Never guess, retype, or alter an email address.
 - If no actions needed, set "actions" to [].
 
 DESIGN & VISUAL CONTENT (POSTER / FLYER / GRAPHICS):
@@ -619,7 +620,7 @@ DESIGN & VISUAL CONTENT (POSTER / FLYER / GRAPHICS):
 - When asked to create any visual/design, generate the FULL HTML with inline CSS directly in your message. Include it in a code block so the owner can see and use it.
 - Use rich inline CSS: gradients (linear-gradient), shadows (box-shadow), rounded corners (border-radius), modern typography, color palettes, spacing, flexbox layouts.
 - Include the Calendly link as a styled button when relevant: https://calendly.com/track-med-info/30min
-- Owner contact: ${biz.owner_name || "Abel Nkawula"}, CEO, ${biz.name}, +1 (615) 482-6768, +1 (636) 244-8246, https://track-med.com
+- Owner contact: ${biz.owner_name || "Abel Nkawula"}, CEO, ${biz.name}, (615) 482-6769, https://track-med.com
 - If the owner wants to send the design by email, create an action with tool "ses" containing the HTML as the body.
 - You CANNOT generate downloadable image files (PNG/JPG). You CREATE HTML designs that can be viewed in browsers and email clients.
 
@@ -651,9 +652,13 @@ CODE GENERATION:
     const isEmailAction = action.tool === "ses" && action.tool_params?.to;
 
     if (shouldExecute && isEmailAction) {
+      const ownerTestRequest = /\b(test|preview|resend|send it to me|my email|mail not received|mail not recieved)\b/i.test(userMessage);
+      const requestedRecipient = ownerTestRequest && biz.owner_email
+        ? biz.owner_email
+        : action.tool_params.to;
       const emailResult = await connectors.sendEmailViaSES({
         userId,
-        to: action.tool_params.to,
+        to: requestedRecipient,
         toName: action.tool_params.to_name,
         subject: action.tool_params.subject || `Follow-up from ${biz.name}`,
         body: action.tool_params.body || action.description,
@@ -662,7 +667,7 @@ CODE GENERATION:
       });
 
       await memory.createEmail(userId, {
-        to_email: action.tool_params.to,
+        to_email: requestedRecipient,
         to_name: action.tool_params.to_name,
         subject: action.tool_params.subject || `Follow-up from ${biz.name}`,
         body: action.tool_params.body || action.description,
@@ -674,8 +679,8 @@ CODE GENERATION:
         title: action.title,
         description: action.description,
         tool_used: "ses",
-        tool_result: { ...emailResult, ...action.tool_params },
-        output_preview: emailResult.success ? `Email sent to ${action.tool_params.to}` : `Failed: ${emailResult.error}`,
+        tool_result: { ...emailResult, ...action.tool_params, to: requestedRecipient },
+        output_preview: emailResult.success ? `Email sent to ${requestedRecipient}` : `Failed: ${emailResult.error}`,
         status: "completed",
       });
     } else {
