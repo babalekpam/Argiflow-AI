@@ -9530,28 +9530,37 @@ The ArgiFlow Team`;
   app.use("/api/email", emailQuotaRoutes);
   app.use("/api/domains", domainRoutes);
 
-  app.get("/api/test-email", async (req, res) => {
+  app.get("/api/test-email", isAuthenticated, async (req, res) => {
+    const smtpHost = process.env.SES_SMTP_HOST || process.env.SMTP_HOST;
+    const smtpPort = parseInt(process.env.SES_SMTP_PORT || process.env.SMTP_PORT || "587");
+    const smtpUser = process.env.SES_SMTP_USER || process.env.SMTP_USERNAME;
+    const smtpPass = process.env.SES_SMTP_PASS || process.env.SMTP_PASSWORD;
+    const senderEmail = process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      return res.status(503).json({ success: false, error: "Email delivery is not configured" });
+    }
+
     const t = nodemailer.createTransport({
-      host: process.env.SES_SMTP_HOST,
-      port: parseInt(process.env.SES_SMTP_PORT || "587"),
-      secure: false,
-      auth: { user: process.env.SES_SMTP_USER, pass: process.env.SES_SMTP_PASS },
-      requireTLS: true,
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: { user: smtpUser, pass: smtpPass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
     try {
       const r = await t.sendMail({
-        from: process.env.SES_FROM_EMAIL,
+        from: senderEmail,
         to: "abel@argilette.com",
         subject: "Test from routes",
         html: "<p>Working!</p>",
       });
-      res.json({ success: true, messageId: r.messageId, env: {
-        host: process.env.SES_SMTP_HOST,
-        user: process.env.SES_SMTP_USER,
-        from: process.env.SES_FROM_EMAIL,
-      }});
+      res.json({ success: true, messageId: r.messageId });
     } catch (e: any) {
-      res.json({ success: false, error: e.message });
+      console.error("[TestEmail] Delivery failed:", e.message);
+      res.status(502).json({ success: false, error: "Email delivery failed" });
     }
   });
 

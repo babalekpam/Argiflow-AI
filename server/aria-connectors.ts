@@ -25,7 +25,10 @@ export async function sendEmailViaSES(options: {
   fromName?: string;
   fromEmail?: string;
 }): Promise<SendEmailResult> {
-  const fromEmail = options.fromEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+  // The business owner email is a reply/contact address, not necessarily an
+  // SES-verified sending identity. Always send through the configured,
+  // verified platform identity to avoid production SES rejections.
+  const fromEmail = process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
   const fromName = options.fromName || "Abel";
   const fromFull = `${fromName} <${fromEmail}>`;
 
