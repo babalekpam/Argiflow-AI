@@ -5312,16 +5312,6 @@ Return ONLY the email reply text, no subject line, no markdown.`
 
   async function runAutoLeadGeneration() {
     try {
-      const owner = await storage.getUserByEmail("abel@argilette.com");
-      if (owner) {
-        const existingLeads = await storage.getLeadsByUser(owner.id);
-        const unsentCount = existingLeads.filter(l => !l.outreachSentAt && l.outreach && l.outreach.trim() !== "").length;
-        if (unsentCount >= 20) {
-          console.log(`[Auto Lead Gen] Skipping — ${unsentCount} unsent leads already queued`);
-          return;
-        }
-      }
-
       const allUsers = await storage.getAllUsers();
       if (allUsers.length === 0) {
         console.log("[Auto Lead Gen] No users found, skipping");
@@ -5935,9 +5925,14 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
       }
 
       const existingLeads = await storage.getLeadsByUser(targetUser.id);
-      const unsentCount = existingLeads.filter(l => !l.outreachSentAt && l.outreach && l.outreach.trim() !== "").length;
-      if (unsentCount >= 20) {
-        console.log(`[MedBill Lead Gen] Skipping — ${unsentCount} unsent leads already queued`);
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      const generatedToday = existingLeads.filter(l =>
+        (l.source || "").startsWith("MedBill Lead Gen") &&
+        l.createdAt &&
+        new Date(l.createdAt).getTime() >= oneDayAgo
+      ).length;
+      if (generatedToday >= MEDBILL_LEAD_GEN_BATCH) {
+        console.log(`[MedBill Lead Gen] Daily capture limit reached — ${generatedToday} new leads in the last 24 hours`);
         return;
       }
 
