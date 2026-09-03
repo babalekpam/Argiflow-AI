@@ -115,6 +115,22 @@ export const workflowHooks = {
     // after a genuine human reply by the inbound-reply processor.
   },
 
+  async onLeadEngagementHot(userId: string, lead: any, reply: any) {
+    await eventBus.emit({
+      type: TRIGGER_TYPES.LEAD_ENGAGEMENT_HOT,
+      userId,
+      entityId: lead.id,
+      entityType: "lead",
+      data: {
+        ...lead,
+        reason: "genuine_human_reply",
+        replyId: reply?.id,
+        replySentiment: reply?.sentiment || "positive",
+      },
+      timestamp: new Date(),
+    });
+  },
+
   // ============================================================
   // APPOINTMENT EVENTS
   // ============================================================

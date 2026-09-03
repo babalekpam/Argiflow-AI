@@ -20,6 +20,7 @@ import { REGIONS, detectRegion, getRegionConfig } from "./region-config";
 import { registerWorkflowRoutes } from "./workflow-routes";
 import { startWorkflowEngine } from "./workflow-engine";
 import { workflowHooks } from "./workflow-hooks";
+import { getVerifiedTenantBusinessContext } from "./tenant-business-context";
 import instantlyRoutes, { handlePixelTrack } from "./instantly-routes";
 import intelligenceRoutes from "./intelligence-routes";
 import outreachAgentRoutes from "./outreach-agent-routes";
@@ -386,6 +387,32 @@ function isSafeExternalUrl(rawUrl: string): boolean {
   const h = parsed.hostname.toLowerCase();
   const blockedPatterns = [/^localhost$/, /^127\./, /^0\.0\.0\.0$/, /^::1$/, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./, /^169\.254\./];
   return !blockedPatterns.some(re => re.test(h));
+}
+
+function unwrapSearchResultUrl(rawUrl: string): string {
+  const cleaned = rawUrl.replace(/&amp;/g, "&");
+  try {
+    const parsed = new URL(cleaned);
+    if (/(^|\.)bing\.com$/i.test(parsed.hostname) && parsed.pathname.startsWith("/ck/")) {
+      const encoded = parsed.searchParams.get("u");
+      if (encoded?.startsWith("a1")) {
+        const decoded = Buffer.from(encoded.slice(2), "base64url").toString("utf8");
+        if (isSafeExternalUrl(decoded)) return decoded;
+      }
+    }
+  } catch {
+    return cleaned;
+  }
+  return cleaned;
+}
+
+function isDirectCommunityResult(rawUrl: string): boolean {
+  try {
+    const hostname = new URL(rawUrl).hostname.toLowerCase();
+    return !/(^|\.)(bing|google|duckduckgo)\.(com|co\.[a-z]{2})$/i.test(hostname);
+  } catch {
+    return false;
+  }
 }
 
 // Simple in-memory rate limiter for auth endpoints: 10 attempts per 15 minutes per IP
@@ -8939,7 +8966,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
   });
 
   // ---- FORUM PROSPECTOR ----
-  app.post("/api/forum-prospector/search", isAdmin, async (req, res) => {
+  app.post("/api/forum-prospector/search", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const { query, industry } = req.body;
@@ -8950,20 +8977,17 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
         return res.status(400).json({ message: "Industry must be a string under 100 characters" });
       }
 
-      const userAi = await getAnthropicForUser(userId);
-      const ai = userAi.client;
-      const model = userAi.model;
-
       const user = await storage.getUserById(userId);
       const companyName = user?.companyName || "our company";
-      const companyDesc = user?.companyDescription || "";
-      const website = user?.website || "";
-      const industryLabel = industry || (user as any)?.industry || "business services";
+      const industryLabel = String(industry || (user as any)?.industry || "business services").trim();
+      const tenantContext = await getVerifiedTenantBusinessContext(userId);
 
-      const forumSearchQuery = `${industryLabel} services help needed forum discussion ${query || ""} site:reddit.com OR site:quora.com OR forum`;
+      const forumSearchQuery = `${industryLabel} ${String(query || "help needed looking for recommendations").trim()} (site:reddit.com OR site:quora.com OR inurl:forum OR inurl:discussion)`;
 
       const tavilyKey = process.env.TAVILY_API_KEY;
       let searchContent = "";
+      let searchProvider = "none";
+      let sourceResults: Array<{ title: string; url: string; content: string }> = [];
       if (tavilyKey) {
         try {
           const tavilyRes = await fetch("https://api.tavily.com/search", {
@@ -8979,20 +9003,45 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
           });
           if (tavilyRes.ok) {
             const tavilyData = await tavilyRes.json();
-            searchContent = [
-              tavilyData.answer || "",
-              ...(tavilyData.results || []).map((r: any) => `Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`)
-            ].join("\n\n");
+            sourceResults = (tavilyData.results || [])
+              .map((r: any) => ({ ...r, url: unwrapSearchResultUrl(r?.url || "") }))
+              .filter((r: any) => r?.title && r?.url && isSafeExternalUrl(r.url) && isDirectCommunityResult(r.url))
+              .map((r: any) => ({ title: r.title, url: r.url, content: r.content || "" }));
+            searchProvider = "tavily";
+          } else {
+            console.warn(`[Forum Prospector] Tavily returned HTTP ${tavilyRes.status}`);
           }
         } catch (e: any) {
           console.error("Forum Tavily search error:", e.message);
         }
       }
 
-      if (!searchContent) {
-        return res.json({ posts: [], message: "Web search not available. Please configure Tavily API key." });
+      if (sourceResults.length === 0) {
+        const freeResults = await searchDDG(forumSearchQuery, 10);
+        const fallbackResults = freeResults.length > 0 ? freeResults : await searchBing(forumSearchQuery, 10);
+        sourceResults = fallbackResults
+          .map(r => ({ ...r, url: unwrapSearchResultUrl(r.url) }))
+          .filter(r => r.title && r.url && isSafeExternalUrl(r.url) && isDirectCommunityResult(r.url))
+          .map(r => ({ title: r.title, url: r.url, content: r.snippet || "" }));
+        searchProvider = freeResults.length > 0 ? "duckduckgo" : fallbackResults.length > 0 ? "bing" : "none";
       }
 
+      searchContent = sourceResults
+        .map(r => `Source: ${r.url}\nTitle: ${r.title}\n${r.content}`)
+        .join("\n\n");
+
+      if (sourceResults.length === 0) {
+        await workflowHooks.onAgentRunCompleted(userId, "forum_prospector", {
+          leadsFound: 0,
+          searchQuery: forumSearchQuery,
+          provider: searchProvider,
+        });
+        return res.json({ posts: [], message: "No indexed forum discussions were found. Try a narrower pain point or service phrase." });
+      }
+
+      const userAi = await getAnthropicForUser(userId);
+      const ai = userAi.client;
+      const model = userAi.model;
       const extractPrompt = `You are a lead prospecting expert. From these web search results, extract real forum posts and community discussions where people are asking about or need ${industryLabel} services.
 
 Search Results:
@@ -9030,7 +9079,15 @@ IMPORTANT: Return ONLY the JSON array, no other text. Only include REAL posts wi
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
           if (Array.isArray(parsed)) {
-            posts = parsed.filter((p: any) => p && typeof p === "object" && p.title);
+            const sourceUrls = new Set(sourceResults.map(r => r.url));
+            posts = parsed.filter((p: any) =>
+              p
+              && typeof p === "object"
+              && typeof p.title === "string"
+              && typeof p.url === "string"
+              && sourceUrls.has(p.url)
+              && isSafeExternalUrl(p.url)
+            );
           }
         }
       } catch (parseErr) {
@@ -9039,14 +9096,19 @@ IMPORTANT: Return ONLY the JSON array, no other text. Only include REAL posts wi
       }
 
       if (posts.length === 0) {
-        return res.json({
-          posts: [],
-          rawResults: searchText,
-          message: "Could not find structured forum results. The AI may have returned a text summary instead. Try searching with different terms.",
-        });
+        posts = sourceResults.map(result => ({
+          title: result.title,
+          url: result.url,
+          platform: new URL(result.url).hostname.replace(/^www\./, ""),
+          snippet: result.content,
+          postedDate: "",
+          relevanceScore: 5,
+        }));
       }
 
-      const replyPrompt = `You are a helpful business development expert for ${companyName}. ${companyDesc ? `Company info: ${companyDesc}.` : ""} ${website ? `Website: ${website}` : ""}
+      const replyPrompt = `You are a helpful business development expert for ${companyName}.
+
+${tenantContext}
 
 For each forum post below, write a HELPFUL, NON-SPAMMY reply that:
 - Genuinely addresses their question or pain point first
@@ -9090,7 +9152,14 @@ Return ONLY the JSON array.`;
         draftReply: replies[idx] || "Reply could not be generated. Try refreshing.",
       }));
 
-      res.json({ posts: results });
+      await workflowHooks.onAgentRunCompleted(userId, "forum_prospector", {
+        leadsFound: results.length,
+        searchQuery: forumSearchQuery,
+        provider: searchProvider,
+        posts: results.map(({ title, url, platform, relevanceScore }: any) => ({ title, url, platform, relevanceScore })),
+      });
+
+      res.json({ posts: results, provider: searchProvider });
     } catch (error: any) {
       console.error("Forum prospector error:", error?.message || error);
       if (error?.status === 429) {

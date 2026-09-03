@@ -146,7 +146,7 @@ export function registerWorkflowRoutes(app: Express) {
       const schema = z.object({
         name: z.string().min(1).max(200),
         description: z.string().max(1000).optional(),
-        triggerType: z.string().min(1),
+        triggerType: z.enum(Object.values(TRIGGER_TYPES) as [string, ...string[]]),
         triggerConfig: z.string().optional(),
         status: z.enum(["draft", "active", "paused"]).optional(),
         category: z.string().max(50).optional(),
@@ -182,6 +182,9 @@ export function registerWorkflowRoutes(app: Express) {
     try {
       const userId = req.session.userId!;
       const { name, description, triggerType, triggerConfig, status, category } = req.body;
+      if (triggerType !== undefined && !Object.values(TRIGGER_TYPES).includes(triggerType)) {
+        return res.status(400).json({ message: "Invalid workflow trigger type" });
+      }
 
       const data: Record<string, any> = { updatedAt: new Date() };
       if (name !== undefined) data.name = name;

@@ -296,22 +296,18 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   },
   {
     key: "email-engagement-escalator",
-    name: "Email Engagement → Escalation",
-    description: "When a lead opens an email or clicks a link, automatically escalate their status, notify the team, and trigger follow-up.",
+    name: "Email Click → Interest Signal",
+    description: "When a lead clicks an email link, record interest and notify the team without treating the click as a human reply.",
     category: "Email Automation",
     triggerType: TRIGGER_TYPES.LEAD_EMAIL_CLICKED,
     nodes: [
       { nodeType: "trigger", actionType: "trigger_event", label: "Email Link Clicked", config: "{}", positionX: 100, positionY: 200, sortOrder: 0 },
-      { nodeType: "action", actionType: "update_lead", label: "Set Status → Hot", config: "{\"status\":\"hot\",\"engagementLevel\":\"hot\"}", positionX: 350, positionY: 200, sortOrder: 1 },
-      { nodeType: "action", actionType: "send_notification", label: "Notify Team", config: "{\"title\":\"Lead clicked email link!\",\"priority\":\"high\"}", positionX: 600, positionY: 200, sortOrder: 2 },
-      { nodeType: "delay", actionType: "delay_wait", label: "Wait 1 Hour", config: "{\"hours\":1}", positionX: 850, positionY: 200, sortOrder: 3 },
-      { nodeType: "action", actionType: "send_sms", label: "Send SMS Follow-up", config: "{\"template\":\"hot_lead_sms\"}", positionX: 1100, positionY: 200, sortOrder: 4 },
+      { nodeType: "action", actionType: "update_lead", label: "Record Interest", config: "{\"engagementLevel\":\"interested\",\"nextStep\":\"Wait for a genuine human reply before HOT qualification\"}", positionX: 350, positionY: 200, sortOrder: 1 },
+      { nodeType: "action", actionType: "send_notification", label: "Notify Team", config: "{\"title\":\"Interested lead clicked an email link\",\"message\":\"Treat this as an interest signal only; wait for a genuine reply before direct follow-up.\",\"priority\":\"normal\"}", positionX: 600, positionY: 200, sortOrder: 2 },
     ],
     edges: [
       { sourceIndex: 0, targetIndex: 1 },
       { sourceIndex: 1, targetIndex: 2 },
-      { sourceIndex: 2, targetIndex: 3 },
-      { sourceIndex: 3, targetIndex: 4 },
     ],
   },
   {

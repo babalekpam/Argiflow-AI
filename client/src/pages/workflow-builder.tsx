@@ -1230,20 +1230,34 @@ export default function WorkflowBuilder() {
                       <option value="lead_score_threshold">Lead Score Threshold</option>
                       <option value="lead_email_opened">Email Opened</option>
                       <option value="lead_email_clicked">Email Clicked</option>
+                      <option value="lead_engagement_hot">Genuine Positive Reply (HOT)</option>
                     </optgroup>
                     <optgroup label="Appointments">
                       <option value="appointment_booked">Appointment Booked</option>
                       <option value="appointment_completed">Appointment Completed</option>
+                      <option value="appointment_cancelled">Appointment Cancelled</option>
                     </optgroup>
                     <optgroup label="Deals">
                       <option value="deal_created">Deal Created</option>
                       <option value="deal_stage_changed">Deal Stage Changed</option>
                       <option value="deal_won">Deal Won</option>
+                      <option value="deal_lost">Deal Lost</option>
+                    </optgroup>
+                    <optgroup label="Agents">
+                      <option value="agent_run_completed">Agent Run Completed</option>
+                      <option value="agent_leads_found">Agent Found Leads</option>
+                    </optgroup>
+                    <optgroup label="Communications">
+                      <option value="inbound_sms">Inbound SMS</option>
+                      <option value="voice_call_completed">Voice Call Completed</option>
+                      <option value="chat_message_received">Chat Message Received</option>
                     </optgroup>
                     <optgroup label="System">
                       <option value="scheduled">Scheduled</option>
                       <option value="webhook_received">Webhook Received</option>
                       <option value="manual">Manual</option>
+                      <option value="discovery_submitted">Discovery Submitted</option>
+                      <option value="user_registered">User Registered</option>
                     </optgroup>
                   </select>
                 </div>

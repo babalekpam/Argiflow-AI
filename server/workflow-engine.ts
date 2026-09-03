@@ -14,6 +14,7 @@ import { db } from "./db";
 import { eq, and, desc, sql, lte, isNull } from "drizzle-orm";
 import { storage } from "./storage";
 import Anthropic from "@anthropic-ai/sdk";
+import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
 import {
   workflows,
   workflowNodes,
@@ -247,6 +248,9 @@ export async function executeWorkflow(
       try {
         // Execute the node
         const result = await executeNode(currentNode, context, event.userId);
+        if (result.output?.error || result.output?.blocked) {
+          throw new Error(result.output.error || `Action "${currentNode.label}" was blocked`);
+        }
 
         // Merge result into context
         context = { ...context, ...result.output, _lastNodeResult: result };
@@ -638,50 +642,39 @@ async function executeNode(
         );
       }
 
-      if (to && to.includes("@")) {
-        // Use existing email infrastructure
+      if (isValidRecipientEmail(to)) {
+        if (await isEmailSuppressed(userId, to)) {
+          return { output: { emailSent: false, blocked: true, error: "Recipient is suppressed or unsubscribed" } };
+        }
         const settings = await storage.getSettingsByUser(userId);
         const user = await storage.getUserById(userId);
-        if (settings?.senderEmail && user?.companyName) {
+        if (settings?.smtpHost && settings?.smtpUsername && settings?.smtpPassword && user?.companyName) {
           try {
             const nodemailer = (await import("nodemailer")).default;
-            const smtpHost = settings.smtpHost || process.env.SMTP_HOST;
-            const smtpUser = settings.smtpUsername || process.env.SMTP_USERNAME;
-            const smtpPass = settings.smtpPassword || process.env.SMTP_PASSWORD;
-            if (smtpHost && smtpUser && smtpPass) {
-              const transporter = nodemailer.createTransport({
-                host: smtpHost,
-                port: settings.smtpPort || 587,
-                secure: settings.smtpSecure ?? false,
-                auth: { user: smtpUser, pass: smtpPass },
-              });
-              await transporter.sendMail({
-                from: `"${user.firstName || ""} from ${user.companyName}" <${settings.senderEmail}>`,
-                to,
-                subject,
-                html: body.replace(/\n/g, "<br>"),
-                text: body,
-              });
-              return { output: { emailSent: true, to, subject } };
-            } else if (settings.sendgridApiKey) {
-              const sgMail = (await import("@sendgrid/mail")).default;
-              sgMail.setApiKey(settings.sendgridApiKey);
-              await sgMail.send({
-                to,
-                from: { email: settings.senderEmail, name: `${user.firstName || ""} from ${user.companyName}`.trim() },
-                subject,
-                text: body,
-                html: body.replace(/\n/g, "<br>"),
-              });
-              return { output: { emailSent: true, to, subject } };
-            }
+            const transporter = nodemailer.createTransport({
+              host: settings.smtpHost,
+              port: settings.smtpPort || 587,
+              secure: settings.smtpSecure ?? (settings.smtpPort === 465),
+              auth: { user: settings.smtpUsername, pass: settings.smtpPassword },
+              connectionTimeout: 10000,
+              greetingTimeout: 10000,
+              socketTimeout: 15000,
+            });
+            await transporter.sendMail({
+              from: `"${user.firstName || ""} from ${user.companyName}" <${settings.senderEmail || settings.smtpUsername}>`,
+              to,
+              subject,
+              html: body.replace(/\n/g, "<br>"),
+              text: body,
+            });
+            return { output: { emailSent: true, to, subject } };
           } catch (emailErr: any) {
             return { output: { emailSent: false, error: emailErr?.message } };
           }
         }
-        return { output: { emailSent: false, error: "Email provider not configured" } };
+        return { output: { emailSent: false, error: "Tenant SMTP is not configured" } };
       }
-      return { output: { emailSent: false, error: "No valid email address" } };
+      return { output: { emailSent: false, error: "No valid recipient email address" } };
     }
     case "send_sms": {
       if (
@@ -719,8 +712,7 @@ async function executeNode(
     case "make_voice_call": {
       const phone = resolveTemplate(config.phone || "{{phone}}", context);
       if (phone) {
-        // Log intent — actual call initiation goes through existing voice route
-        return { output: { callRequested: true, phone, note: "Use /api/voice/calls to initiate" } };
+        return { output: { callRequested: false, error: "Voice-call workflow execution is not implemented" } };
       }
       return { output: { callRequested: false, error: "No phone number" } };
     }
@@ -763,8 +755,7 @@ async function executeNode(
       return { output: { agentTriggered: false, error: "No agentType specified" } };
     }
     case "trigger_lead_gen": {
-      // Fire the auto lead gen for this user
-      return { output: { leadGenTriggered: true, note: "Use /api/auto-lead-gen/trigger" } };
+      return { output: { leadGenTriggered: false, error: "Lead-generation workflow execution is not implemented" } };
     }
 
     // ---- INTEGRATION ACTIONS ----

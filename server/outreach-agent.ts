@@ -27,6 +27,7 @@ import { instantlyEngine } from "./instantly-engine";
 import nodemailer from "nodemailer";
 import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
 import { storage } from "./storage";
+import { workflowHooks } from "./workflow-hooks";
 
 // Public origin used for open/click tracking URLs embedded in outbound email.
 function trackingBaseUrl(): string {
@@ -775,6 +776,7 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
 
     if (lead) {
       await db.update(leads).set({ status: "hot", engagementLevel: "hot" }).where(eq(leads.id, lead.id));
+      await workflowHooks.onLeadEngagementHot(userId, { ...lead, status: "hot", engagementLevel: "hot" }, message);
     }
 
     if (!config.autoReplyEnabled) return;
