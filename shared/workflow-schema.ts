@@ -180,6 +180,7 @@ export const TRIGGER_TYPES = {
   // Agent events
   AGENT_RUN_COMPLETED: "agent_run_completed",
   AGENT_LEADS_FOUND: "agent_leads_found",
+  FORUM_PROSPECT_IMPORTED: "forum_prospect_imported",
 
   // Communication events
   INBOUND_SMS: "inbound_sms",

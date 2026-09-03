@@ -10,6 +10,7 @@ import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
+import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import sgMail from "@sendgrid/mail";
@@ -410,6 +411,20 @@ function isDirectCommunityResult(rawUrl: string): boolean {
   try {
     const hostname = new URL(rawUrl).hostname.toLowerCase();
     return !/(^|\.)(bing|google|duckduckgo)\.(com|co\.[a-z]{2})$/i.test(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isActionableCommunityDiscussion(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname.toLowerCase();
+    if (/(^|\.)reddit\.com$/.test(host)) return /\/comments\//.test(path);
+    if (/(^|\.)facebook\.com$/.test(host)) return /\/(posts|permalink)\//.test(path);
+    if (/(^|\.)quora\.com$/.test(host)) return path.length > 1 && !/^\/(search|profile|topic)(\/|$)/.test(path);
+    return /\/(threads?|topics?|discussions?|forums?|questions?)\//.test(path);
   } catch {
     return false;
   }
@@ -9005,7 +9020,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
             const tavilyData = await tavilyRes.json();
             sourceResults = (tavilyData.results || [])
               .map((r: any) => ({ ...r, url: unwrapSearchResultUrl(r?.url || "") }))
-              .filter((r: any) => r?.title && r?.url && isSafeExternalUrl(r.url) && isDirectCommunityResult(r.url))
+              .filter((r: any) => r?.title && r?.url && isSafeExternalUrl(r.url) && isDirectCommunityResult(r.url) && isActionableCommunityDiscussion(r.url))
               .map((r: any) => ({ title: r.title, url: r.url, content: r.content || "" }));
             searchProvider = "tavily";
           } else {
@@ -9021,7 +9036,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
         const fallbackResults = freeResults.length > 0 ? freeResults : await searchBing(forumSearchQuery, 10);
         sourceResults = fallbackResults
           .map(r => ({ ...r, url: unwrapSearchResultUrl(r.url) }))
-          .filter(r => r.title && r.url && isSafeExternalUrl(r.url) && isDirectCommunityResult(r.url))
+          .filter(r => r.title && r.url && isSafeExternalUrl(r.url) && isDirectCommunityResult(r.url) && isActionableCommunityDiscussion(r.url))
           .map(r => ({ title: r.title, url: r.url, content: r.snippet || "" }));
         searchProvider = freeResults.length > 0 ? "duckduckgo" : fallbackResults.length > 0 ? "bing" : "none";
       }
@@ -9054,6 +9069,7 @@ For EACH relevant discussion found, provide this EXACT JSON format (return a JSO
     "url": "Direct URL to the post",
     "platform": "Reddit/Quora/Forum name",
     "snippet": "Brief excerpt of what they're asking about (2-3 sentences)",
+    "authorHandle": "Public username only if explicitly shown in the search result, otherwise null",
     "postedDate": "Approximate date if available",
     "relevanceScore": 8
   }
@@ -9166,6 +9182,69 @@ Return ONLY the JSON array.`;
         return res.status(429).json({ message: "AI is busy. Please wait 30 seconds and try again." });
       }
       res.status(500).json({ message: "Forum search failed. Please try again." });
+    }
+  });
+
+  app.post("/api/forum-prospector/import", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const schema = z.object({
+        title: z.string().trim().min(1).max(500),
+        url: z.string().url().max(2000),
+        platform: z.string().trim().min(1).max(100),
+        snippet: z.string().trim().max(3000).default(""),
+        authorHandle: z.string().trim().max(200).optional().nullable(),
+        postedDate: z.string().trim().max(100).optional().nullable(),
+        relevanceScore: z.number().min(0).max(100).optional().nullable(),
+        draftReply: z.string().trim().max(5000).optional().default(""),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid forum prospect", errors: parsed.error.flatten() });
+      }
+
+      const post = { ...parsed.data, url: unwrapSearchResultUrl(parsed.data.url) };
+      if (!isSafeExternalUrl(post.url) || !isDirectCommunityResult(post.url) || !isActionableCommunityDiscussion(post.url)) {
+        return res.status(400).json({ message: "Only direct public discussion or thread URLs can be imported" });
+      }
+
+      const existing = (await storage.getLeadsByUser(userId)).find(lead =>
+        lead.source === "Forum Prospector"
+        && typeof lead.notes === "string"
+        && lead.notes.includes(`Forum URL: ${post.url}`)
+      );
+      if (existing) {
+        return res.json({ lead: existing, imported: false, duplicate: true });
+      }
+
+      const lead = await storage.createLead({
+        userId,
+        name: post.authorHandle || post.title,
+        email: "",
+        phone: "",
+        company: post.platform,
+        source: "Forum Prospector",
+        status: "new",
+        score: 0,
+        intentSignal: `Public forum discussion: ${post.snippet || post.title}`.slice(0, 1000),
+        notes: [
+          "Imported from Forum Prospector.",
+          `Forum URL: ${post.url}`,
+          `Platform: ${post.platform}`,
+          post.authorHandle ? `Public author handle: ${post.authorHandle}` : "Public author handle: not available",
+          post.postedDate ? `Posted: ${post.postedDate}` : "",
+          post.relevanceScore != null ? `Search relevance: ${post.relevanceScore}` : "",
+          "No verified email or phone was found. Contact only through the linked platform unless verified contact information is added later.",
+        ].filter(Boolean).join("\n"),
+        outreach: post.draftReply || "",
+        nextStep: "Review the draft, then contact the prospect on the original forum discussion",
+      });
+
+      await workflowHooks.onForumProspectImported(userId, lead, post);
+      res.json({ lead, imported: true, duplicate: false });
+    } catch (error: any) {
+      console.error("Forum prospect import error:", error?.message || error);
+      res.status(500).json({ message: "Failed to import forum prospect" });
     }
   });
 

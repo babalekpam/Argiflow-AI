@@ -1246,6 +1246,7 @@ export default function WorkflowBuilder() {
                     <optgroup label="Agents">
                       <option value="agent_run_completed">Agent Run Completed</option>
                       <option value="agent_leads_found">Agent Found Leads</option>
+                      <option value="forum_prospect_imported">Forum Prospect Imported</option>
                     </optgroup>
                     <optgroup label="Communications">
                       <option value="inbound_sms">Inbound SMS</option>

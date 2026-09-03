@@ -20,6 +20,7 @@ import {
   Sparkles,
   RefreshCw,
   ArrowRight,
+  UserPlus,
 } from "lucide-react";
 
 interface ForumPost {
@@ -29,6 +30,7 @@ interface ForumPost {
   snippet: string;
   postedDate?: string;
   relevanceScore?: number;
+  authorHandle?: string | null;
   draftReply: string;
 }
 
@@ -39,6 +41,7 @@ export default function ForumProspectorPage() {
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [editedReplies, setEditedReplies] = useState<Record<number, string>>({});
+  const [importedUrls, setImportedUrls] = useState<Set<string>>(new Set());
 
   const searchMutation = useMutation({
     mutationFn: async (query: string) => {
@@ -68,6 +71,32 @@ export default function ForumProspectorPage() {
       toast({
         title: "Search failed",
         description: "Please try again in a moment.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const importMutation = useMutation({
+    mutationFn: async ({ post, draftReply }: { post: ForumPost; draftReply: string }) => {
+      const res = await apiRequest("POST", "/api/forum-prospector/import", {
+        ...post,
+        draftReply,
+      });
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      setImportedUrls(current => new Set(current).add(variables.post.url));
+      toast({
+        title: data.duplicate ? "Already in CRM" : "Imported to CRM",
+        description: data.duplicate
+          ? "This forum discussion was already imported."
+          : "Saved with its source, draft reply, and on-platform contact instructions.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "CRM import failed",
+        description: error?.message || "Please try again.",
         variant: "destructive",
       });
     },
@@ -238,6 +267,23 @@ export default function ForumProspectorPage() {
                       )}
                       {copiedIdx === idx ? "Copied!" : "Copy Reply"}
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={importMutation.isPending || importedUrls.has(post.url)}
+                      onClick={() => importMutation.mutate({
+                        post,
+                        draftReply: getReplyText(idx, post.draftReply),
+                      })}
+                      data-testid={`button-forum-import-${idx}`}
+                    >
+                      {importedUrls.has(post.url) ? (
+                        <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                      ) : (
+                        <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      {importedUrls.has(post.url) ? "In CRM" : "Import to CRM"}
+                    </Button>
                     {post.url && post.url.startsWith("http") && (
                       <Button
                         variant="outline"
@@ -249,7 +295,7 @@ export default function ForumProspectorPage() {
                         data-testid={`button-forum-copy-visit-${idx}`}
                       >
                         <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                        Copy & Visit Post
+                        Contact on Platform
                       </Button>
                     )}
                   </div>

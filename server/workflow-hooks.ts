@@ -238,6 +238,25 @@ export const workflowHooks = {
     }
   },
 
+  async onForumProspectImported(userId: string, lead: any, forumPost: any) {
+    await eventBus.emit({
+      type: TRIGGER_TYPES.FORUM_PROSPECT_IMPORTED,
+      userId,
+      entityId: lead.id,
+      entityType: "lead",
+      data: {
+        leadId: lead.id,
+        name: lead.name,
+        platform: forumPost.platform,
+        postUrl: forumPost.url,
+        authorHandle: forumPost.authorHandle || null,
+        hasVerifiedEmail: false,
+        contactMethod: "on_platform",
+      },
+      timestamp: new Date(),
+    });
+  },
+
   // ============================================================
   // COMMUNICATION EVENTS
   // ============================================================
