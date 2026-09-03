@@ -3498,6 +3498,42 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     }
   });
 
+  app.get("/api/leads/pipeline-summary", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const businessId = req.query.businessId as string | undefined;
+      const [tenantLeads, tenantReplies] = await Promise.all([
+        storage.getLeadsByUser(userId, businessId),
+        storage.getEmailRepliesByUser(userId),
+      ]);
+      const leadIds = new Set(tenantLeads.map(lead => lead.id));
+      const qualifyingReplyLeadIds = new Set(
+        tenantReplies
+          .filter(reply => {
+            if (reply.direction !== "inbound" || !leadIds.has(reply.leadId)) return false;
+            const text = `${reply.subject || ""} ${reply.body || ""}`.toLowerCase().trim();
+            if (!text || reply.body === "(Could not parse email body)") return false;
+            const isNegative = /\b(unsubscribe|remove me|take me off|stop (?:emailing|contacting|sending)|do not (?:email|contact)|don't (?:email|contact)|no more emails|opt me out|opt-out|not interested|no interest|not a fit|no thank|please don't|wrong person)\b/.test(text);
+            const isAutomated = /\b(out of office|automatic reply|auto.?reply|away from (?:the )?office|delivery status notification|undeliverable|mail delivery subsystem|vacation responder)\b/.test(text);
+            return !isNegative && !isAutomated;
+          })
+          .map(reply => reply.leadId),
+      );
+      const hotLeads = tenantLeads.filter(
+        lead => lead.engagementLevel === "hot" && qualifyingReplyLeadIds.has(lead.id),
+      ).length;
+
+      res.json({
+        totalLeads: tenantLeads.length,
+        hotLeads,
+        hotDefinition: "Genuine non-negative human replies",
+      });
+    } catch (error) {
+      console.error("Error fetching lead pipeline summary:", error);
+      res.status(500).json({ message: "Failed to fetch lead pipeline summary" });
+    }
+  });
+
   app.get("/api/leads/export/csv", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;

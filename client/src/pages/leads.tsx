@@ -1357,6 +1357,22 @@ export default function LeadsPage() {
     },
   });
 
+  const { data: pipelineSummary, isLoading: pipelineSummaryLoading } = useQuery<{
+    totalLeads: number;
+    hotLeads: number;
+    hotDefinition: string;
+  }>({
+    queryKey: ["/api/leads/pipeline-summary", selectedBusinessId],
+    queryFn: async () => {
+      const url = selectedBusinessId
+        ? `/api/leads/pipeline-summary?businessId=${selectedBusinessId}`
+        : "/api/leads/pipeline-summary";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch pipeline summary");
+      return res.json();
+    },
+  });
+
   const form = useForm({
     resolver: zodResolver(addLeadSchema),
     defaultValues: { name: "", email: "", phone: "", source: "", status: "new" },
@@ -1869,11 +1885,12 @@ export default function LeadsPage() {
           <Button
             variant="outline"
             size="sm"
+            disabled={pipelineSummaryLoading || !pipelineSummary}
             onClick={() => {
-              const hotCount = allLeads.filter((l: any) => l.status === "hot").length;
-              const totalCount = allLeads.length;
+              if (!pipelineSummary) return;
               openCouncil(
-                `I'm reviewing my leads pipeline. Total leads: ${totalCount}. Hot leads: ${hotCount}. ` +
+                `I'm reviewing my leads pipeline. Total leads: ${pipelineSummary.totalLeads}. ` +
+                `Verified HOT leads: ${pipelineSummary.hotLeads}. HOT means ${pipelineSummary.hotDefinition.toLowerCase()}, not opens or clicks. ` +
                 `What's the best outreach strategy to convert more leads right now — should I focus on hot leads with high-touch follow-ups, ` +
                 `warm leads with automated sequences, or invest more in top-of-funnel acquisition?`
               );
