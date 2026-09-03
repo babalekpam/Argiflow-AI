@@ -1311,7 +1311,7 @@
     "hotLeads": "Hot Leads",
     "searchHotLeads": "Search hot leads...",
     "noHotLeads": "No hot leads yet",
-    "noHotLeadsDesc": "Leads with high engagement scores or \"hot\" status will appear here.",
+      "noHotLeadsDesc": "Leads with a genuine, non-negative human reply will appear here.",
     "companyResearch": {
       "title": "Company Intelligence Report",
       "research": "Research Company",

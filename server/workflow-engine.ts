@@ -208,7 +208,10 @@ export async function executeWorkflow(
 
   // Execute nodes
   try {
-    let context = { ...event.data };
+    let context = {
+      ...event.data,
+      _workflowTriggerType: event.type,
+    };
     let currentNode: WorkflowNode | undefined = triggerNode;
     let stepsCompleted = 0;
 
@@ -555,13 +558,29 @@ async function executeNode(
       const leadId = context.leadId || context.entityId || context.id;
       if (!leadId) return { output: { error: "No leadId in context" } };
       const updates: Record<string, any> = {};
-      if (config.status) updates.status = config.status;
+      const clickOrOpenTrigger = context._workflowTriggerType === TRIGGER_TYPES.LEAD_EMAIL_CLICKED
+        || context._workflowTriggerType === TRIGGER_TYPES.LEAD_EMAIL_OPENED;
+      const attemptsHotPromotion = config.status === "hot" || config.engagementLevel === "hot";
+      if (clickOrOpenTrigger && attemptsHotPromotion) {
+        updates.engagementLevel = "interested";
+        updates.engagementScore = Math.min(Number(context.engagementScore || 0), 20);
+        updates.nextStep = "Interest signal detected — wait for a genuine reply before HOT qualification";
+      } else {
+        if (config.status) updates.status = config.status;
+        if (config.engagementLevel) updates.engagementLevel = config.engagementLevel;
+      }
       if (config.score) updates.score = config.score;
-      if (config.engagementLevel) updates.engagementLevel = config.engagementLevel;
       if (config.notes) updates.notes = resolveTemplate(config.notes, context);
       if (config.nextStep) updates.nextStep = resolveTemplate(config.nextStep, context);
       await storage.updateLead(leadId, updates);
-      return { output: { leadId, updated: true, updates } };
+      return {
+        output: {
+          leadId,
+          updated: true,
+          updates,
+          hotPromotionBlocked: clickOrOpenTrigger && attemptsHotPromotion,
+        },
+      };
     }
     case "create_appointment": {
       const apptData = {
@@ -665,6 +684,18 @@ async function executeNode(
       return { output: { emailSent: false, error: "No valid email address" } };
     }
     case "send_sms": {
+      if (
+        context._workflowTriggerType === TRIGGER_TYPES.LEAD_EMAIL_CLICKED
+        || context._workflowTriggerType === TRIGGER_TYPES.LEAD_EMAIL_OPENED
+      ) {
+        return {
+          output: {
+            smsSent: false,
+            blocked: true,
+            error: "Automatic SMS is not allowed from untrusted email open/click signals",
+          },
+        };
+      }
       const phone = resolveTemplate(config.phone || "{{phone}}", context);
       let message = resolveTemplate(config.message || config.template || "Hi {{name}}, following up from ArgiFlow.", context);
 
@@ -694,8 +725,16 @@ async function executeNode(
       return { output: { callRequested: false, error: "No phone number" } };
     }
     case "send_notification": {
-      const title = resolveTemplate(config.title || "Workflow Notification", context);
-      const message = resolveTemplate(config.message || "A workflow action completed.", context);
+      const clickOrOpenTrigger = context._workflowTriggerType === TRIGGER_TYPES.LEAD_EMAIL_CLICKED
+        || context._workflowTriggerType === TRIGGER_TYPES.LEAD_EMAIL_OPENED;
+      const configuredTitle = resolveTemplate(config.title || "Workflow Notification", context);
+      const configuredMessage = resolveTemplate(config.message || "A workflow action completed.", context);
+      const title = clickOrOpenTrigger && /\bhot\b/i.test(configuredTitle)
+        ? configuredTitle.replace(/\bhot\s*lead\b/gi, "Interested lead")
+        : configuredTitle;
+      const message = clickOrOpenTrigger && /\b(immediate|hot)\b/i.test(`${configuredTitle} ${configuredMessage}`)
+        ? "An email open or click was recorded. Treat this as an interest signal only; wait for a genuine human reply before HOT qualification or direct follow-up."
+        : configuredMessage;
       await storage.createNotification({
         userId,
         type: config.notificationType || "system",

@@ -111,17 +111,8 @@ export const workflowHooks = {
       timestamp: new Date(),
     });
 
-    // Also fire "hot engagement" if score is high enough
-    if ((lead.engagementScore || 0) >= 60) {
-      await eventBus.emit({
-        type: TRIGGER_TYPES.LEAD_ENGAGEMENT_HOT,
-        userId,
-        entityId: lead.id,
-        entityType: "lead",
-        data: { ...lead },
-        timestamp: new Date(),
-      });
-    }
+    // Clicks are untrusted interest signals. HOT engagement is emitted only
+    // after a genuine human reply by the inbound-reply processor.
   },
 
   // ============================================================
