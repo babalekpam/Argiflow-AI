@@ -66,42 +66,49 @@ export interface ResolvedProvider {
   model: string;
   source: "user" | "system" | "replit-proxy";
   baseURL?: string;
+  explicitSelection?: boolean;
 }
 
 export async function resolveProvider(userId?: string): Promise<ResolvedProvider> {
-  if (process.env.OPENAI_API_KEY) {
-    return { providerId: "openai", apiKey: process.env.OPENAI_API_KEY, model: "gpt-4o", source: "system" };
-  }
-
   if (userId) {
     const settings = await storage.getSettingsByUser(userId);
     if (settings) {
       const preferred = settings.preferredAiProvider || "auto";
 
       if (preferred !== "auto") {
+        if (!REGISTRY[preferred]) throw new Error("Unsupported AI provider selected");
+        const preferredModel = settings.preferredAiModel;
+        const modelForProvider = preferredModel && !Object.entries(REGISTRY).some(
+          ([id, reg]) => id !== preferred && reg.modelOptions.includes(preferredModel),
+        ) ? preferredModel : REGISTRY[preferred].defaultModel;
         const keyField = AI_PROVIDER_KEY_FIELDS[preferred] as keyof typeof settings;
         const userKey = keyField ? (settings as any)[keyField] : undefined;
         if (userKey) {
           const reg = REGISTRY[preferred];
-          const model = settings.preferredAiModel || reg?.defaultModel || "gpt-4o-mini";
-          return { providerId: preferred, apiKey: userKey, model, source: "user" };
+          const model = modelForProvider;
+          return { providerId: preferred, apiKey: userKey, model, source: "user", explicitSelection: true };
         }
 
         const sysKey = getSystemKey(preferred);
         if (sysKey) {
           const reg = REGISTRY[preferred];
-          const model = settings.preferredAiModel || reg?.defaultModel || "gpt-4o-mini";
-          return { providerId: preferred, apiKey: sysKey, model, source: "system" };
+          const model = modelForProvider;
+          return { providerId: preferred, apiKey: sysKey, model, source: "system", explicitSelection: true };
         }
 
         if (preferred === "anthropic") {
           const proxy = getReplitProxy();
           if (proxy) {
-            return { providerId: "anthropic", apiKey: proxy.apiKey, model: settings.preferredAiModel || "claude-sonnet-4-5", source: "replit-proxy", baseURL: proxy.baseURL };
+            return { providerId: "anthropic", apiKey: proxy.apiKey, model: modelForProvider, source: "replit-proxy", baseURL: proxy.baseURL };
           }
         }
+        throw new Error(`AI_NOT_CONFIGURED: Add a key for the selected provider (${preferred}) in Settings.`);
       }
     }
+  }
+
+  if (process.env.OPENAI_API_KEY) {
+    return { providerId: "openai", apiKey: process.env.OPENAI_API_KEY, model: "gpt-4o", source: "system" };
   }
 
   if (isValidAnthropicKey(process.env.ANTHROPIC_API_KEY)) {
@@ -139,7 +146,7 @@ export async function callAI(params: AICallParams & { userId?: string }): Promis
     });
   } catch (err: any) {
     const msg = (err.message || "").toLowerCase();
-    if (resolved.source === "user" && (msg.includes("authentication") || msg.includes("unauthorized") || msg.includes("invalid") || msg.includes("401") || msg.includes("api key"))) {
+    if (!resolved.explicitSelection && resolved.source === "user" && (msg.includes("authentication") || msg.includes("unauthorized") || msg.includes("invalid") || msg.includes("401") || msg.includes("api key"))) {
       console.warn(`[AI] User key failed (${resolved.providerId}), falling back to system key`);
       const systemResolved = await resolveProviderSystem();
       return callLLM({
@@ -260,7 +267,7 @@ function wrapClientWithFallback(
   client: AnthropicLikeClient,
   resolved: ResolvedProvider
 ): AnthropicLikeClient {
-  if (resolved.source !== "user") return client;
+  if (resolved.source !== "user" || resolved.explicitSelection) return client;
 
   return {
     messages: {

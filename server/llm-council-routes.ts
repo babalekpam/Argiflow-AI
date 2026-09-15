@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from "express";
 import { callLLM } from "./llm-router";
+import { resolveProvider } from "./ai-provider";
 
 const router = Router();
 
@@ -48,11 +49,21 @@ const runCouncil: RequestHandler = async (req, res) => {
     }
 
     const framedQuestion = question.trim();
+    const userId = req.session.userId;
+    if (!userId) return res.status(401).json({ message: "Authentication required" });
+    const resolved = await resolveProvider(userId);
+    const providerOptions = {
+      providerId: resolved.providerId,
+      apiKey: resolved.apiKey,
+      model: resolved.model,
+      baseURL: resolved.baseURL,
+    };
 
     // Step 2: All 5 advisors in parallel
     const advisorResponses = await Promise.all(
       ADVISORS.map((advisor) =>
         callLLM({
+          ...providerOptions,
           system: `You are ${advisor.name} on an LLM Council.\n\nYour thinking style: ${advisor.description}\n\nRespond from your perspective only. Be direct and specific. Do not hedge or try to be balanced — lean fully into your assigned angle. The other advisors will cover angles you're not covering.\n\nKeep your response between 150 and 300 words. No preamble. Go straight into your analysis.`,
           userMessage: `A user has brought this question to the council:\n\n${framedQuestion}`,
           maxTokens: 700,
@@ -87,6 +98,7 @@ const runCouncil: RequestHandler = async (req, res) => {
         .fill(null)
         .map(() =>
           callLLM({
+            ...providerOptions,
             system: reviewerSystem,
             userMessage: reviewerUserMessage,
             maxTokens: 500,
@@ -106,6 +118,7 @@ const runCouncil: RequestHandler = async (req, res) => {
     const reviewBlock = peerReviewTexts.map((r, i) => `Peer Review ${i + 1}:\n${r}`).join("\n\n");
 
     const chairmanResult = await callLLM({
+      ...providerOptions,
       system: `You are the Chairman of an LLM Council. Your job is to synthesize the work of 5 advisors and their peer reviews into a final verdict.
 
 Produce the council verdict using this EXACT structure with these exact markdown headings:
