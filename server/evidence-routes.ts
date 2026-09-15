@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, eq, gte, lt, inArray } from "drizzle-orm";
 import {
   emailLogs,
   emailReplies,
   emailSuppressions,
+  leads,
   type Lead,
 } from "@shared/schema";
 import { classifyInboundReply } from "./inbox-reliability";
@@ -350,8 +351,11 @@ export function formatEvidenceForCouncil(
 export async function getEmailFunnelEvidence(
   userId: string,
   range: EvidenceDateRange,
+  businessId?: string,
 ): Promise<EmailFunnelEvidence> {
   const { db } = await import("./db");
+  const businessLeads = db.select({ id: leads.id }).from(leads)
+    .where(and(eq(leads.userId, userId), eq(leads.businessId, businessId || "")));
   const [logs, replies] = await Promise.all([
     db
       .select({
@@ -369,6 +373,7 @@ export async function getEmailFunnelEvidence(
           eq(emailLogs.userId, userId),
           gte(emailLogs.createdAt, range.from),
           lt(emailLogs.createdAt, range.to),
+          businessId ? inArray(emailLogs.leadId, businessLeads) : undefined,
         ),
       ),
     db
@@ -388,6 +393,7 @@ export async function getEmailFunnelEvidence(
           eq(emailReplies.userId, userId),
           gte(emailReplies.createdAt, range.from),
           lt(emailReplies.createdAt, range.to),
+          businessId ? inArray(emailReplies.leadId, businessLeads) : undefined,
         ),
       ),
   ]);
@@ -403,7 +409,8 @@ router.get("/email-funnel", async (req, res) => {
     const from = typeof req.query.from === "string" ? req.query.from : undefined;
     const to = typeof req.query.to === "string" ? req.query.to : undefined;
     const range = resolveEvidenceRange({ from, to });
-    const evidence = await getEmailFunnelEvidence(userId, range);
+    const businessId = typeof req.query.businessId === "string" ? req.query.businessId : undefined;
+    const evidence = await getEmailFunnelEvidence(userId, range, businessId);
     res.setHeader("Cache-Control", "private, max-age=60");
     return res.json(evidence);
   } catch (error: any) {
