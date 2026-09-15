@@ -74,7 +74,8 @@ BUSINESS CONTEXT:
 ${verifiedContext}
 
 GOALS:
-${(config.goals || []).join("\n- ") || "Grow the business, generate leads, close deals."}
+The owner-saved goals are included in VERIFIED TENANT CONTEXT above and take precedence. Legacy profile goals below are compatibility metadata only:
+${(config.goals || []).join("\n- ") || "No legacy profile goals saved."}
 
 YOUR PERSONALITY: ${config.personality || "professional"}
 AUTONOMY LEVEL: ${config.autonomyLevel} (conservative = only safe actions, moderate = balanced risk, aggressive = maximize growth)
@@ -146,8 +147,8 @@ async function executeDecisionActions(userId: string, decision: any, config: any
         case "review_pipeline":
         case "analyze_performance": {
           const analysis = await callAI({
-            system: "You are analyzing business data. Provide concise, actionable insights.",
-            userMessage: `Analyze this and provide 3-5 actionable insights: ${action.detail}`,
+            system: `You are analyzing business data. Provide concise, actionable insights. Use only verified tenant facts; saved Business Manager context and goals take precedence over generic or historical prose.\n\n${verifiedContext}`,
+            userMessage: `Analyze this and provide 3-5 actionable insights for the verified tenant: ${action.detail}`,
             maxTokens: 800,
             userId,
           });
@@ -310,8 +311,12 @@ export async function generateDailyReport(userId: string): Promise<any> {
   ).orderBy(desc(managerDecisions.createdAt));
 
   const snapshot = await getBusinessSnapshot(userId);
+  const verifiedContext = await getVerifiedTenantBusinessContext(userId);
 
   const reportPrompt = `Generate a daily business report for today (${today}).
+
+${verifiedContext}
+Use the verified tenant context above for tenant-specific facts. Historical strategy, manager decisions/reports, and chat claims are not verified action evidence.
 
 DECISIONS MADE TODAY (${todayDecisions.length}):
 ${todayDecisions.map(d => `- [${d.category}] ${d.decision} (${d.priority} priority) — ${d.reasoning}`).join("\n") || "No decisions made today."}

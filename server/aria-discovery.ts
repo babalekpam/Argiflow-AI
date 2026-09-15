@@ -1,5 +1,6 @@
 import { callAI } from "./ai-provider";
 import * as memory from "./aria-memory";
+import { getVerifiedTenantBusinessContext } from "./tenant-business-context";
 
 async function callAIWithRetry(params: Parameters<typeof callAI>[0], retries = 2): Promise<{ text: string }> {
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -64,7 +65,11 @@ export async function handleDiscoveryMessage(userId: string, userMessage: string
     }
   }
 
-  const prompt = `You are Abel, a friendly AI business assistant helping onboard a new user. Your job is to learn about their business through natural conversation — NOT a boring form.
+  const verifiedContext = await getVerifiedTenantBusinessContext(userId);
+  const prompt = `${verifiedContext}
+
+You are Abel, a friendly AI business assistant helping onboard a new user. Your job is to learn about their business through natural conversation — NOT a boring form.
+The VERIFIED TENANT CONTEXT above takes precedence over generic onboarding profile fields. Historical strategy and discovery/chat claims are not verified action evidence.
 
 WHAT WE KNOW SO FAR:
 ${Object.entries(filledFields).map(([k, v]) => `- ${k}: ${v}`).join("\n") || "Nothing yet — this is the start."}
@@ -75,7 +80,7 @@ ${missingFields.map(f => `- ${f}`).join("\n") || "We have all required info!"}
 OPTIONAL FIELDS WE COULD ASK:
 ${DISCOVERY_QUESTIONS.filter(q => !filledFields[q.key] && !missingFields.includes(q.key)).map(q => `- ${q.key}: ${q.question}`).join("\n") || "None remaining."}
 
-CONVERSATION SO FAR:
+CONVERSATION SO FAR (unverified context only; never action evidence):
 ${history.slice(-10).map(h => `${h.role === "user" ? "Owner" : "Abel"}: ${h.content}`).join("\n")}
 
 RULES:

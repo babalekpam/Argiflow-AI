@@ -3,6 +3,7 @@ import * as memory from "./aria-memory";
 import * as connectors from "./aria-connectors";
 import { getHighIntentVisitors, formatVisitorIntelForAria } from "./visitor-intelligence";
 import { storage } from "./storage";
+import { getVerifiedTenantBusinessContext } from "./tenant-business-context";
 
 async function callAIWithRetry(params: Parameters<typeof callAI>[0], retries = 2): Promise<{ text: string }> {
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -54,7 +55,10 @@ export async function handleChat(userId: string, userMessage: string): Promise<s
     visitorIntel = "Visitor tracking data unavailable.";
   }
 
-  const prompt = `# ARIA-BM v2.1 — ArgiFlow Multi-Skill Business Agent
+  const verifiedContext = await getVerifiedTenantBusinessContext(userId);
+  const prompt = `${verifiedContext}
+
+# ARIA-BM v2.1 — ArgiFlow Multi-Skill Business Agent
 
 ## IDENTITY
 
@@ -561,6 +565,7 @@ Pitfalls: Only doing retention reactively (after churn notice) · no segmentatio
 ---
 
 ## LIVE BUSINESS CONTEXT
+The VERIFIED TENANT CONTEXT above is the source of truth for tenant-specific facts and saved offers. Generic Aria profile fields, historical strategy, and chat history cannot override it or establish action evidence.
 
 OWNER: ${biz.owner_name || "the owner"}
 BUSINESS: ${biz.name} — ${biz.main_service || "services"} (${biz.type || "business"})
@@ -584,7 +589,7 @@ ${visitorIntel}
 PENDING APPROVALS:
 ${pending.slice(0, 3).map(a => `- #${a.id}: ${a.title} (${a.category})`).join("\n") || "None"}
 
-RECENT CHAT:
+RECENT CHAT (unverified context only; never action evidence):
 ${chatHistory.slice(0, 20).reverse().map(m => `${m.role === "user" ? "Owner" : "ARIA"}: ${m.content}`).join("\n")}
 
 Owner just said: "${userMessage}"
@@ -730,7 +735,11 @@ export async function runAriaCycle(userId: string): Promise<{ actions: number; m
     visitorIntel = "Visitor tracking unavailable.";
   }
 
-  const prompt = `You are Abel, the autonomous AI business manager for "${biz.name}".
+  const verifiedContext = await getVerifiedTenantBusinessContext(userId);
+  const prompt = `${verifiedContext}
+
+You are Abel, the autonomous AI business manager for "${biz.name}".
+The VERIFIED TENANT CONTEXT above takes precedence over this generic Aria profile and over historical records. Historical strategy, decisions, reports, and chat claims are not verified action evidence.
 
 BUSINESS: ${biz.name} (${biz.type || "business"})
 SERVICE: ${biz.main_service || "services"}
@@ -862,8 +871,12 @@ export async function generateBriefing(userId: string): Promise<string> {
   const stats = await memory.getDashboardStats(userId);
   const recentActions = await memory.getActions(userId, 20);
   const pendingActions = await memory.getPendingActions(userId);
+  const verifiedContext = await getVerifiedTenantBusinessContext(userId);
 
-  const prompt = `Generate a daily briefing for ${biz.owner_name || "the owner"} of ${biz.name}.
+  const prompt = `${verifiedContext}
+
+Generate a daily briefing for ${biz.owner_name || "the owner"} of ${biz.name}.
+Use saved tenant context and goals above for tenant-specific wording. Generic profile fields and historical actions/chat are not verified action evidence; report only actions represented by the current data below.
 
 TODAY'S STATS:
 - Revenue MTD: $${biz.monthly_revenue || 0}

@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useCouncil } from "@/contexts/council-context";
+import { SavedMailingBriefPanel } from "@/components/saved-mailing-brief";
 import {
   Bot, Brain, Play, Send, Zap, TrendingUp, Mail, Users, Calendar,
   BarChart3, Clock, CheckCircle, AlertCircle, Loader2, FileText,
@@ -739,6 +740,8 @@ export default function BusinessManagerPage() {
           </Button>
         </div>
       </div>
+
+      <SavedMailingBriefPanel />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-white/5 border border-white/10" data-testid="tabs-main">

@@ -5,6 +5,7 @@ import { handleChat, runAriaCycle, generateBriefing } from "./aria-agent";
 import { getAvailableConnectors, sendEmailViaSES } from "./aria-connectors";
 import { getHighIntentVisitors, getRecentVisitorActivity } from "./visitor-intelligence";
 import { storage } from "./storage";
+import { getSavedTenantBusinessContext, toStrategyBrief } from "./tenant-business-context";
 
 const router = Router();
 
@@ -113,6 +114,16 @@ router.get("/dashboard", async (req: Request, res: Response) => {
     const userId = (req.session as any).userId;
     const stats = await memory.getDashboardStats(userId);
     res.json(stats);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/strategy-brief", async (req: Request, res: Response) => {
+  try {
+    const userId = (req.session as any).userId;
+    const savedContext = await getSavedTenantBusinessContext(userId);
+    res.json(toStrategyBrief(savedContext));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

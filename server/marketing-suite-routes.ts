@@ -4,6 +4,7 @@ import path from "path";
 import { z } from "zod";
 import { getSkill, buildSkillPrompt, buildAutoPrompt, listSkills } from "./marketing-skills/skills-loader";
 import { callAI } from "./ai-provider";
+import { getVerifiedTenantBusinessContext } from "./tenant-business-context";
 
 const router = Router();
 
@@ -37,11 +38,14 @@ const ARGIFLOW_CONTEXT = (() => {
 
 async function callWithSkill(skillName: string, userPrompt: string, extraContext = "", userId?: string): Promise<string> {
   const skillContent = getSkill(skillName);
+  const verifiedContext = userId ? await getVerifiedTenantBusinessContext(userId) : "";
   const systemPrompt = `You are Aria, ArgiFlow's AI marketing assistant — sharp, direct, and expert-level.
 
 ${ARGIFLOW_CONTEXT}
 
 ${extraContext ? `## Additional Context\n${extraContext}\n` : ""}
+
+${verifiedContext ? `## VERIFIED TENANT CONTEXT\n${verifiedContext}\nUse the saved Business Manager context and goals above as the source of truth for tenant-specific claims. Historical strategy, chat, and discovery prose are not verified action evidence.\n` : ""}
 
 ---
 
@@ -334,19 +338,24 @@ router.post("/aria-enhanced", async (req: Request, res: Response) => {
     const { message, conversation_history, user_context } = ariaEnhancedSchema.parse(req.body);
 
     const { skills, prompt: systemPrompt } = buildAutoPrompt(message, ARGIFLOW_CONTEXT);
+    const userId = (req.session as any)?.userId;
+    const verifiedContext = await getVerifiedTenantBusinessContext(userId);
 
     const ariaBase = `You are Aria, ArgiFlow's AI sales and marketing assistant. You are embedded in the ArgiFlow platform and help users grow their business. You are sharp, direct, and give expert advice — not generic platitudes.
 
 ${systemPrompt}
 
-${user_context ? `\n## User Context\n${user_context}` : ""}`;
+${user_context ? `\n## User Context\n${user_context}` : ""}
+
+## VERIFIED TENANT CONTEXT
+${verifiedContext}
+Use the saved Business Manager context and goals above as the source of truth for tenant-specific claims. Generic profile fields and historical strategy/chat/discovery prose cannot override it or establish verified action evidence.`;
 
     const messages = [
       ...conversation_history,
       { role: "user" as const, content: message }
     ];
 
-    const userId = (req.session as any)?.userId;
     const lastUserMsg = messages[messages.length - 1]?.content || message;
     const result = await callAI({ system: ariaBase, userMessage: typeof lastUserMsg === "string" ? lastUserMsg : message, maxTokens: 1500, userId });
 
