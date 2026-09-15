@@ -16,6 +16,9 @@ import {
   Flame,
   Activity,
   Zap,
+  Mail,
+  HelpCircle,
+  MessageSquare,
 } from "lucide-react";
 import type { Lead, Appointment, DashboardStats } from "@shared/schema";
 import { Link } from "wouter";
@@ -50,17 +53,19 @@ function StatCard({
   );
 }
 
-function LeadStatusBadge({ status }: { status: string }) {
+function LeadStatusBadge({ status, qualifyingHot = false }: { status: string; qualifyingHot?: boolean }) {
   const styles: Record<string, string> = {
     hot: "bg-red-500/10 text-red-400 border-red-500/20",
+    scored: "bg-slate-500/10 text-slate-400 border-slate-500/20",
     warm: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     new: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     cold: "bg-slate-500/10 text-slate-400 border-slate-500/20",
     qualified: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   };
+  const safeStatus = status === "hot" && !qualifyingHot ? "scored" : status;
   return (
-    <Badge className={styles[status] || styles.new}>
-      {status.toUpperCase()}
+    <Badge className={styles[safeStatus] || styles.new}>
+      {safeStatus.toUpperCase()}
     </Badge>
   );
 }
@@ -78,9 +83,21 @@ function timeAgo(d: string | null) {
 type EnhancedStats = {
   leads_total: number;
   hot_leads: number;
+  qualifying_hot_lead_ids?: string[];
   pipeline_stages: Array<{ label: string; count: number; pct: number; color: string }>;
   activity: Array<{ text: string; time: string; status: string }>;
   agent_health: Array<{ name: string; status: string; runs: number; rate: number; lastRun: string }>;
+};
+
+type FunnelEvidence = {
+  attempts: number;
+  uniqueRecipients: number;
+  acceptedRecords: number;
+  unknownDelivery: number;
+  bounceReports: number;
+  replies: number;
+  deliveryCallbacks: number;
+  retryRecords: number;
 };
 
 export default function DashboardPage() {
@@ -93,6 +110,14 @@ export default function DashboardPage() {
 
   const { data: enhanced } = useQuery<EnhancedStats>({
     queryKey: ["/api/dashboard/enhanced-stats"],
+  });
+
+  const {
+    data: outreachEvidence,
+    isLoading: outreachEvidenceLoading,
+    isError: outreachEvidenceError,
+  } = useQuery<FunnelEvidence>({
+    queryKey: ["/api/evidence/email-funnel"],
   });
 
   const { data: leads, isLoading: leadsLoading } = useQuery<Lead[]>({
@@ -132,7 +157,7 @@ export default function DashboardPage() {
             <StatCard
               title={t("dashboard.totalLeads")}
               value={stats?.totalLeads?.toLocaleString() || "0"}
-              sub={enhanced ? `${enhanced.hot_leads} hot leads` : undefined}
+              sub={enhanced ? `${enhanced.hot_leads} evidence-qualified HOT` : undefined}
               icon={Users}
               color="bg-primary/10 text-primary"
               accent="#4B6CF7"
@@ -205,6 +230,61 @@ export default function DashboardPage() {
         </Card>
       )}
 
+      <Card className="p-5" data-testid="card-dashboard-outreach-evidence">
+        <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+          <div>
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Mail className="w-4 h-4 text-sky-400" /> Outreach evidence · rolling 30 days
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Provider handoffs are not delivery. No rate is inferred from the total lead count.
+            </p>
+          </div>
+          <Link href="/dashboard/email">
+            <Button variant="outline" size="sm" className="text-xs" data-testid="link-outreach-evidence">
+              Open email →
+            </Button>
+          </Link>
+        </div>
+        {outreachEvidenceLoading ? (
+          <p className="text-sm text-muted-foreground">Loading tenant evidence...</p>
+        ) : outreachEvidenceError ? (
+          <p className="text-sm text-red-400" data-testid="dashboard-evidence-error">Evidence unavailable. The tenant evidence request failed.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+              <div className="rounded-lg border p-3">
+                <p className="text-[10px] text-muted-foreground">Attempts</p>
+                <p className="text-lg font-bold font-mono mt-1">{outreachEvidence?.attempts ?? 0}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-[10px] text-muted-foreground">Recipients</p>
+                <p className="text-lg font-bold font-mono mt-1">{outreachEvidence?.uniqueRecipients ?? 0}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-[10px] text-muted-foreground">Accepted handoffs</p>
+                <p className="text-lg font-bold font-mono mt-1">{outreachEvidence?.acceptedRecords ?? 0}</p>
+              </div>
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                <p className="text-[10px] text-amber-400 flex items-center gap-1"><HelpCircle className="w-3 h-3" /> Delivery unknown</p>
+                <p className="text-lg font-bold font-mono text-amber-400 mt-1">{outreachEvidence?.unknownDelivery ?? 0}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-[10px] text-muted-foreground">Bounce reports</p>
+                <p className="text-lg font-bold font-mono mt-1">{outreachEvidence?.bounceReports ?? 0}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1"><MessageSquare className="w-3 h-3" /> Replies</p>
+                <p className="text-lg font-bold font-mono mt-1">{outreachEvidence?.replies ?? 0}</p>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-3">
+              Delivery callbacks stored: {outreachEvidence?.deliveryCallbacks ?? 0}. Retries remain separate attempts: {outreachEvidence?.retryRecords ?? 0}.
+            </p>
+          </>
+        )}
+      </Card>
+
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="p-5">
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
@@ -241,7 +321,10 @@ export default function DashboardPage() {
                     <p className="text-sm font-medium truncate">{lead.name}</p>
                     <p className="text-xs text-muted-foreground">{t("dashboard.fromSource", { source: lead.source })}</p>
                   </div>
-                  <LeadStatusBadge status={lead.status} />
+                   <LeadStatusBadge
+                     status={lead.status}
+                     qualifyingHot={enhanced?.qualifying_hot_lead_ids?.includes(lead.id)}
+                   />
                 </div>
               ))
             )}

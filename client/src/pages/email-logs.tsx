@@ -10,8 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Mail, CheckCircle2, XCircle, RefreshCw, BarChart3,
   ArrowUpRight, Clock, AlertTriangle, Send, Trash2, Filter,
-  MailX, ArrowLeftRight,
+  MailX, ArrowLeftRight, Users, HelpCircle, MessageSquare, Info,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 type EmailLog = {
   id: string;
@@ -42,14 +43,52 @@ type Stats = {
   recentErrors: { id: string; email: string; error: string; source: string; status: string; time: string }[];
 };
 
+type FunnelEvidence = {
+  range: { from: string; to: string; toExclusive: boolean };
+  attempts: number;
+  uniqueRecipients: number;
+  acceptedRecords: number;
+  unknownDelivery: number;
+  bounceReports: number;
+  replies: number;
+  failedRecords: number;
+  pendingRecords: number;
+  retryRecords: number;
+  retryCount: number;
+  deliveryCallbacks: number;
+  providerBreakdown: Record<string, number>;
+  limitations: string[];
+};
+
+function dateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export default function EmailLogsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [toDate, setToDate] = useState(() => dateInputValue(new Date()));
+  const [fromDate, setFromDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 29);
+    return dateInputValue(date);
+  });
 
   const { data: statsData, isLoading: statsLoading } = useQuery<Stats>({
     queryKey: ["/api/email-logs/stats"],
+  });
+
+  const evidenceUrl = `/api/evidence/email-funnel?${new URLSearchParams({
+    from: fromDate,
+    to: toDate,
+  }).toString()}`;
+  const { data: evidence, isLoading: evidenceLoading, isError: evidenceError, error: evidenceQueryError } = useQuery<FunnelEvidence>({
+    queryKey: [evidenceUrl],
   });
 
   const logsUrl = `/api/email-logs?${new URLSearchParams({ ...(statusFilter !== "all" ? { status: statusFilter } : {}), ...(sourceFilter !== "all" ? { source: sourceFilter } : {}), limit: "100" }).toString()}`;
@@ -70,6 +109,7 @@ export default function EmailLogsPage() {
       }
       queryClient.invalidateQueries({ queryKey: ["/api/email-logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/email-logs/stats"] });
+      queryClient.invalidateQueries({ queryKey: [evidenceUrl] });
     },
     onError: () => {
       toast({ title: "Retry failed", variant: "destructive" });
@@ -84,6 +124,7 @@ export default function EmailLogsPage() {
       toast({ title: "Logs cleared" });
       queryClient.invalidateQueries({ queryKey: ["/api/email-logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/email-logs/stats"] });
+      queryClient.invalidateQueries({ queryKey: [evidenceUrl] });
     },
   });
 
@@ -115,11 +156,11 @@ export default function EmailLogsPage() {
     <div className="space-y-6" data-testid="page-email-logs">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Email Delivery Logs</h1>
-          <p className="text-muted-foreground text-sm mt-1">Track every email sent by your agents, sequences, and outreach campaigns</p>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">Email Attempt Logs</h1>
+          <p className="text-muted-foreground text-sm mt-1">Track provider handoffs, failures, bounce reports, and stored replies without overstating delivery</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => { queryClient.invalidateQueries({ queryKey: ["/api/email-logs"] }); queryClient.invalidateQueries({ queryKey: ["/api/email-logs/stats"] }); }} data-testid="button-refresh-logs">
+          <Button variant="outline" size="sm" onClick={() => { queryClient.invalidateQueries({ queryKey: ["/api/email-logs"] }); queryClient.invalidateQueries({ queryKey: ["/api/email-logs/stats"] }); queryClient.invalidateQueries({ queryKey: [evidenceUrl] }); }} data-testid="button-refresh-logs">
             <RefreshCw className="w-4 h-4 mr-1" /> Refresh
           </Button>
           <Button variant="outline" size="sm" onClick={() => clearMutation.mutate()} data-testid="button-clear-logs">
@@ -128,10 +169,95 @@ export default function EmailLogsPage() {
         </div>
       </div>
 
+      <Card data-testid="card-funnel-evidence">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Info className="w-4 h-4 text-sky-400" /> Outreach funnel evidence
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Read-only tenant evidence. Every metric below uses the same date range; no rate is calculated from total leads.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <label className="text-muted-foreground" htmlFor="evidence-from">From</label>
+              <Input
+                id="evidence-from"
+                type="date"
+                value={fromDate}
+                onChange={(event) => setFromDate(event.target.value)}
+                className="h-8 w-[135px] text-xs"
+                data-testid="input-evidence-from"
+              />
+              <label className="text-muted-foreground" htmlFor="evidence-to">Through</label>
+              <Input
+                id="evidence-to"
+                type="date"
+                value={toDate}
+                onChange={(event) => setToDate(event.target.value)}
+                className="h-8 w-[135px] text-xs"
+                data-testid="input-evidence-to"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {evidenceLoading ? (
+            <div className="py-5 text-center text-sm text-muted-foreground">Loading evidence...</div>
+          ) : evidenceError ? (
+            <div className="py-5 text-center text-sm text-red-400" data-testid="evidence-error">
+              Evidence unavailable: {evidenceQueryError instanceof Error ? evidenceQueryError.message : "The tenant evidence request failed."}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                <div className="rounded-lg border p-3" data-testid="evidence-attempts">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Send className="w-3.5 h-3.5" /> Attempts</div>
+                  <div className="text-xl font-bold mt-1">{evidence?.attempts ?? 0}</div>
+                  <div className="text-[10px] text-muted-foreground">each log record</div>
+                </div>
+                <div className="rounded-lg border p-3" data-testid="evidence-unique-recipients">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Users className="w-3.5 h-3.5" /> Recipients</div>
+                  <div className="text-xl font-bold mt-1">{evidence?.uniqueRecipients ?? 0}</div>
+                  <div className="text-[10px] text-muted-foreground">unique addresses</div>
+                </div>
+                <div className="rounded-lg border p-3" data-testid="evidence-accepted">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5" /> Accepted</div>
+                  <div className="text-xl font-bold mt-1">{evidence?.acceptedRecords ?? 0}</div>
+                  <div className="text-[10px] text-muted-foreground">provider handoff</div>
+                </div>
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3" data-testid="evidence-unknown-delivery">
+                  <div className="flex items-center gap-1.5 text-xs text-amber-400"><HelpCircle className="w-3.5 h-3.5" /> Unknown delivery</div>
+                  <div className="text-xl font-bold text-amber-400 mt-1">{evidence?.unknownDelivery ?? 0}</div>
+                  <div className="text-[10px] text-muted-foreground">no callback</div>
+                </div>
+                <div className="rounded-lg border p-3" data-testid="evidence-bounces">
+                  <div className="flex items-center gap-1.5 text-xs text-orange-400"><MailX className="w-3.5 h-3.5" /> Bounce reports</div>
+                  <div className="text-xl font-bold text-orange-400 mt-1">{evidence?.bounceReports ?? 0}</div>
+                  <div className="text-[10px] text-muted-foreground">labelled bounced</div>
+                </div>
+                <div className="rounded-lg border p-3" data-testid="evidence-replies">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><MessageSquare className="w-3.5 h-3.5" /> Replies</div>
+                  <div className="text-xl font-bold mt-1">{evidence?.replies ?? 0}</div>
+                  <div className="text-[10px] text-muted-foreground">stored inbound</div>
+                </div>
+              </div>
+              <div className="rounded-lg bg-muted/30 p-3 space-y-1.5 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground">What these records can and cannot show</p>
+                <p>Accepted means provider handoff, not delivery. Delivery callbacks stored: {evidence?.deliveryCallbacks ?? 0}; accepted records therefore remain unknown.</p>
+                <p>Retries count as additional attempts but are deduplicated in unique recipients. Retried records: {evidence?.retryRecords ?? 0} ({evidence?.retryCount ?? 0} retry count).</p>
+                <p>Reply count is limited to stored inbound records. Historical provider labels are not transport proof: some older SES labels were sent through Postal.</p>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card data-testid="stat-total-sent">
           <CardContent className="pt-4 pb-3 px-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Send className="w-3.5 h-3.5" /> Total Sent</div>
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Send className="w-3.5 h-3.5" /> Accepted Handoffs</div>
             <div className="text-2xl font-bold">{stats?.sent ?? 0}</div>
             <div className="text-xs text-muted-foreground mt-0.5">Today: {stats?.todaySent ?? 0}</div>
           </CardContent>
@@ -152,9 +278,9 @@ export default function EmailLogsPage() {
         </Card>
         <Card data-testid="stat-success-rate">
           <CardContent className="pt-4 pb-3 px-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><BarChart3 className="w-3.5 h-3.5" /> Success Rate</div>
-            <div className="text-2xl font-bold">{stats?.successRate ?? 0}%</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{stats?.total ?? 0} total attempts</div>
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><BarChart3 className="w-3.5 h-3.5" /> Recorded handoffs</div>
+            <div className="text-2xl font-bold">{stats?.sent ?? 0}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">All-time · not delivery</div>
           </CardContent>
         </Card>
         <Card data-testid="stat-by-source">
@@ -163,7 +289,7 @@ export default function EmailLogsPage() {
             {stats?.bySource && Object.entries(stats.bySource).map(([src, counts]) => (
               <div key={src} className="flex items-center justify-between text-xs mt-1">
                 <span>{sourceLabel(src)}</span>
-                <span className="text-muted-foreground">{counts.sent} sent / {counts.failed} fail{counts.bounced > 0 ? ` / ${counts.bounced} bounce` : ""}</span>
+                <span className="text-muted-foreground">{counts.sent} handoff / {counts.failed} fail{counts.bounced > 0 ? ` / ${counts.bounced} bounce` : ""}</span>
               </div>
             ))}
             {(!stats?.bySource || Object.keys(stats.bySource).length === 0) && <div className="text-sm text-muted-foreground">No data yet</div>}
@@ -209,7 +335,7 @@ export default function EmailLogsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="sent">Sent</SelectItem>
+            <SelectItem value="sent">Accepted handoff</SelectItem>
             <SelectItem value="failed">Failed</SelectItem>
             <SelectItem value="bounced">Bounced</SelectItem>
           </SelectContent>
@@ -247,7 +373,7 @@ export default function EmailLogsPage() {
                 <div key={log.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors" data-testid={`email-log-row-${log.id}`}>
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {log.status === "sent" ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                      <HelpCircle className="w-4 h-4 text-amber-400 shrink-0" />
                     ) : log.status === "bounced" ? (
                       <MailX className="w-4 h-4 text-orange-400 shrink-0" />
                     ) : (
@@ -267,6 +393,9 @@ export default function EmailLogsPage() {
                   <div className="flex items-center gap-3 shrink-0">
                     <Badge variant="outline" className="text-[10px] py-0">{sourceLabel(log.source)}</Badge>
                     <Badge variant="outline" className="text-[10px] py-0">{providerLabel(log.provider)}</Badge>
+                    {log.status === "sent" && (
+                      <Badge variant="outline" className="text-[10px] py-0 text-amber-400 border-amber-500/30">Handoff · delivery unknown</Badge>
+                    )}
                     {log.retryCount > 0 && <Badge variant="outline" className="text-[10px] py-0">Retry #{log.retryCount}</Badge>}
                     <span className="text-xs text-muted-foreground w-[70px] text-right">
                       <Clock className="w-3 h-3 inline mr-1" />{formatTime(log.sentAt || log.createdAt)}

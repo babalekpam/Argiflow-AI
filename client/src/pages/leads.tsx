@@ -129,7 +129,7 @@ function EngagementLevelBadge({ level }: { level: string }) {
   );
 }
 
-function EmailAnalyticsSummary() {
+function EmailAnalyticsSummary({ qualifiedHotCount }: { qualifiedHotCount?: number }) {
   const { t } = useTranslation();
   const { data: analytics } = useQuery<{
     totalSent: number;
@@ -193,8 +193,8 @@ function EmailAnalyticsSummary() {
           <div className="text-xs text-muted-foreground">{t("leads.engagement.clickRate")}</div>
         </div>
         <div className="text-center">
-          <div className="text-lg font-bold text-red-400" data-testid="text-hot-leads">{analytics.byLevel.hot}</div>
-          <div className="text-xs text-muted-foreground">{t("leads.engagement.hotLeads")}</div>
+          <div className="text-lg font-bold text-red-400" data-testid="text-hot-leads">{qualifiedHotCount ?? 0}</div>
+          <div className="text-xs text-muted-foreground">Evidence-qualified HOT leads</div>
         </div>
       </div>
     </Card>
@@ -1360,6 +1360,7 @@ export default function LeadsPage() {
   const { data: pipelineSummary, isLoading: pipelineSummaryLoading } = useQuery<{
     totalLeads: number;
     hotLeads: number;
+    qualifyingHotLeadIds?: string[];
     hotDefinition: string;
   }>({
     queryKey: ["/api/leads/pipeline-summary", selectedBusinessId],
@@ -1756,9 +1757,8 @@ export default function LeadsPage() {
 
   const newLeads = sourceFilteredLeads.filter(l => !l.outreachSentAt);
   const engagedLeads = sourceFilteredLeads.filter(l => !!l.outreachSentAt);
-  const hotLeads = sourceFilteredLeads.filter(
-    l => !!l.outreachSentAt && l.engagementLevel === "hot"
-  );
+  const qualifyingHotLeadIds = new Set(pipelineSummary?.qualifyingHotLeadIds || []);
+  const hotLeads = sourceFilteredLeads.filter(l => qualifyingHotLeadIds.has(l.id));
 
   const currentLeads = activeTab === "new" ? newLeads : activeTab === "engaged" ? engagedLeads : hotLeads;
 
@@ -1840,6 +1840,8 @@ export default function LeadsPage() {
             const [filter, pg] = val.split("|");
             const page = pg || "1";
             const params = new URLSearchParams({ page, limit: String(exportLimit), status: filter });
+            if (selectedBusinessId) params.set("businessId", selectedBusinessId);
+            if (activeSourceFilter) params.set("source", activeSourceFilter);
             window.open(`/api/leads/export/csv?${params.toString()}`, "_blank");
           }}>
             <SelectTrigger className="w-[220px]" data-testid="button-export-csv">
@@ -1859,7 +1861,10 @@ export default function LeadsPage() {
                 ];
                 const items: React.ReactNode[] = [];
                 for (const sf of statusFilters) {
-                  const filtered = Array.isArray(leads) ? leads.filter((l: any) => l.status === sf.value) : [];
+                  const exportableLeads = activeSourceFilter ? sourceFilteredLeads : (Array.isArray(leads) ? leads : []);
+                  const filtered = sf.value === "hot"
+                    ? exportableLeads.filter((l: any) => qualifyingHotLeadIds.has(l.id))
+                    : exportableLeads.filter((l: any) => l.status === sf.value);
                   const count = filtered.length;
                   if (count === 0) continue;
                   const sfPages = Math.max(1, Math.ceil(count / exportLimit));
@@ -2029,7 +2034,7 @@ export default function LeadsPage() {
         onCreated={() => {}}
       />
 
-      <EmailAnalyticsSummary />
+      <EmailAnalyticsSummary qualifiedHotCount={pipelineSummary?.hotLeads} />
 
       <div className="flex items-center border-b gap-0" data-testid="leads-tab-bar">
         <button

@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { registerTrackerPublicRoutes, registerTrackerDashboardRoutes } from "./tracker-routes";
-import { eq, and, sql, desc, or, ilike, isNull } from "drizzle-orm";
-import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnelStages, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts } from "@shared/schema";
+import { eq, and, sql, desc, or, ilike, isNull, lte } from "drizzle-orm";
+import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnelStages, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts, emailAccounts } from "@shared/schema";
 import { campaigns, campaignLeads } from "@shared/instantly-schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
@@ -49,6 +49,29 @@ import postalRoutes from "./postal-routes";
 import postalService from "./postal";
 import emailQuotaRoutes from "./email-quota-routes";
 import { isEmailSuppressed, isValidRecipientEmail, suppressEmail } from "./email-suppression";
+import {
+  buildInboxRoutes,
+  canAutoRespond,
+  classifyInboundReply,
+  extractEmailAddresses,
+  matchInboundReply,
+  normalizeEmailAddress,
+  normalizeMessageId,
+  readHeader,
+  type InboxRoute,
+} from "./inbox-reliability";
+import {
+  FOLLOW_UP_MAX_ATTEMPTS,
+  getFollowUpFailureDecision,
+  getFollowUpRetryDelayMs,
+  getFollowUpPreflightIssue,
+  getEmailSendReconciliationDecision,
+  getLeadContactIssue,
+  getManualRetryDecision,
+  getOutreachPreflightIssue,
+  getTenantSmtpConfigIssue,
+  isPermanentEmailFailure,
+} from "./outreach-quality-gate";
 
 let tavilyRateLimitedUntil = 0;
 
@@ -90,8 +113,138 @@ async function logEmail(data: { userId: string; leadId?: string; recipientEmail:
       errorMessage: data.errorMessage || null,
       sentAt: data.status === "sent" ? new Date() : null,
     });
+    return true;
   } catch (err: any) {
     console.error("[EmailLog] Failed to log email:", err.message);
+    return false;
+  }
+}
+
+type EmailSendClaimInput = {
+  userId: string;
+  leadId: string;
+  recipientEmail: string;
+  recipientName?: string;
+  subject?: string;
+  provider: string;
+  source: string;
+};
+
+/**
+ * A campaign send must have a durable pending claim before SMTP is contacted.
+ * The claim intentionally stays `pending` when acceptance or bookkeeping is
+ * ambiguous; pending claims are never eligible for an automatic resend.
+ */
+async function createEmailSendClaim(data: EmailSendClaimInput): Promise<string> {
+  const [claim] = await db.insert(emailLogs).values({
+    userId: data.userId,
+    leadId: data.leadId,
+    recipientEmail: data.recipientEmail,
+    recipientName: data.recipientName || null,
+    subject: data.subject || null,
+    provider: data.provider,
+    source: data.source,
+    status: "pending",
+    errorMessage: null,
+    sentAt: null,
+  }).returning({ id: emailLogs.id });
+  if (!claim?.id) {
+    throw new Error("Could not create a durable outbound email claim");
+  }
+  return claim.id;
+}
+
+async function finalizeEmailSendClaim(
+  claimId: string,
+  userId: string,
+  status: "sent" | "failed" | "bounced",
+  errorMessage?: string,
+): Promise<void> {
+  const [updated] = await db.update(emailLogs)
+    .set({
+      status,
+      errorMessage: errorMessage || null,
+      sentAt: status === "sent" ? new Date() : null,
+    })
+    .where(and(
+      eq(emailLogs.id, claimId),
+      eq(emailLogs.userId, userId),
+      eq(emailLogs.status, "pending"),
+    ))
+    .returning({ id: emailLogs.id });
+  if (!updated?.id) {
+    throw new Error("Durable outbound email claim could not be reconciled");
+  }
+}
+
+async function annotateEmailSendClaim(claimId: string, userId: string, errorMessage: string): Promise<void> {
+  try {
+    await db.update(emailLogs)
+      .set({ errorMessage })
+      .where(and(
+        eq(emailLogs.id, claimId),
+        eq(emailLogs.userId, userId),
+        eq(emailLogs.status, "pending"),
+      ));
+  } catch (err: any) {
+    console.error(`[EmailClaim] Could not annotate pending claim ${claimId}:`, err?.message || err);
+  }
+}
+
+async function getPendingEmailSendClaim(userId: string, leadId: string, source: string) {
+  const [claim] = await db.select({ id: emailLogs.id, subject: emailLogs.subject, createdAt: emailLogs.createdAt })
+    .from(emailLogs)
+    .where(and(
+      eq(emailLogs.userId, userId),
+      eq(emailLogs.leadId, leadId),
+      eq(emailLogs.source, source),
+      eq(emailLogs.status, "pending"),
+    ))
+    .orderBy(desc(emailLogs.createdAt))
+    .limit(1);
+  return claim || null;
+}
+
+async function getSentEmailLogs(userId: string, leadId: string, source: string) {
+  return db.select({ id: emailLogs.id, subject: emailLogs.subject, createdAt: emailLogs.createdAt })
+    .from(emailLogs)
+    .where(and(
+      eq(emailLogs.userId, userId),
+      eq(emailLogs.leadId, leadId),
+      eq(emailLogs.source, source),
+      eq(emailLogs.status, "sent"),
+    ))
+    .orderBy(desc(emailLogs.createdAt));
+}
+
+/**
+ * `scheduledSendAt` doubles as the existing lead-row lease for initial
+ * outreach. The conditional update makes the pre-send claim atomic across
+ * workers without adding a schema column. It is cleared only after the
+ * pending email log and lead state are reconciled.
+ */
+async function claimLeadForOutboundSend(userId: string, leadId: string): Promise<boolean> {
+  const claimUntil = new Date(Date.now() + 30 * 60 * 1000);
+  const claimed = await db.update(leads)
+    .set({ scheduledSendAt: claimUntil })
+    .where(and(
+      eq(leads.id, leadId),
+      eq(leads.userId, userId),
+      isNull(leads.outreachSentAt),
+      or(isNull(leads.scheduledSendAt), lte(leads.scheduledSendAt, new Date())),
+    ))
+    .returning({ id: leads.id });
+  return claimed.length > 0;
+}
+
+async function pauseLeadForUnknownEmailOutcome(lead: any, source: "outreach" | "follow-up", reason: string): Promise<void> {
+  try {
+    await storage.updateLead(lead.id, {
+      ...(lead.followUpStatus === "active" ? { followUpStatus: "paused", followUpNextAt: null } : {}),
+      nextStep: `${source === "follow-up" ? "Follow-up" : "Outreach"} paused: ${reason} Review the pending email log before retrying; no automatic resend will occur.`,
+    });
+  } catch (err: any) {
+    console.error(`[EmailClaim] Could not persist manual-review state for ${lead.id}:`, err?.message || err);
   }
 }
 
@@ -1043,8 +1196,6 @@ async function executeAction(userId: string, action: string, params: any): Promi
       for (const lead of targets) {
         const result = await sendOutreachEmail(lead, settings, user);
         if (result.success) {
-          const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-          await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm", followUpStep: 0, followUpStatus: "active", followUpNextAt });
           await storage.incrementUsage(userId, "emailsSent");
           sent++;
           sentNames.push(lead.name);
@@ -1378,27 +1529,68 @@ function injectTrackingPixel(html: string, leadId: string, baseUrl: string): str
   return html + pixel;
 }
 
-export async function sendOutreachEmail(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string }> {
-  if (!lead.email || !lead.outreach) {
-    return { success: false, error: "Lead has no email or outreach draft" };
+const outreachSendInFlight = new Map<string, Promise<{ success: boolean; error?: string; bounced?: boolean }>>();
+
+export function sendOutreachEmail(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string; bounced?: boolean }> {
+  const lockKey = lead?.id ? `${lead.userId || user?.id || "unknown"}:${lead.id}` : "";
+  if (!lockKey) return sendOutreachEmailInternal(lead, userSettings, user);
+  const existing = outreachSendInFlight.get(lockKey);
+  if (existing) return existing;
+
+  const pending = sendOutreachEmailInternal(lead, userSettings, user);
+  outreachSendInFlight.set(lockKey, pending);
+  pending.finally(() => outreachSendInFlight.delete(lockKey)).catch(() => undefined);
+  return pending;
+}
+
+async function sendOutreachEmailInternal(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string; bounced?: boolean; requiresReview?: boolean; reconciled?: boolean }> {
+  const recordBlockedOutreach = async (reason: string, pauseFollowUp = false) => {
+    if (lead?.id) {
+      await storage.updateLead(lead.id, {
+        nextStep: `Do not contact automatically: ${reason}`,
+        ...(pauseFollowUp && lead.followUpStatus === "active" ? { followUpStatus: "paused", followUpNextAt: null } : {}),
+      });
+    } else {
+      return;
+    }
+    await logEmail({
+      userId: user?.id || lead?.userId || "system",
+      leadId: lead?.id,
+      recipientEmail: lead?.email || "unknown",
+      recipientName: lead?.name,
+      provider: "none",
+      source: "outreach",
+      status: "failed",
+      errorMessage: reason,
+    });
+  };
+
+  const preflightIssue = getOutreachPreflightIssue(lead || {}, userSettings, user);
+  if (preflightIssue) {
+    await recordBlockedOutreach(preflightIssue, true);
+    return { success: false, error: preflightIssue };
   }
   if (!isValidRecipientEmail(lead.email)) {
-    return { success: false, error: "Lead has an invalid email address" };
+    const error = "Lead has an invalid email address (syntax is not usable; deliverability is not verified)";
+    await recordBlockedOutreach(error, true);
+    return { success: false, error };
   }
-  if (await isEmailSuppressed(lead.userId || user?.id, lead.email)) {
-    return { success: false, error: "Recipient has unsubscribed" };
+  const ownerId = lead.userId || user?.id;
+  if (!ownerId || await isEmailSuppressed(ownerId, lead.email)) {
+    const error = "Recipient has unsubscribed or is suppressed";
+    await recordBlockedOutreach(error, true);
+    return { success: false, error };
   }
 
-  if (!user?.companyName) {
-    return { success: false, error: "Company identity required. Go to Settings > Company Profile and enter your company name before sending outreach." };
+  const customSmtpHost = userSettings.smtpHost;
+  const customSmtpUser = userSettings.smtpUsername;
+  const customSmtpPass = userSettings.smtpPassword;
+  const senderEmail = userSettings.senderEmail;
+  if (!isValidRecipientEmail(senderEmail)) {
+    const error = "Tenant sender email has invalid syntax; update the saved SMTP sender before sending";
+    await recordBlockedOutreach(error, true);
+    return { success: false, error };
   }
-
-  const customSmtpHost = userSettings?.smtpHost;
-  const customSmtpUser = userSettings?.smtpUsername;
-  const customSmtpPass = userSettings?.smtpPassword;
-  const hasCustomSmtp = !!(customSmtpHost && customSmtpUser && customSmtpPass);
-
-  const senderEmail = userSettings.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
   const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
 
   let subjectLine = lead.company
@@ -1414,6 +1606,40 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
   let outreachBody = lead.outreach;
   if (subjectMatch) {
     outreachBody = outreachBody.replace(/^Subject:\s*.+\n?/im, "").trim();
+  }
+
+  let priorOutboundLogs: Awaited<ReturnType<typeof getSentEmailLogs>>;
+  try {
+    const pendingClaim = await getPendingEmailSendClaim(user.id, lead.id, "outreach");
+    if (pendingClaim) {
+      const reason = "A previous outreach attempt has a pending delivery claim and its SMTP outcome is unknown";
+      await pauseLeadForUnknownEmailOutcome(lead, "outreach", reason);
+      return { success: false, error: `${reason}.`, requiresReview: true };
+    }
+    priorOutboundLogs = await getSentEmailLogs(user.id, lead.id, "outreach");
+  } catch (err: any) {
+    const reason = `Could not reconcile prior outreach delivery state: ${err?.message || "persistence error"}`;
+    await pauseLeadForUnknownEmailOutcome(lead, "outreach", reason);
+    return { success: false, error: reason, requiresReview: true };
+  }
+  if (priorOutboundLogs.length > 0) {
+    try {
+      const followUpNextAt = lead.followUpNextAt || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      await storage.updateLead(lead.id, {
+        outreachSentAt: lead.outreachSentAt || new Date(),
+        status: lead.status === "new" ? "warm" : lead.status,
+        followUpStep: lead.followUpStep || 0,
+        followUpStatus: lead.followUpStatus && lead.followUpStatus !== "none" ? lead.followUpStatus : "active",
+        followUpNextAt,
+        scheduledSendAt: null,
+        nextStep: "Outreach delivery was already recorded; follow-up scheduled and waiting for a reply",
+      });
+      return { success: true, reconciled: true };
+    } catch (err: any) {
+      const reason = `Outreach delivery is already recorded, but lead state reconciliation failed: ${err?.message || "unknown persistence error"}`;
+      await pauseLeadForUnknownEmailOutcome(lead, "outreach", reason);
+      return { success: false, error: reason, requiresReview: true };
+    }
   }
 
   const isMedBillSender = (user.companyName || "").toLowerCase().includes("track-med");
@@ -1467,36 +1693,67 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
     plainText = outreachBody + textSignature;
   }
 
-  const usedProvider = hasCustomSmtp ? "smtp" : "ses";
+  const usedProvider = "smtp";
+  let claimId: string;
   try {
-    if (hasCustomSmtp) {
-      const transporter = nodemailer.createTransport({
-        host: customSmtpHost,
-        port: userSettings?.smtpPort || 587,
-        secure: userSettings?.smtpSecure ?? false,
-        auth: { user: customSmtpUser, pass: customSmtpPass },
-        connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
-      });
-      await transporter.sendMail({
-        from: `"${senderName}" <${senderEmail}>`,
-        to: lead.email,
-        subject: subjectLine,
-        text: plainText,
-        html: htmlBody,
-      });
-    } else {
-      const result = await postalService.sendEmail({
-        to: lead.email,
-        from: senderEmail,
-        fromName: senderName,
-        subject: subjectLine,
-        htmlBody,
-        plainBody: plainText,
-      });
-      if (!result.success) throw new Error(result.error || "Send failed");
+    const leadClaimed = await claimLeadForOutboundSend(user.id, lead.id);
+    if (!leadClaimed) {
+      const reason = "This lead already has a scheduled or in-flight outreach claim; delivery state must be reviewed before retrying";
+      return { success: false, error: reason, requiresReview: true };
     }
-    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: usedProvider, source: "outreach", status: "sent" });
-    return { success: true };
+    claimId = await createEmailSendClaim({
+      userId: user.id,
+      leadId: lead.id,
+      recipientEmail: lead.email,
+      recipientName: lead.name,
+      subject: subjectLine,
+      provider: usedProvider,
+      source: "outreach",
+    });
+  } catch (err: any) {
+    const reason = `Could not create a durable outreach delivery claim: ${err?.message || "persistence error"}`;
+    await pauseLeadForUnknownEmailOutcome(lead, "outreach", reason);
+    return { success: false, error: reason, requiresReview: true };
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: customSmtpHost,
+      port: userSettings?.smtpPort || 587,
+      secure: userSettings?.smtpSecure ?? false,
+      auth: { user: customSmtpUser, pass: customSmtpPass },
+      connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
+    });
+    await transporter.sendMail({
+      from: `"${senderName}" <${senderEmail}>`,
+      to: lead.email,
+      subject: subjectLine,
+      text: plainText,
+      html: htmlBody,
+    });
+    try {
+      await finalizeEmailSendClaim(claimId, user.id, "sent");
+      const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      await storage.updateLead(lead.id, {
+        outreachSentAt: new Date(),
+        status: lead.status === "new" ? "warm" : lead.status,
+        followUpStep: 0,
+        followUpStatus: "active",
+        followUpNextAt,
+        scheduledSendAt: null,
+        nextStep: "Outreach sent; follow-up scheduled and waiting for a reply",
+      });
+      return { success: true };
+    } catch (err: any) {
+      const reconciliationDecision = getEmailSendReconciliationDecision({
+        transportAccepted: true,
+        bookkeepingPersisted: false,
+      });
+      const reason = `SMTP accepted outreach, but delivery/state reconciliation failed: ${err?.message || "persistence error"}`;
+      await annotateEmailSendClaim(claimId, user.id, reason);
+      await pauseLeadForUnknownEmailOutcome(lead, "outreach", reason);
+      return { success: false, error: reason, requiresReview: reconciliationDecision.requiresReview };
+    }
   } catch (err: any) {
     console.error("Email send error:", err?.response?.body || err?.message || err);
     const errorMsg = err?.response?.body?.errors?.[0]?.message || err?.message || "Failed to send";
@@ -1505,7 +1762,46 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
       /bounce|rejected|undeliverable|mailbox.*not found|user.*unknown|does not exist|invalid.*recipient|no such user/i.test(errorMsg);
 
     const emailStatus = isBounce ? "bounced" : "failed";
-    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: usedProvider, source: "outreach", status: emailStatus, errorMessage: errorMsg });
+    const permanent = isBounce || isPermanentEmailFailure(errorMsg);
+    const hasDefinitiveSmtpRejection = Boolean(err?.responseCode) || /\b(?:4\d{2}|5\d{2})\b/.test(errorMsg);
+    if (!permanent && !hasDefinitiveSmtpRejection) {
+      const reconciliationDecision = getEmailSendReconciliationDecision({
+        transportAccepted: false,
+        bookkeepingPersisted: false,
+        transportOutcomeKnown: false,
+      });
+      const reason = `SMTP send outcome is unknown (${errorMsg}); it will not be retried automatically`;
+      await annotateEmailSendClaim(claimId, user.id, reason);
+      await pauseLeadForUnknownEmailOutcome(lead, "outreach", reason);
+      return { success: false, error: reason, requiresReview: reconciliationDecision.requiresReview };
+    }
+    try {
+      if (permanent) {
+        await storage.updateLead(lead.id, {
+          nextStep: `Do not retry automatically: tenant SMTP reported a permanent failure (${errorMsg}). Verify the recipient and SMTP sender configuration.`,
+          scheduledSendAt: null,
+          ...(lead.followUpStatus === "active" ? { followUpStatus: "paused", followUpNextAt: null } : {}),
+        });
+      } else {
+        await storage.updateLead(lead.id, {
+          nextStep: `Outreach send failed through tenant SMTP: ${errorMsg}. Check SMTP configuration and retry manually.`,
+          scheduledSendAt: null,
+        });
+      }
+    } catch (stateErr: any) {
+      const reason = `SMTP failure was observed, but lead delivery state could not be persisted: ${stateErr?.message || "persistence error"}`;
+      await annotateEmailSendClaim(claimId, user.id, `${reason}; original SMTP error: ${errorMsg}`);
+      await pauseLeadForUnknownEmailOutcome(lead, "outreach", reason);
+      return { success: false, error: reason, bounced: isBounce, requiresReview: true };
+    }
+    try {
+      await finalizeEmailSendClaim(claimId, user.id, emailStatus, errorMsg);
+    } catch (persistenceErr: any) {
+      const reason = `SMTP send outcome could not be durably recorded: ${persistenceErr?.message || "persistence error"}`;
+      await annotateEmailSendClaim(claimId, user.id, `${reason}; original SMTP error: ${errorMsg}`);
+      await pauseLeadForUnknownEmailOutcome(lead, "outreach", reason);
+      return { success: false, error: reason, bounced: isBounce, requiresReview: true };
+    }
     return { success: false, error: errorMsg, bounced: isBounce };
   }
 }
@@ -3502,31 +3798,15 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     try {
       const userId = req.session.userId!;
       const businessId = req.query.businessId as string | undefined;
-      const [tenantLeads, tenantReplies] = await Promise.all([
-        storage.getLeadsByUser(userId, businessId),
-        storage.getEmailRepliesByUser(userId),
-      ]);
-      const leadIds = new Set(tenantLeads.map(lead => lead.id));
-      const qualifyingReplyLeadIds = new Set(
-        tenantReplies
-          .filter(reply => {
-            if (reply.direction !== "inbound" || !leadIds.has(reply.leadId)) return false;
-            const text = `${reply.subject || ""} ${reply.body || ""}`.toLowerCase().trim();
-            if (!text || reply.body === "(Could not parse email body)") return false;
-            const isNegative = /\b(unsubscribe|remove me|take me off|stop (?:emailing|contacting|sending)|do not (?:email|contact)|don't (?:email|contact)|no more emails|opt me out|opt-out|not interested|no interest|not a fit|no thank|please don't|wrong person)\b/.test(text);
-            const isAutomated = /\b(out of office|automatic reply|auto.?reply|away from (?:the )?office|delivery status notification|undeliverable|mail delivery subsystem|vacation responder)\b/.test(text);
-            return !isNegative && !isAutomated;
-          })
-          .map(reply => reply.leadId),
-      );
-      const hotLeads = tenantLeads.filter(
-        lead => lead.engagementLevel === "hot" && qualifyingReplyLeadIds.has(lead.id),
-      ).length;
+      const tenantLeads = await storage.getLeadsByUser(userId, businessId);
+      const { getQualifiedHotLeadIds } = await import("./evidence-routes");
+      const qualifyingHotLeadIds = await getQualifiedHotLeadIds(userId, tenantLeads);
 
       res.json({
         totalLeads: tenantLeads.length,
-        hotLeads,
-        hotDefinition: "Genuine non-negative human replies",
+        hotLeads: qualifyingHotLeadIds.size,
+        qualifyingHotLeadIds: Array.from(qualifyingHotLeadIds),
+        hotDefinition: "Stored inbound reply explicitly classified qualified, with no current suppression; legacy received rows and disqualifying latest replies are excluded, and this does not prove human authorship",
       });
     } catch (error) {
       console.error("Error fetching lead pipeline summary:", error);
@@ -3539,14 +3819,17 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       const userId = req.session.userId!;
       const source = req.query.source as string | undefined;
       const status = req.query.status as string | undefined;
+      const businessId = req.query.businessId as string | undefined;
       const requestedPage = parseInt(req.query.page as string) || 1;
       const requestedLimit = parseInt(req.query.limit as string) || 10;
       const page = Math.max(1, requestedPage);
       const limit = Math.min(5000, Math.max(1, requestedLimit));
-      let allLeads = await storage.getLeadsByUser(userId);
+      let allLeads = await storage.getLeadsByUser(userId, businessId);
       if (source) allLeads = allLeads.filter(l => l.source === source);
       if (status === "hot") {
-        allLeads = allLeads.filter(l => !!l.outreachSentAt && l.engagementLevel === "hot");
+        const { getQualifiedHotLeadIds } = await import("./evidence-routes");
+        const qualifyingHotLeadIds = await getQualifiedHotLeadIds(userId, allLeads);
+        allLeads = allLeads.filter(l => qualifyingHotLeadIds.has(l.id));
       } else if (status) {
         allLeads = allLeads.filter(l => l.status === status);
       }
@@ -3708,8 +3991,6 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         return res.status(400).json({ message: result.error });
       }
 
-      const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-      await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm", followUpStep: 0, followUpStatus: "active", followUpNextAt });
       res.json({ success: true, message: `Outreach sent to ${lead.name}` });
     } catch (error) {
       console.error("Error sending outreach:", error);
@@ -3728,8 +4009,6 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       try {
         const result = await sendOutreachEmail(lead, settings, user);
         if (result.success) {
-          const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-          await storage.updateLead(lead.id, { outreachSentAt: new Date(), status: "warm", followUpStep: 0, followUpStatus: "active", followUpNextAt });
           sent++;
         } else {
           failed++;
@@ -4594,12 +4873,12 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
           }
           const result = await sendOutreachEmail(lead, settings, user);
           if (result.success) {
-            const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-            await storage.updateLead(lead.id, { outreachSentAt: new Date(), scheduledSendAt: null, status: "warm", followUpStep: 0, followUpStatus: "active", followUpNextAt });
             console.log(`Scheduled outreach sent to ${lead.name} (${lead.email})`);
           } else {
-            console.error(`Scheduled send failed for ${lead.name}: ${result.error}. Clearing schedule.`);
-            await storage.updateLead(lead.id, { scheduledSendAt: null });
+            console.error(`Scheduled send failed for ${lead.name}: ${result.error}.${result.requiresReview ? " Delivery claim retained for manual review." : " Clearing schedule."}`);
+            if (!result.requiresReview) {
+              await storage.updateLead(lead.id, { scheduledSendAt: null });
+            }
           }
         } catch (err) {
           console.error(`Error processing scheduled lead ${lead.id}:`, err);
@@ -4714,14 +4993,6 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
             try {
               const result = await sendOutreachEmail(lead, settings, user);
               if (result.success) {
-                const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-                await storage.updateLead(lead.id, {
-                  outreachSentAt: new Date(),
-                  status: "warm",
-                  followUpStep: 0,
-                  followUpStatus: "active",
-                  followUpNextAt,
-                });
                 sent++;
                 console.log(`[AutoEngage] ✅ Sent to ${lead.name} (${lead.email})`);
               } else {
@@ -4796,20 +5067,59 @@ RULES:
     }
   }
 
-  async function sendFollowUpEmail(lead: any, emailBody: string, step: number, userSettings: any, user: any): Promise<{ success: boolean; error?: string }> {
-    if (!lead.email || !emailBody) {
-      return { success: false, error: "No email or follow-up body" };
-    }
-    if (!user?.companyName) {
-      return { success: false, error: `Missing company config` };
-    }
+  async function persistFollowUpSentState(lead: any, step: number): Promise<void> {
+    const nextStepConfig = FOLLOW_UP_SCHEDULE.find(s => s.step === step + 1);
+    const nextAt = nextStepConfig
+      ? new Date(Date.now() + nextStepConfig.daysAfter * 24 * 60 * 60 * 1000)
+      : null;
+    await storage.updateLead(lead.id, {
+      followUpStep: step,
+      followUpLastSentAt: new Date(),
+      followUpNextAt: nextAt,
+      followUpStatus: nextAt ? "active" : "completed",
+      status: lead.status === "new" ? "warm" : lead.status,
+      nextStep: nextAt ? "Follow-up scheduled; wait for a reply" : "Sequence completed; wait for a reply before contacting again",
+    });
+  }
 
-    const customSmtpHost = userSettings?.smtpHost;
-    const customSmtpUser = userSettings?.smtpUsername;
-    const customSmtpPass = userSettings?.smtpPassword;
-    const hasCustomSmtp = !!(customSmtpHost && customSmtpUser && customSmtpPass);
+  async function sendFollowUpEmail(lead: any, emailBody: string, step: number, userSettings: any, user: any): Promise<{ success: boolean; error?: string; bounced?: boolean; retryable?: boolean; permanent?: boolean; requiresReview?: boolean; reconciled?: boolean }> {
+    let provider = "none";
+    const pauseFollowUp = async (reason: string, writeLog = true) => {
+      await storage.updateLead(lead.id, {
+        followUpStatus: "paused",
+        followUpNextAt: null,
+        nextStep: `Follow-up paused: ${reason}`,
+      });
+      if (writeLog) {
+        await logEmail({
+          userId: user?.id || lead.userId || "system",
+          leadId: lead.id,
+          recipientEmail: lead.email || "unknown",
+          recipientName: lead.name,
+          provider,
+          source: "follow-up",
+          status: "failed",
+          errorMessage: reason,
+        });
+      }
+    };
 
-    const senderEmail = userSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
+    const preflightIssue = getFollowUpPreflightIssue(lead || {}, emailBody, userSettings, user);
+    if (preflightIssue) {
+      await pauseFollowUp(preflightIssue);
+      return { success: false, error: preflightIssue, permanent: true };
+    }
+    provider = "smtp";
+
+    const customSmtpHost = userSettings.smtpHost;
+    const customSmtpUser = userSettings.smtpUsername;
+    const customSmtpPass = userSettings.smtpPassword;
+    const senderEmail = userSettings.senderEmail;
+    if (!isValidRecipientEmail(senderEmail)) {
+      const error = "Tenant sender email has invalid syntax; update the saved SMTP sender before sending";
+      await pauseFollowUp(error);
+      return { success: false, error, permanent: true };
+    }
     const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
     const firstName = lead.name.split(" ")[0];
 
@@ -4853,50 +5163,151 @@ RULES:
     htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
     const fPlainText = emailBody + fTextSig;
 
+    const ownerId = lead.userId || user?.id;
+    if (!isValidRecipientEmail(lead.email)) {
+      const error = "Lead has an invalid email address (syntax is not usable; deliverability is not verified)";
+      await pauseFollowUp(error);
+      return { success: false, error, permanent: true };
+    }
+    if (!ownerId || await isEmailSuppressed(ownerId, lead.email)) {
+      const error = "Recipient has unsubscribed or is suppressed";
+      await pauseFollowUp(error);
+      return { success: false, error, permanent: true };
+    }
+
+    let priorFollowUpLogs: Awaited<ReturnType<typeof getSentEmailLogs>>;
     try {
-      if (!isValidRecipientEmail(lead.email)) {
-        await storage.updateLead(lead.id, { followUpStatus: "completed", followUpNextAt: null });
-        return { success: false, error: "Lead has an invalid email address" };
+      const pendingClaim = await getPendingEmailSendClaim(user.id, lead.id, "follow-up");
+      if (pendingClaim) {
+        const reason = "A previous follow-up attempt has a pending delivery claim and its SMTP outcome is unknown";
+        await pauseLeadForUnknownEmailOutcome(lead, "follow-up", reason);
+        return { success: false, error: `${reason}.`, requiresReview: true };
       }
-      if (await isEmailSuppressed(lead.userId || user.id, lead.email)) {
-        await storage.updateLead(lead.id, { followUpStatus: "completed", followUpNextAt: null });
-        return { success: false, error: "Recipient has unsubscribed" };
+      priorFollowUpLogs = await getSentEmailLogs(user.id, lead.id, "follow-up");
+    } catch (err: any) {
+      const reason = `Could not reconcile prior follow-up delivery state: ${err?.message || "persistence error"}`;
+      await pauseLeadForUnknownEmailOutcome(lead, "follow-up", reason);
+      return { success: false, error: reason, requiresReview: true };
+    }
+    if (priorFollowUpLogs.length >= step) {
+      try {
+        await persistFollowUpSentState(lead, step);
+        return { success: true, reconciled: true };
+      } catch (err: any) {
+        const reason = `Follow-up delivery was already recorded, but sequence state reconciliation failed: ${err?.message || "persistence error"}`;
+        await pauseLeadForUnknownEmailOutcome(lead, "follow-up", reason);
+        return { success: false, error: reason, requiresReview: true };
       }
-      if (hasCustomSmtp) {
-        const transporter = nodemailer.createTransport({
-          host: customSmtpHost,
-          port: userSettings?.smtpPort || 587,
-          secure: userSettings?.smtpSecure ?? false,
-          auth: { user: customSmtpUser, pass: customSmtpPass },
-          connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
-        });
-        await transporter.sendMail({
-          from: `"${senderName}" <${senderEmail}>`,
-          to: lead.email, subject: subjectLine,
-          text: fPlainText, html: htmlBody,
-        });
-      } else {
-        const result = await postalService.sendEmail({
-          to: lead.email,
-          from: senderEmail,
-          fromName: senderName,
-          subject: subjectLine,
-          htmlBody,
-          plainBody: fPlainText,
-        });
-        if (!result.success) throw new Error(result.error || "Send failed");
-      }
+    }
+
+    let claimId: string;
+    try {
+      claimId = await createEmailSendClaim({
+        userId: user.id,
+        leadId: lead.id,
+        recipientEmail: lead.email,
+        recipientName: lead.name,
+        subject: subjectLine,
+        provider,
+        source: "follow-up",
+      });
+    } catch (err: any) {
+      const reason = `Could not create a durable follow-up delivery claim: ${err?.message || "persistence error"}`;
+      await pauseLeadForUnknownEmailOutcome(lead, "follow-up", reason);
+      return { success: false, error: reason, requiresReview: true };
+    }
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: customSmtpHost,
+        port: userSettings?.smtpPort || 587,
+        secure: userSettings?.smtpSecure ?? false,
+        auth: { user: customSmtpUser, pass: customSmtpPass },
+        connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
+      });
+      await transporter.sendMail({
+        from: `"${senderName}" <${senderEmail}>`,
+        to: lead.email, subject: subjectLine,
+        text: fPlainText, html: htmlBody,
+      });
       console.log(`[FOLLOW-UP] Step ${step} sent to ${lead.name} (${lead.email})`);
-      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: hasCustomSmtp ? "smtp" : "ses", source: "follow-up", status: "sent" });
-      return { success: true };
+      try {
+        await finalizeEmailSendClaim(claimId, user.id, "sent");
+        await persistFollowUpSentState(lead, step);
+        return { success: true };
+      } catch (err: any) {
+        const reconciliationDecision = getEmailSendReconciliationDecision({
+          transportAccepted: true,
+          bookkeepingPersisted: false,
+        });
+        const reason = `SMTP accepted follow-up, but delivery/state reconciliation failed: ${err?.message || "persistence error"}`;
+        await annotateEmailSendClaim(claimId, user.id, reason);
+        await pauseLeadForUnknownEmailOutcome(lead, "follow-up", reason);
+        return { success: false, error: reason, requiresReview: reconciliationDecision.requiresReview };
+      }
     } catch (err: any) {
       console.error(`[FOLLOW-UP] Send failed for ${lead.name}:`, err?.message);
-      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: hasCustomSmtp ? "smtp" : "ses", source: "follow-up", status: "failed", errorMessage: err?.message });
-      return { success: false, error: err?.message || "Send failed" };
+      const errorMsg = err?.message || "Send failed";
+      const permanent = isPermanentEmailFailure(errorMsg);
+      const bounced = /\b(550|551|552|553|554)\b/.test(err?.responseCode?.toString() || errorMsg) ||
+        /bounce|rejected|undeliverable|mailbox.*not found|user.*unknown|does not exist/i.test(errorMsg);
+      const hasDefinitiveSmtpRejection = Boolean(err?.responseCode) || /\b(?:4\d{2}|5\d{2})\b/.test(errorMsg);
+      if (!permanent && !bounced && !hasDefinitiveSmtpRejection) {
+        const reconciliationDecision = getEmailSendReconciliationDecision({
+          transportAccepted: false,
+          bookkeepingPersisted: false,
+          transportOutcomeKnown: false,
+        });
+        const reason = `SMTP send outcome is unknown (${errorMsg}); it will not be retried automatically`;
+        await annotateEmailSendClaim(claimId, user.id, reason);
+        await pauseLeadForUnknownEmailOutcome(lead, "follow-up", reason);
+        return { success: false, error: reason, requiresReview: reconciliationDecision.requiresReview };
+      }
+      if (permanent || bounced) {
+        try {
+          await pauseFollowUp(`Tenant SMTP reported a permanent failure: ${errorMsg}. Verify the recipient and saved SMTP configuration.`, false);
+        } catch (stateErr: any) {
+          const reason = `Permanent SMTP failure was observed, but follow-up state could not be persisted: ${stateErr?.message || "persistence error"}`;
+          await annotateEmailSendClaim(claimId, user.id, `${reason}; original SMTP error: ${errorMsg}`);
+          await pauseLeadForUnknownEmailOutcome(lead, "follow-up", reason);
+          return { success: false, error: reason, bounced, requiresReview: true };
+        }
+      }
+      try {
+        await finalizeEmailSendClaim(claimId, user.id, bounced ? "bounced" : "failed", errorMsg);
+      } catch (persistenceErr: any) {
+        const reason = `SMTP send outcome could not be durably recorded: ${persistenceErr?.message || "persistence error"}`;
+        await annotateEmailSendClaim(claimId, user.id, `${reason}; original SMTP error: ${errorMsg}`);
+        await pauseLeadForUnknownEmailOutcome(lead, "follow-up", reason);
+        return { success: false, error: reason, bounced, requiresReview: true };
+      }
+      return { success: false, error: errorMsg, retryable: !permanent && !bounced, permanent: permanent || bounced };
     }
   }
 
+  let followUpProcessorRunning = false;
+  const followUpLeadLocks = new Set<string>();
+  const FOLLOW_UP_CLAIM_LEASE_MS = 30 * 60 * 1000;
+
+  async function countFollowUpFailures(leadId: string): Promise<number> {
+    const failures = await db
+      .select({ id: emailLogs.id })
+      .from(emailLogs)
+      .where(and(
+        eq(emailLogs.leadId, leadId),
+        eq(emailLogs.source, "follow-up"),
+        or(eq(emailLogs.status, "failed"), eq(emailLogs.status, "bounced")),
+      ));
+    return failures.length;
+  }
+
   async function processFollowUpSequences() {
+    if (followUpProcessorRunning) {
+      console.log("[FOLLOW-UP] Previous processor run is still active; skipping overlapping tick");
+      return;
+    }
+    followUpProcessorRunning = true;
+
     try {
       const dueLeads = await storage.getLeadsDueForFollowUp();
       if (dueLeads.length === 0) return;
@@ -4904,7 +5315,63 @@ RULES:
       console.log(`[FOLLOW-UP] Processing ${dueLeads.length} leads due for follow-up`);
 
       for (const lead of dueLeads) {
+        if (followUpLeadLocks.has(lead.id) || !lead.followUpNextAt) continue;
+
+        // Claim the due row with its original timestamp. A second worker or a
+        // duplicate scheduler tick cannot claim the same lead after this.
+        const dueAt = new Date(lead.followUpNextAt);
+        const claimUntil = new Date(Date.now() + FOLLOW_UP_CLAIM_LEASE_MS);
+        const claim = await db.update(leads)
+          .set({ followUpNextAt: claimUntil })
+          .where(and(
+            eq(leads.id, lead.id),
+            eq(leads.followUpStatus, "active"),
+            eq(leads.followUpNextAt, dueAt),
+            lte(leads.followUpNextAt, new Date()),
+          ))
+          .returning({ id: leads.id });
+        if (claim.length === 0) continue;
+
+        followUpLeadLocks.add(lead.id);
         try {
+          try {
+            const pendingClaim = await getPendingEmailSendClaim(lead.userId, lead.id, "follow-up");
+            if (pendingClaim) {
+              await pauseLeadForUnknownEmailOutcome(
+                lead,
+                "follow-up",
+                "A previous follow-up attempt has a pending delivery claim and its SMTP outcome is unknown",
+              );
+              continue;
+            }
+          } catch (claimErr: any) {
+            await pauseLeadForUnknownEmailOutcome(
+              lead,
+              "follow-up",
+              `Could not inspect prior follow-up delivery state: ${claimErr?.message || "persistence error"}`,
+            );
+            continue;
+          }
+          const priorFailures = await countFollowUpFailures(lead.id);
+          if (priorFailures >= FOLLOW_UP_MAX_ATTEMPTS) {
+            await storage.updateLead(lead.id, {
+              followUpStatus: "paused",
+              followUpNextAt: null,
+              nextStep: `Follow-up paused after ${priorFailures} failed attempts. Check the saved tenant SMTP configuration and recipient data, then resume manually.`,
+            });
+            continue;
+          }
+
+          const contactIssue = getLeadContactIssue(lead);
+          if (contactIssue) {
+            await storage.updateLead(lead.id, {
+              followUpStatus: "paused",
+              followUpNextAt: null,
+              nextStep: `Follow-up paused: ${contactIssue}`,
+            });
+            continue;
+          }
+
           const appointments = await storage.getAppointmentsByUser(lead.userId);
           const hasAppointment = appointments.some(
             a => a.leadName.toLowerCase() === lead.name.toLowerCase()
@@ -4913,6 +5380,7 @@ RULES:
             await storage.updateLead(lead.id, {
               followUpStatus: "completed",
               followUpNextAt: null,
+              nextStep: "Sequence stopped because an appointment is already booked",
             });
             console.log(`[FOLLOW-UP] ${lead.name} booked appointment — sequence stopped`);
             continue;
@@ -4922,8 +5390,27 @@ RULES:
             await storage.updateLead(lead.id, {
               followUpStatus: "completed",
               followUpNextAt: null,
+              nextStep: "Sequence stopped — review the prospect's reply or engagement before contacting again",
             });
             console.log(`[FOLLOW-UP] ${lead.name} highly engaged (score ${lead.engagementScore}) — sequence stopped`);
+            continue;
+          }
+
+          const settings = await storage.getSettingsByUser(lead.userId) || {} as any;
+          const user = await storage.getUserById(lead.userId);
+          if (!user) {
+            const reason = "Tenant owner was not found; restore the tenant before resuming the sequence";
+            await storage.updateLead(lead.id, { followUpStatus: "paused", followUpNextAt: null, nextStep: `Follow-up paused: ${reason}` });
+            continue;
+          }
+          if (!user.companyName) {
+            const reason = "Company identity is missing. Add it under Settings > Company Profile";
+            await storage.updateLead(lead.id, { followUpStatus: "paused", followUpNextAt: null, nextStep: `Follow-up paused: ${reason}` });
+            continue;
+          }
+          const smtpConfigIssue = getTenantSmtpConfigIssue(settings);
+          if (smtpConfigIssue) {
+            await storage.updateLead(lead.id, { followUpStatus: "paused", followUpNextAt: null, nextStep: `Follow-up paused: ${smtpConfigIssue}` });
             continue;
           }
 
@@ -4934,15 +5421,9 @@ RULES:
             await storage.updateLead(lead.id, {
               followUpStatus: "completed",
               followUpNextAt: null,
+              nextStep: "Sequence completed; wait for a reply before contacting again",
             });
             console.log(`[FOLLOW-UP] ${lead.name} completed all ${FOLLOW_UP_SCHEDULE.length} steps`);
-            continue;
-          }
-
-          const settings = await storage.getSettingsByUser(lead.userId) || {} as any;
-          const user = await storage.getUserById(lead.userId);
-          if (!user) {
-            console.warn(`[FOLLOW-UP] Skipping ${lead.name}: user not found`);
             continue;
           }
 
@@ -4959,8 +5440,11 @@ RULES:
 
           if (!emailBody) {
             let followUpAi: { client: Anthropic; model: string } | undefined;
-            try { followUpAi = await getAnthropicForUser(lead.userId); } catch {
-              console.warn(`[FOLLOW-UP] Skipping ${lead.name}: user has no AI API key configured`);
+            try {
+              followUpAi = await getAnthropicForUser(lead.userId);
+            } catch {
+              const reason = "Tenant AI provider is not configured. Configure an AI key before resuming the sequence";
+              await storage.updateLead(lead.id, { followUpStatus: "paused", followUpNextAt: null, nextStep: `Follow-up paused: ${reason}` });
               continue;
             }
             const bookingLink = settings.calendarLink || "";
@@ -4968,35 +5452,96 @@ RULES:
           }
 
           if (!emailBody) {
-            console.warn(`[FOLLOW-UP] Empty email generated for ${lead.name} step ${currentStep}, retrying next cycle`);
+            const error = `Follow-up content generation failed at step ${currentStep}`;
+            await logEmail({
+              userId: user.id,
+              leadId: lead.id,
+              recipientEmail: lead.email,
+              recipientName: lead.name,
+              provider: "none",
+              source: "follow-up",
+              status: "failed",
+              errorMessage: error,
+            });
+            const failures = await countFollowUpFailures(lead.id);
+            const decision = getFollowUpFailureDecision(
+              failures,
+              "content generation failed; review the tenant AI configuration",
+            );
+            await storage.updateLead(lead.id, {
+              followUpStatus: decision.status,
+              followUpNextAt: decision.nextAt,
+              nextStep: decision.nextStep,
+            });
             continue;
           }
 
           const result = await sendFollowUpEmail(lead, emailBody, currentStep, settings, user);
           if (result.success) {
-            const nextStepConfig = FOLLOW_UP_SCHEDULE.find(s => s.step === currentStep + 1);
-            const nextAt = nextStepConfig
-              ? new Date(Date.now() + nextStepConfig.daysAfter * 24 * 60 * 60 * 1000)
-              : null;
-
+            // sendFollowUpEmail durably reconciles the sent claim and lead
+            // state before returning success. Do not perform a second
+            // post-send state write here: if it failed, a retry could
+            // duplicate an already accepted SMTP message.
+          } else if (result.requiresReview) {
             await storage.updateLead(lead.id, {
-              followUpStep: currentStep,
-              followUpLastSentAt: new Date(),
-              followUpNextAt: nextAt,
-              followUpStatus: nextAt ? "active" : "completed",
-              status: lead.status === "new" ? "warm" : lead.status,
-            });
+              followUpStatus: "paused",
+              followUpNextAt: null,
+              nextStep: `Follow-up paused: ${result.error || "SMTP outcome could not be reconciled"}. Review the pending email log before retrying; no automatic resend will occur.`,
+            }).catch(stateErr => console.error(`[FOLLOW-UP] Could not persist manual-review state for ${lead.id}:`, stateErr));
           } else {
+            const failures = await countFollowUpFailures(lead.id);
+            const decision = result.permanent
+              ? {
+                status: "paused" as const,
+                nextAt: null,
+                nextStep: `Follow-up paused after a permanent send failure: ${result.error || "tenant SMTP failure"}. Fix the SMTP or recipient issue, then resume manually.`,
+              }
+              : getFollowUpFailureDecision(failures, result.error || "temporary tenant SMTP failure");
+            await storage.updateLead(lead.id, {
+              followUpStatus: decision.status,
+              followUpNextAt: decision.nextAt,
+              nextStep: decision.nextStep,
+            });
             console.error(`[FOLLOW-UP] Failed for ${lead.name}: ${result.error}`);
           }
 
           await new Promise(r => setTimeout(r, 2000));
-        } catch (err) {
-          console.error(`[FOLLOW-UP] Error processing lead ${lead.id}:`, err);
+        } catch (err: any) {
+          const error = err?.message || "Unexpected follow-up processing error";
+          console.error(`[FOLLOW-UP] Error processing lead ${lead.id}:`, error);
+          let failureLogged = true;
+          await logEmail({
+            userId: lead.userId,
+            leadId: lead.id,
+            recipientEmail: lead.email || "unknown",
+            recipientName: lead.name,
+            provider: "none",
+            source: "follow-up",
+            status: "failed",
+            errorMessage: error,
+          }).catch(logErr => {
+            failureLogged = false;
+            console.error(`[FOLLOW-UP] Could not persist failure log for ${lead.id}:`, logErr);
+          });
+          const failures = failureLogged
+            ? await countFollowUpFailures(lead.id).catch(() => FOLLOW_UP_MAX_ATTEMPTS)
+            : FOLLOW_UP_MAX_ATTEMPTS;
+          const permanent = failures >= FOLLOW_UP_MAX_ATTEMPTS || isPermanentEmailFailure(error);
+          await storage.updateLead(lead.id, {
+            followUpStatus: permanent ? "paused" : "active",
+            followUpNextAt: permanent ? null : new Date(Date.now() + getFollowUpRetryDelayMs(Math.max(1, failures))),
+            nextStep: permanent
+              ? `Follow-up paused after ${failures} failed attempts: ${error}. Fix the configuration or recipient data, then resume manually.`
+              : `Follow-up processing failed (attempt ${failures}/${FOLLOW_UP_MAX_ATTEMPTS}): ${error}. Retry scheduled with backoff.`,
+          }).catch(updateErr => console.error(`[FOLLOW-UP] Could not persist retry state for ${lead.id}:`, updateErr));
+        } finally {
+          followUpLeadLocks.delete(lead.id);
         }
       }
     } catch (error) {
       console.error("[FOLLOW-UP] Background processor error:", error);
+    } finally {
+      followUpProcessorRunning = false;
     }
   }
 
@@ -5005,234 +5550,411 @@ RULES:
   setTimeout(processFollowUpSequences, 2 * 60 * 1000);
 
   // ============================================================
-  // IMAP INBOX MONITOR — AI AUTO-REPLY TO LEAD RESPONSES
-  // Checks inbox every 2 minutes, matches replies to leads,
-  // generates intelligent AI responses via Claude, sends reply
+  // IMAP INBOX MONITOR — TENANT-OWNED REPLY ROUTING
   // ============================================================
 
-  const inboxMonitorStatus = { lastCheck: null as Date | null, processing: false, repliesFound: 0, repliesSent: 0, errors: 0, lastError: null as string | null };
+  type InboxDiagnostic = {
+    code: string;
+    at: string;
+  };
+  const inboxMonitorStatus = {
+    lastCheck: null as Date | null,
+    processing: false,
+    repliesFound: 0,
+    repliesSent: 0,
+    draftsCreated: 0,
+    errors: 0,
+    lastError: null as string | null,
+    configuredRoutes: 0,
+    diagnostics: {} as Record<string, number>,
+    lastDiagnostic: null as InboxDiagnostic | null,
+    configurationDiagnostics: [] as string[],
+    autoRespondEnabled: false,
+  };
+  const tenantInboxStatuses = new Map<string, typeof inboxMonitorStatus>();
+  let inboxMonitorRunLock = false;
 
-  async function checkInboxAndReply() {
-    const imapHost = process.env.IMAP_HOST;
-    const imapPort = process.env.IMAP_PORT ? parseInt(process.env.IMAP_PORT) : 993;
-    const imapUser = process.env.SMTP_USERNAME;
-    const imapPass = process.env.SMTP_PASSWORD;
+  function getTenantInboxStatus(userId: string): typeof inboxMonitorStatus {
+    const existing = tenantInboxStatuses.get(userId);
+    if (existing) return existing;
+    const status = {
+      lastCheck: null,
+      processing: false,
+      repliesFound: 0,
+      repliesSent: 0,
+      draftsCreated: 0,
+      errors: 0,
+      lastError: null,
+      configuredRoutes: 0,
+      diagnostics: {} as Record<string, number>,
+      lastDiagnostic: null as InboxDiagnostic | null,
+      configurationDiagnostics: [] as string[],
+      autoRespondEnabled: false,
+    };
+    tenantInboxStatuses.set(userId, status);
+    return status;
+  }
 
-    if (!imapHost || !imapUser || !imapPass) {
-      console.log("[INBOX] IMAP not configured, skipping inbox check");
+  function recordInboxDiagnostic(code: string, status = inboxMonitorStatus): void {
+    status.diagnostics[code] = (status.diagnostics[code] || 0) + 1;
+    status.lastDiagnostic = { code, at: new Date().toISOString() };
+    status.lastError = code;
+  }
+
+  function safeInboxErrorCode(error: unknown, fallback: string): string {
+    const code = typeof error === "object" && error && "code" in error
+      ? String((error as { code?: unknown }).code || "")
+      : "";
+    if (/AUTH|LOGIN|CREDENTIAL/i.test(code)) return "imap_auth_failed";
+    if (/TIMEOUT|CONNECTION|SOCKET|ENOTFOUND|ECONN/i.test(code)) return "imap_connection_failed";
+    return fallback;
+  }
+
+  async function loadTenantInboxRoutes(userId?: string): Promise<{ routes: InboxRoute[]; diagnostics: string[] }> {
+    const allUsers = await storage.getAllUsers();
+    const [accountRows, tenantSettings] = await Promise.all([
+      db.select().from(emailAccounts).where(eq(emailAccounts.isActive, true)),
+      Promise.all(allUsers.map(async user => {
+        if (!user) return null;
+        const settings = await storage.getSettingsByUser(user.id);
+        return settings ? { ...settings, userId: user.id } : null;
+      })),
+    ]);
+    const senderByTenant = new Map(
+      tenantSettings
+        .filter((settings): settings is NonNullable<typeof settings> => Boolean(settings))
+        .map(settings => [settings.userId, settings.senderEmail]),
+    );
+
+    const built = buildInboxRoutes({
+      accounts: accountRows.map(account => ({
+        userId: account.userId,
+        accountId: account.id,
+        email: account.email,
+        senderEmail: senderByTenant.get(account.userId),
+        smtpHost: account.smtpHost,
+        smtpPort: account.smtpPort,
+        imapHost: account.imapHost,
+        imapPort: account.imapPort,
+        smtpPassword: account.smtpPassword,
+        provider: account.provider,
+        authType: account.authType,
+        accessToken: account.accessToken,
+        isActive: account.isActive,
+      })),
+      settings: tenantSettings.filter((settings): settings is NonNullable<typeof settings> => Boolean(settings)).map(settings => ({
+        userId: settings.userId,
+        senderEmail: settings.senderEmail,
+        smtpHost: settings.smtpHost,
+        smtpPort: settings.smtpPort,
+        smtpUsername: settings.smtpUsername,
+        smtpPassword: settings.smtpPassword,
+        smtpSecure: settings.smtpSecure,
+      })),
+    });
+    const ownAccountSources = new Set(
+      accountRows.filter(account => account.userId === userId).map(account => account.id),
+    );
+    const visibleDiagnostics = userId
+      ? built.diagnostics.filter(diagnostic =>
+        ownAccountSources.has(diagnostic.source) ||
+        diagnostic.source === `${userId}:tenant_settings` ||
+        (diagnostic.code === "duplicate_mailbox_ownership" && built.blockedUserIds.includes(userId)),
+      )
+      : built.diagnostics;
+    return {
+      routes: userId ? built.routes.filter(route => route.userId === userId) : built.routes,
+      diagnostics: visibleDiagnostics.map(diagnostic => diagnostic.code),
+    };
+  }
+
+  async function checkInboxAndReply(tenantUserId?: string) {
+    const requestedStatus = tenantUserId ? getTenantInboxStatus(tenantUserId) : inboxMonitorStatus;
+    if (inboxMonitorRunLock || requestedStatus.processing) {
+      recordInboxDiagnostic("monitor_already_processing", requestedStatus);
       return;
     }
 
-    if (inboxMonitorStatus.processing) {
-      console.log("[INBOX] Already processing, skipping");
-      return;
-    }
-
+    inboxMonitorRunLock = true;
     inboxMonitorStatus.processing = true;
-    console.log("[INBOX] Checking inbox for lead replies...");
-
-    let client: any = null;
+    requestedStatus.processing = true;
+    let currentStatus = requestedStatus;
+    const recordRunDiagnostic = (code: string) => recordInboxDiagnostic(code, currentStatus);
     try {
+      const { routes, diagnostics } = await loadTenantInboxRoutes(tenantUserId);
+      requestedStatus.configuredRoutes = routes.length;
+      requestedStatus.configurationDiagnostics = diagnostics;
+      for (const diagnostic of diagnostics) recordRunDiagnostic(diagnostic);
+      if (routes.length === 0) {
+        // The platform partnership mailbox is intentionally not a tenant
+        // fallback.  Without an explicit tenant route there is no safe owner.
+        recordRunDiagnostic("no_tenant_imap_route");
+        return;
+      }
+
       const { ImapFlow } = await import("imapflow");
-      client = new ImapFlow({
-        host: imapHost,
-        port: imapPort,
-        secure: imapPort === 993,
-        auth: { user: imapUser, pass: imapPass },
-        logger: false,
-      });
-
-      await client.connect();
-      const lock = await client.getMailboxLock("INBOX");
-
-      try {
-        const since = new Date();
-        since.setHours(since.getHours() - 24);
-
-        const unseenMessages = await client.search({ seen: false, since });
-        if (!unseenMessages || unseenMessages.length === 0) {
-          console.log("[INBOX] No new unread messages");
-          inboxMonitorStatus.lastCheck = new Date();
-          return;
-        }
-
-        console.log(`[INBOX] Found ${unseenMessages.length} unread messages`);
-
-        const allUsers = await storage.getAllUsers();
-
-        for (const uid of unseenMessages.slice(0, 10)) {
+      for (const route of routes) {
+        currentStatus = tenantUserId ? requestedStatus : getTenantInboxStatus(route.userId);
+        currentStatus.processing = true;
+        currentStatus.configuredRoutes = 1;
+        let client: any = null;
+        try {
+          client = new ImapFlow({
+            host: route.imapHost,
+            port: route.imapPort,
+            secure: route.imapPort === 993,
+            auth: { user: route.imapUser, pass: route.imapPassword },
+            logger: false,
+          });
+          await client.connect();
+          const lock = await client.getMailboxLock("INBOX");
           try {
-            const msg = await client.fetchOne(uid, { envelope: true, source: true });
-            if (!msg?.envelope) continue;
+            const since = new Date();
+            since.setHours(since.getHours() - 24);
+            const unseenMessages = await client.search({ seen: false, since });
+            if (!unseenMessages?.length) continue;
 
-            const fromEmail = msg.envelope.from?.[0]?.address?.toLowerCase();
-            const subject = msg.envelope.subject || "";
-            const messageId = msg.envelope.messageId || "";
-            const inReplyTo = msg.envelope.inReplyTo || "";
+            const routeLeads = await storage.getLeadsByUser(route.userId);
+            const existingReplies = await storage.getEmailRepliesByUser(route.userId);
+            const seenMessageIds = new Set(
+              existingReplies
+                .map(reply => normalizeMessageId(reply.messageId))
+                .filter(Boolean),
+            );
+            const seenInboundKeys = new Set(
+              existingReplies
+                .filter(reply => reply.direction === "inbound" && !reply.messageId)
+                .map(reply => `${normalizeEmailAddress(reply.fromEmail) || ""}|${normalizeEmailAddress(reply.toEmail) || ""}|${normalizeMessageId(reply.inReplyTo) || ""}|${reply.subject || ""}|${reply.body || ""}`),
+            );
 
-            if (!fromEmail) continue;
-
-            const existing = messageId ? await storage.getEmailReplyByMessageId(messageId) : null;
-            if (existing) continue;
-
-            const canonicalAddress = (address: string) => {
-              const [local, domain] = address.toLowerCase().trim().split("@");
-              if (!local || !domain) return address.toLowerCase().trim();
-              return `${local.split("+")[0]}@${domain}`;
-            };
-            const recipientAddresses = [...(msg.envelope.to || []), ...(msg.envelope.cc || [])]
-              .map((recipient: any) => recipient?.address)
-              .filter(Boolean)
-              .map(canonicalAddress);
-            if (!recipientAddresses.includes(canonicalAddress(imapUser))) {
-              continue;
-            }
-
-            const matches: Array<{ lead: any; user: any }> = [];
-
-            for (const user of allUsers) {
-              const userLeads = await storage.getLeadsByUser(user.id);
-              const matchingLeads = userLeads.filter(l =>
-                l.email?.toLowerCase().trim() === fromEmail.trim() &&
-                l.outreachSentAt
-              );
-              for (const lead of matchingLeads) {
-                matches.push({ lead, user });
-              }
-            }
-
-            if (matches.length !== 1) {
-              if (matches.length > 1) {
-                console.warn(`[INBOX] Ambiguous reply from ${fromEmail} matched ${matches.length} sent leads; quarantining without CRM or AI action`);
-                await client.messageFlagsAdd(uid, ["\\Seen"]);
-              } else {
-                console.log(`[INBOX] No matching lead for ${fromEmail}, skipping`);
-              }
-              continue;
-            }
-
-            const matchedLead = matches[0].lead;
-            const matchedUser = matches[0].user;
-            if (!matchedLead || !matchedUser) {
-              console.log(`[INBOX] No matching lead for ${fromEmail}, skipping`);
-              continue;
-            }
-
-            console.log(`[INBOX] Matched reply from ${fromEmail} to lead: ${matchedLead.name}`);
-            inboxMonitorStatus.repliesFound++;
-
-            let bodyText = "";
-            let parsedMessage: Awaited<ReturnType<typeof simpleParser>> | null = null;
-            if (msg.source) {
+            for (const uid of unseenMessages.slice(0, 10)) {
               try {
-                parsedMessage = await simpleParser(msg.source);
-                bodyText = (parsedMessage.text || "").trim();
-                if (!bodyText && typeof parsedMessage.html === "string") {
+                const msg = await client.fetchOne(uid, { envelope: true, source: true });
+                if (!msg?.envelope) {
+                  recordRunDiagnostic("message_envelope_missing");
+                  continue;
+                }
+
+                const subject = String(msg.envelope.subject || "");
+                let parsedMessage: Awaited<ReturnType<typeof simpleParser>> | null = null;
+                let parseFailed = !msg.source;
+                if (msg.source) {
+                  try {
+                    parsedMessage = await simpleParser(msg.source);
+                  } catch {
+                    parseFailed = true;
+                    recordRunDiagnostic("message_parse_failed");
+                  }
+                }
+
+                let bodyText = (parsedMessage?.text || "").trim();
+                if (!bodyText && typeof parsedMessage?.html === "string") {
                   bodyText = parsedMessage.html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
                 }
+                if (!bodyText) parseFailed = true;
                 if (bodyText.length > 2000) bodyText = bodyText.substring(0, 2000);
-              } catch (parseErr: any) {
-                console.warn(`[INBOX] Could not safely parse reply from ${fromEmail}:`, parseErr?.message);
-              }
-            }
 
-            await storage.createEmailReply({
-              leadId: matchedLead.id,
-              userId: matchedUser.id,
-              direction: "inbound",
-              fromEmail: fromEmail,
-              toEmail: imapUser,
-              subject: subject,
-              body: bodyText || "(Could not parse email body)",
-              messageId: messageId,
-              inReplyTo: inReplyTo,
-              status: "received",
-            });
+                const headers = parsedMessage?.headers;
+                const envelopeFrom = extractEmailAddresses(msg.envelope.from);
+                const headerFrom = extractEmailAddresses(parsedMessage?.from);
+                const messageId = normalizeMessageId(
+                  readHeader(headers, "message-id") || msg.envelope.messageId || "",
+                );
+                const inReplyTo = normalizeMessageId(
+                  readHeader(headers, "in-reply-to") || msg.envelope.inReplyTo || "",
+                );
+                const recipients = [
+                  msg.envelope.to,
+                  msg.envelope.cc,
+                  parsedMessage?.to,
+                  parsedMessage?.cc,
+                  readHeader(headers, "delivered-to"),
+                  readHeader(headers, "x-original-to"),
+                ];
 
-            const normalizedReply = bodyText.toLowerCase();
-            const isOptOut = /\b(unsubscribe|remove me|take me off|stop (?:emailing|contacting|sending)|do not (?:email|contact)|don't (?:email|contact)|no more emails|opt me out|opt-out)\b/.test(normalizedReply);
-            const isNegative = isOptOut || /\b(not interested|no interest|not a fit|no thank|please don't|wrong person)\b/.test(normalizedReply);
-            const autoSubmitted = String(parsedMessage?.headers.get("auto-submitted") || "").toLowerCase();
-            const precedence = String(parsedMessage?.headers.get("precedence") || "").toLowerCase();
-            const isAutomatedReply =
-              /\b(out of office|automatic reply|auto.?reply|away from (?:the )?office|delivery status notification|undeliverable|mail delivery subsystem|vacation responder)\b/.test(`${subject} ${normalizedReply}`) ||
-              (!!autoSubmitted && autoSubmitted !== "no") ||
-              /^(bulk|junk|list)$/.test(precedence) ||
-              parsedMessage?.contentType === "multipart/report" ||
-              !bodyText;
+                const matched = matchInboundReply({
+                  route,
+                  envelopeFrom,
+                  headerFrom,
+                  recipients,
+                  leads: routeLeads,
+                });
+                if (matched.kind !== "matched") {
+                  recordRunDiagnostic(`message_${matched.kind}`);
+                  await client.messageFlagsAdd(uid, ["\\Seen"]);
+                  continue;
+                }
 
-            if (isOptOut) {
-              await suppressEmail(matchedUser.id, fromEmail);
-              const sameAddressLeads = (await storage.getLeadsByUser(matchedUser.id))
-                .filter(lead => lead.email.toLowerCase().trim() === fromEmail.trim());
-              await Promise.all(sameAddressLeads.map(lead =>
-                storage.updateLead(lead.id, {
-                  status: "unsubscribed",
-                  engagementLevel: "none",
-                  nextStep: "Do not contact — prospect opted out",
-                  followUpStatus: "completed",
-                })
-              ));
-            }
+                if (messageId && seenMessageIds.has(messageId)) {
+                  recordRunDiagnostic("duplicate_message");
+                  await client.messageFlagsAdd(uid, ["\\Seen"]);
+                  continue;
+                }
+                const inboundKey = `${matched.fromEmail}|${normalizeEmailAddress(matched.toEmail) || ""}|${inReplyTo}|${subject}|${bodyText}`;
+                if (!messageId && seenInboundKeys.has(inboundKey)) {
+                  recordRunDiagnostic("duplicate_message");
+                  await client.messageFlagsAdd(uid, ["\\Seen"]);
+                  continue;
+                }
 
-            await storage.updateLead(matchedLead.id, {
-              status: isOptOut ? "unsubscribed" : isNegative ? "cold" : isAutomatedReply ? matchedLead.status : "contacted",
-              engagementScore: isNegative || isAutomatedReply ? matchedLead.engagementScore || 0 : Math.min((matchedLead.engagementScore || 0) + 40, 100),
-              engagementLevel: isNegative ? "none" : isAutomatedReply ? matchedLead.engagementLevel || "none" : "hot",
-              lastEngagedAt: new Date(),
-              nextStep: isOptOut
-                ? "Do not contact — prospect opted out"
-                : isNegative
-                  ? "Prospect declined — stop outreach"
-                  : isAutomatedReply
-                    ? "Automated reply received — wait for a human response"
-                    : "Prospect replied — review and continue the conversation",
-              followUpStatus: "completed",
-            });
+                const classification = classifyInboundReply({
+                  bodyText,
+                  subject,
+                  parseFailed,
+                  headers,
+                  contentType: String((parsedMessage as any)?.contentType || parsedMessage?.headers?.get("content-type") || parsedMessage?.headerLines?.find(line => /^content-type:/i.test(line.line))?.line || ""),
+                });
+                const matchedLead = matched.lead;
+                const replyStatus = classification.status;
 
-            const seqsStopped = await stopSequencesForLead(matchedLead.id, "replied");
-            if (seqsStopped > 0) {
-              console.log(`[INBOX] Auto-stopped ${seqsStopped} sequence(s) for ${matchedLead.name} after reply`);
-            }
+                // Commit the durable opt-out before acknowledging the IMAP
+                // message.  If this write fails the message remains retryable.
+                if (classification.isOptOut && !classification.parseFailed) {
+                  await suppressEmail(route.userId, matched.fromEmail);
+                }
 
-            if (!isNegative && !isAutomatedReply) {
-              try {
-                await ensureReplyOpportunity(matchedUser.id, matchedLead);
-              } catch (dealErr: any) {
-                console.error(`[INBOX] Could not create opportunity for ${matchedLead.name}:`, dealErr?.message);
-              }
-            }
+                await storage.createEmailReply({
+                  leadId: matchedLead.id,
+                  userId: route.userId,
+                  direction: "inbound",
+                  fromEmail: matched.fromEmail,
+                  toEmail: matched.toEmail,
+                  subject,
+                  body: bodyText || "(Could not parse email body)",
+                  messageId: messageId || null,
+                  inReplyTo: inReplyTo || null,
+                  status: replyStatus,
+                });
+                if (messageId) seenMessageIds.add(messageId);
+                if (!messageId) seenInboundKeys.add(inboundKey);
+                currentStatus.repliesFound++;
+                // Mark the inbound ID as handled before any optional AI work.
+                // This prevents a send failure from producing a duplicate reply.
+                await client.messageFlagsAdd(uid, ["\\Seen"]);
 
-            await storage.createNotification({
-              userId: matchedUser.id,
-              title: isOptOut ? `Opt-out from ${matchedLead.name}` : `Reply from ${matchedLead.name}`,
-              message: `${matchedLead.name} (${matchedLead.company || fromEmail}) ${isOptOut ? "asked to stop receiving outreach" : isNegative ? "declined the outreach" : isAutomatedReply ? "sent an automated reply" : "replied and was added to the sales pipeline"}.${seqsStopped > 0 ? ` ${seqsStopped} active sequence(s) auto-stopped.` : ""}`,
-              type: "lead_reply",
-              read: false,
-            });
+                const sameAddressLeads = routeLeads.filter(lead =>
+                  normalizeEmailAddress(lead.email) === matched.fromEmail,
+                );
 
-            if (!isNegative && !isAutomatedReply) try {
-              const userSettings = await storage.getSettingsByUser(matchedUser.id);
-              const existingThread = await storage.getEmailRepliesByLead(matchedLead.id);
+                if (classification.parseFailed) {
+                  // A malformed body is visible as a quarantined reply but
+                  // cannot mutate CRM state or trigger suppression/AI.
+                  recordRunDiagnostic("matched_message_parse_quarantined");
+                } else if (classification.isOptOut) {
+                  // Suppression is independent of the lead row and survives
+                  // lead deletion or deduplication.
+                  await Promise.all(sameAddressLeads.map(lead =>
+                    storage.updateLead(lead.id, {
+                      status: "unsubscribed",
+                      engagementLevel: "none",
+                      nextStep: "Do not contact — prospect opted out",
+                      followUpStatus: "completed",
+                    }),
+                  ));
+                } else if (classification.qualifies) {
+                  const terminalStatuses = new Set(["qualified", "won", "customer", "converted"]);
+                  await storage.updateLead(matchedLead.id, {
+                    status: terminalStatuses.has((matchedLead.status || "").toLowerCase()) ? (matchedLead.status || "hot") : "hot",
+                    engagementScore: Math.min((matchedLead.engagementScore || 0) + 40, 100),
+                    engagementLevel: "hot",
+                    lastEngagedAt: new Date(),
+                    nextStep: "Prospect replied — review and continue the conversation",
+                    followUpStatus: "completed",
+                  });
+                } else if (classification.isAutomated) {
+                  await storage.updateLead(matchedLead.id, {
+                    nextStep: "Automated reply received — wait for a direct prospect response",
+                  });
+                } else if (classification.isNegative) {
+                  await storage.updateLead(matchedLead.id, {
+                    status: "cold",
+                    engagementScore: matchedLead.engagementScore || 0,
+                    engagementLevel: "none",
+                    lastEngagedAt: new Date(),
+                    nextStep: "Prospect declined — stop outreach",
+                    followUpStatus: "completed",
+                  });
+                }
 
-              const ai = await getAnthropicForUser(matchedUser.id);
-              const senderFullName = `${matchedUser.firstName || ""} ${matchedUser.lastName || ""}`.trim();
-              const senderTitle = (matchedUser as any)?.jobTitle || "";
-              const senderCompany = matchedUser.companyName || "";
-              const senderPhone = userSettings?.grasshopperNumber || userSettings?.twilioPhoneNumber || "";
-              const senderWebsite = matchedUser.website || "";
-              const calLink = userSettings?.calendarLink || "";
+                let seqsStopped = 0;
+                if (classification.qualifies || classification.isOptOut || (classification.isNegative && !classification.isAutomated)) {
+                  seqsStopped = await stopSequencesForLead(matchedLead.id, "replied");
+                }
 
-              const threadContext = existingThread
-                .map(r => `[${r.direction === "inbound" ? "LEAD" : "US"}] ${r.body}`)
-                .join("\n---\n");
+                if (classification.qualifies) {
+                  try {
+                    await ensureReplyOpportunity(route.userId, {
+                      name: matchedLead.name || "Lead",
+                      email: matchedLead.email,
+                    });
+                  } catch {
+                    recordRunDiagnostic("reply_opportunity_failed");
+                  }
+                }
 
-              const aiResponse = await ai.client.messages.create({
-                model: ai.model,
-                max_tokens: 1000,
-                messages: [{
-                  role: "user",
-                  content: `You are ${senderFullName}, ${senderTitle} at ${senderCompany}. A lead has replied to your outreach email. Write a professional, warm, and helpful reply.
+                try {
+                  await storage.createNotification({
+                    userId: route.userId,
+                    title: classification.isOptOut
+                      ? "Lead opted out"
+                      : classification.isAutomated
+                          ? "Automated reply received"
+                        : classification.isNegative
+                          ? "Lead declined outreach"
+                          : classification.parseFailed
+                            ? "Inbound email needs review"
+                          : "New prospect reply",
+                    message: classification.parseFailed
+                      ? "A matched inbound email could not be parsed and was quarantined for review."
+                      : classification.isOptOut
+                        ? "The sender was added to the durable suppression list."
+                        : classification.isAutomated
+                            ? "No lead qualification or automatic response was performed."
+                          : classification.isNegative
+                            ? "No automatic response was sent."
+                            : `A positive prospect reply was recorded${seqsStopped > 0 ? ` and ${seqsStopped} active sequence(s) stopped` : ""}.`,
+                    type: "lead_reply",
+                    read: false,
+                  });
+                } catch {
+                  recordRunDiagnostic("reply_notification_failed");
+                }
+
+                // Only a parsed, uniquely-owned, positive, non-automated reply
+                // is allowed to invoke AI. Absence of automation markers is
+                // not proof of human authorship; keep the CRM wording factual.
+                if (!classification.qualifies) continue;
+                try {
+                  const user = await storage.getUserById(route.userId);
+                  const userSettings = await storage.getSettingsByUser(route.userId);
+                  if (!user) {
+                    recordRunDiagnostic("reply_user_missing");
+                    continue;
+                  }
+                  const autoRespondEnabled = canAutoRespond(userSettings?.aiAutoRespond);
+                  if (autoRespondEnabled && (!route.smtpHost || !route.smtpUser || !route.smtpPassword)) {
+                    recordRunDiagnostic("tenant_smtp_route_missing");
+                    continue;
+                  }
+
+                  const existingThread = await storage.getEmailRepliesByLead(matchedLead.id);
+                  const ai = await getAnthropicForUser(route.userId);
+                  const senderFullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+                  const senderTitle = (user as any)?.jobTitle || "";
+                  const senderCompany = user.companyName || "";
+                  const senderPhone = userSettings?.grasshopperNumber || userSettings?.twilioPhoneNumber || "";
+                  const senderWebsite = user.website || "";
+                  const calLink = userSettings?.calendarLink || "";
+                  const threadContext = existingThread
+                    .map(reply => `[${reply.direction === "inbound" ? "LEAD" : "US"}] ${reply.body}`)
+                    .join("\n---\n");
+
+                  const aiResponse = await ai.client.messages.create({
+                    model: ai.model,
+                    max_tokens: 1000,
+                    messages: [{
+                      role: "user",
+                      content: `You are ${senderFullName}, ${senderTitle} at ${senderCompany}. A prospect reply was matched to your outreach email. Write a professional, warm, and helpful reply.
 
 LEAD INFO:
 - Name: ${matchedLead.name}
@@ -5257,116 +5979,147 @@ ${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}
 ${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${calLink ? `${calLink}\n` : ""}
 
 Return ONLY the email reply text, no subject line, no markdown.`
-                }],
-              });
+                    }],
+                  });
 
-              const replyText = aiResponse.content
-                .filter((b): b is Anthropic.TextBlock => b.type === "text")
-                .map(b => b.text)
-                .join("")
-                .trim();
+                  const replyText = aiResponse.content
+                    .filter((block: any): block is Anthropic.TextBlock => block.type === "text")
+                    .map((block: Anthropic.TextBlock) => block.text)
+                    .join("")
+                    .trim();
+                  if (!replyText) {
+                    recordRunDiagnostic("ai_reply_empty");
+                    continue;
+                  }
 
-              if (replyText) {
-                const inboxSenderEmail = userSettings?.senderEmail || process.env.SES_FROM_EMAIL || "partnerships@argilette.co";
-                const inboxCustomSmtpHost = userSettings?.smtpHost;
-                const inboxCustomSmtpUser = userSettings?.smtpUsername;
-                const inboxCustomSmtpPass = userSettings?.smtpPassword;
-                const inboxHasCustomSmtp = !!(inboxCustomSmtpHost && inboxCustomSmtpUser && inboxCustomSmtpPass);
-                const senderName = `${matchedUser.firstName || ""} from ${senderCompany}`.trim();
+                  const senderName = `${user.firstName || ""} from ${senderCompany}`.trim();
+                  const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
+                  if (!autoRespondEnabled) {
+                    await storage.createEmailReply({
+                      leadId: matchedLead.id,
+                      userId: route.userId,
+                      direction: "outbound",
+                      fromEmail: route.senderEmail,
+                      toEmail: matched.fromEmail,
+                      subject: replySubject,
+                      body: replyText,
+                      messageId: null,
+                      inReplyTo: messageId || null,
+                      status: "draft",
+                    });
+                    currentStatus.draftsCreated++;
+                    recordRunDiagnostic("ai_reply_drafted");
+                    continue;
+                  }
 
-                const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
-                const htmlReply = replyText.replace(/\n/g, "<br>");
-
-                if (inboxHasCustomSmtp) {
                   const transporter = nodemailer.createTransport({
-                    host: inboxCustomSmtpHost,
-                    port: userSettings?.smtpPort || 587,
-                    secure: userSettings?.smtpSecure ?? false,
-                    auth: { user: inboxCustomSmtpUser, pass: inboxCustomSmtpPass },
-                    connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000,
+                    host: route.smtpHost,
+                    port: route.smtpPort || 587,
+                    secure: route.smtpSecure ?? (route.smtpPort || 587) === 465,
+                    auth: { user: route.smtpUser, pass: route.smtpPassword },
+                    connectionTimeout: 10000,
+                    greetingTimeout: 10000,
+                    socketTimeout: 15000,
                   });
-                  await transporter.sendMail({
-                    from: `"${senderName}" <${inboxSenderEmail}>`,
-                    to: fromEmail, subject: replySubject,
-                    text: replyText, html: htmlReply,
-                    inReplyTo: messageId, references: messageId,
-                  });
-                } else {
-                  await postalService.sendEmail({
-                    to: fromEmail,
-                    from: inboxSenderEmail,
-                    fromName: senderName,
+                  const sentMail = await transporter.sendMail({
+                    from: `"${senderName}" <${route.senderEmail}>`,
+                    to: matched.fromEmail,
                     subject: replySubject,
-                    htmlBody: htmlReply,
-                    plainBody: replyText,
+                    text: replyText,
+                    html: replyText.replace(/\n/g, "<br>"),
+                    inReplyTo: messageId || undefined,
+                    references: messageId || undefined,
                   });
+
+                  await storage.createEmailReply({
+                    leadId: matchedLead.id,
+                    userId: route.userId,
+                    direction: "outbound",
+                    fromEmail: route.senderEmail,
+                    toEmail: matched.fromEmail,
+                    subject: replySubject,
+                    body: replyText,
+                    messageId: sentMail.messageId || null,
+                    inReplyTo: messageId || null,
+                    status: "sent",
+                  });
+                  currentStatus.repliesSent++;
+                } catch {
+                  // Do not expose SMTP credentials, recipient addresses, or
+                  // provider error strings in logs or monitor diagnostics.
+                  currentStatus.errors++;
+                  recordRunDiagnostic("ai_reply_failed");
                 }
-
-                await storage.createEmailReply({
-                  leadId: matchedLead.id,
-                  userId: matchedUser.id,
-                  direction: "outbound",
-                  fromEmail: senderEmail || smtpUsername!,
-                  toEmail: fromEmail,
-                  subject: replySubject,
-                  body: replyText,
-                  messageId: null,
-                  inReplyTo: messageId,
-                  status: "sent",
-                });
-
-                inboxMonitorStatus.repliesSent++;
-                console.log(`[INBOX] AI reply sent to ${fromEmail} for lead ${matchedLead.name}`);
+              } catch {
+                currentStatus.errors++;
+                recordRunDiagnostic("message_processing_failed");
               }
-            } catch (aiErr: any) {
-              console.error(`[INBOX] AI reply error for ${matchedLead.name}:`, aiErr?.message);
-              inboxMonitorStatus.errors++;
-              inboxMonitorStatus.lastError = aiErr?.message || "AI reply failed";
             }
-
-            await client.messageFlagsAdd(uid, ["\\Seen"]);
-
-          } catch (msgErr: any) {
-            console.error("[INBOX] Error processing message:", msgErr?.message);
-            inboxMonitorStatus.errors++;
+          } finally {
+            lock.release();
           }
+        } catch (error) {
+          currentStatus.errors++;
+          recordRunDiagnostic(safeInboxErrorCode(error, "imap_route_failed"));
+        } finally {
+          if (client) {
+            try { await client.logout(); } catch { recordRunDiagnostic("imap_logout_failed"); }
+          }
+          currentStatus.processing = false;
+          currentStatus.lastCheck = new Date();
         }
-      } finally {
-        lock.release();
       }
-
-      await client.logout();
-    } catch (err: any) {
-      console.error("[INBOX] Inbox monitor error:", err?.message);
-      inboxMonitorStatus.lastError = err?.message || "Connection failed";
-      inboxMonitorStatus.errors++;
-      if (client) try { await client.logout(); } catch {}
+    } catch {
+      currentStatus.errors++;
+      recordRunDiagnostic("inbox_monitor_failed");
     } finally {
+      requestedStatus.processing = false;
+      requestedStatus.lastCheck = new Date();
       inboxMonitorStatus.processing = false;
-      inboxMonitorStatus.lastCheck = new Date();
-      console.log(`[INBOX] Check complete. Replies found: ${inboxMonitorStatus.repliesFound}, sent: ${inboxMonitorStatus.repliesSent}`);
+      if (requestedStatus !== inboxMonitorStatus) {
+        inboxMonitorStatus.lastCheck = new Date();
+      }
+      inboxMonitorRunLock = false;
     }
   }
 
   setInterval(checkInboxAndReply, 10 * 60 * 1000);
   setTimeout(checkInboxAndReply, 30 * 1000);
 
-  app.get("/api/inbox-monitor/status", isAuthenticated, (_req, res) => {
-    res.json(inboxMonitorStatus);
+  app.get("/api/inbox-monitor/status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const status = getTenantInboxStatus(userId);
+      const [configuration, settings] = await Promise.all([
+        loadTenantInboxRoutes(userId),
+        storage.getSettingsByUser(userId),
+      ]);
+      status.configuredRoutes = configuration.routes.length;
+      status.configurationDiagnostics = configuration.diagnostics;
+      status.autoRespondEnabled = settings?.aiAutoRespond === true;
+      res.json({ ...status, diagnostics: { ...status.diagnostics } });
+    } catch {
+      res.status(500).json({ message: "Failed to load inbox monitor status" });
+    }
   });
 
-  app.post("/api/inbox-monitor/check-now", isAuthenticated, (_req, res) => {
-    if (inboxMonitorStatus.processing) {
-      return res.json({ message: "Already checking inbox...", status: "processing" });
+  app.post("/api/inbox-monitor/check-now", isAuthenticated, (req, res) => {
+    const userId = req.session.userId!;
+    const status = getTenantInboxStatus(userId);
+    if (status.processing) {
+      return res.json({ message: "Inbox check already in progress for this account", status: "processing" });
     }
-    checkInboxAndReply().catch(err => console.error("[INBOX] Manual check error:", err));
+    if (inboxMonitorRunLock) {
+      return res.json({ message: "Inbox check is temporarily unavailable; try again shortly", status: "idle" });
+    }
+    checkInboxAndReply(userId).catch(() => recordInboxDiagnostic("manual_check_failed", status));
     res.json({ message: "Inbox check started", status: "processing" });
   });
 
   app.get("/api/leads/:id/replies", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const lead = await storage.getLeadById(req.params.id);
+      const lead = await storage.getLeadById(String(req.params.id));
       if (!lead || lead.userId !== userId) {
         return res.status(404).json({ message: "Lead not found" });
       }
@@ -5867,12 +6620,6 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                 let sent = 0, failed = 0;
                 for (const lead of newLeads) {
                   try {
-                    const claimResult = await db.update(leads)
-                      .set({ outreachSentAt: new Date() })
-                      .where(and(eq(leads.id, lead.id), isNull(leads.outreachSentAt)))
-                      .returning({ id: leads.id });
-                    if (!claimResult.length) continue;
-
                     const result = await sendOutreachEmail(lead, settings, targetUser);
                     if (result.success) {
                       sent++;
@@ -5882,14 +6629,8 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
                         followUpStatus: "active",
                         followUpNextAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
                       }).where(eq(leads.id, lead.id));
-                      try {
-                        await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "sent", provider: "smtp", source: "auto-lead-gen-instant" });
-                      } catch {}
                     } else {
                       failed++;
-                      try {
-                        await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "auto-lead-gen-instant", errorMessage: result.error });
-                      } catch {}
                     }
                     await new Promise(r => setTimeout(r, 2000));
                   } catch (emailErr: any) {
@@ -6566,15 +7307,6 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
               let sent = 0, failed = 0;
               for (const lead of readyToSend) {
                 try {
-                  const claimResult = await db.update(leads)
-                    .set({ outreachSentAt: new Date() })
-                    .where(and(eq(leads.id, lead.id), isNull(leads.outreachSentAt)))
-                    .returning({ id: leads.id });
-                  if (!claimResult.length) {
-                    console.log(`[MedBill Instant] Lead ${lead.email} already claimed, skipping`);
-                    continue;
-                  }
-
                   const result = await sendOutreachEmail(lead, settings, targetUser);
                   if (result.success) {
                     sent++;
@@ -6584,24 +7316,15 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
                       followUpStatus: "active",
                       followUpNextAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
                     }).where(eq(leads.id, lead.id));
-                    try {
-                      await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "sent", provider: "smtp", source: "medbill-instant-outreach" });
-                    } catch {}
                     console.log(`[MedBill Instant] ✅ Sent to ${lead.name} <${lead.email}> (score: ${lead.score})`);
                   } else {
                     failed++;
                     console.warn(`[MedBill Instant] ❌ Failed for ${lead.email}: ${result.error}`);
-                    try {
-                      await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "medbill-instant-outreach", errorMessage: result.error });
-                    } catch {}
                   }
                   await new Promise(r => setTimeout(r, 2000));
                 } catch (emailErr: any) {
                   failed++;
                   console.error(`[MedBill Instant] Email error for ${lead.email}:`, emailErr.message);
-                  try {
-                    await logEmail({ userId: targetUser.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: `Quick question for ${lead.company || lead.name}`, status: "failed", provider: "smtp", source: "medbill-instant-outreach", errorMessage: emailErr.message });
-                  } catch {}
                 }
               }
               console.log(`[MedBill Instant] Outreach complete: ${sent} sent, ${failed} failed out of ${readyToSend.length}`);
@@ -7312,7 +8035,7 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       const userId = req.session.userId!;
       let settings = await storage.getSettingsByUser(userId);
       if (!settings) {
-        settings = await storage.upsertSettings({ userId, emailNotifications: true, smsNotifications: false, aiAutoRespond: true, leadScoring: true, appointmentReminders: true, weeklyReport: true, darkMode: true, twoFactorAuth: false });
+        settings = await storage.upsertSettings({ userId, emailNotifications: true, smsNotifications: false, aiAutoRespond: false, leadScoring: true, appointmentReminders: true, weeklyReport: true, darkMode: true, twoFactorAuth: false });
       }
       const result: any = { ...settings };
       const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "cohereApiKey", "openrouterApiKey", "youApiKey", "sendgridApiKey", "smtpPassword"];
@@ -8914,31 +9637,123 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
     }
   });
 
+  const manualEmailRetryLocks = new Set<string>();
   app.post("/api/email-logs/:id/retry", isAuthenticated, async (req, res) => {
+    const userId = req.session.userId!;
+    const logId = String(req.params.id);
+    const lockKey = `${userId}:${logId}`;
+    if (manualEmailRetryLocks.has(lockKey)) {
+      return res.status(409).json({ success: false, error: "A retry for this email log is already in progress" });
+    }
+    manualEmailRetryLocks.add(lockKey);
+
     try {
-      const userId = req.session.userId!;
-      const logId = req.params.id;
-      const [logEntry] = await db.select().from(emailLogs).where(sql`${emailLogs.id} = ${logId} AND ${emailLogs.userId} = ${userId}`);
+      // Scope the lookup by tenant first. A guessed log ID must not reveal
+      // whether another tenant has a matching email log.
+      const [logEntry] = await db.select().from(emailLogs).where(and(
+        eq(emailLogs.id, logId),
+        eq(emailLogs.userId, userId),
+      ));
       if (!logEntry) return res.status(404).json({ error: "Email log not found" });
-      if (logEntry.status === "sent") return res.json({ message: "Already sent successfully" });
       if (!logEntry.leadId) return res.status(400).json({ error: "No lead associated, cannot retry" });
 
-      const [lead] = await db.select().from(leads).where(eq(leads.id, logEntry.leadId));
+      // The lead must belong to the same tenant as both the session and log.
+      const [lead] = await db.select().from(leads).where(and(
+        eq(leads.id, logEntry.leadId),
+        eq(leads.userId, userId),
+      ));
       if (!lead) return res.status(404).json({ error: "Lead not found" });
+      if (logEntry.source === "outreach" && lead.outreachSentAt) {
+        return res.status(409).json({
+          success: false,
+          error: "Initial outreach is already marked sent for this lead; refusing a duplicate retry",
+        });
+      }
+
+      const previousFailures = await db.select({ id: emailLogs.id }).from(emailLogs).where(and(
+        eq(emailLogs.userId, userId),
+        eq(emailLogs.leadId, lead.id),
+        eq(emailLogs.source, logEntry.source),
+        or(eq(emailLogs.status, "failed"), eq(emailLogs.status, "bounced")),
+      ));
+      const attemptsUsed = Math.max(logEntry.retryCount || 0, previousFailures.length);
+      const retryPolicy = getManualRetryDecision({
+        source: logEntry.source,
+        status: logEntry.status,
+        attempts: attemptsUsed,
+        errorMessage: logEntry.errorMessage,
+      });
+
+      if (!retryPolicy.allowed) {
+        const shouldPauseFollowUp = lead.followUpStatus === "active" &&
+          (logEntry.source === "follow-up" || retryPolicy.action === "reject");
+        if (shouldPauseFollowUp) {
+          await storage.updateLead(lead.id, {
+            followUpStatus: "paused",
+            followUpNextAt: null,
+            nextStep: `Follow-up retry blocked: ${retryPolicy.reason}. Fix the original sequence issue, then resume it from its own sender.`,
+          });
+        }
+        return res.status(409).json({
+          success: false,
+          error: retryPolicy.reason,
+          followUpStatus: shouldPauseFollowUp ? "paused" : lead.followUpStatus,
+        });
+      }
+
+      if (retryPolicy.action === "follow-up") {
+        if (lead.followUpStatus !== "active") {
+          return res.status(409).json({
+            success: false,
+            error: "Follow-up retry requires an active original follow-up sequence; resume that sequence instead of sending initial outreach",
+            followUpStatus: lead.followUpStatus,
+          });
+        }
+        try {
+          const pendingClaim = await getPendingEmailSendClaim(userId, lead.id, "follow-up");
+          if (pendingClaim) {
+            const reason = "A previous follow-up attempt has an unresolved delivery claim; review that email log before retrying";
+            await pauseLeadForUnknownEmailOutcome(lead, "follow-up", reason);
+            return res.status(409).json({ success: false, error: reason, followUpStatus: "paused" });
+          }
+        } catch (claimErr: any) {
+          const reason = `Could not inspect prior follow-up delivery state: ${claimErr?.message || "persistence error"}`;
+          await pauseLeadForUnknownEmailOutcome(lead, "follow-up", reason);
+          return res.status(409).json({ success: false, error: reason, followUpStatus: "paused" });
+        }
+        await storage.updateLead(lead.id, {
+          followUpStatus: "active",
+          followUpNextAt: new Date(),
+          nextStep: "Manual retry requested; the original follow-up sequence will send with its tenant SMTP and bounded retry policy",
+        });
+        await db.update(emailLogs)
+          .set({ retryCount: attemptsUsed + 1 })
+          .where(and(eq(emailLogs.id, logId), eq(emailLogs.userId, userId)));
+        return res.status(202).json({
+          success: true,
+          message: "Follow-up retry scheduled through the original sequence processor",
+          source: "follow-up",
+          status: "scheduled",
+        });
+      }
 
       const user = await storage.getUserById(userId);
       if (!user) return res.status(404).json({ error: "User not found" });
-      const settings = await storage.getUserSettings(userId);
-
+      const settings = await storage.getSettingsByUser(userId);
       const result = await sendOutreachEmail(lead, settings || {}, user);
-      await db.update(emailLogs).set({ retryCount: (logEntry.retryCount || 0) + 1 }).where(eq(emailLogs.id, logId));
+      await db.update(emailLogs)
+        .set({ retryCount: attemptsUsed + 1 })
+        .where(and(eq(emailLogs.id, logId), eq(emailLogs.userId, userId)));
       if (result.success) {
-        res.json({ success: true, message: "Email resent successfully" });
-      } else {
-        res.json({ success: false, error: result.error });
+        return res.json({ success: true, message: "Outreach email resent through tenant SMTP", source: "outreach" });
       }
+
+      return res.status(400).json({ success: false, error: result.error, source: "outreach" });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      console.error(`[EmailRetry] Failed for tenant ${userId}, log ${logId}:`, err?.message || err);
+      return res.status(500).json({ error: err?.message || "Failed to retry email" });
+    } finally {
+      manualEmailRetryLocks.delete(lockKey);
     }
   });
 
@@ -9705,6 +10520,9 @@ The ArgiFlow Team`;
   app.use("/api/aria", isAuthenticated, ariaRoutes);
   const { startAriaScheduler } = await import("./aria-agent");
   startAriaScheduler();
+
+  const evidenceRoutes = (await import("./evidence-routes")).default;
+  app.use("/api/evidence", isAuthenticated, evidenceRoutes);
 
   const councilRoutes = (await import("./llm-council-routes")).default;
   app.use("/api/council", isAuthenticated, councilRoutes);
@@ -10878,7 +11696,9 @@ TONE: Match their energy. Casual if they were casual, formal if formal. Governme
       ]);
 
       const leadCount = allLeads.length;
-      const hotLeads = allLeads.filter((l: any) => l.score >= 70).length;
+      const { getQualifiedHotLeadIds } = await import("./evidence-routes");
+      const qualifyingHotLeadIds = Array.from(await getQualifiedHotLeadIds(userId, allLeads));
+      const hotLeads = qualifyingHotLeadIds.length;
       const snap = pipeline[0];
 
       const pipelineStages = snap ? [
@@ -10907,6 +11727,7 @@ TONE: Match their energy. Casual if they were casual, formal if formal. Governme
       res.json({
         leads_total: leadCount,
         hot_leads: hotLeads,
+        qualifying_hot_lead_ids: qualifyingHotLeadIds,
         pipeline_stages: pipelineStages,
         activity,
         agent_health: agentHealth,

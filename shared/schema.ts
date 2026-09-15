@@ -156,7 +156,7 @@ export const userSettings = pgTable("user_settings", {
   userId: varchar("user_id").notNull().unique(),
   emailNotifications: boolean("email_notifications").default(true),
   smsNotifications: boolean("sms_notifications").default(false),
-  aiAutoRespond: boolean("ai_auto_respond").default(true),
+  aiAutoRespond: boolean("ai_auto_respond").default(false),
   leadScoring: boolean("lead_scoring").default(true),
   appointmentReminders: boolean("appointment_reminders").default(true),
   weeklyReport: boolean("weekly_report").default(true),

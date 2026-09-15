@@ -18,6 +18,8 @@ import {
   Zap,
   Crown,
   RotateCcw,
+  Info,
+  HelpCircle,
 } from "lucide-react";
 
 type AdvisorResult = {
@@ -31,9 +33,28 @@ type CouncilResult = {
   peerReviews: string[];
   chairman: string;
   anonymizationMap: string;
+  evidence: CouncilEvidence | null;
+};
+
+type CouncilEvidence = {
+  range: { from: string; to: string; toExclusive: boolean };
+  attempts: number;
+  uniqueRecipients: number;
+  acceptedRecords: number;
+  unknownDelivery: number;
+  bounceReports: number;
+  replies: number;
+  deliveryCallbacks: number;
+  limitations: string[];
 };
 
 type Phase = "idle" | "advisors" | "review" | "synthesis" | "done";
+
+function formatEvidenceBoundary(value: string, toExclusive = false): string {
+  const date = new Date(value);
+  if (toExclusive) date.setTime(date.getTime() - 1);
+  return date.toLocaleDateString();
+}
 
 const ADVISOR_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "The Contrarian": AlertTriangle,
@@ -181,6 +202,48 @@ function VerdictSection({ title, content }: { title: string; content: string }) 
   );
 }
 
+function EvidenceCard({ evidence }: { evidence: CouncilEvidence | null }) {
+  return (
+    <Card className="p-4 border-sky-500/20 bg-sky-500/5" data-testid="council-evidence">
+      <div className="flex items-start gap-2">
+        <Info className="w-4 h-4 text-sky-400 mt-0.5 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <h2 className="font-semibold text-sm">Tenant evidence used for grounding</h2>
+          {evidence ? (
+            <>
+              <p className="text-xs text-muted-foreground mt-1">
+                Rolling date range: {formatEvidenceBoundary(evidence.range.from)} – {formatEvidenceBoundary(evidence.range.to, evidence.range.toExclusive)} (exclusive boundary shown as the prior instant).
+                These are records, not performance rates.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-3">
+                <div className="rounded border p-2"><p className="text-[10px] text-muted-foreground">Attempts</p><p className="font-bold">{evidence.attempts}</p></div>
+                <div className="rounded border p-2"><p className="text-[10px] text-muted-foreground">Recipients</p><p className="font-bold">{evidence.uniqueRecipients}</p></div>
+                <div className="rounded border p-2"><p className="text-[10px] text-muted-foreground">Accepted handoffs</p><p className="font-bold">{evidence.acceptedRecords}</p></div>
+                <div className="rounded border border-amber-500/30 p-2"><p className="text-[10px] text-amber-400 flex items-center gap-1"><HelpCircle className="w-3 h-3" /> Delivery unknown</p><p className="font-bold text-amber-400">{evidence.unknownDelivery}</p></div>
+                <div className="rounded border p-2"><p className="text-[10px] text-muted-foreground">Bounces</p><p className="font-bold">{evidence.bounceReports}</p></div>
+                <div className="rounded border p-2"><p className="text-[10px] text-muted-foreground">Stored replies</p><p className="font-bold">{evidence.replies}</p></div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Accepted means provider handoff, not delivery. Delivery callbacks stored: {evidence.deliveryCallbacks}. No open rate, human-reply claim, or 20% threshold is supported by these records.
+              </p>
+              <details className="mt-2 text-xs">
+                <summary className="cursor-pointer text-muted-foreground">Evidence limitations</summary>
+                <ul className="list-disc pl-4 mt-1 space-y-0.5 text-muted-foreground">
+                  {evidence.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
+                </ul>
+              </details>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-1">
+              Evidence was unavailable for this session. The council was instructed not to invent outreach counts or rates.
+            </p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function LlmCouncilPage() {
   const { toast } = useToast();
   const [question, setQuestion] = useState("");
@@ -316,6 +379,8 @@ export default function LlmCouncilPage() {
               New Question
             </Button>
           </div>
+
+          <EvidenceCard evidence={result.evidence} />
 
           {/* Chairman verdict */}
           <div>

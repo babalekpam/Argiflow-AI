@@ -26,8 +26,10 @@ import {
 import { instantlyEngine } from "./instantly-engine";
 import nodemailer from "nodemailer";
 import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
+import { getLeadContactIssue } from "./outreach-quality-gate";
 import { storage } from "./storage";
 import { workflowHooks } from "./workflow-hooks";
+import { canAgentAutoReply, hasExplicitAgentAutoReplyOptIn } from "./inbox-reliability";
 
 // Public origin used for open/click tracking URLs embedded in outbound email.
 function trackingBaseUrl(): string {
@@ -58,6 +60,7 @@ interface AgentConfig {
   autoEnrollEnabled: boolean;
   // Reply handling
   autoReplyEnabled: boolean;
+  autoReplyExplicitlyEnabled: boolean;
   aiPersonality: string;            // professional | casual | aggressive
   // Booking
   autoBookEnabled: boolean;
@@ -493,6 +496,10 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
           // Get lead data
           const [lead] = await db.select().from(leads).where(eq(leads.id, cl.leadId));
           if (!lead) continue;
+          if (lead.userId !== userId || getLeadContactIssue(lead)) {
+            await db.update(campaignLeads).set({ status: "paused" }).where(eq(campaignLeads.id, cl.id));
+            continue;
+          }
 
           // Get current sequence step
           const currentStep = cl.currentStep || 0;
@@ -519,7 +526,14 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
           );
 
           // SEND THE EMAIL
-          const sent = await this.sendEmail(account, lead.email, subject, body, campaign.trackOpens ?? true, lead.id);
+          // Claim before contacting the provider. A crash or bookkeeping failure
+          // must leave this contact paused, never automatically resend it.
+          const claimed = await db.update(campaignLeads)
+            .set({ status: "paused", nextSendAt: null })
+            .where(and(eq(campaignLeads.id, cl.id), eq(campaignLeads.status, cl.status)))
+            .returning({ id: campaignLeads.id });
+          if (!claimed.length) continue;
+          const sent = await this.sendEmail(userId, account, lead.email, subject, body, campaign.trackOpens ?? true, lead.id);
 
           if (sent) {
             sentCount++;
@@ -550,6 +564,11 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
             await db.update(emailAccounts).set({
               sentToday: sql`${emailAccounts.sentToday} + 1`,
             }).where(eq(emailAccounts.id, account.id));
+          } else {
+            await db.update(campaignLeads).set({ status: "paused", nextSendAt: null })
+              .where(eq(campaignLeads.id, cl.id));
+            await this.notify(userId, "Campaign contact paused",
+              "A message failed or was blocked. Review email logs and contact details before resuming.");
           }
         }
 
@@ -689,22 +708,54 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
     // AI Classification
     const classification = instantlyEngine.classifyEmail(message.bodyText || "", message.subject || "");
 
-    // Update message with AI label
+    // Resolve a supplied lead ID inside the authenticated tenant before any
+    // message, lead, campaign, or workflow mutation.
+    let lead: any = null;
+    if (message.leadId) {
+      [lead] = await db.select().from(leads).where(and(
+        eq(leads.id, message.leadId),
+        eq(leads.userId, userId),
+      ));
+    } else {
+      // Try to match by email
+      [lead] = await db.select().from(leads)
+        .where(and(eq(leads.userId, userId), eq(leads.email, message.fromEmail)));
+    }
+
+    let campaignOwned = true;
+    if (message.campaignId) {
+      const [campaign] = await db.select({ id: campaigns.id }).from(campaigns).where(and(
+        eq(campaigns.id, message.campaignId),
+        eq(campaigns.userId, userId),
+      ));
+      campaignOwned = Boolean(campaign);
+    }
+
+    if ((message.leadId && !lead) || !campaignOwned) {
+      // The inbound row belongs to this account, but its supplied lead
+      // or campaign reference does not.  Quarantine it without touching
+      // another tenant's CRM, campaign, or workflow state.
+      await db.update(inboxMessages).set({ isRead: true }).where(and(
+        eq(inboxMessages.id, message.id),
+        eq(inboxMessages.userId, userId),
+      ));
+      await this.logAgentTask(userId, "reply_quarantined", "Inbound reply referenced a record outside this tenant");
+      return;
+    }
+
+    // Update message with AI label only after tenant ownership is resolved.
     await db.update(inboxMessages).set({
       aiLabel: classification.label,
       aiSentiment: classification.sentiment,
       aiConfidence: classification.confidence,
       isRead: true,
-    }).where(eq(inboxMessages.id, message.id));
+    }).where(and(eq(inboxMessages.id, message.id), eq(inboxMessages.userId, userId)));
 
-    // Find the lead
-    let lead: any = null;
-    if (message.leadId) {
-      [lead] = await db.select().from(leads).where(eq(leads.id, message.leadId));
-    } else {
-      // Try to match by email
-      [lead] = await db.select().from(leads)
-        .where(and(eq(leads.userId, userId), eq(leads.email, message.fromEmail)));
+    if (!lead) {
+      // A reply without a tenant-owned lead match is visible for review but
+      // cannot mutate CRM/campaign state or trigger an automatic response.
+      await this.logAgentTask(userId, "reply_quarantined", "Inbound reply did not match a lead in this tenant");
+      return;
     }
 
     // Update lead engagement
@@ -713,17 +764,17 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
         engagementLevel: classification.sentiment === "positive" ? "hot" : "warm",
         engagementScore: sql`${leads.engagementScore} + 10`,
         lastEngagedAt: new Date(),
-      }).where(eq(leads.id, lead.id));
+      }).where(and(eq(leads.id, lead.id), eq(leads.userId, userId)));
     }
 
     // Update campaign stats
     if (message.campaignId) {
       await db.update(campaigns).set({
         emailsReplied: sql`${campaigns.emailsReplied} + 1`,
-      }).where(eq(campaigns.id, message.campaignId));
+      }).where(and(eq(campaigns.id, message.campaignId), eq(campaigns.userId, userId)));
 
       // Stop sequence if stopOnReply
-      if (message.leadId) {
+      if (lead && message.leadId) {
         await db.update(campaignLeads).set({ status: "replied" })
           .where(and(eq(campaignLeads.leadId, message.leadId), eq(campaignLeads.campaignId, message.campaignId)));
       }
@@ -772,14 +823,21 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
 
   private async handleInterested(userId: string, account: any, message: any, lead: any, config: AgentConfig): Promise<void> {
     // 🎯 HOT LEAD — attempt to book meeting
-    await this.notify(userId, "🔥 Interested Reply!", `${message.fromEmail} expressed interest! AI is following up.`, "high");
+    const autoReplyAllowed = await this.canAutoReply(userId, config);
+    await this.notify(
+      userId,
+      "🔥 Interested Reply!",
+      `${message.fromEmail} expressed interest! ${autoReplyAllowed ? "AI is preparing a follow-up." : "Review the reply before responding."}`,
+      "high",
+    );
 
     if (lead) {
-      await db.update(leads).set({ status: "hot", engagementLevel: "hot" }).where(eq(leads.id, lead.id));
+      await db.update(leads).set({ status: "hot", engagementLevel: "hot" })
+        .where(and(eq(leads.id, lead.id), eq(leads.userId, userId)));
       await workflowHooks.onLeadEngagementHot(userId, { ...lead, status: "hot", engagementLevel: "hot" }, message);
     }
 
-    if (!config.autoReplyEnabled) return;
+    if (!autoReplyAllowed) return;
 
     // Generate booking response
     const replyBody = await this.generateAiReply(userId, {
@@ -810,7 +868,7 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
   private async handleQuestion(userId: string, account: any, message: any, lead: any, config: AgentConfig): Promise<void> {
     await this.notify(userId, "❓ Question Received", `${message.fromEmail} has a question`);
 
-    if (!config.autoReplyEnabled) return;
+    if (!await this.canAutoReply(userId, config)) return;
 
     const replyBody = await this.generateAiReply(userId, {
       leadName: lead?.name || message.fromName || "there",
@@ -856,7 +914,7 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
     }
 
     // Thank the referrer
-    if (config.autoReplyEnabled) {
+    if (await this.canAutoReply(userId, config)) {
       const replyBody = await this.generateAiReply(userId, {
         leadName: lead?.name || "there", leadEmail: message.fromEmail,
         leadCompany: lead?.company || "", originalSubject: message.subject || "",
@@ -873,11 +931,12 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
     await this.notify(userId, "❌ Not Interested", `${message.fromEmail} declined`);
 
     if (lead) {
-      await db.update(leads).set({ status: "lost", engagementLevel: "cold" }).where(eq(leads.id, lead.id));
+      await db.update(leads).set({ status: "lost", engagementLevel: "cold" })
+        .where(and(eq(leads.id, lead.id), eq(leads.userId, userId)));
     }
 
     // Stop all campaign sequences for this lead
-    if (message.leadId) {
+    if (lead && message.leadId) {
       await db.update(campaignLeads).set({ status: "unsubscribed" })
         .where(eq(campaignLeads.leadId, message.leadId));
     }
@@ -888,7 +947,7 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
 
   private async handleOutOfOffice(userId: string, message: any, lead: any, config: AgentConfig): Promise<void> {
     // Reschedule follow-up for 5 days later
-    if (message.leadId && message.campaignId) {
+    if (lead && message.leadId && message.campaignId) {
       const rescheduleDate = new Date(Date.now() + 5 * 86400000);
       await db.update(campaignLeads).set({
         nextSendAt: rescheduleDate,
@@ -903,9 +962,10 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
     await this.notify(userId, "🚫 Wrong Person", `${message.fromEmail} is not the right contact`);
 
     if (lead) {
-      await db.update(leads).set({ status: "disqualified" }).where(eq(leads.id, lead.id));
+      await db.update(leads).set({ status: "disqualified" })
+        .where(and(eq(leads.id, lead.id), eq(leads.userId, userId)));
     }
-    if (message.leadId) {
+    if (lead && message.leadId) {
       await db.update(campaignLeads).set({ status: "unsubscribed" })
         .where(eq(campaignLeads.leadId, message.leadId));
     }
@@ -913,16 +973,17 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
 
   private async handleBounced(userId: string, message: any, lead: any): Promise<void> {
     if (lead) {
-      await db.update(leads).set({ status: "bounced" }).where(eq(leads.id, lead.id));
+      await db.update(leads).set({ status: "bounced" })
+        .where(and(eq(leads.id, lead.id), eq(leads.userId, userId)));
     }
-    if (message.leadId) {
+    if (lead && message.leadId) {
       await db.update(campaignLeads).set({ status: "bounced" })
         .where(eq(campaignLeads.leadId, message.leadId));
     }
     if (message.campaignId) {
       await db.update(campaigns).set({
         emailsBounced: sql`${campaigns.emailsBounced} + 1`,
-      }).where(eq(campaigns.id, message.campaignId));
+      }).where(and(eq(campaigns.id, message.campaignId), eq(campaigns.userId, userId)));
     }
   }
 
@@ -955,13 +1016,13 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
       await db.update(leads).set({
         status: "appointment_booked",
         nextStep: `Discovery call on ${appointmentDate.toDateString()}`,
-      }).where(eq(leads.id, lead.id));
+      }).where(and(eq(leads.id, lead.id), eq(leads.userId, userId)));
 
       // Update campaign stats
       if (message.campaignId) {
         await db.update(campaigns).set({
           opportunities: sql`${campaigns.opportunities} + 1`,
-        }).where(eq(campaigns.id, message.campaignId));
+        }).where(and(eq(campaigns.id, message.campaignId), eq(campaigns.userId, userId)));
       }
 
       await this.notify(userId, "📅 Meeting Booked!", `AI agent booked a call with ${lead.name} (${lead.company})`, "high");
@@ -1043,13 +1104,17 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
 
   // ── EMAIL SENDING ─────────────────────────────────────────
 
-  private async sendEmail(account: any, toEmail: string, subject: string, body: string, trackOpens: boolean = true, leadId?: string): Promise<boolean> {
+  private async sendEmail(userId: string, account: any, toEmail: string, subject: string, body: string, trackOpens: boolean = true, leadId?: string): Promise<boolean> {
     try {
       if (!isValidRecipientEmail(toEmail)) {
         console.log(`[OutreachAgent] Invalid recipient email, skipping lead ${leadId || "unknown"}`);
         return false;
       }
-      const userId = this.config?.userId;
+      if (!userId || account.userId !== userId) return false;
+      if (leadId) {
+        const [recipientLead] = await db.select().from(leads).where(eq(leads.id, leadId));
+        if (!recipientLead || recipientLead.userId !== userId || getLeadContactIssue(recipientLead)) return false;
+      }
       if (userId && await isEmailSuppressed(userId, toEmail)) {
         console.log(`[OutreachAgent] Suppressed unsubscribed recipient ${toEmail}`);
         return false;
@@ -1083,13 +1148,13 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
       });
 
       try {
-        await db.insert(emailLogs).values({ userId: this.config?.userId || "agent", recipientEmail: toEmail, subject, provider: "smtp", source: "agent", status: "sent", sentAt: new Date() });
+        await db.insert(emailLogs).values({ userId, leadId, recipientEmail: toEmail, subject, provider: "smtp", source: "agent", status: "sent", sentAt: new Date() });
       } catch {}
       return true;
     } catch (err: any) {
       console.error(`[OutreachAgent] Send failed to ${toEmail}:`, err.message);
       try {
-        await db.insert(emailLogs).values({ userId: this.config?.userId || "agent", recipientEmail: toEmail, subject, provider: "smtp", source: "agent", status: "failed", errorMessage: err.message });
+        await db.insert(emailLogs).values({ userId, leadId, recipientEmail: toEmail, subject, provider: "smtp", source: "agent", status: "failed", errorMessage: err.message });
       } catch {}
       return false;
     }
@@ -1097,7 +1162,7 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
 
   private async sendReply(account: any, originalMessage: any, replyBody: string): Promise<boolean> {
     const subject = originalMessage.subject?.startsWith("Re:") ? originalMessage.subject : `Re: ${originalMessage.subject}`;
-    const sent = await this.sendEmail(account, originalMessage.fromEmail, subject, replyBody, false);
+    const sent = await this.sendEmail(originalMessage.userId, account, originalMessage.fromEmail, subject, replyBody, false, originalMessage.leadId || undefined);
 
     if (sent) {
       // Record outbound reply in inbox
@@ -1143,6 +1208,15 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
     ];
   }
 
+  private async canAutoReply(userId: string, config: AgentConfig): Promise<boolean> {
+    const tenantSettings = await this.getUserSettings(userId);
+    return canAgentAutoReply({
+      agentAutoReplyEnabled: config.autoReplyEnabled,
+      agentAutoReplyExplicitlyEnabled: config.autoReplyExplicitlyEnabled,
+      tenantAiAutoRespond: tenantSettings?.aiAutoRespond,
+    });
+  }
+
   private async getAgentConfig(userId: string): Promise<AgentConfig> {
     const defaults: AgentConfig = {
       userId,
@@ -1157,7 +1231,8 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
       dailyProspectLimit: 10,
       autoCampaignId: null,
       autoEnrollEnabled: false,
-      autoReplyEnabled: true,
+      autoReplyEnabled: false,
+      autoReplyExplicitlyEnabled: false,
       aiPersonality: "professional",
       autoBookEnabled: true,
       calendarLink: "",
@@ -1176,7 +1251,13 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
     if (config?.agentSettings) {
       try {
         const saved = JSON.parse(config.agentSettings);
-        return { ...defaults, ...saved };
+        const explicitlyEnabled = hasExplicitAgentAutoReplyOptIn(saved);
+        return {
+          ...defaults,
+          ...saved,
+          autoReplyEnabled: explicitlyEnabled,
+          autoReplyExplicitlyEnabled: explicitlyEnabled,
+        };
       } catch {}
     }
 

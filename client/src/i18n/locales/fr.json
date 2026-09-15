@@ -2427,7 +2427,7 @@
     "aiAutomation": "IA & Automatisation",
     "aiAutomationDesc": "Ces contrôles activent des fonctionnalités propulsées par l'IA qui travaillent en arrière-plan pour vous aider à capturer et gérer les leads automatiquement.",
     "aiAutoRespond": "Réponse Automatique IA",
-    "aiAutoRespondDesc": "Quand ACTIVÉ : Vos bots IA répondront automatiquement aux nouveaux leads et demandes dès qu'ils arrivent — même en dehors des heures de bureau.",
+    "aiAutoRespondDesc": "Quand ACTIVÉ : Vos bots IA répondront automatiquement aux nouveaux leads et demandes dès qu'ils arrivent — même en dehors des heures de bureau. Quand DÉSACTIVÉ : les réponses correspondantes restent en brouillon pour vérification.",
     "leadScoring": "Scoring des Leads",
     "leadScoringDesc": "Quand ACTIVÉ : Chaque lead reçoit un score de qualité automatique (1-100) basé sur son niveau d'engagement, vous aidant à vous concentrer d'abord sur les prospects les plus prometteurs.",
     "preferences": "Préférences",

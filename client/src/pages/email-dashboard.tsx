@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Send, ArrowUpCircle, History, AlertTriangle, Check, Loader2 } from "lucide-react";
+import { Mail, Send, ArrowUpCircle, History, AlertTriangle, Check, Loader2, RefreshCw, ShieldCheck, FileText } from "lucide-react";
 
 interface QuotaStatus {
   plan: string;
@@ -36,6 +36,20 @@ interface Plan {
   priceLabel: string;
 }
 
+interface InboxMonitorStatus {
+  lastCheck: string | null;
+  processing: boolean;
+  repliesFound: number;
+  repliesSent: number;
+  draftsCreated: number;
+  errors: number;
+  configuredRoutes: number;
+  diagnostics: Record<string, number>;
+  configurationDiagnostics: string[];
+  lastDiagnostic: { code: string; at: string } | null;
+  autoRespondEnabled: boolean;
+}
+
 export default function EmailDashboard() {
   const [sendForm, setSendForm] = useState({ to: "", subject: "", body: "" });
   const [sendResult, setSendResult] = useState<string | null>(null);
@@ -50,6 +64,21 @@ export default function EmailDashboard() {
 
   const { data: plansData } = useQuery<{ plans: Plan[] }>({
     queryKey: ["/api/email/plans"],
+  });
+
+  const { data: inboxStatus, isLoading: inboxStatusLoading } = useQuery<InboxMonitorStatus>({
+    queryKey: ["/api/inbox-monitor/status"],
+    refetchInterval: (query) => query.state.data?.processing ? 5000 : false,
+  });
+
+  const checkInboxMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/inbox-monitor/check-now");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inbox-monitor/status"] });
+    },
   });
 
   const sendMutation = useMutation({
@@ -102,6 +131,93 @@ export default function EmailDashboard() {
         </h1>
         <p className="text-sm text-slate-400 mt-1">Send emails to your leads and clients through your own mail server.</p>
       </div>
+
+      <Card className="bg-slate-800/60 border-slate-700" data-testid="card-inbox-monitor">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-base text-white flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-sky-400" />
+                Inbox monitor
+              </CardTitle>
+              <p className="text-xs text-slate-400 mt-1">
+                Tenant-scoped mailbox status and safe diagnostics. Credentials and mailbox addresses are never shown here.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => checkInboxMutation.mutate()}
+              disabled={checkInboxMutation.isPending || inboxStatus?.processing}
+              data-testid="button-check-inbox"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${checkInboxMutation.isPending || inboxStatus?.processing ? "animate-spin" : ""}`} />
+              {inboxStatus?.processing ? "Checking..." : "Check now"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {inboxStatusLoading ? (
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading inbox status...
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <Badge
+                  variant="outline"
+                  className={inboxStatus?.autoRespondEnabled
+                    ? "text-amber-300 border-amber-500/30 bg-amber-500/10"
+                    : "text-emerald-300 border-emerald-500/30 bg-emerald-500/10"}
+                >
+                  {inboxStatus?.autoRespondEnabled ? "Automatic replies enabled" : "Draft first"}
+                </Badge>
+                <span className="text-slate-400">
+                  {inboxStatus?.lastCheck ? `Last check ${new Date(inboxStatus.lastCheck).toLocaleString()}` : "No check completed yet"}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                {[
+                  ["Routes", inboxStatus?.configuredRoutes ?? 0],
+                  ["Replies", inboxStatus?.repliesFound ?? 0],
+                  ["Sent", inboxStatus?.repliesSent ?? 0],
+                  ["Drafts", inboxStatus?.draftsCreated ?? 0],
+                  ["Errors", inboxStatus?.errors ?? 0],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-md border border-slate-700 bg-slate-700/20 p-2" data-testid={`inbox-status-${String(label).toLowerCase()}`}>
+                    <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
+                    <div className="text-lg font-semibold text-white">{value}</div>
+                  </div>
+                ))}
+              </div>
+              {(() => {
+                const diagnostics = [
+                  ...(inboxStatus?.configurationDiagnostics || []),
+                  ...Object.keys(inboxStatus?.diagnostics || {}),
+                ].filter((code, index, all) => all.indexOf(code) === index);
+                return (
+                  <div className="rounded-md border border-slate-700 bg-slate-700/20 p-3" data-testid="inbox-diagnostics">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-300">
+                      <FileText className="w-3.5 h-3.5 text-sky-400" /> Diagnostics
+                    </div>
+                    {diagnostics.length === 0 ? (
+                      <p className="text-xs text-slate-500 mt-2">No diagnostic events recorded.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {diagnostics.map(code => (
+                          <Badge key={code} variant="outline" className="text-[10px] text-slate-300 border-slate-600">
+                            {code}{inboxStatus?.diagnostics?.[code] ? ` (${inboxStatus.diagnostics[code]})` : ""}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="bg-slate-800/60 border-slate-700">
         <CardContent className="p-6">

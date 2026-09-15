@@ -326,9 +326,9 @@ function AgentConfigPanel() {
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <Label>Auto-Reply</Label>
-                <p className="text-xs text-muted-foreground">AI generates contextual replies to prospects</p>
+                <p className="text-xs text-muted-foreground">AI replies require this opt-in and Settings → AI Auto-Respond; otherwise they remain drafts</p>
               </div>
-              <Switch checked={cfg.autoReplyEnabled ?? true} onCheckedChange={(v) => updateField("autoReplyEnabled", v)} data-testid="switch-auto-reply" />
+              <Switch checked={cfg.autoReplyEnabled ?? false} onCheckedChange={(v) => updateField("autoReplyEnabled", v)} data-testid="switch-auto-reply" />
             </div>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>

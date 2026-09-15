@@ -19,15 +19,35 @@ import {
   ChevronUp,
   Users,
   RotateCcw,
+  Info,
+  HelpCircle,
 } from "lucide-react";
 
 type AdvisorResult = { name: string; response: string };
+type CouncilEvidence = {
+  range: { from: string; to: string; toExclusive: boolean };
+  attempts: number;
+  uniqueRecipients: number;
+  acceptedRecords: number;
+  unknownDelivery: number;
+  bounceReports: number;
+  replies: number;
+  deliveryCallbacks: number;
+  limitations: string[];
+};
 type CouncilResult = {
   question: string;
   advisors: AdvisorResult[];
   peerReviews: string[];
   chairman: string;
+  evidence: CouncilEvidence | null;
 };
+
+function formatEvidenceBoundary(value: string, toExclusive = false): string {
+  const date = new Date(value);
+  if (toExclusive) date.setTime(date.getTime() - 1);
+  return date.toLocaleDateString();
+}
 
 const ADVISOR_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "The Contrarian": AlertTriangle,
@@ -252,6 +272,38 @@ export function CouncilWidget() {
                 <div className="px-3 py-2 border-b border-border/50 bg-muted/20">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-0.5">Question</p>
                   <p className="text-xs text-muted-foreground line-clamp-2">{result.question}</p>
+                </div>
+
+                {/* Tenant evidence grounding */}
+                <div className="mx-3 mt-3 rounded-md border border-sky-500/20 bg-sky-500/5 p-3" data-testid="widget-council-evidence">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Info className="w-3.5 h-3.5 text-sky-400" />
+                    <p className="text-[11px] font-semibold">Tenant evidence used</p>
+                  </div>
+                  {result.evidence ? (
+                    <>
+                      <p className="text-[10px] text-muted-foreground mb-2">
+                        {formatEvidenceBoundary(result.evidence.range.from)} – {formatEvidenceBoundary(result.evidence.range.to, result.evidence.range.toExclusive)} (exclusive boundary shown as prior instant)
+                      </p>
+                      <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                        <div className="rounded border p-1.5"><span className="text-muted-foreground">Attempts</span><strong className="block">{result.evidence.attempts}</strong></div>
+                        <div className="rounded border p-1.5"><span className="text-muted-foreground">Handoffs</span><strong className="block">{result.evidence.acceptedRecords}</strong></div>
+                        <div className="rounded border border-amber-500/30 p-1.5"><span className="text-amber-400 flex items-center gap-0.5"><HelpCircle className="w-2.5 h-2.5" /> Unknown</span><strong className="block text-amber-400">{result.evidence.unknownDelivery}</strong></div>
+                        <div className="rounded border p-1.5"><span className="text-muted-foreground">Recipients</span><strong className="block">{result.evidence.uniqueRecipients}</strong></div>
+                        <div className="rounded border p-1.5"><span className="text-muted-foreground">Bounces</span><strong className="block">{result.evidence.bounceReports}</strong></div>
+                        <div className="rounded border p-1.5"><span className="text-muted-foreground">Replies</span><strong className="block">{result.evidence.replies}</strong></div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-2">Accepted is provider handoff, not delivery. Callbacks stored: {result.evidence.deliveryCallbacks}. No open-rate threshold is supported.</p>
+                      <details className="mt-2 text-[10px]">
+                        <summary className="cursor-pointer text-muted-foreground">Evidence limitations</summary>
+                        <ul className="list-disc pl-4 mt-1 space-y-0.5 text-muted-foreground">
+                          {result.evidence.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
+                        </ul>
+                      </details>
+                    </>
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground">Evidence unavailable; the council was instructed not to invent outreach counts or rates.</p>
+                  )}
                 </div>
 
                 {/* Chairman sections */}

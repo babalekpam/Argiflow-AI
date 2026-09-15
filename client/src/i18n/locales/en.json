@@ -2417,7 +2417,7 @@
     "aiAutomation": "AI & Automation",
     "aiAutomationDesc": "These controls turn on AI-powered features that work in the background to help you capture and manage leads automatically.",
     "aiAutoRespond": "AI Auto-Respond",
-    "aiAutoRespondDesc": "When ON: Your AI bots will automatically reply to new leads and inquiries the moment they come in — even outside business hours.",
+    "aiAutoRespondDesc": "When ON: Your AI bots will automatically reply to new leads and inquiries the moment they come in — even outside business hours. When OFF: matching replies stay as drafts for review.",
     "leadScoring": "Lead Scoring",
     "leadScoringDesc": "When ON: Each lead gets an automatic quality score (1-100) based on their engagement level, helping you focus on the hottest prospects first.",
     "preferences": "Preferences",

@@ -1,6 +1,12 @@
 import { Router, type RequestHandler } from "express";
 import { callLLM } from "./llm-router";
 import { resolveProvider } from "./ai-provider";
+import {
+  formatEvidenceForCouncil,
+  getEmailFunnelEvidence,
+  resolveEvidenceRange,
+  type EmailFunnelEvidence,
+} from "./evidence-routes";
 
 const router = Router();
 
@@ -51,6 +57,19 @@ const runCouncil: RequestHandler = async (req, res) => {
     const framedQuestion = question.trim();
     const userId = req.session.userId;
     if (!userId) return res.status(401).json({ message: "Authentication required" });
+
+    let evidence: EmailFunnelEvidence | null = null;
+    try {
+      evidence = await getEmailFunnelEvidence(userId, resolveEvidenceRange());
+    } catch (e) {
+      // A council answer must not be blocked by an unavailable evidence
+      // source, but it must be told that the evidence is unavailable rather
+      // than receiving invented counts.
+      console.error("[LLM-Council] Evidence lookup failed:", e);
+    }
+    const evidenceContext = formatEvidenceForCouncil(evidence);
+    const groundingRules = `\n\nGROUNDING RULES:\n${evidenceContext}\nUse only the supplied tenant evidence for outreach claims. Never turn a provider handoff into a delivery claim. Never invent an open rate, delivery rate, human reply, denominator, benchmark, or threshold. In particular, do not introduce a 20% open-rate threshold.`;
+
     const resolved = await resolveProvider(userId);
     const providerOptions = {
       providerId: resolved.providerId,
@@ -64,8 +83,8 @@ const runCouncil: RequestHandler = async (req, res) => {
       ADVISORS.map((advisor) =>
         callLLM({
           ...providerOptions,
-          system: `You are ${advisor.name} on an LLM Council.\n\nYour thinking style: ${advisor.description}\n\nRespond from your perspective only. Be direct and specific. Do not hedge or try to be balanced — lean fully into your assigned angle. The other advisors will cover angles you're not covering.\n\nKeep your response between 150 and 300 words. No preamble. Go straight into your analysis.`,
-          userMessage: `A user has brought this question to the council:\n\n${framedQuestion}`,
+          system: `You are ${advisor.name} on an LLM Council.\n\nYour thinking style: ${advisor.description}\n\nRespond from your perspective only. Be direct and specific. Do not hedge or try to be balanced — lean fully into your assigned angle. The other advisors will cover angles you're not covering.\n\nKeep your response between 150 and 300 words. No preamble. Go straight into your analysis.${groundingRules}`,
+          userMessage: `A user has brought this question to the council:\n\n${framedQuestion}\n\n${evidenceContext}`,
           maxTokens: 700,
         })
       )
@@ -89,9 +108,9 @@ const runCouncil: RequestHandler = async (req, res) => {
       .map((a) => `Response ${a.letter}:\n${a.response}`)
       .join("\n\n");
 
-    const reviewerSystem = `You are reviewing the outputs of an LLM Council session. Five advisors independently answered the question below. Answer exactly these three questions. Be specific — reference responses by letter.\n\n1. Which response is the strongest, and why?\n2. Which response has the biggest blind spot, and what is it missing?\n3. What did ALL five responses miss that the council should consider?\n\nKeep your review under 200 words. Be direct.`;
+    const reviewerSystem = `You are reviewing the outputs of an LLM Council session. Five advisors independently answered the question below. Answer exactly these three questions. Be specific — reference responses by letter.\n\n1. Which response is the strongest, and why?\n2. Which response has the biggest blind spot, and what is it missing?\n3. What did ALL five responses miss that the council should consider?\n\nKeep your review under 200 words. Be direct.${groundingRules}`;
 
-    const reviewerUserMessage = `The question brought to the council:\n\n${framedQuestion}\n\nHere are the anonymized advisor responses:\n\n${anonymizedText}`;
+    const reviewerUserMessage = `The question brought to the council:\n\n${framedQuestion}\n\n${evidenceContext}\n\nHere are the anonymized advisor responses:\n\n${anonymizedText}`;
 
     const peerReviews = await Promise.all(
       Array(5)
@@ -138,8 +157,8 @@ A clear, direct recommendation. Not "it depends." A real answer with reasoning. 
 ## The One Thing to Do First
 A single concrete next step. Not a list. One thing only.
 
-Be direct. Don't hedge. The entire point of the council is to give the user clarity they couldn't get from a single perspective.`,
-      userMessage: `The question brought to the council:\n\n${framedQuestion}\n\nADVISOR RESPONSES:\n\n${advisorBlock}\n\nPEER REVIEWS (responses were anonymized as ${deanonMap}):\n\n${reviewBlock}`,
+      Be direct. Don't hedge. The entire point of the council is to give the user clarity they couldn't get from a single perspective.${groundingRules}`,
+      userMessage: `The question brought to the council:\n\n${framedQuestion}\n\n${evidenceContext}\n\nADVISOR RESPONSES:\n\n${advisorBlock}\n\nPEER REVIEWS (responses were anonymized as ${deanonMap}):\n\n${reviewBlock}`,
       maxTokens: 1800,
     });
 
@@ -149,6 +168,7 @@ Be direct. Don't hedge. The entire point of the council is to give the user clar
       peerReviews: peerReviewTexts,
       chairman: chairmanResult.text,
       anonymizationMap: deanonMap,
+      evidence,
     });
   } catch (error: any) {
     console.error("[LLM-Council] Error:", error);

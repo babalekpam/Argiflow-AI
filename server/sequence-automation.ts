@@ -8,6 +8,7 @@ import { emailReplies } from "@shared/outreach-schema";
 import { storage } from "./storage";
 import nodemailer from "nodemailer";
 import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
+import { getLeadContactIssue } from "./outreach-quality-gate";
 
 const automationStatus = {
   running: false,
@@ -44,6 +45,7 @@ async function sendSequenceEmail(
   content: string
 ): Promise<boolean> {
   try {
+    if (leadRecord.userId !== userId || getLeadContactIssue(leadRecord)) return false;
     const tenantSettings = await storage.getSettingsByUser(userId);
     const smtpHost = tenantSettings?.smtpHost;
     const smtpPort = tenantSettings?.smtpPort || 587;
@@ -155,6 +157,13 @@ export async function processSequenceAutomation(): Promise<void> {
           continue;
         }
 
+        if (leadRecord.userId !== seq.userId || getLeadContactIssue(leadRecord)) {
+          await db.update(sequenceEnrollments).set({ status: "paused", nextSendAt: null })
+            .where(eq(sequenceEnrollments.id, enrollment.id));
+          await notify(seq.userId, "Sequence paused: contact review required",
+            "A contact failed ownership or contact-quality checks. Review the lead before resuming.");
+          continue;
+        }
         const suppressed = await isEmailSuppressed(seq.userId, leadRecord.email);
         const [inboundReply] = await db
           .select({ id: emailReplies.id })
@@ -198,6 +207,13 @@ export async function processSequenceAutomation(): Promise<void> {
 
         let sent = false;
 
+        // A durable claim doubles as a reconciliation stop if SMTP succeeds but
+        // the following state write fails. Never resend an uncertain outcome.
+        const claimed = await db.update(sequenceEnrollments)
+          .set({ status: "paused", nextSendAt: null })
+          .where(and(eq(sequenceEnrollments.id, enrollment.id), eq(sequenceEnrollments.status, "active")))
+          .returning({ id: sequenceEnrollments.id });
+        if (!claimed.length) continue;
         if (step.channel === "email") {
           const subject = step.subject || `Re: ${seq.name}`;
           const personalizedContent = step.content
@@ -205,15 +221,6 @@ export async function processSequenceAutomation(): Promise<void> {
             .replace(/\{\{company\}\}/gi, leadRecord.company || "your company")
             .replace(/\{\{email\}\}/gi, leadRecord.email || "");
           sent = await sendSequenceEmail(seq.userId, leadRecord, subject, personalizedContent);
-        } else if (step.channel === "sms") {
-          console.log(`[SeqAuto] SMS step for ${leadRecord.name} — would send via Twilio`);
-          sent = true;
-        } else if (step.channel === "linkedin") {
-          console.log(`[SeqAuto] LinkedIn step for ${leadRecord.name} — logged for manual action`);
-          sent = true;
-        } else if (step.channel === "call") {
-          console.log(`[SeqAuto] Call step for ${leadRecord.name} — queued for Voice AI`);
-          sent = true;
         }
 
         if (sent) {
@@ -241,6 +248,13 @@ export async function processSequenceAutomation(): Promise<void> {
 
           automationStatus.stepsSent++;
           console.log(`[SeqAuto] Executed step ${nextStepNumber} (${step.channel}) for ${leadRecord.name} in "${seq.name}"`);
+        } else {
+          // Fail closed: a scheduler tick must not retry a failed step indefinitely
+          // or mark an unimplemented channel as successfully sent.
+          await db.update(sequenceEnrollments).set({ status: "paused", nextSendAt: null })
+            .where(eq(sequenceEnrollments.id, enrollment.id));
+          await notify(seq.userId, "Sequence paused: sending needs attention",
+            `Step ${nextStepNumber} could not be sent. Review sender settings, contact quality and email logs before resuming. Non-email steps require manual action.`);
         }
       } catch (err: any) {
         console.error(`[SeqAuto] Enrollment ${enrollment.id} error: ${err.message}`);

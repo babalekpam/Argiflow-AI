@@ -15,6 +15,7 @@ import { eq, and, desc, sql, lte, isNull } from "drizzle-orm";
 import { storage } from "./storage";
 import Anthropic from "@anthropic-ai/sdk";
 import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
+import { getLeadContactIssue } from "./outreach-quality-gate";
 import {
   workflows,
   workflowNodes,
@@ -643,6 +644,12 @@ async function executeNode(
       }
 
       if (isValidRecipientEmail(to)) {
+        if (context.leadId) {
+          const lead = await storage.getLeadById(String(context.leadId));
+          if (!lead || lead.userId !== userId || getLeadContactIssue(lead)) {
+            return { output: { emailSent: false, blocked: true, error: "Lead requires contact-quality review" } };
+          }
+        }
         if (await isEmailSuppressed(userId, to)) {
           return { output: { emailSent: false, blocked: true, error: "Recipient is suppressed or unsubscribed" } };
         }

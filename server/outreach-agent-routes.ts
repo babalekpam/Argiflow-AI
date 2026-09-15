@@ -96,7 +96,7 @@ router.get("/config", async (req, res) => {
       dailyProspectLimit: 10,
       autoCampaignId: null,
       autoEnrollEnabled: false,
-      autoReplyEnabled: true,
+      autoReplyEnabled: false,
       aiPersonality: "professional",
       autoBookEnabled: false,
       calendarLink: "",
@@ -132,7 +132,12 @@ router.get("/config", async (req, res) => {
 router.put("/config", async (req, res) => {
   try {
     const userId = getUserId(req);
-    const settings = req.body;
+    const settings = {
+      ...(req.body && typeof req.body === "object" ? req.body : {}),
+      // Auto replies are opt-in.  Persist false when omitted so a legacy
+      // default cannot silently enable sending.
+      autoReplyEnabled: req.body?.autoReplyEnabled === true,
+    };
 
     const [existing] = await db.select().from(agentConfigs)
       .where(and(eq(agentConfigs.userId, userId), eq(agentConfigs.agentType, "outreach_agent")));
