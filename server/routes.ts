@@ -50,6 +50,10 @@ import postalService from "./postal";
 import emailQuotaRoutes from "./email-quota-routes";
 import { isEmailSuppressed, isValidRecipientEmail, suppressEmail } from "./email-suppression";
 import {
+  establishUserSession,
+  SessionEstablishmentError,
+} from "./auth-session";
+import {
   buildInboxRoutes,
   canAutoRespond,
   classifyInboundReply,
@@ -2967,14 +2971,26 @@ export async function registerRoutes(
       if (!valid) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
-      req.session.userId = user.id;
-      delete req.session.adminId;
-      delete req.session.originalUserId;
+      await establishUserSession(req, user.id);
       res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, jobTitle: user.jobTitle, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
     } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ message: "Login failed" });
+      if (error instanceof SessionEstablishmentError) {
+        console.error("[Auth] Login session establishment failed");
+        return res.status(500).json({
+          message: "Login failed",
+          code: error.code,
+        });
+      }
+      console.error("[Auth] Login failed");
+      return res.status(500).json({ message: "Login failed", code: "LOGIN_FAILED" });
     }
+  });
+
+  app.get("/api/auth/session", (req, res) => {
+    if (!req.session?.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    return res.json({ authenticated: true });
   });
 
   app.post("/api/auth/logout", (req, res) => {

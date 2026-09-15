@@ -1,3 +1,4 @@
+- [Verify active authentication](auth-runtime-verification.md) — Provider provisioning and migration task status do not prove which login mechanism is live.
 - [Email outcome reconciliation](email-outcome-reconciliation.md) — Uncertain accepted sends pause instead of retrying; handoff and delivery are distinct evidence.
 - [AI provider selection](ai-provider-selection.md) — Explicit tenant choices outrank platform defaults; authentication failures must not silently switch providers.
 - [Outreach safety boundaries](outreach-safety-boundaries.md) — Treat tracking as untrusted, fail closed on ambiguous replies, and persist opt-outs outside deletable lead records.

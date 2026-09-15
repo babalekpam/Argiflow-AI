@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { clearExpiredSession } from "@/lib/queryClient";
 
 export function SmtpTestButton({ unsaved }: { unsaved: boolean }) {
   const sending = useRef(false);
@@ -11,7 +12,27 @@ export function SmtpTestButton({ unsaved }: { unsaved: boolean }) {
     sending.current = true;
     setState("sending");
     setMessage("");
+    let sendRequested = false;
     try {
+      const session = await fetch("/api/auth/session", { credentials: "include", cache: "no-store" });
+      if (session.status === 401) {
+        clearExpiredSession();
+        setState("login");
+        setMessage("Your login session has expired. Sign in again on this site. No email was sent.");
+        return;
+      }
+      if (!session.ok) {
+        setState("error");
+        setMessage("Could not verify your login session. No email was sent. Please try again when the connection is restored.");
+        return;
+      }
+      const sessionStatus = await session.json();
+      if (sessionStatus.authenticated !== true) {
+        setState("error");
+        setMessage("The server could not confirm your login. No email was sent.");
+        return;
+      }
+      sendRequested = true;
       const response = await fetch("/api/test-email", {
         method: "POST",
         credentials: "include",
@@ -19,6 +40,7 @@ export function SmtpTestButton({ unsaved }: { unsaved: boolean }) {
         body: "{}",
       });
       if (response.status === 401) {
+        clearExpiredSession();
         setState("login");
         setMessage("Your login session is not recognized. Sign in again on this site, then return to Settings. No email was sent.");
         return;
@@ -32,8 +54,10 @@ export function SmtpTestButton({ unsaved }: { unsaved: boolean }) {
       setState("done");
       setMessage(`The mail server accepted the test for ${result.recipient}. Check Inbox and Spam for “SMTP verification test”. Acceptance does not confirm arrival. Do not resend while checking.`);
     } catch {
-      setState("done");
-      setMessage("The result could not be confirmed. Check your inbox before trying again; the message may have been sent. No automatic retry was attempted.");
+      setState(sendRequested ? "done" : "error");
+      setMessage(sendRequested
+        ? "The result could not be confirmed. Check your inbox before trying again; the message may have been sent. No automatic retry was attempted."
+        : "Could not verify your login session. No email was sent.");
     } finally {
       sending.current = false;
     }

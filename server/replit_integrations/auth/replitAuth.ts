@@ -19,12 +19,13 @@ const getOidcConfig = memoize(
 );
 
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const sessionTtlSeconds = 7 * 24 * 60 * 60; // 1 week; connect-pg-simple expects seconds
+  const sessionTtl = sessionTtlSeconds * 1000; // express-session cookie maxAge expects milliseconds
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
     createTableIfMissing: false,
-    ttl: sessionTtl,
+    ttl: sessionTtlSeconds,
     tableName: "sessions",
   });
   return session({

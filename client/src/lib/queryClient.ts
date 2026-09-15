@@ -1,5 +1,9 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+export function clearExpiredSession() {
+  queryClient.setQueryData(["/api/auth/user"], null);
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -29,6 +33,9 @@ export async function apiRequest(
     credentials: "include",
   });
 
+  if (res.status === 401 && !url.startsWith("/api/auth/login") && !url.startsWith("/api/admin/login")) {
+    clearExpiredSession();
+  }
   await throwIfResNotOk(res);
   return res;
 }
@@ -43,6 +50,7 @@ export const getQueryFn: <T>(options: {
       credentials: "include",
     });
 
+    if (res.status === 401) clearExpiredSession();
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
     }

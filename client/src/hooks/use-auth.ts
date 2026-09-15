@@ -17,6 +17,7 @@ interface AuthUser {
 async function fetchUser(): Promise<AuthUser | null> {
   const response = await fetch("/api/auth/user", {
     credentials: "include",
+    cache: "no-store",
   });
 
   if (response.status === 401) {
@@ -36,7 +37,8 @@ export function useAuth() {
     queryKey: ["/api/auth/user"],
     queryFn: fetchUser,
     retry: false,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const logoutMutation = useMutation({
@@ -52,8 +54,15 @@ export function useAuth() {
   const login = async (data: { email: string; password: string }) => {
     const res = await apiRequest("POST", "/api/auth/login", data);
     const userData = await res.json();
-    queryClient.setQueryData(["/api/auth/user"], userData);
-    return userData;
+    // A successful password check isn't enough: verify the browser can return
+    // the saved session cookie before displaying an authenticated dashboard.
+    const sessionUser = await fetchUser();
+    if (!sessionUser || sessionUser.id !== userData.id) {
+      queryClient.setQueryData(["/api/auth/user"], null);
+      throw new Error("Your password was accepted, but this browser did not keep the login session. Stay on this website and allow its first-party cookies, then sign in again. No email was sent.");
+    }
+    queryClient.setQueryData(["/api/auth/user"], sessionUser);
+    return sessionUser;
   };
 
   const register = async (data: { email: string; password: string; firstName: string; lastName: string }) => {
