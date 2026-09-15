@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SmtpTestButton } from "@/components/smtp-test-button";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -1128,6 +1129,7 @@ export default function SettingsPage() {
                   <Save className="w-3.5 h-3.5 mr-1.5" />
                   {updateMutation.isPending ? t("settings.saving") : t("settings.save")}
                 </Button>
+                <SmtpTestButton unsaved={dirtyFields.size > 0 || updateMutation.isPending} />
               </div>
             )}
           </Card>

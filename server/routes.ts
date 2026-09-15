@@ -10532,8 +10532,19 @@ The ArgiFlow Team`;
   app.use("/api/email", emailQuotaRoutes);
   app.use("/api/domains", domainRoutes);
 
-  app.get("/api/test-email", isAuthenticated, async (req, res) => {
+  // GET links must never send mail: navigation/prefetching isn't send consent.
+  app.get("/api/test-email", (_req, res) => {
+    res.setHeader("Allow", "POST");
+    res.status(405).json({ message: "Use Settings → Email Provider → Send test email while signed in." });
+  });
+  const smtpTestsInFlight = new Set<string>();
+  app.post("/api/test-email", isAuthenticated, async (req, res) => {
     const userId = req.session.userId!;
+    if (smtpTestsInFlight.has(userId)) {
+      return res.status(409).json({ success: false, error: "A test is already running. Wait for its result before sending another." });
+    }
+    smtpTestsInFlight.add(userId);
+    try {
     const tenantSettings = await storage.getSettingsByUser(userId);
     const user = await storage.getUserById(userId);
     const smtpHost = tenantSettings?.smtpHost;
@@ -10559,13 +10570,30 @@ The ArgiFlow Team`;
       const r = await t.sendMail({
         from: senderEmail,
         to: user.email,
-        subject: "Track-Med SMTP test",
-        html: "<p>Your Track-Med tenant SMTP configuration is working.</p>",
+        subject: "SMTP verification test",
+        text: "This is a single SMTP verification email sent from your saved company mailbox. If you can read this message, it reached this mailbox. Reply to this message to check the return address in your sender mailbox. This test is not linked to a CRM lead and does not verify automatic reply matching.",
       });
-      res.json({ success: true, messageId: r.messageId });
+      if (!r.accepted?.length) {
+        return res.status(502).json({ success: false, error: "The mail server did not accept the test recipient." });
+      }
+      res.json({ success: true, messageId: r.messageId, recipient: user.email });
     } catch (e: any) {
-      console.error("[TestEmail] Delivery failed:", e.message);
-      res.status(502).json({ success: false, error: "Email delivery failed" });
+      const authFailure = e?.code === "EAUTH";
+      console.error("[TestEmail] Delivery failed:", authFailure ? "smtp_authentication_failed" : "smtp_test_unconfirmed");
+      res.status(502).json({
+        success: false,
+        requiresReview: !authFailure,
+        error: authFailure
+          ? "The SMTP provider rejected authentication. Review the saved mailbox credentials in Email Provider settings, not your app login password."
+          : "The SMTP test outcome is unconfirmed. Check your mailbox before resending; no automatic retry was attempted.",
+      });
+    } finally {
+      t.close();
+    }
+    } catch {
+      res.status(500).json({ success: false, error: "Could not load the saved mailbox settings. No test was sent." });
+    } finally {
+      smtpTestsInFlight.delete(userId);
     }
   });
 
