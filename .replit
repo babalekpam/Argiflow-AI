@@ -56,3 +56,7 @@ SES_SMTP_HOST = "email-smtp.us-east-2.amazonaws.com"
 SES_SMTP_PORT = "587"
 SES_SMTP_USER = "AKIAS2M546PKONWP4HFE"
 SES_FROM_EMAIL = "partnerships@argilette.co"
+
+[postMerge]
+path = "script/post-merge.sh"
+timeoutMs = 300000

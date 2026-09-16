@@ -48,8 +48,7 @@ import marketingSuiteRoutes from "./marketing-suite-routes";
 import marketingAutopilotRoutes from "./marketing-autopilot-routes";
 import { startAutopilotScheduler } from "./marketing-autopilot";
 import { getTemplateInstructions, detectSpecialty, getFollowUpForSpecialty, TRACKMED_SEQUENCES, generateTrackMedHtmlEmail } from "./outreach-templates";
-import postalRoutes from "./postal-routes";
-import postalService from "./postal";
+import { sendViaSmtp } from "./smtp";
 import emailQuotaRoutes from "./email-quota-routes";
 import { isEmailSuppressed, isExplicitOptOutText, isValidRecipientEmail, suppressEmail } from "./email-suppression";
 import {
@@ -255,37 +254,20 @@ async function pauseLeadForUnknownEmailOutcome(lead: any, source: "outreach" | "
   }
 }
 
-async function sendViaPostal(params: { to: string; toName?: string; fromEmail: string; fromName: string; subject: string; html: string; plainText?: string }): Promise<{ success: boolean; error?: string }> {
-  const recipient = params.toName
-    ? { address: params.to, name: params.toName }
-    : params.to;
-
-  const result = await postalService.sendEmail({
-    to: recipient,
-    from: params.fromEmail,
-    fromName: params.fromName,
-    subject: params.subject,
-    htmlBody: params.html,
-    plainBody: params.plainText,
-  });
-
-  return { success: result.success, error: result.error };
-}
-
 async function sendSystemEmail(to: string, from: { email: string; name: string }, subject: string, html: string, userId?: string) {
   const logUserId = userId || "system";
   try {
-    const result = await sendViaPostal({ to, fromEmail: from.email, fromName: from.name, subject, html });
+    const result = await sendViaSmtp({ to, from: from.email, fromName: from.name, subject, html });
     if (result.success) {
       console.log(`[SystemEmail] Sent to ${to}`);
-      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "postal", source: "system", status: "sent" });
+      await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "smtp", source: "system", status: "sent" });
       return;
     }
     throw new Error(result.error || "Send failed");
   } catch (err: any) {
     const errorMsg = err?.message || "Failed to send system email";
     console.error(`[SystemEmail] Send error to ${to}:`, errorMsg);
-    await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "postal", source: "system", status: "failed", errorMessage: errorMsg });
+    await logEmail({ userId: logUserId, recipientEmail: to, subject, provider: "smtp", source: "system", status: "failed", errorMessage: errorMsg });
   }
 }
 
@@ -10657,7 +10639,6 @@ The ArgiFlow Team`;
   app.use("/api/council", isAuthenticated, councilRoutes);
 
   startAutopilotScheduler();
-  app.use("/api/postal", postalRoutes);
   app.use("/api/email", emailQuotaRoutes);
   app.use("/api/domains", domainRoutes);
 
