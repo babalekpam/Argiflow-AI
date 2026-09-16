@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { registerTrackerPublicRoutes, registerTrackerDashboardRoutes } from "./tracker-routes";
-import { eq, and, sql, desc, or, ilike, isNull, lte } from "drizzle-orm";
+import { eq, and, sql, desc, or, ilike, isNull, lte, inArray } from "drizzle-orm";
 import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnelStages, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts, emailAccounts } from "@shared/schema";
 import { campaigns, campaignLeads } from "@shared/instantly-schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
@@ -48,7 +48,7 @@ import { getTemplateInstructions, detectSpecialty, getFollowUpForSpecialty, TRAC
 import postalRoutes from "./postal-routes";
 import postalService from "./postal";
 import emailQuotaRoutes from "./email-quota-routes";
-import { isEmailSuppressed, isValidRecipientEmail, suppressEmail } from "./email-suppression";
+import { isEmailSuppressed, isExplicitOptOutText, isValidRecipientEmail, suppressEmail } from "./email-suppression";
 import {
   establishUserSession,
   SessionEstablishmentError,
@@ -5684,6 +5684,43 @@ RULES:
     };
   }
 
+  /**
+   * Stop only campaign enrollments owned by this tenant.  Campaign leads do
+   * not carry userId, so campaign ownership must be established first instead
+   * of updating by leadId alone.  A normal human reply respects stopOnReply;
+   * an explicit opt-out bypasses that setting and unsubscribes every
+   * tenant-owned enrollment for the contact.
+   */
+  async function stopTenantCampaignLeadsForInboundReply(
+    userId: string,
+    leadId: string,
+    status: "replied" | "unsubscribed",
+    onlyStopOnReply: boolean,
+  ): Promise<number> {
+    const campaignConditions = [eq(campaigns.userId, userId)];
+    if (onlyStopOnReply) campaignConditions.push(eq(campaigns.stopOnReply, true));
+    const ownedCampaigns = await db.select({ id: campaigns.id })
+      .from(campaigns)
+      .where(and(...campaignConditions));
+    const campaignIds = ownedCampaigns.map(campaign => campaign.id);
+    if (campaignIds.length === 0) return 0;
+
+    const leadConditions = [
+      eq(campaignLeads.leadId, leadId),
+      inArray(campaignLeads.campaignId, campaignIds),
+    ];
+    if (status === "replied") {
+      // Never reset a prior unsubscribe or bounce if a delayed reply races
+      // the suppression/terminal-state write.
+      leadConditions.push(sql`${campaignLeads.status} NOT IN ('unsubscribed', 'bounced')`);
+    }
+    const updated = await db.update(campaignLeads)
+      .set({ status })
+      .where(and(...leadConditions))
+      .returning({ id: campaignLeads.id });
+    return updated.length;
+  }
+
   async function checkInboxAndReply(tenantUserId?: string) {
     const requestedStatus = tenantUserId ? getTenantInboxStatus(tenantUserId) : inboxMonitorStatus;
     if (inboxMonitorRunLock || requestedStatus.processing) {
@@ -5821,12 +5858,45 @@ RULES:
                   contentType: String((parsedMessage as any)?.contentType || parsedMessage?.headers?.get("content-type") || parsedMessage?.headerLines?.find(line => /^content-type:/i.test(line.line))?.line || ""),
                 });
                 const matchedLead = matched.lead;
-                const replyStatus = classification.status;
+                const explicitOptOut = !classification.parseFailed && (
+                  classification.isOptOut ||
+                  isExplicitOptOutText(`${subject}\n${bodyText}`)
+                );
+                const replyStatus = explicitOptOut ? "unsubscribed" : classification.status;
+                const sameAddressLeads = routeLeads.filter(lead =>
+                  normalizeEmailAddress(lead.email) === matched.fromEmail,
+                );
 
                 // Commit the durable opt-out before acknowledging the IMAP
                 // message.  If this write fails the message remains retryable.
-                if (classification.isOptOut && !classification.parseFailed) {
+                if (explicitOptOut) {
                   await suppressEmail(route.userId, matched.fromEmail);
+                  const matchingLeadIds = Array.from(new Set([
+                    matchedLead.id,
+                    ...sameAddressLeads.map(lead => lead.id),
+                  ]));
+                  let campaignLeadsUnsubscribed = 0;
+                  for (const matchingLeadId of matchingLeadIds) {
+                    campaignLeadsUnsubscribed += await stopTenantCampaignLeadsForInboundReply(
+                      route.userId,
+                      matchingLeadId,
+                      "unsubscribed",
+                      false,
+                    );
+                  }
+                  if (campaignLeadsUnsubscribed > 0) {
+                    recordRunDiagnostic("campaign_leads_unsubscribed");
+                  }
+                } else if (!classification.parseFailed && !classification.isAutomated) {
+                  const campaignLeadsStopped = await stopTenantCampaignLeadsForInboundReply(
+                    route.userId,
+                    matchedLead.id,
+                    "replied",
+                    true,
+                  );
+                  if (campaignLeadsStopped > 0) {
+                    recordRunDiagnostic("campaign_leads_stopped_on_reply");
+                  }
                 }
 
                 await storage.createEmailReply({
@@ -5844,19 +5914,12 @@ RULES:
                 if (messageId) seenMessageIds.add(messageId);
                 if (!messageId) seenInboundKeys.add(inboundKey);
                 currentStatus.repliesFound++;
-                // Mark the inbound ID as handled before any optional AI work.
-                // This prevents a send failure from producing a duplicate reply.
-                await client.messageFlagsAdd(uid, ["\\Seen"]);
-
-                const sameAddressLeads = routeLeads.filter(lead =>
-                  normalizeEmailAddress(lead.email) === matched.fromEmail,
-                );
 
                 if (classification.parseFailed) {
                   // A malformed body is visible as a quarantined reply but
                   // cannot mutate CRM state or trigger suppression/AI.
                   recordRunDiagnostic("matched_message_parse_quarantined");
-                } else if (classification.isOptOut) {
+                } else if (explicitOptOut) {
                   // Suppression is independent of the lead row and survives
                   // lead deletion or deduplication.
                   await Promise.all(sameAddressLeads.map(lead =>
@@ -5893,9 +5956,22 @@ RULES:
                 }
 
                 let seqsStopped = 0;
-                if (classification.qualifies || classification.isOptOut || (classification.isNegative && !classification.isAutomated)) {
-                  seqsStopped = await stopSequencesForLead(matchedLead.id, "replied");
+                if (classification.qualifies || explicitOptOut || (classification.isNegative && !classification.isAutomated)) {
+                  const sequenceLeadIds = explicitOptOut
+                    ? Array.from(new Set([matchedLead.id, ...sameAddressLeads.map(lead => lead.id)]))
+                    : [matchedLead.id];
+                  for (const sequenceLeadId of sequenceLeadIds) {
+                    seqsStopped += await stopSequencesForLead(
+                      sequenceLeadId,
+                      explicitOptOut ? "unsubscribed" : "replied",
+                    );
+                  }
                 }
+
+                // Mark the inbound ID as handled only after suppression and
+                // tenant campaign/sequence state are durable.  A failed
+                // state write must leave the message retryable.
+                await client.messageFlagsAdd(uid, ["\\Seen"]);
 
                 if (classification.qualifies) {
                   try {
@@ -5911,7 +5987,7 @@ RULES:
                 try {
                   await storage.createNotification({
                     userId: route.userId,
-                    title: classification.isOptOut
+                    title: explicitOptOut
                       ? "Lead opted out"
                       : classification.isAutomated
                           ? "Automated reply received"
@@ -5922,7 +5998,7 @@ RULES:
                           : "New prospect reply",
                     message: classification.parseFailed
                       ? "A matched inbound email could not be parsed and was quarantined for review."
-                      : classification.isOptOut
+                      : explicitOptOut
                         ? "The sender was added to the durable suppression list."
                         : classification.isAutomated
                             ? "No lead qualification or automatic response was performed."

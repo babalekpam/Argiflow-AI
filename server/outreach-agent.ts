@@ -14,7 +14,7 @@
 // ============================================================
 
 import { db } from "./db";
-import { eq, and, sql, lte, isNull, desc, count } from "drizzle-orm";
+import { eq, and, sql, lte, desc, count, inArray } from "drizzle-orm";
 import {
   emailAccounts, campaigns, campaignSequences, campaignLeads,
   campaignSendingAccounts, inboxMessages, campaignDailyAnalytics,
@@ -25,8 +25,8 @@ import {
 } from "../shared/schema";
 import { instantlyEngine } from "./instantly-engine";
 import nodemailer from "nodemailer";
-import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
-import { getLeadContactIssue } from "./outreach-quality-gate";
+import { isEmailSuppressed, isExplicitOptOutText, isValidRecipientEmail, suppressEmail } from "./email-suppression";
+import { getLeadContactIssue, getTenantSmtpConfigIssue } from "./outreach-quality-gate";
 import { storage } from "./storage";
 import { workflowHooks } from "./workflow-hooks";
 import { canAgentAutoReply, hasExplicitAgentAutoReplyOptIn } from "./inbox-reliability";
@@ -36,6 +36,57 @@ function trackingBaseUrl(): string {
   if (process.env.REPLIT_DOMAINS) return `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;
   if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   return "https://argilette.co";
+}
+
+/**
+ * Campaign launch authorization is persisted in agent_tasks because that
+ * table is already durable and tenant-scoped.  The marker is deliberately
+ * not encoded in a campaign name, variant, or another user-editable field:
+ *
+ *   agentType: "outreach_agent"
+ *   taskType: "campaign_launch_authorized"
+ *   status: "authorized"
+ *   result: JSON.stringify({
+ *     schema: "campaign_launch_authorization",
+ *     version: 1,
+ *     campaignId: string,
+ *   })
+ *
+ * The launch transaction must insert this row with the same transaction
+ * handle used to activate the campaign.  The dispatcher only sends campaigns
+ * that have this exact marker and are still active.
+ */
+export const CAMPAIGN_LAUNCH_AUTH_TASK_TYPE = "campaign_launch_authorized";
+const CAMPAIGN_LAUNCH_AUTH_SCHEMA = "campaign_launch_authorization";
+const CAMPAIGN_LAUNCH_AUTH_VERSION = 1;
+
+export type CampaignLaunchAuthorization = {
+  schema: typeof CAMPAIGN_LAUNCH_AUTH_SCHEMA;
+  version: typeof CAMPAIGN_LAUNCH_AUTH_VERSION;
+  campaignId: string;
+};
+
+export async function registerCampaignLaunch(
+  database: any,
+  userId: string,
+  campaignId: string,
+): Promise<void> {
+  if (!database || !userId || !campaignId) {
+    throw new Error("Campaign launch authorization requires a tenant and campaign");
+  }
+
+  await database.insert(agentTasks).values({
+    userId,
+    agentType: "outreach_agent",
+    taskType: CAMPAIGN_LAUNCH_AUTH_TASK_TYPE,
+    description: "User-approved campaign launch authorization",
+    status: "authorized",
+    result: JSON.stringify({
+      schema: CAMPAIGN_LAUNCH_AUTH_SCHEMA,
+      version: CAMPAIGN_LAUNCH_AUTH_VERSION,
+      campaignId,
+    } satisfies CampaignLaunchAuthorization),
+  });
 }
 
 // ============================================================
@@ -96,6 +147,7 @@ interface ReplyContext {
 export class OutreachAgent {
   private running: Map<string, boolean> = new Map();
   private intervals: Map<string, NodeJS.Timeout> = new Map();
+  private sendQueueLocks: Set<string> = new Set();
 
   // ── START / STOP ──────────────────────────────────────────
 
@@ -446,15 +498,41 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
 
   // ── STEP 3: PROCESS SEND QUEUE ────────────────────────────
 
-  async processSendQueue(userId: string): Promise<void> {
-    const config = await this.getAgentConfig(userId);
+  /**
+   * Process only the selected campaign.  The optional argument is retained
+   * for the legacy full agent API, but the approved-launch dispatcher always
+   * supplies it and never invokes discovery or enrollment.
+   */
+  async processSendQueue(userId: string, campaignId?: string): Promise<void> {
+    if (this.sendQueueLocks.has(userId)) return;
+    this.sendQueueLocks.add(userId);
 
     try {
+      const config = await this.getAgentConfig(userId);
+      // Campaign delivery is always tenant-owned SMTP.  In particular, do
+      // not fall back to a platform provider when the saved sender is
+      // incomplete or when the campaign metadata points at another account.
+      const tenantSmtpSettings = await this.getUserSettings(userId);
+      const tenantSmtpIssue = getTenantSmtpConfigIssue(tenantSmtpSettings);
+      if (tenantSmtpIssue) {
+        console.warn(`[OutreachAgent] Campaign send blocked for ${userId}: ${tenantSmtpIssue}`);
+        return;
+      }
+
       // Find active campaigns
+      const activeCampaignConditions = [
+        eq(campaigns.userId, userId),
+        eq(campaigns.status, "active"),
+      ];
+      if (campaignId) activeCampaignConditions.push(eq(campaigns.id, campaignId));
       const activeCampaigns = await db.select().from(campaigns)
-        .where(and(eq(campaigns.userId, userId), eq(campaigns.status, "active")));
+        .where(and(...activeCampaignConditions));
 
       for (const campaign of activeCampaigns) {
+        if (campaign.stopOnReply !== true) {
+          console.warn(`[OutreachAgent] Campaign ${campaign.id} is not stop-on-reply safe; skipping sends`);
+          continue;
+        }
         // Check sending schedule (respect business hours)
         if (!this.isWithinSendingHours(campaign)) continue;
 
@@ -465,9 +543,17 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
         if (sendAccounts.length === 0) continue;
 
         const accountDetails = await Promise.all(
-          sendAccounts.map(sa => db.select().from(emailAccounts).where(eq(emailAccounts.id, sa.accountId)))
+          sendAccounts.map(sa => db.select().from(emailAccounts).where(and(
+            eq(emailAccounts.id, sa.accountId),
+            eq(emailAccounts.userId, userId),
+          )))
         );
-        const activeAccounts = accountDetails.flat().filter(a => a.isActive && (a.sentToday || 0) < (a.dailySendLimit || 50));
+        const savedSender = String(tenantSmtpSettings.senderEmail).trim().toLowerCase();
+        const activeAccounts = accountDetails.flat().filter(a =>
+          a.isActive &&
+          String(a.email || "").trim().toLowerCase() === savedSender &&
+          (a.sentToday || 0) < (a.dailySendLimit || 50),
+        );
 
         if (activeAccounts.length === 0) continue;
 
@@ -497,7 +583,10 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
           const [lead] = await db.select().from(leads).where(eq(leads.id, cl.leadId));
           if (!lead) continue;
           if (lead.userId !== userId || getLeadContactIssue(lead)) {
-            await db.update(campaignLeads).set({ status: "paused" }).where(eq(campaignLeads.id, cl.id));
+            await db.update(campaignLeads).set({ status: "paused" }).where(and(
+              eq(campaignLeads.id, cl.id),
+              eq(campaignLeads.campaignId, campaign.id),
+            ));
             continue;
           }
 
@@ -506,9 +595,56 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
           const sequence = sequences.find(s => s.stepNumber === currentStep + 1);
           if (!sequence) {
             // All steps completed
-            await db.update(campaignLeads).set({ status: "sent" }).where(eq(campaignLeads.id, cl.id));
+            await db.update(campaignLeads).set({ status: "sent" }).where(and(
+              eq(campaignLeads.id, cl.id),
+              eq(campaignLeads.campaignId, campaign.id),
+            ));
             continue;
           }
+          if (!sequence.subject.trim() || !sequence.body.trim()) {
+            await db.update(campaignLeads)
+              .set({ status: "paused", nextSendAt: null })
+              .where(and(
+                eq(campaignLeads.id, cl.id),
+                eq(campaignLeads.campaignId, campaign.id),
+              ));
+            continue;
+          }
+
+          // Re-read all ownership, active-campaign, pending-enrollment,
+          // contact-state, and suppression gates immediately before claiming
+          // the row for SMTP.  A launch or reply race must fail closed rather
+          // than reset another campaign's lead state.
+          const [currentCampaign] = await db.select({ id: campaigns.id })
+            .from(campaigns)
+            .where(and(
+              eq(campaigns.id, campaign.id),
+              eq(campaigns.userId, userId),
+              eq(campaigns.status, "active"),
+              eq(campaigns.stopOnReply, true),
+            ))
+            .limit(1);
+          const [currentCampaignLead] = await db.select({ id: campaignLeads.id })
+            .from(campaignLeads)
+            .where(and(
+              eq(campaignLeads.id, cl.id),
+              eq(campaignLeads.campaignId, campaign.id),
+              eq(campaignLeads.status, "pending"),
+            ))
+            .limit(1);
+          const [currentLead] = await db.select().from(leads)
+            .where(and(
+              eq(leads.id, cl.leadId),
+              eq(leads.userId, userId),
+              sql`lower(trim(${leads.status})) NOT IN ('replied', 'lost', 'unsubscribed')`,
+            ))
+            .limit(1);
+          if (!currentCampaign || !currentCampaignLead || !currentLead ||
+              getLeadContactIssue(currentLead) ||
+              await isEmailSuppressed(userId, currentLead.email)) {
+            continue;
+          }
+          const sendLead = currentLead;
 
           // Pick account (round-robin rotation)
           const account = activeAccounts[accountIndex % activeAccounts.length];
@@ -517,11 +653,11 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
           // Process spintax + variables
           const { subject, body } = instantlyEngine.processEmailContent(
             sequence.subject, sequence.body, {
-              firstName: lead.name?.split(" ")[0],
-              lastName: lead.name?.split(" ").slice(1).join(" "),
-              name: lead.name,
-              email: lead.email,
-              company: lead.company,
+              firstName: sendLead.name?.split(" ")[0],
+              lastName: sendLead.name?.split(" ").slice(1).join(" "),
+              name: sendLead.name,
+              email: sendLead.email,
+              company: sendLead.company,
             }
           );
 
@@ -530,10 +666,25 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
           // must leave this contact paused, never automatically resend it.
           const claimed = await db.update(campaignLeads)
             .set({ status: "paused", nextSendAt: null })
-            .where(and(eq(campaignLeads.id, cl.id), eq(campaignLeads.status, cl.status)))
+            .where(and(
+              eq(campaignLeads.id, cl.id),
+              eq(campaignLeads.campaignId, campaign.id),
+              eq(campaignLeads.status, cl.status),
+            ))
             .returning({ id: campaignLeads.id });
           if (!claimed.length) continue;
-          const sent = await this.sendEmail(userId, account, lead.email, subject, body, campaign.trackOpens ?? true, lead.id);
+          const sent = await this.sendEmail(
+            userId,
+            account,
+            sendLead.email,
+            subject,
+            body,
+            campaign.trackOpens ?? true,
+            sendLead.id,
+            tenantSmtpSettings,
+            campaign.id,
+            cl.id,
+          );
 
           if (sent) {
             sentCount++;
@@ -550,13 +701,16 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
               lastSentAt: new Date(),
               nextSendAt,
               status: nextStep ? "pending" : "sent",
-            }).where(eq(campaignLeads.id, cl.id));
+            }).where(and(
+              eq(campaignLeads.id, cl.id),
+              eq(campaignLeads.campaignId, campaign.id),
+            ));
 
             // Record in inbox as outbound
             await db.insert(inboxMessages).values({
-              userId, accountId: account.id, campaignId: campaign.id, leadId: lead.id,
+              userId, accountId: account.id, campaignId: campaign.id, leadId: sendLead.id,
               direction: "outbound", fromEmail: account.email, fromName: account.displayName || "",
-              toEmail: lead.email, subject, bodyText: body,
+              toEmail: sendLead.email, subject, bodyText: body,
               snippet: body.substring(0, 120),
             });
 
@@ -566,7 +720,10 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
             }).where(eq(emailAccounts.id, account.id));
           } else {
             await db.update(campaignLeads).set({ status: "paused", nextSendAt: null })
-              .where(eq(campaignLeads.id, cl.id));
+              .where(and(
+                eq(campaignLeads.id, cl.id),
+                eq(campaignLeads.campaignId, campaign.id),
+              ));
             await this.notify(userId, "Campaign contact paused",
               "A message failed or was blocked. Review email logs and contact details before resuming.");
           }
@@ -577,7 +734,11 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
           await db.update(campaigns).set({
             emailsSent: sql`${campaigns.emailsSent} + ${sentCount}`,
             updatedAt: new Date(),
-          }).where(eq(campaigns.id, campaign.id));
+          }).where(and(
+            eq(campaigns.id, campaign.id),
+            eq(campaigns.userId, userId),
+            eq(campaigns.status, "active"),
+          ));
 
           // Daily analytics
           const today = new Date().toISOString().split("T")[0];
@@ -590,61 +751,8 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
       }
     } catch (err: any) {
       console.error(`[OutreachAgent] Campaign send error:`, err.message);
-    }
-
-    // ── DIRECT SEND: Send unsent outreach drafts via platform SMTP/SendGrid ──
-    try {
-      const unsentLeads = await db.select().from(leads)
-        .where(and(
-          eq(leads.userId, userId),
-          sql`${leads.outreach} IS NOT NULL AND ${leads.outreach} != ''`,
-          isNull(leads.outreachSentAt),
-          sql`${leads.email} IS NOT NULL AND ${leads.email} != ''`,
-        ))
-        .limit(config.maxEmailsPerDay || 50);
-
-      if (unsentLeads.length > 0) {
-        const user = await storage.getUserById(userId);
-        const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
-
-        if (user) {
-          const { sendOutreachEmail } = await import("./routes");
-          let directSent = 0;
-          let directFailed = 0;
-
-          for (const lead of unsentLeads) {
-            try {
-              const result = await sendOutreachEmail(lead, settings || {}, user);
-              if (result.success) {
-                directSent++;
-                const followUpNextAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-                await db.update(leads).set({
-                  outreachSentAt: new Date(),
-                  status: "warm",
-                  followUpStep: 0,
-                  followUpStatus: "active",
-                  followUpNextAt,
-                }).where(eq(leads.id, lead.id));
-              } else {
-                directFailed++;
-                console.warn(`[OutreachAgent] Direct send failed for ${lead.email}: ${result.error}`);
-              }
-            } catch (sendErr: any) {
-              directFailed++;
-              console.error(`[OutreachAgent] Direct send error for ${lead.email}: ${sendErr.message}`);
-            }
-
-            // Small delay between sends to avoid rate limits
-            await new Promise(r => setTimeout(r, 1500));
-          }
-
-          if (directSent > 0) {
-            await this.logAgentTask(userId, "send_email", `Directly sent ${directSent} outreach emails (${directFailed} failed)`);
-          }
-        }
-      }
-    } catch (err: any) {
-      console.error(`[OutreachAgent] Direct send error:`, err.message);
+    } finally {
+      this.sendQueueLocks.delete(userId);
     }
   }
 
@@ -718,8 +826,18 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
       ));
     } else {
       // Try to match by email
-      [lead] = await db.select().from(leads)
+      const emailMatches = await db.select().from(leads)
         .where(and(eq(leads.userId, userId), eq(leads.email, message.fromEmail)));
+      if (emailMatches.length === 1) {
+        [lead] = emailMatches;
+      } else if (emailMatches.length > 1) {
+        await db.update(inboxMessages).set({ isRead: true }).where(and(
+          eq(inboxMessages.id, message.id),
+          eq(inboxMessages.userId, userId),
+        ));
+        await this.logAgentTask(userId, "reply_quarantined", "Inbound reply matched multiple tenant leads");
+        return;
+      }
     }
 
     let campaignOwned = true;
@@ -743,6 +861,40 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
       return;
     }
 
+    const explicitOptOut = isExplicitOptOutText(`${message.subject || ""}\n${message.bodyText || ""}`);
+    if (explicitOptOut) {
+      // Suppression is the first durable state change.  It must survive a
+      // later lead/campaign update failure and must be tenant-scoped.
+      await suppressEmail(userId, message.fromEmail);
+      if (lead?.email && lead.email.toLowerCase().trim() !== message.fromEmail.toLowerCase().trim()) {
+        await suppressEmail(userId, lead.email);
+      }
+
+      const matchingContacts = await db.select({ id: leads.id }).from(leads)
+        .where(and(
+          eq(leads.userId, userId),
+          sql`lower(trim(${leads.email})) = lower(trim(${message.fromEmail}))`,
+        ));
+      const matchingLeadIds = Array.from(new Set([
+        ...matchingContacts.map(contact => contact.id),
+        ...(lead ? [lead.id] : []),
+      ]));
+      if (matchingLeadIds.length > 0) {
+        await db.update(leads).set({
+          status: "unsubscribed",
+          engagementLevel: "none",
+          nextStep: "Do not contact — prospect opted out",
+          followUpStatus: "completed",
+        }).where(and(
+          eq(leads.userId, userId),
+          inArray(leads.id, matchingLeadIds),
+        ));
+        for (const matchingLeadId of matchingLeadIds) {
+          await this.updateOwnedCampaignLeads(userId, matchingLeadId, "unsubscribed");
+        }
+      }
+    }
+
     // Update message with AI label only after tenant ownership is resolved.
     await db.update(inboxMessages).set({
       aiLabel: classification.label,
@@ -758,8 +910,9 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
       return;
     }
 
-    // Update lead engagement
-    if (lead) {
+    // Update lead engagement, but never overwrite an explicit opt-out with
+    // warm/hot state before the durable suppression and unsubscribe writes.
+    if (lead && !explicitOptOut) {
       await db.update(leads).set({
         engagementLevel: classification.sentiment === "positive" ? "hot" : "warm",
         engagementScore: sql`${leads.engagementScore} + 10`,
@@ -773,11 +926,23 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
         emailsReplied: sql`${campaigns.emailsReplied} + 1`,
       }).where(and(eq(campaigns.id, message.campaignId), eq(campaigns.userId, userId)));
 
-      // Stop sequence if stopOnReply
-      if (lead && message.leadId) {
-        await db.update(campaignLeads).set({ status: "replied" })
-          .where(and(eq(campaignLeads.leadId, message.leadId), eq(campaignLeads.campaignId, message.campaignId)));
-      }
+    }
+
+    const directHumanReply = [
+      "interested",
+      "meeting_booked",
+      "question",
+      "referral",
+      "not_interested",
+      "wrong_person",
+    ].includes(classification.label);
+    if (lead && directHumanReply) {
+      await this.updateOwnedCampaignLeads(
+        userId,
+        lead.id,
+        explicitOptOut ? "unsubscribed" : "replied",
+        !explicitOptOut,
+      );
     }
 
     // ── DECISION TREE ───────────────────────────────────────
@@ -797,7 +962,7 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
         break;
 
       case "not_interested":
-        await this.handleNotInterested(userId, message, lead, config);
+        await this.handleNotInterested(userId, message, lead, config, explicitOptOut);
         break;
 
       case "out_of_office":
@@ -927,8 +1092,38 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
     }
   }
 
-  private async handleNotInterested(userId: string, message: any, lead: any, config: AgentConfig): Promise<void> {
+  private async handleNotInterested(
+    userId: string,
+    message: any,
+    lead: any,
+    config: AgentConfig,
+    explicitOptOut = isExplicitOptOutText(`${message.subject || ""}\n${message.bodyText || ""}`),
+  ): Promise<void> {
     await this.notify(userId, "❌ Not Interested", `${message.fromEmail} declined`);
+
+    if (explicitOptOut) {
+      // The caller normally persists this first, but keep this handler safe
+      // when invoked independently by another reply path.
+      await suppressEmail(userId, message.fromEmail);
+      if (lead?.email && lead.email.toLowerCase().trim() !== message.fromEmail.toLowerCase().trim()) {
+        await suppressEmail(userId, lead.email);
+      }
+
+      const matchingContacts = await db.select({ id: leads.id }).from(leads)
+        .where(and(
+          eq(leads.userId, userId),
+          sql`lower(trim(${leads.email})) = lower(trim(${message.fromEmail}))`,
+        ));
+      const matchingLeadIds = Array.from(new Set([
+        ...matchingContacts.map(contact => contact.id),
+        ...(lead ? [lead.id] : []),
+      ]));
+      for (const matchingLeadId of matchingLeadIds) {
+        await this.updateOwnedCampaignLeads(userId, matchingLeadId, "unsubscribed");
+      }
+      await this.logAgentTask(userId, "unsubscribed", `${message.fromEmail} opted out — removed from all tenant campaigns`);
+      return;
+    }
 
     if (lead) {
       await db.update(leads).set({ status: "lost", engagementLevel: "cold" })
@@ -936,9 +1131,8 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
     }
 
     // Stop all campaign sequences for this lead
-    if (lead && message.leadId) {
-      await db.update(campaignLeads).set({ status: "unsubscribed" })
-        .where(eq(campaignLeads.leadId, message.leadId));
+    if (lead) {
+      await this.updateOwnedCampaignLeads(userId, lead.id, "unsubscribed");
     }
 
     // Do NOT auto-reply to "not interested" — respect their wishes
@@ -965,9 +1159,8 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
       await db.update(leads).set({ status: "disqualified" })
         .where(and(eq(leads.id, lead.id), eq(leads.userId, userId)));
     }
-    if (lead && message.leadId) {
-      await db.update(campaignLeads).set({ status: "unsubscribed" })
-        .where(eq(campaignLeads.leadId, message.leadId));
+    if (lead) {
+      await this.updateOwnedCampaignLeads(userId, lead.id, "unsubscribed");
     }
   }
 
@@ -976,9 +1169,8 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
       await db.update(leads).set({ status: "bounced" })
         .where(and(eq(leads.id, lead.id), eq(leads.userId, userId)));
     }
-    if (lead && message.leadId) {
-      await db.update(campaignLeads).set({ status: "bounced" })
-        .where(eq(campaignLeads.leadId, message.leadId));
+    if (lead) {
+      await this.updateOwnedCampaignLeads(userId, lead.id, "bounced");
     }
     if (message.campaignId) {
       await db.update(campaigns).set({
@@ -1104,7 +1296,18 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
 
   // ── EMAIL SENDING ─────────────────────────────────────────
 
-  private async sendEmail(userId: string, account: any, toEmail: string, subject: string, body: string, trackOpens: boolean = true, leadId?: string): Promise<boolean> {
+  private async sendEmail(
+    userId: string,
+    account: any,
+    toEmail: string,
+    subject: string,
+    body: string,
+    trackOpens: boolean = true,
+    leadId?: string,
+    tenantSmtpSettings?: any,
+    campaignId?: string,
+    campaignLeadId?: string,
+  ): Promise<boolean> {
     try {
       if (!isValidRecipientEmail(toEmail)) {
         console.log(`[OutreachAgent] Invalid recipient email, skipping lead ${leadId || "unknown"}`);
@@ -1113,7 +1316,12 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
       if (!userId || account.userId !== userId) return false;
       if (leadId) {
         const [recipientLead] = await db.select().from(leads).where(eq(leads.id, leadId));
-        if (!recipientLead || recipientLead.userId !== userId || getLeadContactIssue(recipientLead)) return false;
+        if (
+          !recipientLead ||
+          recipientLead.userId !== userId ||
+          getLeadContactIssue(recipientLead) ||
+          /^(replied|lost|unsubscribed)$/i.test(String(recipientLead.status || "").trim())
+        ) return false;
       }
       if (userId && await isEmailSuppressed(userId, toEmail)) {
         console.log(`[OutreachAgent] Suppressed unsubscribed recipient ${toEmail}`);
@@ -1126,13 +1334,63 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
         htmlBody += `<img src="${trackingBaseUrl()}/t/o/${leadId}" width="1" height="1" style="display:none;border:0;" alt="" />`;
       }
 
+      if (!tenantSmtpSettings) {
+        console.warn(`[OutreachAgent] SMTP send blocked for ${userId}: saved tenant SMTP settings are required`);
+        return false;
+      }
+      const smtpConfig = tenantSmtpSettings;
+      const smtpIssue = getTenantSmtpConfigIssue(smtpConfig);
+      if (smtpIssue) {
+        console.warn(`[OutreachAgent] SMTP send blocked for ${userId}: ${smtpIssue}`);
+        return false;
+      }
+      if (!isValidRecipientEmail(smtpConfig.senderEmail)) {
+        console.warn(`[OutreachAgent] SMTP send blocked for ${userId}: invalid saved sender`);
+        return false;
+      }
+      if (
+        String(account.email || "").trim().toLowerCase() !== String(tenantSmtpSettings.senderEmail).trim().toLowerCase()
+      ) {
+        console.warn(`[OutreachAgent] SMTP account does not match saved tenant sender; skipping ${toEmail}`);
+        return false;
+      }
+
+      if (campaignId && campaignLeadId) {
+        // The queue claims a pending row immediately before this call.  The
+        // claim is paused while SMTP is in flight so another worker cannot
+        // duplicate it; campaign ownership and active status are still
+        // re-checked at the last possible point before constructing SMTP.
+        const [activeCampaign] = await db.select({ id: campaigns.id })
+          .from(campaigns)
+          .where(and(
+            eq(campaigns.id, campaignId),
+            eq(campaigns.userId, userId),
+            eq(campaigns.status, "active"),
+            eq(campaigns.stopOnReply, true),
+          ))
+          .limit(1);
+        const [claimedCampaignLead] = await db.select({ id: campaignLeads.id })
+          .from(campaignLeads)
+          .where(and(
+            eq(campaignLeads.id, campaignLeadId),
+            eq(campaignLeads.campaignId, campaignId),
+            // A just-claimed row is paused to make the provider call
+            // idempotent across workers.  The pending gate is performed
+            // immediately before that atomic claim in processSendQueue.
+            eq(campaignLeads.status, "paused"),
+          ))
+          .limit(1);
+        if (!activeCampaign || !claimedCampaignLead) return false;
+        if (await isEmailSuppressed(userId, toEmail)) return false;
+      }
+
       const transporter = nodemailer.createTransport({
-        host: account.smtpHost,
-        port: account.smtpPort || 587,
-        secure: account.smtpPort === 465,
+        host: smtpConfig.smtpHost,
+        port: smtpConfig.smtpPort || 587,
+        secure: smtpConfig.smtpSecure ?? smtpConfig.smtpPort === 465,
         auth: {
-          user: account.email,
-          pass: account.smtpPassword,
+          user: smtpConfig.smtpUsername,
+          pass: smtpConfig.smtpPassword,
         },
         connectionTimeout: 10000,
         greetingTimeout: 10000,
@@ -1140,7 +1398,7 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
       });
 
       await transporter.sendMail({
-        from: `${account.displayName || account.email} <${account.email}>`,
+        from: `${account.displayName || smtpConfig.senderEmail} <${smtpConfig.senderEmail}>`,
         to: toEmail,
         subject,
         text: body,
@@ -1162,17 +1420,28 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
 
   private async sendReply(account: any, originalMessage: any, replyBody: string): Promise<boolean> {
     const subject = originalMessage.subject?.startsWith("Re:") ? originalMessage.subject : `Re: ${originalMessage.subject}`;
-    const sent = await this.sendEmail(originalMessage.userId, account, originalMessage.fromEmail, subject, replyBody, false, originalMessage.leadId || undefined);
+    const tenantSmtpSettings = await this.getUserSettings(originalMessage.userId);
+    const sent = await this.sendEmail(
+      originalMessage.userId,
+      account,
+      originalMessage.fromEmail,
+      subject,
+      replyBody,
+      false,
+      originalMessage.leadId || undefined,
+      tenantSmtpSettings,
+    );
 
     if (sent) {
       // Record outbound reply in inbox
+      const senderEmail = tenantSmtpSettings?.senderEmail || account.email;
       await db.insert(inboxMessages).values({
         userId: originalMessage.userId,
         accountId: account.id,
         campaignId: originalMessage.campaignId,
         leadId: originalMessage.leadId,
         direction: "outbound",
-        fromEmail: account.email,
+        fromEmail: senderEmail,
         fromName: account.displayName || "",
         toEmail: originalMessage.fromEmail,
         subject,
@@ -1187,6 +1456,36 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
   }
 
   // ── HELPER METHODS ────────────────────────────────────────
+
+  private async updateOwnedCampaignLeads(
+    userId: string,
+    leadId: string,
+    status: "replied" | "unsubscribed" | "bounced",
+    onlyStopOnReply = false,
+  ): Promise<number> {
+    const campaignConditions = [eq(campaigns.userId, userId)];
+    if (onlyStopOnReply) campaignConditions.push(eq(campaigns.stopOnReply, true));
+    const ownedCampaigns = await db.select({ id: campaigns.id })
+      .from(campaigns)
+      .where(and(...campaignConditions));
+    const campaignIds = ownedCampaigns.map(campaign => campaign.id);
+    if (campaignIds.length === 0) return 0;
+
+    const leadConditions = [
+      eq(campaignLeads.leadId, leadId),
+      inArray(campaignLeads.campaignId, campaignIds),
+    ];
+    if (status === "replied") {
+      // Do not turn an unsubscribe or bounce back into a reply if a delayed
+      // inbound message races a prior suppression/bounce update.
+      leadConditions.push(sql`${campaignLeads.status} NOT IN ('unsubscribed', 'bounced')`);
+    }
+    const updated = await db.update(campaignLeads)
+      .set({ status })
+      .where(and(...leadConditions))
+      .returning({ id: campaignLeads.id });
+    return updated.length;
+  }
 
   private generateDefaultQueries(config: AgentConfig, targetAudience: string, businessDesc: string): string[] {
     if (targetAudience) {
@@ -1344,3 +1643,85 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
 }
 
 export const outreachAgent = new OutreachAgent();
+
+const approvedCampaignUserLocks = new Set<string>();
+let approvedCampaignDispatcherInterval: NodeJS.Timeout | null = null;
+
+function readCampaignLaunchAuthorization(value: string | null | undefined): CampaignLaunchAuthorization | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<CampaignLaunchAuthorization>;
+    if (
+      parsed.schema !== CAMPAIGN_LAUNCH_AUTH_SCHEMA ||
+      parsed.version !== CAMPAIGN_LAUNCH_AUTH_VERSION ||
+      typeof parsed.campaignId !== "string" ||
+      parsed.campaignId.trim().length === 0
+    ) {
+      return null;
+    }
+    return {
+      schema: CAMPAIGN_LAUNCH_AUTH_SCHEMA,
+      version: CAMPAIGN_LAUNCH_AUTH_VERSION,
+      campaignId: parsed.campaignId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Poll only durable user-approved launch markers.  In particular, this does
+ * not discover leads, enroll contacts, call OutreachAgent.start(), or infer
+ * authorization from an already-active campaign.
+ */
+async function dispatchApprovedCampaigns(): Promise<void> {
+  try {
+    const authorizations = await db.select({
+      id: agentTasks.id,
+      userId: agentTasks.userId,
+      result: agentTasks.result,
+    }).from(agentTasks).where(and(
+      eq(agentTasks.agentType, "outreach_agent"),
+      eq(agentTasks.taskType, CAMPAIGN_LAUNCH_AUTH_TASK_TYPE),
+      eq(agentTasks.status, "authorized"),
+    ));
+
+    const byUser = new Map<string, Set<string>>();
+    for (const authorization of authorizations) {
+      const marker = readCampaignLaunchAuthorization(authorization.result);
+      if (!marker) continue;
+      const campaignIds = byUser.get(authorization.userId) || new Set<string>();
+      campaignIds.add(marker.campaignId);
+      byUser.set(authorization.userId, campaignIds);
+    }
+
+    for (const [userId, campaignIds] of Array.from(byUser.entries())) {
+      if (approvedCampaignUserLocks.has(userId)) continue;
+      approvedCampaignUserLocks.add(userId);
+      try {
+        for (const campaignId of Array.from(campaignIds)) {
+          await outreachAgent.processSendQueue(userId, campaignId);
+        }
+      } catch (error: any) {
+        console.error(`[OutreachAgent] Approved campaign dispatcher error:`, error?.message || error);
+      } finally {
+        approvedCampaignUserLocks.delete(userId);
+      }
+    }
+  } catch (error: any) {
+    console.error(`[OutreachAgent] Approved campaign authorization lookup failed:`, error?.message || error);
+  }
+}
+
+/**
+ * Start the restart-safe, campaign-only worker.  It intentionally waits for
+ * the first polling interval; launch is already durable and needs no
+ * synchronous send from the request handler.
+ */
+export function startApprovedCampaignDispatcher(intervalMs = 15 * 60 * 1000): NodeJS.Timeout {
+  if (approvedCampaignDispatcherInterval) return approvedCampaignDispatcherInterval;
+  approvedCampaignDispatcherInterval = setInterval(() => {
+    void dispatchApprovedCampaigns();
+  }, intervalMs);
+  return approvedCampaignDispatcherInterval;
+}

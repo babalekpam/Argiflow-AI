@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { FileText } from "lucide-react";
+import { useState } from "react";
+import { FileText, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { CampaignPreparationDialog } from "@/components/campaign-preparation-dialog";
 
 interface SavedMailingBrief {
   businessContext: string | null;
@@ -33,6 +36,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function SavedMailingBriefPanel() {
+  const [prepareDialogOpen, setPrepareDialogOpen] = useState(false);
   const { data, isPending, isError, error } = useQuery<SavedMailingBrief>({
     queryKey: ["/api/aria/strategy-brief"],
   });
@@ -51,7 +55,7 @@ export function SavedMailingBriefPanel() {
       aria-describedby="saved-mailing-brief-description"
     >
       <CardHeader className="py-3 px-4 border-b border-white/10">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle
             id="saved-mailing-brief-title"
             className="text-sm font-medium flex items-center gap-2"
@@ -59,7 +63,19 @@ export function SavedMailingBriefPanel() {
             <FileText className="w-4 h-4 text-sky-400" aria-hidden="true" />
             Saved mailing brief
           </CardTitle>
-          <span className="text-xs text-gray-500">Read-only</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Read-only</span>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setPrepareDialogOpen(true)}
+              className="bg-sky-600 hover:bg-sky-700"
+              data-testid="button-prepare-new-campaign"
+            >
+              <Send className="mr-1.5 h-3.5 w-3.5" />
+              Prepare new campaign
+            </Button>
+          </div>
         </div>
         <p id="saved-mailing-brief-description" className="text-xs text-gray-400">
           Business Manager uses this saved brief for new drafts and decisions. Viewing it does not start a campaign or send email.
@@ -130,6 +146,11 @@ export function SavedMailingBriefPanel() {
           </div>
         )}
       </CardContent>
+      <CampaignPreparationDialog
+        open={prepareDialogOpen}
+        onOpenChange={setPrepareDialogOpen}
+        brief={data}
+      />
     </Card>
   );
 }

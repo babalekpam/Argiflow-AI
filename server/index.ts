@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { attachVoiceStreamWSS } from "./voice-stream";
 import { storage } from "./storage";
+import { startApprovedCampaignDispatcher } from "./outreach-agent";
 
 const app = express();
 const httpServer = createServer(app);
@@ -76,6 +77,10 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || "5000", 10);
 
   await registerRoutes(httpServer, app);
+  // Campaign sending is restart-safe but authorization-scoped: this worker
+  // only polls durable user-approved launch markers and never starts the
+  // autonomous discovery/enrollment agent.
+  startApprovedCampaignDispatcher();
 
   attachVoiceStreamWSS(httpServer, storage, getAnthropicForUser);
 
