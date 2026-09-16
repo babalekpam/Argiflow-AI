@@ -18,3 +18,9 @@ Track-Med's new lead outreach and new campaign drafts should use the approved cr
 **Why:** The owner explicitly requested uniform messaging after new leads continued receiving the old denial-rate/A/R-audit pitch. Approval of that consistency is not permission to overwrite sent history or launch a campaign.
 
 **How to apply:** Keep other tenants' messaging isolated. Preserve saved drafts unless the owner explicitly regenerates them, and never treat a template update as campaign-launch approval.
+
+Correcting an ARIA campaign offer is approval of the wording, not approval to execute the resulting email action—even when ARIA has an autonomous operating mode.
+
+**Why:** The owner received an ARIA test using the old prior-authorization offer after the main campaign template had already been corrected. A request to fix that mismatch must not cause an unreviewed replacement to be sent.
+
+**How to apply:** Keep replacement campaign actions review-only. Reject stale saved offers rather than silently changing the body of an already-approved send. Distinguish actual promotional offers from operational reports that merely mention campaigns.

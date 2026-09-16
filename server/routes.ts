@@ -9074,80 +9074,104 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
 
   app.post("/api/campaign/apply", isAuthenticated, async (req, res) => {
     try {
-      const { campaignId } = req.body;
+      const requestedCampaignId = typeof req.body?.campaignId === "string"
+        ? req.body.campaignId.trim()
+        : "";
       const userId = req.session.userId!;
       const user = await storage.getUserById(userId);
       const settings = await storage.getSettingsByUser(userId);
       if (!user) return res.status(400).json({ message: "User not found" });
 
-      const campaigns: Record<string, { subject: string; template: (lead: any) => string }> = {
-        "90-day-pa-free": {
-          subject: "90 Days Free — Prior Authorization Automation for {{company}}",
-          template: (lead: any) => {
-            const firstName = (lead.name || "").split(" ")[0] || "there";
-            const company = lead.company || "your practice";
-            return `Subject: 90 Days Free — Prior Authorization Automation for ${company}
-
-Hi ${firstName},
-
-I'm reaching out because I know how much time prior authorizations consume for medical practices like ${company}. The back-and-forth with insurance companies, the denials, the resubmissions — it's a huge drain on your team's time and revenue.
-
-At Track-Med Billing Solutions, we've built a Prior Authorization Automation Tool that eliminates this bottleneck. And right now, we're offering it completely free for 90 days to qualified practices — no commitment, no credit card required.
-
-Here's what the tool does:
-• Automates prior auth submissions across all major payers
-• Real-time status tracking and instant denial alerts
-• Rule-based logic engine that learns your payers' requirements
-• Multi-provider support with detailed claim-type specs
-• HIPAA-compliant encrypted data transport
-
-Practices using our platform have cut prior auth processing time by up to 60% and significantly reduced denials.
-
-I'd love to get ${company} set up with a free 90-day trial. You can learn more and get started at https://www.tmbds.com — or book a quick 15-minute walkthrough with me here:
-https://calendly.com/track-med-info/30min
-
-Looking forward to helping ${company} streamline your prior auth workflow.
-
-Best regards,
-Abel Nkawula
-CEO, Track-Med Billing Solutions
-+1 (615) 482-6768
-https://www.tmbds.com
-https://calendly.com/track-med-info/30min`;
-          },
-        },
+      const canonicalCampaignId = "trackmed-credit-offer";
+      const canonicalCampaignName = "Track-Med approved credit offer";
+      const campaignIdMap: Record<string, string> = {
+        "90-day-pa-free": canonicalCampaignId,
+        [canonicalCampaignId]: canonicalCampaignId,
       };
+      const updatedCampaignId = campaignIdMap[requestedCampaignId];
+      if (!updatedCampaignId) {
+        return res.status(400).json({ message: `Unknown campaign: ${requestedCampaignId}` });
+      }
 
-      const campaign = campaigns[campaignId];
-      if (!campaign) return res.status(400).json({ message: `Unknown campaign: ${campaignId}` });
+      // The campaign id is only a legacy UI alias. Tenant identity must come
+      // from server-owned records, never from the request payload.
+      const settingsCompanyName = (settings as unknown as { companyName?: string } | undefined)?.companyName;
+      const tenantCompanyName = settingsCompanyName || user.companyName;
+      if (!isTrackMedTenant(tenantCompanyName)) {
+        return res.status(403).json({
+          message: "The Track-Med approved campaign is only available to a verified Track-Med tenant.",
+        });
+      }
 
       const allLeads = await storage.getLeadsByUser(userId);
       const eligible = allLeads.filter(l =>
-        l.email && l.email.trim() !== "" &&
-        !l.email.toLowerCase().includes("@track-med") &&
-        !l.email.toLowerCase().includes("@argilette") &&
-        !l.email.toLowerCase().includes("@argiflow") &&
-        !l.email.toLowerCase().includes("@tmbds")
+        isValidRecipientEmail(l.email) &&
+        !(l.email || "").toLowerCase().includes("@track-med") &&
+        !(l.email || "").toLowerCase().includes("@argilette") &&
+        !(l.email || "").toLowerCase().includes("@argiflow") &&
+        !(l.email || "").toLowerCase().includes("@tmbds")
       );
 
+      const senderName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+      const senderTitle = (user as any).jobTitle || "";
+      const bookingURL = settings?.calendarLink || "";
       let updated = 0;
+      let skipped = 0;
       for (const lead of eligible) {
-        const outreach = campaign.template(lead);
+        // Applying a corrected draft must never make a sent or unresolved
+        // delivery eligible for another send. These checks intentionally fail
+        // closed, matching the normal regenerate-outreach path.
+        if (
+          lead.outreachSentAt ||
+          lead.scheduledSendAt ||
+          String(lead.status || "").trim().toLowerCase() === "unsubscribed" ||
+          await isEmailSuppressed(userId, lead.email)
+        ) {
+          skipped++;
+          continue;
+        }
+
+        try {
+          const pendingClaim = await getPendingEmailSendClaim(userId, lead.id, "outreach");
+          if (pendingClaim) {
+            skipped++;
+            continue;
+          }
+          const sentLogs = await getSentEmailLogs(userId, lead.id, "outreach");
+          if (sentLogs.length > 0) {
+            skipped++;
+            continue;
+          }
+        } catch (historyError) {
+          console.warn(`[Campaign] Skipping lead ${lead.id}: could not reconcile delivery history`, historyError);
+          skipped++;
+          continue;
+        }
+
+        const outreach = buildTrackMedApprovedOfferEmail({
+          firstName: lead.name,
+          practiceName: lead.company,
+          senderName,
+          senderTitle,
+          bookingURL,
+        }).outreach;
         await storage.updateLead(lead.id, {
-          outreach: outreach,
-          outreachSentAt: null as any,
-          followUpStep: null as any,
-          followUpStatus: null as any,
-          followUpNextAt: null as any,
+          outreach,
         });
         updated++;
       }
 
-      console.log(`[Campaign] Applied "${campaignId}" to ${updated} leads for user ${userId}`);
+      console.log(`[Campaign] Applied "${canonicalCampaignName}" (${updatedCampaignId}) to ${updated} leads for user ${userId}; skipped ${skipped}`);
       res.json({
         success: true,
-        message: `Campaign "${campaignId}" applied to ${updated} leads. Go to Leads page and click "Send All" to send.`,
+        message: `Campaign "${canonicalCampaignName}" applied to ${updated} leads. Review the drafts before sending.`,
+        requestedCampaignId,
+        updatedCampaignId,
+        updatedCampaignName: canonicalCampaignName,
+        campaignId: updatedCampaignId,
+        campaignName: canonicalCampaignName,
         leadsUpdated: updated,
+        leadsSkipped: skipped,
         totalEligible: eligible.length,
       });
     } catch (error) {

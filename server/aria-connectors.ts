@@ -2,6 +2,7 @@ import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import nodemailer from "nodemailer";
 import { storage } from "./storage";
 import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
+import { campaignOfferSendError } from "./aria-campaign-policy";
 
 export interface SendEmailResult {
   success: boolean;
@@ -27,6 +28,7 @@ export async function sendEmailViaSES(options: {
   body: string;
   fromName?: string;
   fromEmail?: string;
+  purpose?: "owner-briefing";
 }): Promise<SendEmailResult> {
   const recipient = options.to.trim().toLowerCase();
   if (!isValidRecipientEmail(recipient)) {
@@ -37,6 +39,10 @@ export async function sendEmailViaSES(options: {
   }
   if (options.userId) {
     const accountUser = await storage.getUserById(options.userId);
+    const offerError = options.purpose === "owner-briefing"
+      ? null
+      : campaignOfferSendError(accountUser?.companyName, options.subject, options.body);
+    if (offerError) return { success: false, error: offerError };
     const accountEmail = accountUser?.email?.trim().toLowerCase();
     if (accountEmail && looksLikeMistypedAccountEmail(recipient, accountEmail)) {
       return { success: false, error: "Recipient resembles the account email but contains a likely typo" };

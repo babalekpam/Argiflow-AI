@@ -6,6 +6,7 @@ import { getAvailableConnectors, sendEmailViaSES } from "./aria-connectors";
 import { getHighIntentVisitors, getRecentVisitorActivity } from "./visitor-intelligence";
 import { storage } from "./storage";
 import { getSavedTenantBusinessContext, toStrategyBrief } from "./tenant-business-context";
+import { campaignOfferSendError } from "./aria-campaign-policy";
 
 const router = Router();
 
@@ -55,6 +56,12 @@ async function executeApprovedAction(userId: string, action: any): Promise<{ exe
   );
   if (isSelfTestOrPreview && accountUser?.email) {
     toEmail = accountUser.email;
+  }
+
+  const offerError = campaignOfferSendError(accountUser?.companyName, subject, body);
+  if (offerError) {
+    await updateActionStatus(action.id, userId, "rejected", offerError);
+    return { executed: false, error: offerError };
   }
 
   try {

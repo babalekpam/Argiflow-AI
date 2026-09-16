@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "./db";
 import { businesses, marketingStrategies, users, userSettings, websiteProfiles } from "@shared/schema";
 import { businessManager } from "@shared/business-manager-schema";
+import { approvedCampaignContext } from "./aria-campaign-policy";
 
 const FACTUAL_GROUNDING_RULES = `
 FACTUAL GROUNDING RULES:
@@ -139,12 +140,13 @@ export async function getVerifiedTenantBusinessContext(
     `Verified booking link: ${settings?.calendarLink || "Not provided"}`,
   ];
 
-  return buildVerifiedTenantBusinessContext({
+  const context = buildVerifiedTenantBusinessContext({
     facts,
     savedContext,
     ownerProvidedContext,
     priorStrategy: strategy?.status === "active" ? strategy.strategy : null,
   });
+  return `${context}\n\n${approvedCampaignContext(user.companyName || business?.name)}`;
 }
 
 export { FACTUAL_GROUNDING_RULES };

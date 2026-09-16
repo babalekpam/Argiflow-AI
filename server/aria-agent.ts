@@ -4,6 +4,7 @@ import * as connectors from "./aria-connectors";
 import { getHighIntentVisitors, formatVisitorIntelForAria } from "./visitor-intelligence";
 import { storage } from "./storage";
 import { getVerifiedTenantBusinessContext } from "./tenant-business-context";
+import { normalizeAriaCampaignAction } from "./aria-campaign-policy";
 
 async function callAIWithRetry(params: Parameters<typeof callAI>[0], retries = 2): Promise<{ text: string }> {
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -654,7 +655,11 @@ CODE GENERATION:
     parsed = { message: fallback, actions: [] };
   }
 
-  for (const action of (parsed.actions || [])) {
+  for (const generatedAction of (parsed.actions || [])) {
+    const action = normalizeAriaCampaignAction(generatedAction, accountUser?.companyName, biz.owner_name);
+    if (action !== generatedAction) {
+      parsed.message = `Prepared the approved Track-Med campaign email for review. No campaign email has been sent by this action.\n\n${action.description}`;
+    }
     const shouldExecute = action.execute_now && biz.autonomy !== "supervised";
     const isEmailAction = action.tool === "ses" && action.tool_params?.to;
 
@@ -809,9 +814,12 @@ Rules:
   }
 
   let actionsExecuted = 0;
+  const cycleAccount = await storage.getUserById(userId);
 
-  for (const action of (parsed.actions || [])) {
-    const isAutoExecute = biz.autonomy === "autopilot" || (biz.autonomy === "semi-auto" && action.priority !== "high");
+  for (const generatedAction of (parsed.actions || [])) {
+    const action = normalizeAriaCampaignAction(generatedAction, cycleAccount?.companyName, biz.owner_name);
+    const isAutoExecute = action === generatedAction &&
+      (biz.autonomy === "autopilot" || (biz.autonomy === "semi-auto" && action.priority !== "high"));
 
     if (isAutoExecute && action.tool === "ses" && action.tool_params?.to) {
       const emailResult = await connectors.sendEmailViaSES({
@@ -913,6 +921,7 @@ Keep it under 200 words. Be warm and professional, like a trusted assistant.`;
 
   if (biz.briefing_via === "email" && biz.owner_email) {
     await connectors.sendEmailViaSES({
+      purpose: "owner-briefing",
       userId,
       to: biz.owner_email,
       toName: biz.owner_name || undefined,
