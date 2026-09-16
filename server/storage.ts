@@ -29,7 +29,7 @@ import {
   usageTracking, type UsageTracking, type InsertUsageTracking,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, asc, isNull, sql, lte } from "drizzle-orm";
+import { eq, desc, and, asc, isNull, sql, lte, ne } from "drizzle-orm";
 import { encrypt, decrypt } from "./encryption";
 
 // Credential fields in userSettings that are encrypted at rest
@@ -87,6 +87,8 @@ export interface IStorage {
   getLeadById(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, data: Partial<Pick<Lead, "name" | "email" | "phone" | "address" | "status" | "score" | "notes" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt" | "companyResearch" | "companyResearchedAt">>): Promise<Lead | undefined>;
+  resetCampaignForUser(userId: string): Promise<number>;
+  clearSmtpOverride(userId: string): Promise<void>;
   getScheduledLeadsToSend(): Promise<Lead[]>;
   getLeadsDueForFollowUp(): Promise<Lead[]>;
   deleteLead(id: string, userId: string): Promise<boolean>;
@@ -245,6 +247,40 @@ export class DatabaseStorage implements IStorage {
   async updateLead(id: string, data: Partial<Pick<Lead, "name" | "email" | "phone" | "address" | "status" | "score" | "notes" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt" | "companyResearch" | "companyResearchedAt">>): Promise<Lead | undefined> {
     const [result] = await db.update(leads).set(data).where(eq(leads.id, id)).returning();
     return result;
+  }
+
+  async resetCampaignForUser(userId: string): Promise<number> {
+    const result = await db.update(leads).set({
+      status: "new",
+      outreachSentAt: null,
+      scheduledSendAt: null,
+      followUpStep: 0,
+      followUpStatus: "none",
+      followUpNextAt: null,
+      followUpLastSentAt: null,
+      engagementScore: 0,
+      engagementLevel: "none",
+      lastEngagedAt: null,
+      emailOpens: 0,
+      emailClicks: 0,
+    }).where(
+      and(
+        eq(leads.userId, userId),
+        ne(leads.status, "unsubscribed"),
+      )
+    ).returning({ id: leads.id });
+    return result.length;
+  }
+
+  async clearSmtpOverride(userId: string): Promise<void> {
+    await db.update(userSettings).set({
+      smtpHost: null,
+      smtpPort: null,
+      smtpUsername: null,
+      smtpPassword: null,
+      smtpSecure: null,
+      updatedAt: new Date(),
+    }).where(eq(userSettings.userId, userId));
   }
 
   async getScheduledLeadsToSend(): Promise<Lead[]> {

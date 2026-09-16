@@ -1,4 +1,4 @@
-// ============================================================
+// --------------------------------------------------------====
 // ARGILETTE WORKFLOW ENGINE — CORE ENGINE
 // Drop this into: server/workflow-engine.ts
 //
@@ -8,7 +8,7 @@
 // 3. Executes workflow nodes in sequence
 // 4. Handles delays, conditions, AI actions, and CRM operations
 // 5. Logs every step for debugging and analytics
-// ============================================================
+// --------------------------------------------------------====
 
 import { db } from "./db";
 import { eq, and, desc, sql, lte, isNull } from "drizzle-orm";
@@ -30,11 +30,11 @@ import {
   type TriggerType,
 } from "@shared/workflow-schema";
 
-// ============================================================
+// --------------------------------------------------------====
 // EVENT BUS — Central event dispatcher
 // All platform events flow through here
 // Workflows subscribe to events via their triggerType
-// ============================================================
+// --------------------------------------------------------====
 
 type EventHandler = (event: WorkflowEvent) => Promise<void>;
 
@@ -93,9 +93,9 @@ class WorkflowEventBus {
 // Singleton event bus
 export const eventBus = new WorkflowEventBus();
 
-// ============================================================
+// --------------------------------------------------------====
 // WORKFLOW MATCHER — Finds active workflows for an event
-// ============================================================
+// --------------------------------------------------------====
 
 async function matchAndExecuteWorkflows(event: WorkflowEvent) {
   // Find all active workflows for this user + trigger type
@@ -157,9 +157,9 @@ function matchesTriggerConfig(workflow: Workflow, event: WorkflowEvent): boolean
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // WORKFLOW EXECUTOR — Runs a workflow from start to finish
-// ============================================================
+// --------------------------------------------------------====
 
 export async function executeWorkflow(
   workflow: Workflow,
@@ -433,9 +433,9 @@ async function executeNodeChain(
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // NODE EXECUTOR — Executes a single workflow node
-// ============================================================
+// --------------------------------------------------------====
 
 interface NodeResult {
   output: Record<string, any>;
@@ -825,9 +825,9 @@ async function executeNode(
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // HELPER: Call Claude AI (uses existing per-user key pattern)
-// ============================================================
+// --------------------------------------------------------====
 
 async function callAI(userId: string, prompt: string): Promise<string> {
   try {
@@ -861,9 +861,9 @@ async function callAI(userId: string, prompt: string): Promise<string> {
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // HELPER: Template resolution — replaces {{field}} with context values
-// ============================================================
+// --------------------------------------------------------====
 
 function resolveTemplate(template: string, context: Record<string, any>): string {
   return template.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, key) => {
@@ -876,9 +876,9 @@ function getNestedValue(obj: Record<string, any>, path: string): any {
   return path.split(".").reduce((o, k) => o?.[k], obj);
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // HELPER: Condition evaluation
-// ============================================================
+// --------------------------------------------------------====
 
 function evaluateCondition(fieldValue: any, operator: string, compareValue: any): boolean {
   switch (operator) {
@@ -896,10 +896,10 @@ function evaluateCondition(fieldValue: any, operator: string, compareValue: any)
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // DELAY RESUME PROCESSOR — Checks for waiting executions
 // Runs every 60 seconds via setInterval
-// ============================================================
+// --------------------------------------------------------====
 
 export async function processDelayedExecutions() {
   try {
@@ -987,10 +987,10 @@ export async function processDelayedExecutions() {
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // INITIALIZATION — Start the engine background processors
 // Call this from server/index.ts after registerRoutes()
-// ============================================================
+// --------------------------------------------------------====
 
 export function startWorkflowEngine() {
   console.log("[Workflow Engine] Starting background processors...");

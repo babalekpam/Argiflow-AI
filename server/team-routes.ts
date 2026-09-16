@@ -2,8 +2,8 @@ import type { Express, RequestHandler } from "express";
 import { db } from "./db";
 import { eq, and, sql, count, desc } from "drizzle-orm";
 import { teamMembers, leadAssignments, leads, users } from "@shared/schema";
-import sgMail from "@sendgrid/mail";
 import nodemailer from "nodemailer";
+import { sendViaSmtp } from "./smtp";
 
 async function sendTeamInviteEmail(
   toEmail: string,
@@ -16,7 +16,6 @@ async function sendTeamInviteEmail(
   const smtpUser = process.env.SMTP_USERNAME;
   const smtpPass = process.env.SMTP_PASSWORD;
   const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587;
-  const sgKey = process.env.SENDGRID_API_KEY;
 
   const appUrl = "https://argilette.co";
   const greeting = inviteeName ? `Hi ${inviteeName}` : "Hi there";
@@ -66,12 +65,13 @@ async function sendTeamInviteEmail(
         html,
       });
       console.log(`[Team] Invitation email sent via SMTP to ${toEmail}`);
-    } else if (sgKey) {
-      sgMail.setApiKey(sgKey);
-      await sgMail.send({ to: toEmail, from, subject, html });
-      console.log(`[Team] Invitation email sent via SendGrid to ${toEmail}`);
     } else {
-      console.warn("[Team] No email provider configured — invitation email NOT sent to", toEmail);
+      const result = await sendViaSmtp({ to: toEmail, from: from.email, fromName: from.name, subject, html });
+      if (result.success) {
+        console.log(`[Team] Invitation email sent via SMTP to ${toEmail}`);
+      } else {
+        console.warn(`[Team] SMTP not configured — invitation email NOT sent to ${toEmail}: ${result.error}`);
+      }
     }
   } catch (err: any) {
     console.error(`[Team] Failed to send invitation email to ${toEmail}:`, err.message);

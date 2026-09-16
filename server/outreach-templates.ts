@@ -170,69 +170,87 @@ export const TRACKMED_SEQUENCES = {
     touches: [
       {
         touch: 1, day: 0,
-        subject: "Quick question about your claim denial rate",
+        subject: "Could {{Practice Name}} be collecting more?",
         body: `Hi {{First Name}},
 
-Most independent practices are losing 8–15% of revenue to preventable claim denials — and don't realize it until month-end.
+I work with independent medical practices that want to improve collections without adding staff.
 
-Track-Med catches those errors before submission using AI claim scrubbing and surfaces denial trends in real time so nothing slips through.
+After reviewing thousands of claims, we've found many practices have hidden revenue opportunities caused by avoidable denials, underpayments, and aging A/R.
 
-Can I do a free 20-minute A/R audit for {{Practice Name}}? No pitch — just data.
+Our team of billing and practice management professionals brings over 30 years of experience across many specialties, and our clients commonly improve collections by 15–30% over 6–12 months by tightening revenue cycle processes.
 
-→ https://calendly.com/track-med-info/30min
+Would you be open to a 20-minute Revenue Opportunity Review for {{Practice Name}}? We'll identify opportunities specific to your practice—no obligation.
 
+Schedule here:
+https://calendly.com/track-med-info/30min
+
+Best,
 Abel Nkawula
-Track-Med Billing Solutions | track-med.com`,
+Track-Med Billing Solutions`,
       },
       {
         touch: 2, day: 4,
-        subject: "One thing most practices miss on EOB reconciliation",
+        subject: "One question about your collections",
         body: `Hi {{First Name}},
 
-Adding to my note from earlier this week —
+Quick question...
 
-Most practices reconcile EOBs manually and miss contractual underpayments. Payers routinely pay below the contracted rate, knowing most offices won't catch it.
+Do you know your practice's current:
+• First-pass acceptance rate?
+• Net collection rate?
+• Average A/R days?
+• Underpayment recovery rate?
 
-Track-Med flags those automatically. Practices we audit typically recover $18K–$40K in missed payments within 90 days.
+Many practices know one or two—but not all four.
 
-Worth 20 minutes?
+We provide a complimentary review that often uncovers opportunities worth tens of thousands of dollars annually.
 
-→ https://calendly.com/track-med-info/30min
+Interested in comparing your numbers?
 
+https://calendly.com/track-med-info/30min
+
+Thanks,
 Abel`,
       },
       {
         touch: 3, day: 10,
-        subject: "How a 3-physician practice recovered $47K in 90 days",
+        subject: "Where revenue quietly slips away",
         body: `Hi {{First Name}},
 
-A small internal medicine group we work with had a timely filing denial problem — claims slipping past their old system undetected.
+Most practices don't lose revenue because people aren't working hard.
 
-After switching to Track-Med, those denials dropped 80%. They recovered $47K in the first quarter.
+They lose it because small issues compound:
+• preventable denials
+• underpaid claims
+• aging A/R
+• missed follow-up
+• payer contract discrepancies
 
-Their setup: 3 physicians, one biller. Sound familiar?
+Individually they don't seem significant.
 
-The 20-min audit shows exactly how:
+Together they can reduce collections by hundreds of thousands annually.
 
-→ https://calendly.com/track-med-info/30min
+If you'd like a second opinion on your billing operation, I'd be happy to help.
+
+https://calendly.com/track-med-info/30min
 
 Abel`,
       },
       {
         touch: 4, day: 18,
-        subject: "Closing the loop — {{First Name}}",
+        subject: "Should I close your file?",
         body: `Hi {{First Name}},
 
-I won't keep reaching out if the timing's off.
+I'll make this my last email.
 
-Before I close this: if your A/R days are over 35 or denial rate above 8%, there's real money sitting uncollected right now.
+If improving collections isn't a priority right now, no worries.
 
-Link stays open if things change:
+If increasing revenue by 15–30% over the next year is something you'd like to explore, I'd be happy to schedule a brief conversation whenever the timing makes sense.
 
-→ https://calendly.com/track-med-info/30min
+Here's my calendar:
+https://calendly.com/track-med-info/30min
 
-Strong quarter to you and your team.
-
+Best wishes,
 Abel`,
       },
     ],
@@ -242,129 +260,149 @@ Abel`,
     touches: [
       {
         touch: 1, day: 0,
-        subject: "Dental billing question — {{Practice Name}}",
+        subject: "Quick question for {{Practice Name}}",
         body: `Hi {{First Name}},
 
-CDT code mismatches, missing narratives, and incomplete X-ray documentation are the top reasons dental claims get denied — and they're all preventable.
+Dental practices today face increasing reimbursement pressure while administrative demands continue to grow.
 
-Track-Med's dental-specific claim scrubber catches those before submission and flags payer-specific requirements automatically.
+We help practices increase collections by reducing preventable denials, recovering underpayments, and improving insurance reimbursement—without increasing workload for the front office.
 
-Free 20-minute billing audit for {{Practice Name}}?
+Our team of billing and practice management professionals brings over 30 years of experience, and many practices improve collections by 15–30% within 6–12 months.
 
-→ https://calendly.com/track-med-info/30min
+Would a complimentary 20-minute revenue review be worthwhile?
 
-Abel Nkawula
-Track-Med | track-med.com`,
+https://calendly.com/track-med-info/30min
+
+Abel`,
       },
       {
         touch: 2, day: 4,
-        subject: "Are you collecting 100% of what insurance owes you?",
+        subject: "Is your front desk doing billing too?",
         body: `Hi {{First Name}},
 
-Most dental practices aren't — the gap usually comes from underpayments on covered procedures and write-offs that shouldn't have happened.
+One thing we see repeatedly...
 
-Track-Med reconciles every EOB against your fee schedule and flags discrepancies. For hybrid fee-for-service practices, it tracks patient balance collection separately too.
+Your front office should be focused on patients—not spending hours following up on insurance claims.
 
-20 minutes to see if there's a gap in your setup:
+We help practices streamline billing while improving reimbursement.
 
-→ https://calendly.com/track-med-info/30min
+Would you like to see where your practice could improve?
+
+https://calendly.com/track-med-info/30min
 
 Abel`,
       },
       {
         touch: 3, day: 10,
-        subject: "Is your front desk handling too much billing?",
+        subject: "Insurance companies make mistakes too.",
         body: `Hi {{First Name}},
 
-In most dental offices, billing falls on the front desk — rescheduling patients while chasing claim status isn't the best use of their time.
+Insurance carriers occasionally underpay legitimate claims.
 
-Track-Med automates claim status checks, denial alerts, and resubmission queues so your team stays focused on patients.
+Unfortunately, many practices never know because there's no time to reconcile every payment.
 
-Want to see what that looks like in practice?
+Recovering even a small percentage can make a meaningful impact over the course of a year.
 
-→ https://calendly.com/track-med-info/30min
+Worth a quick conversation?
+
+https://calendly.com/track-med-info/30min
 
 Abel`,
       },
       {
         touch: 4, day: 18,
-        subject: "Last note — {{Practice Name}}",
+        subject: "Should I close your file?",
         body: `Hi {{First Name}},
 
-Won't keep reaching out after this.
+I'll make this my last email.
 
-One question before I go: is billing admin a real pain point for your team right now, or is it running smoothly?
+If improving collections isn't a priority right now, no worries.
 
-Even a one-word reply helps.
+If increasing revenue by 15–30% over the next year is something you'd like to explore, I'd be happy to schedule a brief conversation whenever the timing makes sense.
 
-→ https://calendly.com/track-med-info/30min
+Here's my calendar:
+https://calendly.com/track-med-info/30min
 
+Best wishes,
 Abel`,
       },
     ],
   },
   mental_health: {
-    label: "Mental Health / Therapy",
+    label: "Behavioral Health",
     touches: [
       {
         touch: 1, day: 0,
-        subject: "Prior auth is getting harder for behavioral health",
+        subject: "Helping behavioral health practices improve cash flow",
         body: `Hi {{First Name}},
 
-Payers have quietly tightened prior auth requirements for behavioral health — more session limits, stricter medical necessity docs, inconsistent telehealth policies.
+Behavioral health practices face increasing reimbursement complexity while trying to keep clinicians focused on patient care.
 
-Track-Med tracks prior auth expirations automatically and applies the right POS codes and modifiers per payer so your clinicians don't lose sessions to admin errors.
+We help practices reduce billing delays, improve reimbursement, manage authorizations more efficiently, and increase collections by 15–30% over time.
 
-Free 20-minute audit for {{Practice Name}}?
+Would you be open to a brief conversation?
 
-→ https://calendly.com/track-med-info/30min
-
-Abel Nkawula
-Track-Med | track-med.com`,
-      },
-      {
-        touch: 2, day: 4,
-        subject: "Telehealth billing errors most therapy practices miss",
-        body: `Hi {{First Name}},
-
-Telehealth billing for behavioral health is one of the most error-prone areas right now — payers change policies quarterly, and wrong POS codes or missing GT modifiers trigger instant denials.
-
-Track-Med auto-applies correct codes per payer and alerts you before an authorization expires.
-
-Want to see what that catches in your current claims?
-
-→ https://calendly.com/track-med-info/30min
+https://calendly.com/track-med-info/30min
 
 Abel`,
       },
       {
-        touch: 3, day: 10,
-        subject: "Is billing pulling your team away from clients?",
+        touch: 2, day: 4,
+        subject: "One question about your authorizations",
         body: `Hi {{First Name}},
 
-For most mental health practices, billing admin is the top source of staff burnout — chasing prior auths and reconciling EOBs manually takes time that should go toward client care.
+Quick question...
 
-Track-Med automates the repetitive tasks so your clinicians stay focused on what matters.
+How much time does your team spend managing authorizations and chasing claim status each week?
 
-Happy to show you what that looks like for a practice your size:
+For most behavioral health practices it adds up to hours that clinicians and staff would rather spend on patient care—and delayed authorizations often mean delayed or lost revenue.
 
-→ https://calendly.com/track-med-info/30min
+Our team of billing and practice management professionals brings over 30 years of experience helping practices reduce that administrative burden while improving cash flow.
+
+Would it make sense to talk?
+
+https://calendly.com/track-med-info/30min
+
+Thanks,
+Abel`,
+      },
+      {
+        touch: 3, day: 10,
+        subject: "Where behavioral health revenue quietly slips away",
+        body: `Hi {{First Name}},
+
+Most behavioral health practices don't lose revenue because people aren't working hard.
+
+They lose it because small issues compound:
+• delayed or lapsed authorizations
+• billing delays that slow cash flow
+• underpaid claims
+• aging A/R
+• administrative work pulling clinicians away from care
+
+Individually they don't seem significant. Together they can meaningfully reduce collections over the course of a year.
+
+If you'd like a second opinion on your revenue cycle, I'd be happy to help.
+
+https://calendly.com/track-med-info/30min
 
 Abel`,
       },
       {
         touch: 4, day: 18,
-        subject: "Signing off — {{First Name}}",
+        subject: "Should I close your file?",
         body: `Hi {{First Name}},
 
-This is my last note — I don't want to add to your inbox.
+I'll make this my last email.
 
-If prior auth management or telehealth billing ever becomes a bigger friction point, I'm easy to reach.
+If improving cash flow isn't a priority right now, no worries.
 
-Take care of your team and your clients.
+If increasing collections by 15–30% over the next year while reducing administrative burden is something you'd like to explore, I'd be happy to schedule a brief conversation whenever the timing makes sense.
 
-→ https://calendly.com/track-med-info/30min
+Here's my calendar:
+https://calendly.com/track-med-info/30min
 
+Best wishes,
 Abel`,
       },
     ],
@@ -374,63 +412,67 @@ Abel`,
     touches: [
       {
         touch: 1, day: 0,
-        subject: "Revenue cycle question — {{Practice Name}}",
+        subject: "Reducing revenue leakage at {{Practice Name}}",
         body: `Hi {{First Name}},
 
-At health systems, the biggest A/R leakage usually comes from three places: underpayments on contracted rates, prior auth bottlenecks, and denials that never get appealed.
+Even high-performing revenue cycle departments experience preventable revenue leakage through denials, underpayments, aging A/R, and inconsistent payer follow-up.
 
-Track-Med gives revenue cycle teams real-time visibility across all three — with AI-flagged appeal drafts and payer contract variance detection built in.
+We work alongside existing RCM teams to identify opportunities that improve net collections without increasing staffing.
 
-Worth a 30-minute discovery call?
+If you'd like an outside perspective on where additional revenue may be hiding, I'd welcome a 30-minute discussion.
 
-→ https://calendly.com/track-med-info/30min
+https://calendly.com/track-med-info/30min
 
-Abel Nkawula
-Track-Med | track-med.com`,
+Best,
+Abel`,
       },
       {
         touch: 2, day: 5,
-        subject: "One number worth knowing — {{Practice Name}}",
+        subject: "Worth a second opinion on your revenue cycle?",
         body: `Hi {{First Name}},
 
-For a health system billing $20M+ annually, a 1% improvement in net collection rate is $200K recovered.
+Following up on my earlier note.
 
-Most RCM teams miss 2–4% of contractual underpayments because payer reconciliation is done manually. Track-Med flags those variances automatically against your contracted rates.
+Our team of billing and practice management professionals brings over three decades of experience across many specialties, and we have worked with virtually every payer.
 
-30 minutes to see what that looks like for your system?
+We offer a complimentary Revenue Leakage Analysis: a structured review of denials, underpayments, and aging A/R that puts a dollar figure on recoverable revenue—without disrupting your existing RCM team.
 
-→ https://calendly.com/track-med-info/30min
+Would it make sense to talk?
 
+https://calendly.com/track-med-info/30min
+
+Best,
 Abel`,
       },
       {
         touch: 3, day: 12,
-        subject: "Q2 A/R review — relevant for {{Practice Name}}?",
+        subject: "Are you collecting everything you've earned?",
         body: `Hi {{First Name}},
 
-With Q1 wrapping up, most revenue cycle teams are reviewing denial trends and A/R aging reports.
+Most revenue cycle leaders track denial rates closely. Fewer have visibility into contractual underpayments—payments that arrive below contracted rates and never appear on a denial report.
 
-If you're running that analysis and want to benchmark against what similar systems are seeing — or see how Track-Med handles it automated — I'm happy to do a quick 30-minute walkthrough.
+Reconciling payments against payer contracts at the line level is rarely feasible by hand, which is why this category of leakage tends to persist year after year.
 
-No deck, just live data:
+If an outside review of that exposure would be useful, I'd welcome a brief discussion.
 
-→ https://calendly.com/track-med-info/30min
+https://calendly.com/track-med-info/30min
 
+Best,
 Abel`,
       },
       {
         touch: 4, day: 20,
-        subject: "Closing the loop — {{First Name}}",
+        subject: "Closing the loop, {{First Name}}",
         body: `Hi {{First Name}},
 
-I've reached out a few times — I'll take the silence as a signal that timing or priority isn't right.
+I've reached out a few times without connecting, so I'll take that as a timing signal and step back.
 
-If that changes and you want a second opinion on denial rate or underpayment exposure, I'm one email away.
+If reducing revenue leakage lands on your priority list—at budget season, after a payer contract renewal, or when the next aging report raises questions—I'm one email away, and a second opinion costs you nothing.
 
-Strong Q2 to your team.
+Wishing your team a strong close to the quarter.
 
-Abel Nkawula | Track-Med
-track-med.com`,
+Best,
+Abel`,
       },
     ],
   },

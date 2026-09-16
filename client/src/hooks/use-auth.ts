@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useUser, useAuth as useClerkAuth, useClerk } from "@clerk/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface AuthUser {
   id: string;
@@ -12,73 +12,41 @@ interface AuthUser {
   website: string | null;
   companyDescription: string | null;
   onboardingCompleted: string | null;
-}
-
-async function fetchUser(): Promise<AuthUser | null> {
-  const response = await fetch("/api/auth/user", {
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  if (response.status === 401) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error(`${response.status}: ${response.statusText}`);
-  }
-
-  return response.json();
+  jobTitle?: string | null;
+  emailVerified?: string | null;
+  planLabel?: string;
+  trialDaysLeft?: number | null;
 }
 
 export function useAuth() {
+  const { isSignedIn, isLoaded } = useClerkAuth();
+  const { signOut } = useClerk();
   const queryClient = useQueryClient();
-  const { data: user, isLoading } = useQuery<AuthUser | null>({
+
+  const { data: dbUser, isLoading: dbLoading } = useQuery<AuthUser | null>({
     queryKey: ["/api/auth/user"],
-    queryFn: fetchUser,
+    queryFn: async () => {
+      const res = await fetch("/api/auth/user", { credentials: "include" });
+      if (res.status === 401) return null;
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json();
+    },
+    enabled: isLoaded && isSignedIn === true,
     retry: false,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 5,
   });
 
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest("POST", "/api/auth/logout");
-    },
-    onSuccess: () => {
-      queryClient.setQueryData(["/api/auth/user"], null);
-      window.location.href = "/";
-    },
-  });
-
-  const login = async (data: { email: string; password: string }) => {
-    const res = await apiRequest("POST", "/api/auth/login", data);
-    const userData = await res.json();
-    // A successful password check isn't enough: verify the browser can return
-    // the saved session cookie before displaying an authenticated dashboard.
-    const sessionUser = await fetchUser();
-    if (!sessionUser || sessionUser.id !== userData.id) {
-      queryClient.setQueryData(["/api/auth/user"], null);
-      throw new Error("Your password was accepted, but this browser did not keep the login session. Stay on this website and allow its first-party cookies, then sign in again. No email was sent.");
-    }
-    queryClient.setQueryData(["/api/auth/user"], sessionUser);
-    return sessionUser;
-  };
-
-  const register = async (data: { email: string; password: string; firstName: string; lastName: string }) => {
-    const res = await apiRequest("POST", "/api/auth/register", data);
-    const userData = await res.json();
-    queryClient.setQueryData(["/api/auth/user"], userData);
-    return userData;
-  };
+  const user = isLoaded && isSignedIn && dbUser ? dbUser : null;
 
   return {
     user,
-    isLoading,
-    isAuthenticated: !!user,
-    login,
-    register,
-    logout: logoutMutation.mutate,
-    isLoggingOut: logoutMutation.isPending,
+    isLoading: !isLoaded || (isSignedIn === true && dbLoading),
+    isAuthenticated: isLoaded && isSignedIn === true && !!dbUser,
+    logout: () => {
+      queryClient.setQueryData(["/api/auth/user"], null);
+      signOut({ redirectUrl: "/" });
+    },
+    isLoggingOut: false,
+    // login and register are no longer used — Clerk handles sign-in/sign-up
   };
 }

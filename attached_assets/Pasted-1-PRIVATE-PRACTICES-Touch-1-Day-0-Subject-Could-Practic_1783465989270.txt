@@ -1,0 +1,163 @@
+1️⃣ PRIVATE PRACTICES
+Touch 1 (Day 0)
+Subject: Could {{Practice Name}} be collecting more?
+Hi {{First Name}},
+I work with independent medical practices that want to improve collections without adding staff.
+After reviewing thousands of claims, we've found many practices have hidden revenue opportunities caused by avoidable denials, underpayments, and aging A/R.
+Our clients commonly improve collections by 15–30% over 6–12 months by tightening revenue cycle processes.
+Would you be open to a 20-minute Revenue Opportunity Review for {{Practice Name}}? We'll identify opportunities specific to your practice—no obligation.
+Schedule here:
+https://calendly.com/track-med-info/30min
+Best,
+Abel Nkawula
+Track-Med Billing Solutions
+ 
+________________________________________
+ 
+Touch 2 (Day 4)
+Subject: One question about your collections
+Hi {{First Name}},
+Quick question...
+Do you know your practice's current:
+• First-pass acceptance rate?
+• Net collection rate?
+• Average A/R days?
+• Underpayment recovery rate?
+Many practices know one or two—but not all four.
+We provide a complimentary review that often uncovers opportunities worth tens of thousands of dollars annually.
+Interested in comparing your numbers?
+https://calendly.com/track-med-info/30min
+Thanks,
+Abel
+ 
+________________________________________
+ 
+Touch 3 (Day 10)
+Subject: Where revenue quietly slips away
+Hi {{First Name},
+Most practices don't lose revenue because people aren't working hard.
+They lose it because small issues compound:
+• preventable denials
+• underpaid claims
+• aging A/R
+• missed follow-up
+• payer contract discrepancies
+Individually they don't seem significant.
+Together they can reduce collections by hundreds of thousands annually.
+If you'd like a second opinion on your billing operation, I'd be happy to help.
+https://calendly.com/track-med-info/30min
+Abel
+ 
+________________________________________
+ 
+Touch 4 (Day 18)
+Subject: Should I close your file?
+Hi {{First Name}},
+I'll make this my last email.
+If improving collections isn't a priority right now, no worries.
+If increasing revenue by 15–30% over the next year is something you'd like to explore, I'd be happy to schedule a brief conversation whenever the timing makes sense.
+Here's my calendar:
+https://calendly.com/track-med-info/30min
+Best wishes,
+Abel
+ 
+________________________________________
+ 
+2️⃣ DENTAL PRACTICES
+Touch 1
+Subject: Quick question for {{Practice Name}}
+Hi {{First Name}},
+Dental practices today face increasing reimbursement pressure while administrative demands continue to grow.
+We help practices increase collections by reducing preventable denials, recovering underpayments, and improving insurance reimbursement—without increasing workload for the front office.
+Many practices improve collections by 15–30% within 6–12 months.
+Would a complimentary 20-minute revenue review be worthwhile?
+https://calendly.com/track-med-info/30min
+Abel
+ 
+________________________________________
+ 
+Touch 2
+Subject: Is your front desk doing billing too?
+Hi {{First Name},
+One thing we see repeatedly...
+Your front office should be focused on patients—not spending hours following up on insurance claims.
+We help practices streamline billing while improving reimbursement.
+Would you like to see where your practice could improve?
+https://calendly.com/track-med-info/30min
+ 
+________________________________________
+ 
+Touch 3
+Subject: Insurance companies make mistakes too.
+Hi {{First Name},
+Insurance carriers occasionally underpay legitimate claims.
+Unfortunately, many practices never know because there's no time to reconcile every payment.
+Recovering even a small percentage can make a meaningful impact over the course of a year.
+Worth a quick conversation?
+https://calendly.com/track-med-info/30min
+________________________________________
+Touch 4
+Same structure as above.
+ 
+________________________________________
+ 
+3️⃣ BEHAVIORAL HEALTH
+I'd focus less on modifiers and POS codes.
+Executives don't buy because of modifiers.
+They buy because of revenue.
+Instead lead with:
+authorization management
+clinician productivity
+cash flow
+reducing administrative burden
+ 
+________________________________________
+ 
+Example:
+Subject: Helping behavioral health practices improve cash flow
+Hi {{First Name},
+Behavioral health practices face increasing reimbursement complexity while trying to keep clinicians focused on patient care.
+We help practices reduce billing delays, improve reimbursement, manage authorizations more efficiently, and increase collections by 15–30% over time.
+Would you be open to a brief conversation?
+https://calendly.com/track-med-info/30min
+ 
+________________________________________
+ 
+4️⃣ HEALTH SYSTEMS
+Health systems require a much more executive tone.
+I'd avoid AI buzzwords.
+Instead:
+ 
+________________________________________
+ 
+Subject: Reducing revenue leakage at {{Practice Name}}
+Hi {{First Name},
+Even high-performing revenue cycle departments experience preventable revenue leakage through denials, underpayments, aging A/R, and inconsistent payer follow-up.
+We work alongside existing RCM teams to identify opportunities that improve net collections without increasing staffing.
+If you'd like an outside perspective on where additional revenue may be hiding, I'd welcome a 30-minute discussion.
+https://calendly.com/track-med-info/30min
+Best,
+Abel
+ 
+________________________________________
+ 
+Additional Recommendations
+I would also make these campaign-level changes:
+Use a softer CTA. "Would it make sense to talk?" often outperforms "Schedule a meeting."
+Add credibility early. Note that you have a team of billing and practice management professionals with over 30 years OR 3 decades of experience working across many different specialties and have billed through all insurance companies.
+You may consider using:
+Revenue Opportunity Assessment
+Revenue Cycle Health Check
+Practice Revenue Review
+Collections Performance Review
+Revenue Leakage Analysis
+These sound more strategic and executive-level rather than "billing audit,".
+Test different subject lines, such as:
+Could {{Practice Name}} be collecting more?
+Quick question about your billing
+One revenue question
+Reducing revenue leakage
+Are you collecting everything you've earned?
+Is money being left on the table?
+Worth a second opinion on your revenue cycle?
+One final suggestion: if your primary goal is booking meetings, I would build this as a 7-touch omnichannel sequence (email + LinkedIn + voicemail + phone + SMS + email + breakup email). That approach typically outperforms an email-only cadence and is more consistent with current B2B outbound best practices.

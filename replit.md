@@ -14,7 +14,7 @@ Do not make changes to the file `Y`.
 **Frontend**: React, TypeScript, Vite, TailwindCSS, shadcn/ui.
 **Backend**: Express.js with TypeScript.
 **Database**: PostgreSQL with Drizzle ORM.
-**Authentication**: Email/password with session-based authentication, email verification, and password reset.
+**Authentication**: Clerk (Replit-managed). Users sign in/sign up via Clerk at `/sign-in` and `/sign-up`. Session bridging sets `req.session.userId` from the authenticated Clerk email for backward-compat with existing route middleware. The `users` table remains active for app-specific data (roles, subscriptions, preferences); Clerk owns identity.
 **UI/UX Design**: Dark theme with sky blue gradient accents and Inter font.
 **Core Features**:
 - **Consolidated Navigation**: Streamlined dashboard with unified pages for AI Agents, Analytics, Automations, Email & Outreach, Intelligence, and Learning.

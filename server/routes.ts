@@ -6,7 +6,9 @@ import { registerTrackerPublicRoutes, registerTrackerDashboardRoutes } from "./t
 import { eq, and, sql, desc, or, ilike, isNull, lte, inArray } from "drizzle-orm";
 import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnelStages, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts, emailAccounts } from "@shared/schema";
 import { campaigns, campaignLeads } from "@shared/instantly-schema";
-import { getSession } from "./replit_integrations/auth/replitAuth";
+import { getAuth } from "@clerk/express";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
@@ -288,12 +290,12 @@ async function sendSystemEmail(to: string, from: { email: string; name: string }
 }
 
 
-// ============================================================
+// --------------------------------------------------------====
 // AI PROVIDER CONFIGURATION
 // OpenAI GPT-4o-mini is the PRIMARY provider for all AI features.
 // Users can optionally override with their own Anthropic key in Settings.
 // Anthropic platform key available as fallback for web search only.
-// ============================================================
+// --------------------------------------------------------====
 
 const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
 
@@ -614,16 +616,16 @@ const isAdmin: RequestHandler = (req, res, next) => {
   next();
 };
 
-// ============================================================
+// --------------------------------------------------------====
 // LEAD GENERATION HELPERS
-// ============================================================
+// --------------------------------------------------------====
 
 function randomPick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 function randomInt(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
-// ============================================================
+// --------------------------------------------------------====
 // AGENT-TO-FUNNEL AUTO-PIPELINE
-// ============================================================
+// --------------------------------------------------------====
 
 const AGENT_FUNNEL_STAGES: Record<string, { name: string; stages: { name: string; color: string }[] }> = {
   "govt-contracts-us": {
@@ -836,9 +838,9 @@ export async function autoAddToFunnelDirect(userId: string, agentType: string, s
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // LEAD VALIDATION HELPERS (used across routes, AutoEngage, outreach gen)
-// ============================================================
+// --------------------------------------------------------====
 
 const INTERNAL_TEAM_NAMES = ["abel nkawula", "abel", "track-med", "argilette", "argiflow"];
 const INTERNAL_TEAM_EMAILS = ["clara@track-med.com", "clara.motena@track-med.com", "abel@argilette.com", "info@argilette.com", "info@track-med.com"];
@@ -886,9 +888,9 @@ function isFakePhone(phone: string): boolean {
   return false;
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // CRM ACTION EXECUTOR (called by Claude via tool_use)
-// ============================================================
+// --------------------------------------------------------====
 
 async function executeAction(userId: string, action: string, params: any): Promise<string> {
   switch (action) {
@@ -1351,9 +1353,9 @@ async function executeAction(userId: string, action: string, params: any): Promi
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // BACKGROUND STRATEGY GENERATION
-// ============================================================
+// --------------------------------------------------------====
 
 async function generateStrategyInBackground(userId: string, companyName: string, industry: string, website: string, description: string) {
   try {
@@ -1459,9 +1461,9 @@ Schedule a discovery call with our team to discuss your custom strategy in detai
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // CONVERSION RATE (single definition shared by the dashboard + analytics)
-// ============================================================
+// --------------------------------------------------------====
 
 // A lead counts as converted once it reaches a closed/qualified state. Statuses
 // like "contacted" or "warm" are pipeline progress, not conversions.
@@ -1502,9 +1504,9 @@ async function rollUpEngagementToCampaigns(leadId: string, kind: "open" | "click
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // EMAIL TRACKING HELPERS (used by sendOutreachEmail + tracking endpoints)
-// ============================================================
+// --------------------------------------------------------====
 
 function getBaseUrl(): string {
   if (process.env.REPLIT_DEPLOYMENT_URL) {
@@ -1811,12 +1813,12 @@ async function sendOutreachEmailInternal(lead: any, userSettings: any, user: any
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // CLAUDE-POWERED AI HANDLER
 // AI-powered chat with CRM actions
 // Web search via Tavily, AI processing via OpenAI (primary) or Anthropic (fallback)
 // CRM actions via custom tools that call executeAction()
-// ============================================================
+// --------------------------------------------------------====
 
 const aiRequestTimestamps = new Map<string, number[]>();
 const AI_RATE_WINDOW_MS = 60000;
@@ -2508,10 +2510,10 @@ FORMAT: Use **bold** for key terms, bullet points, numbered lists. Be concise bu
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // FALLBACK — runs if AI API is temporarily down
 // Basic keyword matching to still execute CRM actions
-// ============================================================
+// --------------------------------------------------------====
 
 async function fallbackResponse(userId: string, msg: string): Promise<string> {
   const lower = msg.toLowerCase();
@@ -2540,10 +2542,10 @@ async function fallbackResponse(userId: string, msg: string): Promise<string> {
   return "I'm experiencing a temporary issue with the AI service. Please try again in a moment. In the meantime, you can still ask me to generate leads, book appointments, or activate agents — those actions still work!";
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // AI-POWERED WEB SEARCH FALLBACK (OpenAI)
 // Used when Tavily/You.com not available
-// ============================================================
+// --------------------------------------------------------====
 
 async function openaiWebSearch(query: string): Promise<string> {
   if (!openaiKey) {
@@ -2665,10 +2667,10 @@ async function webSearch(query: string, userId: string): Promise<string> {
   return openaiWebSearch(query);
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // AI CONTENT GENERATION (OpenAI primary)
 // Write emails, ad copy, social posts, etc.
-// ============================================================
+// --------------------------------------------------------====
 
 async function aiGenerate(prompt: string, type: string = "general", userClient?: { client: any; model: string }): Promise<string> {
   const systemPrompts: Record<string, string> = {
@@ -2726,9 +2728,9 @@ async function aiGenerate(prompt: string, type: string = "general", userClient?:
   }
 }
 
-// ============================================================
+// --------------------------------------------------------====
 // EXPRESS ROUTES
-// ============================================================
+// --------------------------------------------------------====
 
 export async function registerRoutes(
   httpServer: Server,
@@ -2738,7 +2740,73 @@ export async function registerRoutes(
 
   registerTrackerPublicRoutes(app);
 
-  app.use(getSession());
+  // Session storage remains for admin auth and the existing req.session.userId
+  // authorization contract used throughout the application.
+  const PgStore = connectPgSimple(session);
+  const sessionTtl = 7 * 24 * 60 * 60 * 1000;
+  const sessionStore = new PgStore({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: false,
+    ttl: sessionTtl,
+    tableName: "sessions",
+  });
+  app.use(session({
+    secret: process.env.SESSION_SECRET!,
+    store: sessionStore,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      maxAge: sessionTtl,
+    },
+  }));
+
+  // Bridge a verified Clerk session to the existing local user row. This keeps
+  // app authorization and user-owned data keyed by the local UUID.
+  app.use(async (req, _res, next) => {
+    try {
+      const auth = getAuth(req);
+      if (!auth?.sessionClaims) {
+        if (req.session && !req.session.adminId) {
+          delete req.session.userId;
+        }
+        return next();
+      }
+
+      const email = (auth.sessionClaims as any).email as string | undefined;
+      if (!email) {
+        if (req.session && !req.session.adminId) {
+          delete req.session.userId;
+        }
+        return next();
+      }
+
+      let [dbUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (!dbUser) {
+        const firstName = ((auth.sessionClaims as any).firstName as string) || null;
+        const lastName = ((auth.sessionClaims as any).lastName as string) || null;
+        const [inserted] = await db
+          .insert(users)
+          .values({ email, passwordHash: "clerk-managed", firstName, lastName })
+          .onConflictDoNothing()
+          .returning();
+        if (inserted) {
+          dbUser = inserted;
+        } else {
+          [dbUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        }
+      }
+
+      if (dbUser && req.session) {
+        req.session.userId = dbUser.id;
+      }
+    } catch (error) {
+      console.error("[Clerk bridge]", error);
+    }
+    next();
+  });
 
   registerTrackerDashboardRoutes(app);
 
@@ -2823,188 +2891,7 @@ export async function registerRoutes(
 
   // ---- AUTH ----
 
-  app.post("/api/auth/register", async (req, res) => {
-    try {
-      const parsed = registerSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten() });
-      }
-      const { email, password, firstName, lastName } = parsed.data;
-      const existing = await storage.getUserByEmail(email);
-      if (existing) {
-        return res.status(409).json({ message: "An account with this email already exists" });
-      }
-      const passwordHash = await hashPassword(password);
-      const user = await storage.createUser({ email, passwordHash, firstName, lastName });
-      req.session.userId = user.id;
-      workflowHooks.onUserRegistered(user.id, user);
-
-      const verifyToken = randomBytes(32).toString("hex");
-      const verifyTokenHash = createHash("sha256").update(verifyToken).digest("hex");
-      const verifyExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      await storage.createEmailVerificationToken({ userId: user.id, token: verifyTokenHash, expiresAt: verifyExpiresAt });
-
-      const verifyUrl = `${getBaseUrl()}/verify-email?token=${verifyToken}`;
-      try {
-        await sendSystemEmail(
-          email,
-          { email: "info@argilette.com", name: "ArgiFlow" },
-          `Verify your email — ArgiFlow`,
-          `<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
-              <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
-            </div>
-            <h2 style="color: #e6edf3; font-size: 22px;">Welcome, ${firstName}!</h2>
-            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Thanks for signing up! Please verify your email address to activate your account.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${verifyUrl}" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Confirm Email Address</a>
-            </div>
-            <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">This link expires in 24 hours. If you didn't create this account, you can safely ignore this email.</p>
-            <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
-          </div>`
-        );
-        console.log(`Verification email sent to ${email}`);
-      } catch (verifyEmailErr: any) {
-        console.error("Verification email failed:", verifyEmailErr?.response?.body || verifyEmailErr?.message || verifyEmailErr);
-        await storage.markEmailVerified(user.id);
-      }
-
-      const stripeSessionId = req.body.stripeSessionId;
-      let stripeReconciled = false;
-      if (stripeSessionId && process.env.STRIPE_SECRET_KEY) {
-        try {
-          const Stripe = (await import("stripe")).default;
-          const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-          const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
-          const sessionEmail = session.customer_email || session.customer_details?.email;
-          if (session.payment_status === "paid" && sessionEmail?.toLowerCase() === email.toLowerCase()) {
-            const { upsertSubscription, PLAN_PRICES } = await import("./stripe-routes");
-            const plan = session.metadata?.plan || "starter";
-            const planConfig = PLAN_PRICES[plan] || PLAN_PRICES.starter;
-            await upsertSubscription(user.id, {
-              plan,
-              status: "active",
-              amount: planConfig.amount / 100,
-              paymentMethod: "stripe",
-              stripeCustomerId: (session.customer as string) || null,
-              stripeSubscriptionId: (session.subscription as string) || null,
-              currentPeriodStart: new Date(),
-              notes: `Stripe checkout ${stripeSessionId}`,
-            });
-            stripeReconciled = true;
-            console.log(`[Stripe] Reconciled subscription for ${email} — ${plan}`);
-          } else if (sessionEmail?.toLowerCase() !== email.toLowerCase()) {
-            console.warn(`[Stripe] Session email ${sessionEmail} does not match registration email ${email}`);
-          }
-        } catch (stripeErr: any) {
-          console.error("[Stripe] Reconciliation failed:", stripeErr?.message || stripeErr);
-        }
-      }
-
-      if (!stripeReconciled) {
-        try {
-          const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-          await storage.createSubscription({
-            userId: user.id,
-            plan: "pro",
-            status: "trial",
-            amount: 0,
-            paymentMethod: "none",
-            trialEndsAt: trialEnd,
-            currentPeriodStart: new Date(),
-            currentPeriodEnd: trialEnd,
-            notes: "30-day Pro trial — full access to all features",
-          });
-          console.log(`30-day Pro trial created for ${email} (expires ${trialEnd.toISOString()})`);
-        } catch (subErr: any) {
-          console.error("Failed to create trial subscription:", subErr?.message || subErr);
-        }
-      }
-
-      try {
-        await sendSystemEmail(
-          email,
-          { email: "info@argilette.com", name: "ArgiFlow" },
-          `Welcome to ArgiFlow — Your Pro Account is Active!`,
-          `<div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1117; color: #e6edf3; padding: 40px 30px; border-radius: 12px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #38bdf8; margin: 0; font-size: 28px;">ArgiFlow</h1>
-              <p style="color: #8b949e; margin: 8px 0 0;">AI-Powered Client Acquisition</p>
-            </div>
-            <h2 style="color: #e6edf3; font-size: 22px;">Welcome, ${firstName}!</h2>
-            <p style="color: #8b949e; line-height: 1.7; font-size: 15px;">Your account is ready and your <strong style="color: #38bdf8;">15-day Pro trial</strong> is now active. You have full access to all Pro features including AI agents, lead generation, voice AI calling, email campaigns, sales intelligence, and more — completely free for 15 days.</p>
-            <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <p style="color: #e6edf3; margin: 0 0 8px; font-weight: 600;">Your Account:</p>
-              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Plan: <strong style="color: #38bdf8;">Pro Trial (15 days free)</strong></p>
-              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Status: <strong style="color: #22c55e;">Active — Full Access</strong></p>
-              <p style="color: #8b949e; margin: 4px 0; font-size: 14px;">Includes: <strong style="color: #38bdf8;">All 40+ tools, AI agents, voice calling, sales intelligence</strong></p>
-            </div>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="https://argilette.co/dashboard" style="background: #38bdf8; color: #0d1117; padding: 14px 36px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 16px;">Go to Dashboard</a>
-            </div>
-            <p style="color: #8b949e; font-size: 13px; line-height: 1.6;">Enjoy full access to every ArgiFlow feature for 15 days — no credit card required. After your trial, choose a plan that fits your needs.</p>
-            <p style="color: #484f58; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #21262d; padding-top: 20px;">ArgiFlow by Argilette &mdash; AI Automation for Client Acquisition<br/>&copy; ${new Date().getFullYear()} Argilette. All rights reserved.</p>
-          </div>`
-        );
-        console.log(`Welcome email sent to ${email}`);
-      } catch (emailErr: any) {
-        console.error("Welcome email failed:", emailErr?.response?.body || emailErr?.message || emailErr);
-      }
-
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, jobTitle: user.jobTitle, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
-    } catch (error) {
-      console.error("Registration error:", error);
-      res.status(500).json({ message: "Registration failed" });
-    }
-  });
-
-  app.post("/api/auth/login", authRateLimit, async (req, res) => {
-    try {
-      const parsed = loginSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten() });
-      }
-      const { email, password } = parsed.data;
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-      const valid = await comparePasswords(password, user.passwordHash);
-      if (!valid) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-      await establishUserSession(req, user.id);
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, companyName: user.companyName, industry: user.industry, website: user.website, jobTitle: user.jobTitle, companyDescription: user.companyDescription, onboardingCompleted: user.onboardingCompleted, emailVerified: user.emailVerified });
-    } catch (error) {
-      if (error instanceof SessionEstablishmentError) {
-        console.error("[Auth] Login session establishment failed");
-        return res.status(500).json({
-          message: "Login failed",
-          code: error.code,
-        });
-      }
-      console.error("[Auth] Login failed");
-      return res.status(500).json({ message: "Login failed", code: "LOGIN_FAILED" });
-    }
-  });
-
-  app.get("/api/auth/session", (req, res) => {
-    if (!req.session?.userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    return res.json({ authenticated: true });
-  });
-
-  app.post("/api/auth/logout", (req, res) => {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ message: "Logout failed" });
-      }
-      res.clearCookie("connect.sid");
-      res.json({ success: true });
-    });
-  });
+  // Clerk owns registration, sign-in, and browser logout.
 
   app.post("/api/auth/verify-email", async (req, res) => {
     try {
@@ -4870,6 +4757,153 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
     }
   });
 
+  // ── Practitioner email enrichment (name + address → practice website → email) ──
+  // For imported leads that have a name/phone/address but NO email and NO company
+  // domain. Finds each practice's website and extracts a REAL email (never guessed).
+  // Found leads get a modest score bump but stay BELOW the auto-engage threshold (40)
+  // so nothing is auto-sent until outreach is explicitly armed + compliant.
+  let practEnrichRunning = false;
+  let practEnrichProgress = { enriched: 0, failed: 0, processed: 0, total: 0, status: "idle" as string };
+
+  const parseSpecialty = (notes: string | null): string => {
+    const m = (notes || "").match(/Specialty:\s*([^|]+)/i);
+    return m ? m[1].trim() : "";
+  };
+  const parseCityState = (address: string | null): { city: string; state: string } => {
+    // Address format: "STREET, CITY, STATE, ZIP"
+    const parts = (address || "").split(",").map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 3) return { city: parts[parts.length - 3] || "", state: parts[parts.length - 2] || "" };
+    if (parts.length === 2) return { city: parts[0], state: parts[1] };
+    return { city: "", state: "" };
+  };
+
+  app.get("/api/leads/enrich-imported-status", isAuthenticated, async (_req, res) => {
+    res.json(practEnrichProgress);
+  });
+
+  app.post("/api/leads/enrich-imported", isAuthenticated, async (req, res) => {
+    try {
+      if (practEnrichRunning) {
+        return res.json({ message: "Enrichment already running", ...practEnrichProgress, status: "processing" });
+      }
+
+      const userId = req.session.userId!;
+      const source = typeof req.body?.source === "string" ? req.body.source : "CSV Import - Atlanta Private Practice";
+      const allLeads = await storage.getLeadsByUser(userId);
+      const targets = allLeads.filter(l => {
+        if (source && l.source !== source) return false;
+        const email = (l.email || "").trim();
+        return !email || !email.includes("@");
+      });
+
+      if (targets.length === 0) {
+        return res.json({ message: "No leads need email enrichment", enriched: 0, total: 0, status: "complete" });
+      }
+
+      practEnrichRunning = true;
+      practEnrichProgress = { enriched: 0, failed: 0, processed: 0, total: targets.length, status: "processing" };
+
+      res.json({
+        message: `Starting email enrichment for ${targets.length} leads`,
+        enriching: targets.length,
+        status: "processing",
+      });
+
+      (async () => {
+        for (const lead of targets) {
+          try {
+            const { city, state } = parseCityState(lead.address);
+            const result = await intelligenceEngine.enrichPractitioner({
+              name: lead.name || "",
+              specialty: parseSpecialty(lead.notes),
+              city,
+              state,
+            });
+
+            if (result.email && result.email.includes("@")) {
+              const enrichNote = `[EMAIL FOUND ${new Date().toLocaleDateString()}] ${result.email} — ${result.source || "web"} (${result.confidence} confidence)${result.website ? ` | Website: ${result.website}` : ""}`;
+              await storage.updateLead(lead.id, {
+                email: result.email,
+                company: lead.company || result.practiceName || lead.company,
+                // Hard ceiling BELOW the 40 auto-engage threshold — sending stays gated
+                // until armed. Cap (not just floor) so a pre-existing high score can't
+                // trigger an auto-send once an email is added.
+                score: Math.min(Math.max(lead.score || 0, 25), 39),
+                notes: lead.notes ? `${enrichNote}\n\n${lead.notes}` : enrichNote,
+              });
+              practEnrichProgress.enriched++;
+              console.log(`[PRACT-ENRICH] ${lead.name}: found ${result.email} (${result.confidence})`);
+            } else {
+              practEnrichProgress.failed++;
+            }
+          } catch (err: any) {
+            console.error(`[PRACT-ENRICH] Error for ${lead.name}:`, err?.message || err);
+            practEnrichProgress.failed++;
+          }
+          practEnrichProgress.processed++;
+          // Throttle to respect search/AI rate limits.
+          await new Promise(r => setTimeout(r, 1500));
+        }
+        practEnrichProgress.status = "complete";
+        practEnrichRunning = false;
+        console.log(`[PRACT-ENRICH] Complete: ${practEnrichProgress.enriched} emails found, ${practEnrichProgress.failed} without email, out of ${practEnrichProgress.total}`);
+      })();
+    } catch (error) {
+      console.error("Error starting practitioner enrichment:", error);
+      practEnrichRunning = false;
+      practEnrichProgress.status = "error";
+      res.status(500).json({ message: "Failed to start enrichment" });
+    }
+  });
+
+  // ---- ADMIN: RESET CAMPAIGN (one-time, admin-password protected) ----
+  // Resets every non-unsubscribed lead for a user back to a fresh state so the
+  // outreach engine re-sends the campaign from zero. Keeps the outreach copy + score.
+  app.post("/api/admin/reset-campaign", async (req, res) => {
+    try {
+      const provided = (req.headers["x-admin-password"] as string) || req.body?.adminPassword;
+      if (!process.env.ADMIN_PASSWORD || provided !== process.env.ADMIN_PASSWORD) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const userId = req.body?.userId;
+      if (!userId || typeof userId !== "string") {
+        return res.status(400).json({ message: "userId required" });
+      }
+      const beforeLeads = await storage.getLeadsByUser(userId);
+      const reset = await storage.resetCampaignForUser(userId);
+      const skippedUnsubscribed = beforeLeads.filter(l => l.status === "unsubscribed").length;
+      console.log(`[ADMIN] Campaign reset for user ${userId}: ${reset} leads reset, ${skippedUnsubscribed} unsubscribed skipped`);
+      res.json({ success: true, reset, skippedUnsubscribed, total: beforeLeads.length });
+    } catch (e: any) {
+      console.error("[ADMIN] reset-campaign error:", e?.message || e);
+      res.status(500).json({ message: e?.message || "reset failed" });
+    }
+  });
+
+  // ---- ADMIN: CLEAR SMTP OVERRIDE (admin-password protected) ----
+  // Clears a user's stored per-user SMTP credentials so outreach/follow-up sends
+  // fall back to the environment SMTP_* secrets. Use when stored creds are stale
+  // and cause "535 Invalid Username or Password". Sender identity (senderEmail) is kept.
+  app.post("/api/admin/clear-smtp-override", async (req, res) => {
+    try {
+      const provided = (req.headers["x-admin-password"] as string) || req.body?.adminPassword;
+      if (!process.env.ADMIN_PASSWORD || provided !== process.env.ADMIN_PASSWORD) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const userId = req.body?.userId;
+      if (!userId || typeof userId !== "string") {
+        return res.status(400).json({ message: "userId required" });
+      }
+      await storage.clearSmtpOverride(userId);
+      const settings = await storage.getSettingsByUser(userId);
+      console.log(`[ADMIN] Cleared SMTP override for user ${userId}; sends now use env SMTP_* fallback`);
+      res.json({ success: true, senderEmail: settings?.senderEmail ?? null });
+    } catch (e: any) {
+      console.error("[ADMIN] clear-smtp-override error:", e?.message || e);
+      res.status(500).json({ message: e?.message || "clear failed" });
+    }
+  });
+
   // ---- BACKGROUND SCHEDULER ----
 
   async function processScheduledOutreach() {
@@ -5568,9 +5602,9 @@ RULES:
   setInterval(processFollowUpSequences, 15 * 60 * 1000);
   setTimeout(processFollowUpSequences, 2 * 60 * 1000);
 
-  // ============================================================
+  // --------------------------------------------------------====
   // IMAP INBOX MONITOR — TENANT-OWNED REPLY ROUTING
-  // ============================================================
+  // --------------------------------------------------------====
 
   type InboxDiagnostic = {
     code: string;
@@ -6225,11 +6259,11 @@ Return ONLY the email reply text, no subject line, no markdown.`
     }
   });
 
-  // ============================================================
+  // --------------------------------------------------------====
   // AUTOMATIC LEAD GENERATION (every 5 hours)
   // Uses AI to search for real leads based on the user's industry
   // and adds them to the CRM automatically
-  // ============================================================
+  // --------------------------------------------------------====
 
   const AUTO_LEAD_GEN_INTERVAL = 60 * 60 * 1000; // 60 minutes — conserve API quota
   const AUTO_LEAD_GEN_BATCH_SIZE = 30;
@@ -9194,9 +9228,9 @@ https://calendly.com/track-med-info/30min`;
     }
   });
 
-  // ============================================================
+  // --------------------------------------------------------====
   // SALES FUNNELS
-  // ============================================================
+  // --------------------------------------------------------====
 
   app.get("/api/funnels", isAuthenticated, async (req, res) => {
     try {
@@ -10719,9 +10753,9 @@ The ArgiFlow Team`;
 
   fixIncorrectLifetimeTrials().catch(err => console.error("Trial fix error:", err));
 
-  // ============================================================
+  // --------------------------------------------------------====
   // MULTI-LLM ROUTER + CREDITS + INTENT WATCHLIST + AGENT RUNS
-  // ============================================================
+  // --------------------------------------------------------====
 
   const { callLLM: callMultiLLM, getProviderList, getActiveConfig: getActiveLLMConfig } = await import("./llm-router");
   const { deductCredits, refundCredits, getCreditsBalance, getCreditHistory, CREDIT_COSTS } = await import("./credits");
@@ -12817,4 +12851,3 @@ async function ensureAllUsersProLifetime() {
     console.error("Error ensuring all users Pro lifetime:", err);
   }
 }
-

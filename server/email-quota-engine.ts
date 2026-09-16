@@ -6,7 +6,7 @@ import {
   EMAIL_PLAN_LIMITS,
   type EmailQuota,
 } from "../shared/email-quota-schema";
-import postalService from "./postal";
+import { sendViaSmtp } from "./smtp";
 import { getActiveDomainForUser } from "./domain-engine";
 
 export async function getOrCreateQuota(userId: string): Promise<EmailQuota> {
@@ -149,14 +149,13 @@ export async function sendEmailWithQuota(options: QuotaSendOptions): Promise<Quo
 
   let sendResult: any;
   try {
-    sendResult = await postalService.sendEmail({
+    sendResult = await sendViaSmtp({
       to: toAddresses,
       from: fromAddr,
       fromName,
       subject,
-      htmlBody: htmlBody || undefined,
-      plainBody: options.plainBody || undefined,
-      tag: options.tag || "argiflow",
+      html: htmlBody || undefined,
+      plainText: options.plainBody || undefined,
     });
   } catch (err: any) {
     await db.insert(emailSendsLog).values({

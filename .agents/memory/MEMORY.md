@@ -5,3 +5,10 @@
 - [Tenant campaign sender identity](tenant-campaign-sender-identity.md) — Tenant campaigns must use that tenant's saved SMTP; the partnership mailbox is for platform mail only.
 - [Tenant agent factual grounding](tenant-agent-factual-grounding.md) — Agent marketing must use verified tenant facts, never platform features or prior AI prose as tenant truth.
 - [Track-Med credit offer](track-med-credit-offer.md) — Approved staged credit and non-stacking terms; approval is not proof of live configuration.
+- [db:push data-loss trap](db-push-raw-sql-tables.md) — never run `db:push` blind here; it drops raw-SQL tables (aria_*) and columns not in Drizzle schema. Apply additive indexes via CREATE INDEX IF NOT EXISTS instead.
+- [Clerk migration pattern](clerk-migration.md) — email bridge, session compat (kept express-session), passwordHash sentinel, useAuth hook wrapper preserved.
+- [Prod email & domain infra](prod-email-and-domain-infra.md) — custom domain POSTs 405 (static proxy); real backend is the *.replit.app URL. SMTP 535 = stale per-user smtp override; env SMTP_* is valid, clear override to fix.
+- [Email transport is SMTP-only](email-transport-smtp-only.md) — SendGrid + Postal removed by user request; all mail routes through server/smtp.ts sendViaSmtp() (Plesk). Don't reintroduce them.
+- [Unsubscribe suppression](unsubscribe-suppression.md) — suppression is status-based (no flag column); engagement tracking can flip `unsubscribed`→`hot`. Guard every status write with `!== "unsubscribed"`.
+- [Outreach auto-send gating](outreach-auto-send-gating.md) — score >= 40 auto-sends cold email; bulk lead changes must CAP score < 40, and no send until CAN-SPAM address+unsubscribe exist.
+- [OpenAI GPT-5 params](openai-gpt5-params.md) — gpt-5*/o-series reject `max_tokens`; use `max_completion_tokens`. Bites any model swap from gpt-4o in direct completion calls.

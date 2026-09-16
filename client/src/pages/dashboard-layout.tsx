@@ -149,7 +149,7 @@ export default function DashboardLayout() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/login";
+        window.location.href = "/sign-in";
       }, 500);
     }
   }, [isAuthenticated, isLoading]);

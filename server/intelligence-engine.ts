@@ -1,8 +1,10 @@
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { searchBing, searchDDG, scrapeWebsite } from "./free-scraper";
 
-const OPENAI_MODEL = "gpt-4o";
-const OPENAI_MODEL_FAST = "gpt-4o-mini";
+const OPENAI_MODEL = "gpt-5.2";
+const OPENAI_MODEL_FAST = "gpt-5-mini";
+const ANTHROPIC_MODEL = "claude-sonnet-4-5";
 
 const TECH_DATABASE: Record<string, { category: string; competitors: string[] }> = {
   "Salesforce": { category: "CRM", competitors: ["HubSpot", "Zoho CRM", "Pipedrive"] },
@@ -493,31 +495,79 @@ function getOpenAI(): OpenAI | null {
   return new OpenAI({ apiKey: key });
 }
 
+// Anthropic (Claude) fallback for when OpenAI is unavailable or the key is invalid.
+// Prefers a valid direct key (sk-ant-...); otherwise uses the Replit Anthropic proxy
+// (AI_INTEGRATIONS_ANTHROPIC_*), which is provisioned by the installed integration.
+function getAnthropic(): { client: Anthropic; model: string } | null {
+  const directKey = process.env.ANTHROPIC_API_KEY;
+  if (directKey && directKey.startsWith("sk-ant-")) {
+    return { client: new Anthropic({ apiKey: directKey }), model: ANTHROPIC_MODEL };
+  }
+  const proxyKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+  const proxyUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+  if (proxyKey && proxyUrl) {
+    return { client: new Anthropic({ apiKey: proxyKey, baseURL: proxyUrl }), model: ANTHROPIC_MODEL };
+  }
+  return null;
+}
+
+// Lenient JSON parse: handles markdown code fences and stray control chars, and
+// falls back to extracting the first balanced {...} block.
+function parseJsonLoose(text: string): any {
+  const raw = (text || "").trim();
+  if (!raw) return {};
+  const stripped = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  const candidates = [stripped, stripped.replace(/[\x00-\x1F\x7F]/g, "")];
+  const braceStart = stripped.indexOf("{");
+  const braceEnd = stripped.lastIndexOf("}");
+  if (braceStart !== -1 && braceEnd > braceStart) {
+    candidates.push(stripped.slice(braceStart, braceEnd + 1));
+  }
+  for (const c of candidates) {
+    try {
+      return JSON.parse(c);
+    } catch { /* try next candidate */ }
+  }
+  console.error("[Intelligence] JSON parse failed for all candidates:", stripped.substring(0, 200));
+  return {};
+}
+
 async function aiExtract(systemPrompt: string, userPrompt: string, useFastModel: boolean = false): Promise<any> {
   const openai = getOpenAI();
-  if (!openai) throw new Error("OpenAI API key not configured");
-  const model = useFastModel ? OPENAI_MODEL_FAST : OPENAI_MODEL;
-  const response = await openai.chat.completions.create({
-    model,
-    max_tokens: 8192,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    response_format: { type: "json_object" },
-  });
-  const text = response.choices[0]?.message?.content || "{}";
-  try {
-    return JSON.parse(text);
-  } catch (e) {
-    console.error("[Intelligence] JSON parse error, attempting cleanup:", text.substring(0, 200));
-    const cleaned = text.replace(/[\x00-\x1F\x7F]/g, "").trim();
+  if (openai) {
     try {
-      return JSON.parse(cleaned);
-    } catch {
-      return {};
+      const model = useFastModel ? OPENAI_MODEL_FAST : OPENAI_MODEL;
+      // GPT-5 / o-series models require `max_completion_tokens`; older models use `max_tokens`.
+      const isNewGen = /^(gpt-5|o[134])/.test(model);
+      const tokenParam = isNewGen ? { max_completion_tokens: 8192 } : { max_tokens: 8192 };
+      const response = await openai.chat.completions.create({
+        model,
+        ...tokenParam,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: { type: "json_object" },
+      });
+      return parseJsonLoose(response.choices[0]?.message?.content || "{}");
+    } catch (err: any) {
+      console.warn(`[Intelligence] OpenAI aiExtract failed (${err?.message || err}); falling back to Anthropic`);
     }
   }
+
+  const anthropic = getAnthropic();
+  if (!anthropic) throw new Error("No AI provider available (OpenAI failed and no Anthropic fallback configured)");
+  const resp = await anthropic.client.messages.create({
+    model: anthropic.model,
+    max_tokens: 8192,
+    system: `${systemPrompt}\n\nRespond with ONLY a single valid JSON object. No prose, no explanation, no markdown code fences.`,
+    messages: [{ role: "user", content: userPrompt }],
+  });
+  const text = (resp.content || [])
+    .filter((b: any) => b.type === "text")
+    .map((b: any) => b.text)
+    .join("") || "{}";
+  return parseJsonLoose(text);
 }
 
 export class IntelligenceEngine {
@@ -1212,6 +1262,152 @@ CRITICAL: Only return data you actually found in the search results. Use null fo
     } catch (err: any) {
       console.error("[Intelligence] Find decision maker error:", err.message);
       return { name: null, title: null, email: null, phone: null, linkedinUrl: null, address: null, confidence: "low", notes: `Error: ${err.message}`, source: "" };
+    }
+  }
+
+  // Enrich an individual practitioner (physician/dentist/therapist) who has a
+  // name + specialty + city/state but NO known company domain. Finds their
+  // practice website via web search, scrapes it, and extracts a real email.
+  async enrichPractitioner(data: {
+    name: string;
+    specialty?: string;
+    city?: string;
+    state?: string;
+  }): Promise<{
+    email: string | null;
+    website: string | null;
+    domain: string | null;
+    practiceName: string | null;
+    confidence: "high" | "medium" | "low";
+    source: string;
+    notes: string;
+  }> {
+    const empty = (notes: string, confidence: "high" | "medium" | "low" = "low") =>
+      ({ email: null, website: null, domain: null, practiceName: null, confidence, source: "", notes });
+
+    try {
+      const name = (data.name || "").trim();
+      if (!name) return empty("No name provided");
+      const loc = [data.city, data.state].filter(Boolean).join(", ");
+      const spec = data.specialty || "";
+
+      const searches: Promise<any>[] = [
+        tavilySearchRaw(`"${name}" ${spec} ${loc} practice official website contact`).catch(() => null),
+        tavilySearchRaw(`"${name}" ${loc} email OR contact medical practice`).catch(() => null),
+      ];
+      const searchResults = await Promise.all(searches);
+
+      const allContent: string[] = [];
+      const allSources: string[] = [];
+      for (const sr of searchResults) {
+        if (!sr) continue;
+        if (sr.answer) allContent.push(sr.answer);
+        for (const r of (sr.results || [])) {
+          allContent.push(`Source: ${r.url}\nTitle: ${r.title}\n${r.content || ""}`);
+          if (r.url) allSources.push(r.url);
+        }
+      }
+
+      // Directory/aggregator sites are NOT the practice's own website — skip them
+      // when hunting for a practice domain to scrape.
+      const skipDomains = [
+        "linkedin.com", "facebook.com", "instagram.com", "twitter.com", "x.com",
+        "yelp.com", "google.com", "bing.com", "bbb.org", "yellowpages.com",
+        "wikipedia.org", "healthgrades.com", "vitals.com", "zocdoc.com", "webmd.com",
+        "npi.io", "npidb.org", "npino.com", "doximity.com", "sharecare.com",
+        "youtube.com", "wellness.com", "ratemds.com", "caredash.com", "findatopdoc.com",
+        "medicare.gov", "hipaaspace.com", "docinfo.org", "usnews.com",
+      ];
+      const practiceDomains = allSources
+        .filter(u => u && !skipDomains.some(sd => u.includes(sd)))
+        .map(u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } })
+        .filter(d => d && d.length > 3 && d.includes("."));
+      const uniqueDomains = Array.from(new Set(practiceDomains)).slice(0, 2);
+
+      for (const domain of uniqueDomains) {
+        try {
+          const siteData = await scrapeWebsite(domain);
+          if (siteData) {
+            const parts: string[] = [`[Website Scrape: ${domain}]`];
+            if (siteData.name) parts.push(`Business Name: ${siteData.name}`);
+            if (siteData.email) parts.push(`Email: ${siteData.email}`);
+            if (siteData.phone) parts.push(`Phone: ${siteData.phone}`);
+            if (siteData.address) parts.push(`Address: ${siteData.address}`);
+            if (siteData.description) parts.push(`Description: ${siteData.description}`);
+            if (parts.length > 1) allContent.push(parts.join("\n"));
+          }
+        } catch (e: any) {
+          console.warn(`[Intelligence] enrichPractitioner scrape ${domain} failed: ${e.message}`);
+        }
+      }
+
+      if (allContent.length === 0) return empty("No web results found");
+
+      const searchContent = allContent.join("\n\n---\n\n");
+      const result = await aiExtract(
+        `You are a B2B contact-discovery specialist for healthcare practices. You find the REAL business email for a specific practitioner from web search results and their practice website. You NEVER fabricate or guess email addresses.`,
+        `Find the best contact email for this practitioner using ONLY the results below.
+
+Practitioner: ${name}
+Specialty: ${spec || "Unknown"}
+Location: ${loc || "Unknown"}
+
+Web Results:
+${searchContent}
+
+RULES:
+1. Only return an email that ACTUALLY APPEARS in the results. Never invent, guess, or construct a pattern-based email.
+2. Prefer a direct personal email (e.g. firstname@practicedomain.com) over a generic one (info@, office@, contact@). A generic practice email is acceptable if no direct one exists.
+3. The email domain must belong to the practitioner's own practice website — NOT a directory (healthgrades, zocdoc, etc.), and NOT a personal freemail unless it is clearly the practice's published contact.
+4. Also capture the practice's official website if present.
+
+Return JSON:
+{
+  "email": "real email found in results, or null",
+  "website": "practice website URL, or null",
+  "practiceName": "practice/business name, or null",
+  "confidence": "high (email directly on practice site) | medium (email in search results) | low (uncertain)",
+  "source": "URL where the email was found",
+  "foundInResults": true only if the email literally appears in the text above
+}
+
+CRITICAL: If no real email appears anywhere in the results, return null for email. Do NOT construct one.`
+      );
+
+      let emailFound = result.foundInResults && result.email && result.email !== "null"
+        ? String(result.email).trim().toLowerCase()
+        : null;
+
+      // Deterministic guard against model hallucination: only accept an email that
+      // LITERALLY appears in the collected source text, is well-formed, and whose domain
+      // is not a directory/aggregator. This does not trust the model's self-reported flag.
+      if (emailFound) {
+        const haystack = searchContent.toLowerCase();
+        const emailDomain = emailFound.split("@")[1] || "";
+        const looksLikeEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailFound);
+        const inText = haystack.includes(emailFound);
+        const isDirectory = skipDomains.some(sd => emailDomain.includes(sd));
+        if (!looksLikeEmail || !inText || isDirectory) {
+          console.warn(`[Intelligence] enrichPractitioner rejected unverified email "${emailFound}" for ${name} (wellFormed=${looksLikeEmail}, inText=${inText}, directory=${isDirectory})`);
+          emailFound = null;
+        }
+      }
+      const website = result.website && result.website !== "null" ? result.website : (uniqueDomains[0] ? `https://${uniqueDomains[0]}` : null);
+      let domain: string | null = null;
+      if (website) { try { domain = new URL(website.startsWith("http") ? website : `https://${website}`).hostname.replace(/^www\./, ""); } catch { domain = uniqueDomains[0] || null; } }
+
+      return {
+        email: emailFound,
+        website: website || null,
+        domain,
+        practiceName: result.practiceName && result.practiceName !== "null" ? result.practiceName : null,
+        confidence: (["high", "medium", "low"].includes(result.confidence) ? result.confidence : "low") as "high" | "medium" | "low",
+        source: result.source || allSources[0] || "",
+        notes: emailFound ? `Email found (${result.confidence || "low"} confidence)` : "No real email found in web results",
+      };
+    } catch (err: any) {
+      console.error("[Intelligence] enrichPractitioner error:", err.message);
+      return empty(`Error: ${err.message}`);
     }
   }
 

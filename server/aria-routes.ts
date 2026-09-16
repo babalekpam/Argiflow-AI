@@ -63,7 +63,7 @@ async function executeApprovedAction(userId: string, action: any): Promise<{ exe
       to: toEmail,
       subject,
       body: body.replace(/\n/g, "<br>"),
-      fromName: biz?.owner_name || biz?.name || "ArgiFlow",
+      fromName: biz?.owner_name || biz?.name || "Abel NKAWULA",
       fromEmail: biz?.owner_email || undefined,
     });
 

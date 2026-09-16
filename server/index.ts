@@ -6,6 +6,10 @@ import { attachVoiceStreamWSS } from "./voice-stream";
 import { storage } from "./storage";
 import { startApprovedCampaignDispatcher } from "./outreach-agent";
 import { startOutreachSearchWorkersScheduler } from "./outreach-search-workers";
+import cors from "cors";
+import { clerkMiddleware } from "@clerk/express";
+import { publishableKeyFromHost } from "@clerk/shared/keys";
+import {
 
 const app = express();
 const httpServer = createServer(app);
@@ -15,6 +19,11 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+// Clerk proxy must be mounted BEFORE body parsers (streams raw bytes)
+app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+
+app.use(cors({ credentials: true, origin: true }));
 
 app.use(
   express.json({
@@ -26,6 +35,16 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false, limit: "50mb" }));
+
+// Clerk middleware — resolves publishable key from request host for custom-domain support
+app.use(
+  clerkMiddleware((req) => ({
+    publishableKey: publishableKeyFromHost(
+      getClerkProxyHost(req) ?? "",
+      process.env.CLERK_PUBLISHABLE_KEY,
+    ),
+  })),
+);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
