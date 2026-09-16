@@ -25,6 +25,7 @@ import { getVerifiedTenantBusinessContext } from "./tenant-business-context";
 import instantlyRoutes, { handlePixelTrack } from "./instantly-routes";
 import intelligenceRoutes from "./intelligence-routes";
 import outreachAgentRoutes from "./outreach-agent-routes";
+import outreachSearchWorkersRoutes from "./outreach-search-workers-routes";
 import domainRoutes from "./domain-routes";
 import { intelligenceEngine } from "./intelligence-engine";
 import { registerFreeScraperRoutes } from "./free-scraper-routes";
@@ -2796,6 +2797,8 @@ export async function registerRoutes(
   app.use("/api/intelligence", intelligenceRoutes);
 
   // ---- AI OUTREACH AGENT ----
+  // Search-only workers must be mounted before the legacy full-agent router.
+  app.use("/api/outreach-agent/search-workers", outreachSearchWorkersRoutes);
   app.use("/api/outreach-agent", outreachAgentRoutes);
 
   // ---- FREE LEAD INTELLIGENCE SCRAPER ----

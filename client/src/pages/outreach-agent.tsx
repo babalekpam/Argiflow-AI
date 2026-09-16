@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -59,7 +69,462 @@ function LoadingCards({ count = 3 }: { count?: number }) {
   );
 }
 
-function AgentStatusPanel() {
+type SearchWorker = {
+  id: 1 | 2 | 3;
+  status: string;
+  lastRun?: string | null;
+  lastError?: string | null;
+};
+
+type SearchResult = {
+  id?: string | number;
+  title: string;
+  url: string;
+  snippet: string;
+  query: string;
+  workerId: 1 | 2 | 3;
+  discoveredAt?: string | null;
+};
+
+type SearchWorkersStatus = {
+  enabled: boolean;
+  workerCount: number;
+  providerConfigured: boolean;
+  criteriaReady: boolean;
+  queries: string[];
+  dailySearchLimit: number;
+  searchesUsedToday: number;
+  dailyResultLimit: number;
+  resultsToday: number;
+  workers: SearchWorker[];
+  results: SearchResult[];
+  blockers: string[];
+};
+
+function formatWorkerTimestamp(value?: string | null) {
+  if (!value) return "No run recorded";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Run time unavailable" : date.toLocaleString();
+}
+
+function getUniqueQueryCount(queries: string[]) {
+  return new Set(
+    queries
+      .map((query) => query.trim().toLowerCase())
+      .filter(Boolean),
+  ).size;
+}
+
+interface AgentStatusPanelProps {
+  onOpenConfiguration?: () => void;
+}
+
+function SearchWorkersPanel({ onOpenConfiguration }: AgentStatusPanelProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [activationOpen, setActivationOpen] = useState(false);
+  const [searchLimitDraft, setSearchLimitDraft] = useState("");
+  const [searchQueriesDraft, setSearchQueriesDraft] = useState("");
+
+  const {
+    data: status,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<SearchWorkersStatus>({
+    queryKey: ["/api/outreach-agent/search-workers/status"],
+  });
+
+  useEffect(() => {
+    if (status?.dailySearchLimit !== undefined) {
+      setSearchLimitDraft(String(status.dailySearchLimit));
+    }
+    if (status?.queries) {
+      setSearchQueriesDraft(status.queries.join("\n"));
+    }
+  }, [status?.dailySearchLimit, status?.queries]);
+
+  const invalidateStatus = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/outreach-agent/search-workers/status"] });
+  };
+
+  const startMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/outreach-agent/search-workers/start", {});
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateStatus();
+      setActivationOpen(false);
+      toast({ title: "Search workers activated", description: "Three workers will search saved criteria into the review list only." });
+    },
+    onError: (e: any) => toast({ title: "Could not activate search workers", description: e.message, variant: "destructive" }),
+  });
+
+  const stopMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/outreach-agent/search-workers/stop", {});
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateStatus();
+      toast({ title: "Searches paused" });
+    },
+    onError: (e: any) => toast({ title: "Could not pause searches", description: e.message, variant: "destructive" }),
+  });
+
+  const runMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/outreach-agent/search-workers/run", {});
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateStatus();
+      toast({ title: "Search run requested", description: "New matches will remain in the review list." });
+    },
+    onError: (e: any) => toast({ title: "Could not run search", description: e.message, variant: "destructive" }),
+  });
+
+  const configMutation = useMutation({
+    mutationFn: async ({ dailySearchLimit, queries }: { dailySearchLimit: number; queries: string[] }) => {
+      const res = await apiRequest("PUT", "/api/outreach-agent/search-workers/config", { dailySearchLimit, queries });
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateStatus();
+      toast({ title: "Search criteria and budget saved" });
+    },
+    onError: (e: any) => toast({ title: "Could not save search criteria and budget", description: e.message, variant: "destructive" }),
+  });
+
+  if (isLoading) {
+    return (
+      <Card className="p-5" data-testid="card-search-workers-loading">
+        <Skeleton className="h-5 w-56 mb-3" />
+        <Skeleton className="h-4 w-full mb-2" />
+        <Skeleton className="h-4 w-3/4" />
+      </Card>
+    );
+  }
+
+  if (isError || !status) {
+    return (
+      <Card className="p-5 border-destructive/40" data-testid="card-search-workers-error">
+        <div className="flex items-start gap-3" role="alert">
+          <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <h2 className="font-semibold">Search-only workers unavailable</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              We could not load the saved search worker status. No searches were started.
+            </p>
+            <p className="text-xs text-destructive mt-2 break-words">
+              {error instanceof Error ? error.message : "Status request failed"}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={invalidateStatus}
+              data-testid="button-refresh-search-workers-error"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" /> Refresh status
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  const configuredQueries = (status.queries || []).filter((query) => query.trim().length > 0);
+  const uniqueQueryCount = getUniqueQueryCount(configuredQueries);
+  const searchQueries = searchQueriesDraft.split(/\r?\n/).map((query) => query.trim()).filter(Boolean);
+  const draftUniqueQueryCount = getUniqueQueryCount(searchQueries);
+  const criteriaReady = status.criteriaReady === true && uniqueQueryCount >= 3;
+  const providerReady = status.providerConfigured === true;
+  const canActivate = criteriaReady && providerReady;
+  const canRunNow = canActivate && status.enabled;
+  const searchLimit = Number(status.dailySearchLimit) || 3;
+  const parsedSearchLimit = Number(searchLimitDraft);
+  const validSearchLimit = Number.isInteger(parsedSearchLimit) && parsedSearchLimit >= 1 && parsedSearchLimit <= 30;
+  const criteriaBlocker = uniqueQueryCount < 3
+    ? "Save at least 3 unique, non-empty discovery queries before activating search workers."
+    : null;
+  const blockers = [
+    ...(status.blockers || []),
+    ...(criteriaBlocker && !(status.blockers || []).includes(criteriaBlocker) ? [criteriaBlocker] : []),
+  ];
+  const workers = [1, 2, 3].map((id) => status.workers?.find((worker) => worker.id === id));
+
+  return (
+    <>
+      <Card className="p-5" data-testid="card-search-workers">
+        <div className="space-y-5">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-semibold flex items-center gap-2">
+                  <Search className="w-4 h-4 text-primary" />
+                  Search-only workers
+                </h2>
+                <Badge variant={status.enabled ? "default" : "outline"} data-testid="text-search-workers-status">
+                  {status.enabled ? "Active" : "Paused"}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Three workers search your saved criteria into a separate review list. They cannot send email.
+              </p>
+            </div>
+            <Badge
+              variant={providerReady ? "outline" : "destructive"}
+              className="shrink-0"
+              data-testid="text-search-provider-status"
+            >
+              {providerReady ? "Search provider ready" : "Search provider not configured"}
+            </Badge>
+          </div>
+
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+            <p className="font-medium">Review only — no CRM enrollment, campaigns, or mail</p>
+            <p className="text-muted-foreground mt-1">
+              Matches remain REVIEW results separate from your CRM. Provider usage may cost.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-md border p-3" data-testid="text-search-request-counter">
+              <p className="text-xs text-muted-foreground">Search requests today</p>
+              <p className="text-lg font-semibold mt-1">
+                {status.searchesUsedToday} / {searchLimit}
+              </p>
+            </div>
+            <div className="rounded-md border p-3" data-testid="text-search-result-counter">
+              <p className="text-xs text-muted-foreground">Results today</p>
+              <p className="text-lg font-semibold mt-1">
+                {status.resultsToday} / {status.dailyResultLimit}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">Daily budgets reset at 00:00 UTC. The search budget is shared across all three workers.</p>
+
+          <div className="space-y-2">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="min-w-0 flex-1 sm:max-w-xs">
+                <Label htmlFor="daily-search-limit" className="text-xs text-muted-foreground">
+                  Daily search request budget
+                </Label>
+                <Input
+                  id="daily-search-limit"
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={searchLimitDraft}
+                  onChange={(event) => setSearchLimitDraft(event.target.value)}
+                  aria-describedby="daily-search-limit-help"
+                  data-testid="input-daily-search-limit"
+                />
+              </div>
+            </div>
+            <p id="daily-search-limit-help" className="text-xs text-muted-foreground">
+              Set 1–30 requests per day for all workers combined.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h3 className="text-sm font-semibold">Approved discovery queries</h3>
+                <p className="text-xs text-muted-foreground">Edit the saved queries the workers may use; changes apply only after saving.</p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onOpenConfiguration}
+                  data-testid="button-open-search-config"
+                >
+                  <Settings className="w-4 h-4 mr-2" /> Edit in Configuration
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={invalidateStatus}
+                  data-testid="button-refresh-search-workers"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+                </Button>
+              </div>
+            </div>
+            <div data-testid="list-search-queries">
+              <Label htmlFor="search-worker-queries" className="sr-only">Saved discovery queries</Label>
+              <Textarea
+                id="search-worker-queries"
+                value={searchQueriesDraft}
+                onChange={(event) => setSearchQueriesDraft(event.target.value)}
+                placeholder="e.g. a distinct discovery query matching your audience"
+                aria-describedby="search-criteria-help"
+                className="min-h-[100px]"
+                data-testid="input-search-worker-queries"
+              />
+              <div id="search-criteria-help" className="space-y-1 mt-2">
+                <p className="text-xs text-muted-foreground">
+                  {configuredQueries.length
+                    ? "Current saved criteria stays intact until a successful save. Add or edit lines here, then save."
+                    : "No saved discovery queries are available. Add them here or in Configuration, then save."}
+                </p>
+                <p className={`text-xs ${draftUniqueQueryCount >= 3 ? "text-muted-foreground" : "text-destructive"}`} data-testid="text-search-criteria-count">
+                  {draftUniqueQueryCount} unique non-empty queries · at least 3 required to save and activate
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-xs text-muted-foreground">
+                Query edits are saved to the shared outreach configuration; no criteria are invented or appended automatically.
+              </p>
+              <Button
+                onClick={() => configMutation.mutate({ dailySearchLimit: parsedSearchLimit, queries: searchQueries })}
+                disabled={configMutation.isPending || !validSearchLimit || draftUniqueQueryCount < 3}
+                data-testid="button-save-search-criteria-budget"
+              >
+                {configMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                Save search criteria and budget
+              </Button>
+            </div>
+          </div>
+
+          {blockers.length > 0 && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3" data-testid="list-search-worker-blockers">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-destructive" /> Activation blockers
+              </p>
+              <ul className="list-disc pl-5 mt-2 space-y-1 text-sm text-muted-foreground">
+                {blockers.map((blocker, index) => <li key={`${blocker}-${index}`}>{blocker}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              onClick={() => setActivationOpen(true)}
+              disabled={startMutation.isPending || status.enabled || !canActivate}
+              data-testid="button-activate-search-workers"
+            >
+              {startMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+              Activate 3 search workers
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => stopMutation.mutate()}
+              disabled={stopMutation.isPending || !status.enabled}
+              data-testid="button-pause-searches"
+            >
+              {stopMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Pause className="w-4 h-4 mr-2" />}
+              Pause searches
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => runMutation.mutate()}
+              disabled={runMutation.isPending || !canRunNow}
+              data-testid="button-search-now"
+            >
+              {runMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
+              Search now
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold">Worker status</h3>
+            <div className="grid gap-2 md:grid-cols-3" data-testid="list-search-workers">
+              {workers.map((worker, index) => (
+                <div key={worker?.id || index + 1} className="rounded-md border p-3 min-w-0" data-testid={`card-search-worker-${index + 1}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Worker {index + 1}</p>
+                    <Badge variant={worker?.status === "running" ? "default" : "outline"} data-testid={`text-search-worker-${index + 1}-status`}>
+                      {worker?.status || "Status unavailable"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Last run: {formatWorkerTimestamp(worker?.lastRun)}
+                  </p>
+                  {worker?.lastError && (
+                    <p className="text-xs text-destructive mt-2 break-words" data-testid={`text-search-worker-${index + 1}-error`}>
+                      {worker.lastError}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h3 className="text-sm font-semibold">Saved matches for review</h3>
+              <Badge variant="outline">REVIEW only</Badge>
+            </div>
+            {!status.results?.length ? (
+              <div className="rounded-md border border-dashed p-5 text-center text-sm text-muted-foreground" data-testid="empty-search-results">
+                No saved matches yet. Search results will appear here for review; they are not qualified leads.
+              </div>
+            ) : (
+              <div className="space-y-2" data-testid="list-search-results">
+                {status.results.map((result, index) => (
+                  <Card key={result.id || `${result.url}-${index}`} className="p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <a
+                          href={result.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-sm text-primary hover:underline break-words"
+                          data-testid={`link-search-result-${index + 1}`}
+                        >
+                          {result.title || result.url}
+                        </a>
+                        <p className="text-xs text-muted-foreground mt-1 break-words">{result.url}</p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">REVIEW</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 break-words">{result.snippet || "No snippet provided."}</p>
+                    <p className="text-[11px] text-muted-foreground mt-2">
+                      Unverified / not qualified · Query: <span className="break-words">{result.query}</span> · Worker {result.workerId}
+                    </p>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      <AlertDialog open={activationOpen} onOpenChange={setActivationOpen}>
+        <AlertDialogContent data-testid="dialog-search-worker-activation">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate 3 search-only workers?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p className="font-medium">Master activation confirmation</p>
+                <p>This activates workers using only your saved discovery queries and stores matches in the REVIEW list.</p>
+                <p><strong>They will not enroll contacts in your CRM, add contacts to campaigns, or send email.</strong></p>
+                <p>Search provider usage may cost. You can pause searches at any time.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-search-worker-activation">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => startMutation.mutate()}
+              disabled={startMutation.isPending}
+              data-testid="button-confirm-search-worker-activation"
+            >
+              {startMutation.isPending ? "Activating…" : "Confirm and activate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function AgentStatusPanel({ onOpenConfiguration }: AgentStatusPanelProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -72,7 +537,7 @@ function AgentStatusPanel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/outreach-agent/status"] });
-      toast({ title: "Outreach Agent started" });
+      toast({ title: "Full outreach agent started" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -84,7 +549,7 @@ function AgentStatusPanel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/outreach-agent/status"] });
-      toast({ title: "Outreach Agent stopped" });
+      toast({ title: "Full outreach agent stopped" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -126,17 +591,17 @@ function AgentStatusPanel() {
         <div className="flex items-center gap-3">
           <div className={`w-3 h-3 rounded-full ${isRunning ? "bg-green-500 animate-pulse" : "bg-muted-foreground/40"}`} />
           <span className="font-medium" data-testid="text-agent-status">
-            {isRunning ? "Agent Running" : "Agent Stopped"}
+            {isRunning ? "Full outreach agent running" : "Full outreach agent stopped"}
           </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {isRunning ? (
             <Button variant="outline" onClick={() => stopMutation.mutate()} disabled={stopMutation.isPending} data-testid="button-stop-agent">
-              <Square className="w-4 h-4 mr-2" /> Stop Agent
+              <Square className="w-4 h-4 mr-2" /> Stop full outreach agent
             </Button>
           ) : (
-            <Button onClick={() => startMutation.mutate()} disabled={startMutation.isPending} data-testid="button-start-agent">
-              <Play className="w-4 h-4 mr-2" /> Start Agent
+            <Button onClick={() => startMutation.mutate()} disabled={startMutation.isPending} className="whitespace-normal text-left" data-testid="button-start-agent">
+              <Play className="w-4 h-4 mr-2" /> Full outreach agent (can send email)
             </Button>
           )}
           <Button variant="outline" onClick={() => cycleMutation.mutate()} disabled={cycleMutation.isPending} data-testid="button-run-cycle">
@@ -149,6 +614,8 @@ function AgentStatusPanel() {
           </Button>
         </div>
       </div>
+
+      <SearchWorkersPanel onOpenConfiguration={onOpenConfiguration} />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="p-4">
@@ -519,7 +986,7 @@ export default function OutreachAgentPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {activeTab === "dashboard" && <AgentStatusPanel />}
+        {activeTab === "dashboard" && <AgentStatusPanel onOpenConfiguration={() => setActiveTab("config")} />}
         {activeTab === "config" && <AgentConfigPanel />}
         {activeTab === "activity" && <ActivityLogPanel />}
       </div>

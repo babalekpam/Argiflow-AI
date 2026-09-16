@@ -5,6 +5,7 @@ import { createServer } from "http";
 import { attachVoiceStreamWSS } from "./voice-stream";
 import { storage } from "./storage";
 import { startApprovedCampaignDispatcher } from "./outreach-agent";
+import { startOutreachSearchWorkersScheduler } from "./outreach-search-workers";
 
 const app = express();
 const httpServer = createServer(app);
@@ -77,6 +78,9 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || "5000", 10);
 
   await registerRoutes(httpServer, app);
+  // Search-only workers resume only tenants that explicitly enabled their
+  // independent persisted config; this does not activate the full agent.
+  startOutreachSearchWorkersScheduler();
   // Campaign sending is restart-safe but authorization-scoped: this worker
   // only polls durable user-approved launch markers and never starts the
   // autonomous discovery/enrollment agent.
