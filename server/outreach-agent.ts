@@ -513,6 +513,11 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
       // not fall back to a platform provider when the saved sender is
       // incomplete or when the campaign metadata points at another account.
       const tenantSmtpSettings = await this.getUserSettings(userId);
+      const tenantUser = await storage.getUserById(userId);
+      const campaignSenderName =
+        `${tenantUser?.firstName || ""} ${tenantUser?.lastName || ""}`.trim() ||
+        String(tenantSmtpSettings.senderEmail || "").split("@")[0] ||
+        "Your team";
       const tenantSmtpIssue = getTenantSmtpConfigIssue(tenantSmtpSettings);
       if (tenantSmtpIssue) {
         console.warn(`[OutreachAgent] Campaign send blocked for ${userId}: ${tenantSmtpIssue}`);
@@ -658,6 +663,7 @@ Return up to ${config.dailyProspectLimit || 10} leads. If fewer real leads found
               name: sendLead.name,
               email: sendLead.email,
               company: sendLead.company,
+              senderName: campaignSenderName,
             }
           );
 

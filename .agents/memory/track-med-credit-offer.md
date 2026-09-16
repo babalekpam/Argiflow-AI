@@ -12,3 +12,9 @@ Include free code analysis. The 90-day prior-authorization promotion is an alter
 **Why:** The owner explicitly approved spreading the incentive over four paid months and avoiding stacked discounts. This limits the initial discount; it does not establish profitability without reviewing actual service costs.
 
 **How to apply:** Preserve these terms when preparing an owner-facing offer or Business Manager brief unless the owner changes them. Verify live saved configuration separately; conversational approval or this reference does not constitute an application handoff, publication, or permission to send mail. Final launch still needs cost and applicable healthcare-marketing/contractual review.
+
+Track-Med's new lead outreach and new campaign drafts should use the approved credit offer uniformly, not leave the offer as an optional campaign-editor template.
+
+**Why:** The owner explicitly requested uniform messaging after new leads continued receiving the old denial-rate/A/R-audit pitch. Approval of that consistency is not permission to overwrite sent history or launch a campaign.
+
+**How to apply:** Keep other tenants' messaging isolated. Preserve saved drafts unless the owner explicitly regenerates them, and never treat a template update as campaign-launch approval.

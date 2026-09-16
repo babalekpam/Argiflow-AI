@@ -47,7 +47,12 @@ import chatbotRoutes from "./chatbot-routes";
 import marketingSuiteRoutes from "./marketing-suite-routes";
 import marketingAutopilotRoutes from "./marketing-autopilot-routes";
 import { startAutopilotScheduler } from "./marketing-autopilot";
-import { getTemplateInstructions, detectSpecialty, getFollowUpForSpecialty, TRACKMED_SEQUENCES, generateTrackMedHtmlEmail } from "./outreach-templates";
+import { getTemplateInstructions, detectSpecialty, getFollowUpForSpecialty, generateTrackMedHtmlEmail } from "./outreach-templates";
+import {
+  buildTrackMedApprovedOfferEmail,
+  isObsoleteTrackMedInitialDraft,
+  isTrackMedTenant,
+} from "@shared/trackmed-credit-offer";
 import { sendViaSmtp } from "./smtp";
 import emailQuotaRoutes from "./email-quota-routes";
 import { isEmailSuppressed, isExplicitOptOutText, isValidRecipientEmail, suppressEmail } from "./email-suppression";
@@ -965,6 +970,12 @@ async function executeAction(userId: string, action: string, params: any): Promi
 
       const [_userRecord] = await db.select({ industry: users.industry }).from(users).where(eq(users.id, userId)).limit(1);
       const _userIsMedBilling = _userRecord && /medical billing|rcm|revenue cycle/i.test(_userRecord.industry || "");
+      const tenantForOutreach = await storage.getUserById(userId);
+      const tenantSettingsForOutreach = await storage.getSettingsByUser(userId);
+      const isTrackMedOutreach = isTrackMedTenant(tenantForOutreach?.companyName);
+      const trackMedSenderName = `${tenantForOutreach?.firstName || ""} ${tenantForOutreach?.lastName || ""}`.trim();
+      const trackMedSenderTitle = (tenantForOutreach as any)?.jobTitle || "";
+      const trackMedBookingURL = tenantSettingsForOutreach?.calendarLink || "";
 
       for (const lead of leadsData.slice(0, 30)) {
         if (isFakeName(lead.name)) {
@@ -1054,7 +1065,18 @@ async function executeAction(userId: string, action: string, params: any): Promi
           status: "new",
           score: 0,
           notes: lead.notes || "",
-          outreach: lead.outreach || "",
+          // The model may suggest copy, but it never controls a newly created
+          // Track-Med initial draft. The approved offer is rendered
+          // deterministically with the real lead and tenant sender details.
+          outreach: isTrackMedOutreach
+            ? buildTrackMedApprovedOfferEmail({
+              firstName: lead.name,
+              practiceName: lead.company,
+              senderName: trackMedSenderName,
+              senderTitle: trackMedSenderTitle,
+              bookingURL: trackMedBookingURL,
+            }).outreach
+            : lead.outreach || "",
           intentSignal: lead.intentSignal || lead.intent_signal || "",
         };
         await storage.createLead(leadRecord);
@@ -1597,6 +1619,16 @@ async function sendOutreachEmailInternal(lead: any, userSettings: any, user: any
     outreachBody = outreachBody.replace(/^Subject:\s*.+\n?/im, "").trim();
   }
 
+  const isMedBillSender = isTrackMedTenant(user?.companyName);
+  if (isMedBillSender && isObsoleteTrackMedInitialDraft(lead.outreach)) {
+    const error = "This Track-Med draft uses the obsolete denial-rate/A/R-audit message. Regenerate the draft before sending; nothing was sent.";
+    await recordBlockedOutreach(error, true);
+    if (lead?.id) {
+      await storage.updateLead(lead.id, { scheduledSendAt: null });
+    }
+    return { success: false, error };
+  }
+
   let priorOutboundLogs: Awaited<ReturnType<typeof getSentEmailLogs>>;
   try {
     const pendingClaim = await getPendingEmailSendClaim(user.id, lead.id, "outreach");
@@ -1631,8 +1663,6 @@ async function sendOutreachEmailInternal(lead: any, userSettings: any, user: any
     }
   }
 
-  const isMedBillSender = (user.companyName || "").toLowerCase().includes("track-med");
-
   let htmlBody: string;
   let plainText: string;
 
@@ -1644,6 +1674,7 @@ async function sendOutreachEmailInternal(lead: any, userSettings: any, user: any
       practiceName,
       bodyText: outreachBody,
       subjectLine,
+      bookingURL: userSettings.calendarLink || "",
     });
     htmlBody = branded.htmlBody;
     plainText = branded.plainText;
@@ -1866,7 +1897,7 @@ Use this knowledge when advising the client. Reference their actual services, pr
   const userIndustry = user?.industry || "";
   const userPhone = (user as any)?.phone || "";
 
-  const isMedBillChatUser = (userCompany || "").toLowerCase().includes("track-med");
+  const isMedBillChatUser = isTrackMedTenant(userCompany);
   const medBillChatBlock = isMedBillChatUser ? `
 
 TRACK-MED BILLING SOLUTIONS — SPECIAL INSTRUCTIONS:
@@ -1879,60 +1910,17 @@ When asked to find medical practices or leads, you MUST:
 5. Phone number priority: Direct cell > Direct office line > Main line ONLY for solo practitioners. AVOID general front desk numbers for practices with 3+ providers — those go to gatekeepers.
 6. Check NPI Registry, LinkedIn, "About Us" pages, and state medical board registries for direct contact numbers.
 7. Save ALL leads using generate_leads with agent_type="medical-billing".
-8. Select the outreach template based on the lead's SPECIALTY:
-   - Dental/DDS/DMD/Orthodontist → Dental sequence
-   - Mental health/Therapy/Psychology/Counseling → Mental Health sequence
-   - Hospital/Health system/Medical center → Hospital sequence
-   - All other medical practices → Private Practice sequence
+8. Use the approved Track-Med credit offer for every new lead, regardless of specialty. The application renders the initial draft deterministically after the lead is saved.
+   - Specialty does not change the approved initial message.
 
-## SPECIALTY-SPECIFIC OUTREACH TEMPLATES (Touch 1 — Initial Email Only)
+## APPROVED INITIAL OUTREACH
 
-### Private Practice
-Subject: Quick question about your claim denial rate
-Hi {{First Name}},
-Most independent practices are losing 8–15% of revenue to preventable claim denials — and don't realize it until month-end.
-Track-Med catches those errors before submission using AI claim scrubbing and surfaces denial trends in real time so nothing slips through.
-Can I do a free 20-minute A/R audit for {{Practice Name}}? No pitch — just data.
-→ https://calendly.com/track-med-info/30min
-Abel Nkawula
-Track-Med Billing Solutions | track-med.com
-
-### Dental Offices
-Subject: Dental billing question — {{Practice Name}}
-Hi {{First Name}},
-CDT code mismatches, missing narratives, and incomplete X-ray documentation are the top reasons dental claims get denied — and they're all preventable.
-Track-Med's dental-specific claim scrubber catches those before submission and flags payer-specific requirements automatically.
-Free 20-minute billing audit for {{Practice Name}}?
-→ https://calendly.com/track-med-info/30min
-Abel Nkawula
-Track-Med | track-med.com
-
-### Mental Health / Therapy
-Subject: Prior auth is getting harder for behavioral health
-Hi {{First Name}},
-Payers have quietly tightened prior auth requirements for behavioral health — more session limits, stricter medical necessity docs, inconsistent telehealth policies.
-Track-Med tracks prior auth expirations automatically and applies the right POS codes and modifiers per payer so your clinicians don't lose sessions to admin errors.
-Free 20-minute audit for {{Practice Name}}?
-→ https://calendly.com/track-med-info/30min
-Abel Nkawula
-Track-Med | track-med.com
-
-### Hospitals / Health Systems
-Subject: Revenue cycle question — {{Practice Name}}
-Hi {{First Name}},
-At health systems, the biggest A/R leakage usually comes from three places: underpayments on contracted rates, prior auth bottlenecks, and denials that never get appealed.
-Track-Med gives revenue cycle teams real-time visibility across all three — with AI-flagged appeal drafts and payer contract variance detection built in.
-Worth a 30-minute discovery call?
-→ https://calendly.com/track-med-info/30min
-Abel Nkawula
-Track-Med | track-med.com
+${getTemplateInstructions()}
 
 RULES:
-- Replace {{First Name}} with the lead's first name
-- Replace {{Practice Name}} with the lead's company/practice name
-- Use the FULL template — do NOT shorten
-- Do NOT add any additional signature beyond what's in the template
-- Follow-ups are handled automatically by the system
+ - Search and save real decision-maker leads; do not fabricate contacts.
+ - Keep the approved offer terms exactly; do not invent a specialty-specific initial message.
+ - Follow-ups are handled automatically by the system
 
 ABSOLUTE RULE: When asked to find practices or leads, NEVER give advice or recommendations on "how to find them." YOU must search, find, and SAVE them using the tools. The user is paying for you to DO the work, not to tell them how to do it themselves.
 ` : "";
@@ -3983,25 +3971,75 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
 
   const outreachGenerationStatus = new Map<string, { status: string; generated: number; total: number; error?: string }>();
 
+  async function getSafeOutreachGenerationLeads(userId: string, allLeads: any[], regenerateAll: boolean): Promise<any[]> {
+    const candidates = (regenerateAll
+      ? allLeads.filter(l => l.status === "new")
+      : allLeads.filter(l => !l.outreach || l.outreach.trim() === ""))
+      .filter(l => !l.outreachSentAt && !l.scheduledSendAt);
+    const safe: any[] = [];
+    for (const lead of candidates) {
+      if (isFakeName(lead.name || "") || isFakeEmail(lead.email || "")) continue;
+      if (String(lead.status || "").trim().toLowerCase() === "unsubscribed") continue;
+      if (!lead.email || await isEmailSuppressed(userId, lead.email)) continue;
+      // A sent or unresolved delivery claim is authoritative evidence that
+      // this draft must not be replaced, even if the lead row is still new.
+      // Fail closed if the delivery lookup itself cannot be reconciled.
+      try {
+        const pendingClaim = await getPendingEmailSendClaim(userId, lead.id, "outreach");
+        if (pendingClaim) continue;
+        const sentLogs = await getSentEmailLogs(userId, lead.id, "outreach");
+        if (sentLogs.length > 0) continue;
+      } catch (error) {
+        console.warn(`[OutreachGeneration] Skipping lead ${lead.id}: could not reconcile delivery history`, error);
+        continue;
+      }
+      safe.push(lead);
+    }
+    return safe;
+  }
+
   async function processOutreachGeneration(userId: string, regenerateAll: boolean = false) {
     try {
-      let outreachAi: { client: Anthropic; model: string };
-      try { outreachAi = await getAnthropicForUser(userId); } catch {
-        outreachGenerationStatus.set(userId, { status: "error", generated: 0, total: 0, error: "AI API key not configured" });
-        return;
-      }
       const allLeads = await storage.getLeadsByUser(userId);
       const user = await storage.getUserById(userId);
       const userEmail = (user?.email || "").toLowerCase();
-      const filterFakes = (l: any) => !isFakeName(l.name || "") && !isFakeEmail(l.email || "") && !(l.email || "").toLowerCase().includes(userEmail);
-      const needsOutreach = (regenerateAll ? allLeads.filter(l => l.status === "new") : allLeads.filter(l => !l.outreach || l.outreach.trim() === "")).filter(filterFakes);
       const userSettings = await storage.getSettingsByUser(userId);
+      const needsOutreach = (await getSafeOutreachGenerationLeads(userId, allLeads, regenerateAll))
+        .filter(l => !(l.email || "").toLowerCase().includes(userEmail));
       const bookingLink = userSettings?.calendarLink || "";
       const senderFullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
       const senderTitle = (user as any)?.jobTitle || "";
       const senderCompany = user?.companyName || "Our company";
       const senderPhone = userSettings?.grasshopperNumber || userSettings?.twilioPhoneNumber || "";
       const senderWebsite = user?.website || "";
+      const isMedBillUser = isTrackMedTenant(user?.companyName);
+
+      // Track-Med's approved initial message is deterministic and does not
+      // require an AI provider. Explicit regeneration is the only path that
+      // replaces an existing unsent draft.
+      if (isMedBillUser) {
+        let generated = 0;
+        for (const lead of needsOutreach) {
+          const outreach = buildTrackMedApprovedOfferEmail({
+            firstName: lead.name,
+            practiceName: lead.company,
+            senderName: senderFullName,
+            senderTitle,
+            bookingURL: bookingLink,
+          }).outreach;
+          await storage.updateLead(lead.id, { outreach });
+          generated++;
+        }
+        outreachGenerationStatus.set(userId, { status: "complete", generated, total: needsOutreach.length });
+        console.log(`Track-Med outreach generation complete for user ${userId}: ${generated}/${needsOutreach.length}`);
+        return;
+      }
+
+      let outreachAi: { client: Anthropic; model: string };
+      try { outreachAi = await getAnthropicForUser(userId); } catch {
+        outreachGenerationStatus.set(userId, { status: "error", generated: 0, total: 0, error: "AI API key not configured" });
+        return;
+      }
 
       const batchSize = 10;
       let generated = 0;
@@ -4016,17 +4054,12 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         ).join("\n");
 
         try {
-          const isMedBillUser = (senderCompany || "").toLowerCase().includes("track-med");
-          const medBillTemplateInstructions = isMedBillUser ? getTemplateInstructions() : "";
-
           const response = await outreachAi.client.messages.create({
             model: outreachAi.model,
             max_tokens: 4000,
             messages: [{
               role: "user",
-              content: isMedBillUser
-                ? `Generate personalized outreach email drafts for these leads using the Track-Med specialty-specific templates below. Select the correct template based on each lead's specialty (dental, mental health, hospital, or private practice). Each template already includes the proper signature — do NOT add any additional signature.\n${medBillTemplateInstructions}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"full email draft including subject line and signature from template"}]. No markdown, no explanation.`
-                : `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}\n\nEach email MUST end with this EXACT signature block:\n\nBest regards,\n${senderFullName}\n${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}\n${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${bookingLink ? `${bookingLink}\n` : ""}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft with signature"}]. No markdown, no explanation.`
+              content: `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}\n\nEach email MUST end with this EXACT signature block:\n\nBest regards,\n${senderFullName}\n${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}\n${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${bookingLink ? `${bookingLink}\n` : ""}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft with signature"}]. No markdown, no explanation.`
             }],
           });
 
@@ -4060,7 +4093,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
     const userId = req.session.userId!;
     const regenerateAll = req.body?.regenerateAll === true;
     const allLeads = await storage.getLeadsByUser(userId);
-    const targetLeads = regenerateAll ? allLeads.filter(l => l.status === "new") : allLeads.filter(l => !l.outreach || l.outreach.trim() === "");
+    const targetLeads = await getSafeOutreachGenerationLeads(userId, allLeads, regenerateAll);
 
     if (targetLeads.length === 0) {
       return res.json({ message: "All leads already have outreach drafts!", generated: 0, status: "complete" });
@@ -4972,12 +5005,6 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
           const readyToSend = batch.filter(l => l.outreach && l.outreach.trim() !== "");
 
           if (needsOutreach.length > 0) {
-            let outreachAi: { client: Anthropic; model: string };
-            try { outreachAi = await getAnthropicForUser(user.id); } catch {
-              console.log(`[AutoEngage] Skipping outreach gen for ${user.email} — no AI key`);
-              continue;
-            }
-
             const userSettings = settings as any;
             const bookingLink = userSettings?.calendarLink || "";
             const senderFullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
@@ -4985,40 +5012,57 @@ Be specific and actionable. If web data is limited, use industry knowledge to pr
             const senderCompany = user.companyName || "Our company";
             const senderPhone = userSettings?.grasshopperNumber || userSettings?.twilioPhoneNumber || "";
             const senderWebsite = user.website || "";
-            const isMedBillUser = (senderCompany || "").toLowerCase().includes("track-med");
+            const isMedBillUser = isTrackMedTenant(senderCompany);
 
-            const leadsInfo = needsOutreach.map((l, idx) =>
-              `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Notes: ${l.notes || "N/A"}, Intent: ${l.intentSignal || "N/A"}, Score: ${l.score || "N/A"}`
-            ).join("\n");
+            if (isMedBillUser) {
+              for (const lead of needsOutreach) {
+                const outreach = buildTrackMedApprovedOfferEmail({
+                  firstName: lead.name,
+                  practiceName: lead.company,
+                  senderName: senderFullName,
+                  senderTitle,
+                  bookingURL: bookingLink,
+                }).outreach;
+                await storage.updateLead(lead.id, { outreach });
+                readyToSend.push({ ...lead, outreach });
+                console.log(`[AutoEngage] Generated approved Track-Med outreach for ${lead.name}`);
+              }
+            } else {
+              let outreachAi: { client: Anthropic; model: string };
+              try { outreachAi = await getAnthropicForUser(user.id); } catch {
+                console.log(`[AutoEngage] Skipping outreach gen for ${user.email} — no AI key`);
+                continue;
+              }
 
-            const medBillTemplateInstructions = isMedBillUser ? getTemplateInstructions() : "";
+              const leadsInfo = needsOutreach.map((l, idx) =>
+                `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email || "N/A"}, Notes: ${l.notes || "N/A"}, Intent: ${l.intentSignal || "N/A"}, Score: ${l.score || "N/A"}`
+              ).join("\n");
 
-            try {
-              const prompt = isMedBillUser
-                ? `Generate personalized outreach email drafts for these leads using the Track-Med specialty-specific templates below. Select the correct template based on each lead's specialty (dental, mental health, hospital, or private practice). Each template already includes the proper signature — do NOT add any additional signature.\n${medBillTemplateInstructions}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"full email draft including subject line and signature from template"}]. No markdown, no explanation.`
-                : `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}\n\nEach email MUST end with this EXACT signature block:\n\nBest regards,\n${senderFullName}\n${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}\n${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${bookingLink ? `${bookingLink}\n` : ""}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft with signature"}]. No markdown, no explanation.`;
+              try {
+                const prompt = `Generate personalized outreach email drafts (3-5 sentences each) for these leads. Reference their situation, mention a benefit, include a call-to-action.${bookingLink ? ` Include booking link: ${bookingLink}` : ""}\n\nEach email MUST end with this EXACT signature block:\n\nBest regards,\n${senderFullName}\n${senderTitle ? `${senderTitle}\n` : ""}${senderCompany}\n${senderPhone ? `${senderPhone}\n` : ""}${senderWebsite ? `${senderWebsite}\n` : ""}${bookingLink ? `${bookingLink}\n` : ""}\n\nLeads:\n${leadsInfo}\n\nReturn ONLY a JSON array: [{"name":"exact lead name","outreach":"email draft with signature"}]. No markdown, no explanation.`;
 
-              const response = await outreachAi.client.messages.create({
-                model: outreachAi.model,
-                max_tokens: 4000,
-                messages: [{ role: "user", content: prompt }],
-              });
+                const response = await outreachAi.client.messages.create({
+                  model: outreachAi.model,
+                  max_tokens: 4000,
+                  messages: [{ role: "user", content: prompt }],
+                });
 
-              const text = response.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map(b => b.text).join("");
-              const jsonMatch = text.match(/\[[\s\S]*\]/);
-              if (jsonMatch) {
-                const drafts = JSON.parse(jsonMatch[0]);
-                for (const draft of drafts) {
-                  const matchingLead = needsOutreach.find(l => l.name.toLowerCase() === draft.name?.toLowerCase());
-                  if (matchingLead && draft.outreach) {
-                    await storage.updateLead(matchingLead.id, { outreach: draft.outreach });
-                    readyToSend.push({ ...matchingLead, outreach: draft.outreach });
-                    console.log(`[AutoEngage] Generated outreach for ${matchingLead.name}`);
+                const text = response.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map(b => b.text).join("");
+                const jsonMatch = text.match(/\[[\s\S]*\]/);
+                if (jsonMatch) {
+                  const drafts = JSON.parse(jsonMatch[0]);
+                  for (const draft of drafts) {
+                    const matchingLead = needsOutreach.find(l => l.name.toLowerCase() === draft.name?.toLowerCase());
+                    if (matchingLead && draft.outreach) {
+                      await storage.updateLead(matchingLead.id, { outreach: draft.outreach });
+                      readyToSend.push({ ...matchingLead, outreach: draft.outreach });
+                      console.log(`[AutoEngage] Generated outreach for ${matchingLead.name}`);
+                    }
                   }
                 }
+              } catch (err) {
+                console.error(`[AutoEngage] Outreach generation failed for ${user.email}:`, err);
               }
-            } catch (err) {
-              console.error(`[AutoEngage] Outreach generation failed for ${user.email}:`, err);
             }
           }
 
@@ -5158,7 +5202,7 @@ RULES:
     const senderName = `${user.firstName || ""} from ${user.companyName}`.trim();
     const firstName = lead.name.split(" ")[0];
 
-    const isMedBillSender = (user.companyName || "").toLowerCase().includes("track-med");
+    const isMedBillSender = isTrackMedTenant(user.companyName);
     let subjectLine: string;
     if (isMedBillSender) {
       const specialty = detectSpecialty(lead);
@@ -5462,7 +5506,7 @@ RULES:
             continue;
           }
 
-          const isMedBillFollowUp = (user.companyName || "").toLowerCase().includes("track-med");
+           const isMedBillFollowUp = isTrackMedTenant(user.companyName);
 
           let emailBody = "";
           if (isMedBillFollowUp) {
@@ -6990,56 +7034,12 @@ CURRENT TARGET: Find ${MEDBILL_LEAD_GEN_BATCH} NEW or RECENTLY OPENED practices 
 - Practice confirmed as newly opened (news article, announcement): +10 bonus
 - New NPI registration found: +10 bonus
 
-For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone (DECISION MAKER'S DIRECT line — not front desk), company (practice name), address (physical street address, city, state, zip — extract from Google Maps, Yelp, or website), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + phone type [Direct cell/Direct line/Office direct/Main office solo] + practice details + where contact was found + practice size if known), outreach (use the appropriate template based on the lead's specialty):
+For EACH lead provide: name (DECISION MAKER name, not practice name), email, phone (DECISION MAKER'S DIRECT line — not front desk), company (practice name), address (physical street address, city, state, zip — extract from Google Maps, Yelp, or website), source ("MedBill Lead Gen — ${region} — ${specialty}"), status "new", score (40-95), intent_signal (tier + why they need billing help), notes (decision maker title + specialty + phone type [Direct cell/Direct line/Office direct/Main office solo] + practice details + where contact was found + practice size if known), outreach (the application replaces model-supplied Track-Med initial copy with the approved offer):
 
-## TEMPLATE SELECTION RULES:
-- Select the template based on the lead's SPECIALTY (not score):
-  - Dental/DDS/DMD/Orthodontist → Dental sequence
-  - Mental health/Therapy/Psychology/Counseling → Mental Health sequence
-  - Hospital/Health system/Medical center → Hospital sequence
-  - All other ${specialty} practices → Private Practice sequence
+      ## APPROVED INITIAL OUTREACH
+      ${getTemplateInstructions()}
 
-### Private Practice — Touch 1
-Subject: Quick question about your claim denial rate
-Hi [First Name],
-Most independent practices are losing 8–15% of revenue to preventable claim denials — and don't realize it until month-end.
-Track-Med catches those errors before submission using AI claim scrubbing and surfaces denial trends in real time so nothing slips through.
-Can I do a free 20-minute A/R audit for [Practice Name]? No pitch — just data.
-→ https://calendly.com/track-med-info/30min
-Abel Nkawula
-Track-Med Billing Solutions | track-med.com
-
-### Dental Offices — Touch 1
-Subject: Dental billing question — [Practice Name]
-Hi [First Name],
-CDT code mismatches, missing narratives, and incomplete X-ray documentation are the top reasons dental claims get denied — and they're all preventable.
-Track-Med's dental-specific claim scrubber catches those before submission and flags payer-specific requirements automatically.
-Free 20-minute billing audit for [Practice Name]?
-→ https://calendly.com/track-med-info/30min
-Abel Nkawula
-Track-Med | track-med.com
-
-### Mental Health / Therapy — Touch 1
-Subject: Prior auth is getting harder for behavioral health
-Hi [First Name],
-Payers have quietly tightened prior auth requirements for behavioral health — more session limits, stricter medical necessity docs, inconsistent telehealth policies.
-Track-Med tracks prior auth expirations automatically and applies the right POS codes and modifiers per payer so your clinicians don't lose sessions to admin errors.
-Free 20-minute audit for [Practice Name]?
-→ https://calendly.com/track-med-info/30min
-Abel Nkawula
-Track-Med | track-med.com
-
-### Hospitals / Health Systems — Touch 1
-Subject: Revenue cycle question — [Practice Name]
-Hi [First Name],
-At health systems, the biggest A/R leakage usually comes from three places: underpayments on contracted rates, prior auth bottlenecks, and denials that never get appealed.
-Track-Med gives revenue cycle teams real-time visibility across all three — with AI-flagged appeal drafts and payer contract variance detection built in.
-Worth a 30-minute discovery call?
-→ https://calendly.com/track-med-info/30min
-Abel Nkawula
-Track-Med | track-med.com
-
-IMPORTANT: Use the FULL template — do NOT shorten. Replace [Practice Name] and [First Name] with actual lead info. Include the subject line at the top as "Subject: ...". Select the correct specialty template. Do NOT add any additional signature beyond what's in the template. Follow-ups (touches 2-4) are handled automatically by the system.
+      IMPORTANT: Use the approved Track-Med offer for every new lead, regardless of specialty. The application renders the initial draft deterministically after the lead is saved; do not invent or paraphrase an alternative initial email. Follow-ups (touches 2-4) are handled automatically by the system.
 
 LEAD MIX TARGET: Aim for approximately 60% Tier 1/2 (hot/warm) and 40% Tier 3 (cold prospects). This ensures a healthy pipeline of both immediate opportunities and future prospects.
 
@@ -7361,57 +7361,21 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
               const readyToSend = allNewLeads.filter(l => l.outreach && l.outreach.trim() !== "");
 
               if (needsOutreachGen.length > 0) {
-                console.log(`[MedBill Instant] Generating outreach for ${needsOutreachGen.length} leads without drafts...`);
-                try {
-                  const aiClient = await getAnthropicForUser(targetUser.id);
-                  const leadsInfo = needsOutreachGen.map((l, idx) =>
-                    `${idx + 1}. Name: "${l.name}", Company: ${l.company || "N/A"}, Email: ${l.email}, Score: ${l.score || 50}, Intent: ${l.intentSignal || "N/A"}, Notes: ${l.notes || "N/A"}`
-                  ).join("\n");
-
-                  const templatePrompt = `Generate personalized outreach emails for these medical billing leads using Track-Med specialty-specific templates. Select the correct template based on each lead's specialty.
-
-${getTemplateInstructions()}
-
-Leads:
-${leadsInfo}
-
-Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with subject line and signature from template"}]. No markdown.`;
-
-                  const response = await aiClient.client.messages.create({
-                    model: aiClient.model,
-                    max_tokens: 6000,
-                    messages: [{ role: "user", content: templatePrompt }],
-                  });
-
-                  const text = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("");
-                  const jsonMatch = text.match(/\[[\s\S]*\]/);
-                  if (jsonMatch) {
-                    const drafts = JSON.parse(jsonMatch[0]);
-                    for (const draft of drafts) {
-                      const matchingLead = needsOutreachGen.find(l => l.name.toLowerCase() === draft.name?.toLowerCase());
-                      if (matchingLead && draft.outreach) {
-                        await db.update(leads).set({ outreach: draft.outreach }).where(eq(leads.id, matchingLead.id));
-                        readyToSend.push({ ...matchingLead, outreach: draft.outreach });
-                        console.log(`[MedBill Instant] Generated outreach for ${matchingLead.name} (score: ${matchingLead.score})`);
-                      }
-                    }
-                  }
-                } catch (genErr: any) {
-                  console.error(`[MedBill Instant] AI outreach generation failed:`, genErr.message);
-                  console.log(`[MedBill Instant] Using specialty template fallback for ${needsOutreachGen.length} leads...`);
-                  for (const lead of needsOutreachGen) {
-                    const practiceName = lead.company || lead.name;
-                    const specialty = detectSpecialty(lead);
-                    const seq = TRACKMED_SEQUENCES[specialty];
-                    const touch = seq.touches[0];
-                    const firstName = lead.name.split(" ")[0];
-                    const subject = touch.subject.replace(/\{\{First Name\}\}/g, firstName).replace(/\{\{Practice Name\}\}/g, practiceName).replace(/\{\{Health System Name\}\}/g, practiceName);
-                    const body = touch.body.replace(/\{\{First Name\}\}/g, firstName).replace(/\{\{Practice Name\}\}/g, practiceName).replace(/\{\{Health System Name\}\}/g, practiceName);
-                    const outreach = `Subject: ${subject}\n\n${body}`;
-                    await db.update(leads).set({ outreach }).where(eq(leads.id, lead.id));
-                    readyToSend.push({ ...lead, outreach });
-                    console.log(`[MedBill Instant] ${specialty} template applied for ${lead.name} (score: ${lead.score})`);
-                  }
+                console.log(`[MedBill Instant] Generating approved Track-Med outreach for ${needsOutreachGen.length} leads without drafts...`);
+                const instantSenderName = `${targetUser.firstName || ""} ${targetUser.lastName || ""}`.trim();
+                const instantSenderTitle = (targetUser as any)?.jobTitle || "";
+                const instantBookingURL = settings.calendarLink || "";
+                for (const lead of needsOutreachGen) {
+                  const outreach = buildTrackMedApprovedOfferEmail({
+                    firstName: lead.name,
+                    practiceName: lead.company,
+                    senderName: instantSenderName,
+                    senderTitle: instantSenderTitle,
+                    bookingURL: instantBookingURL,
+                  }).outreach;
+                  await db.update(leads).set({ outreach }).where(eq(leads.id, lead.id));
+                  readyToSend.push({ ...lead, outreach });
+                  console.log(`[MedBill Instant] Generated approved outreach for ${lead.name} (score: ${lead.score})`);
                 }
               }
 

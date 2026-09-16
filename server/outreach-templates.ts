@@ -1,3 +1,11 @@
+import {
+  buildTrackMedApprovedOfferEmail,
+  getTrackMedApprovedOfferCampaignSteps,
+  safeBookingURL,
+  TRACKMED_APPROVED_OFFER_TERMS,
+  TRACKMED_CALENDAR_URL,
+} from "@shared/trackmed-credit-offer";
+
 export const TRACKMED_SIGNATURE = `Abel Nkawula\nCEO, Track-Med Billing Solutions\n+1 (615) 482-6768\nhttps://www.track-med.com`;
 
 export function generateTrackMedHtmlEmail(options: {
@@ -6,8 +14,10 @@ export function generateTrackMedHtmlEmail(options: {
   specialty?: string;
   bodyText: string;
   subjectLine: string;
+  bookingURL?: string;
 }): { subject: string; htmlBody: string; plainText: string } {
   const { firstName, practiceName, bodyText, subjectLine } = options;
+  const bookingURL = safeBookingURL(options.bookingURL);
 
   const htmlBody = `<!DOCTYPE html>
 <html lang="en">
@@ -52,7 +62,7 @@ export function generateTrackMedHtmlEmail(options: {
 </tr>
 <tr><td colspan="5" height="8"></td></tr>
 <tr>
-<td style="background-color:rgba(255,255,255,0.15);color:#ffffff;font-size:12px;padding:6px 14px;border-radius:20px;">Free Software Included</td>
+<td style="background-color:rgba(255,255,255,0.15);color:#ffffff;font-size:12px;padding:6px 14px;border-radius:20px;">Free Code Analysis</td>
 <td colspan="4"></td>
 </tr>
 </table>
@@ -83,11 +93,11 @@ ${bodyText.replace(/\n/g, '<br>')}
 </table>
 </td></tr>
 
-<!-- FREE OFFER -->
+<!-- APPROVED CREDIT OFFER -->
 <tr><td style="background-color:#e8f5e9;padding:20px 30px;border-left:4px solid #4caf50;">
 <p style="margin:0;font-size:14px;color:#2e7d32;line-height:1.6;">
-<span style="background-color:#4caf50;color:#fff;font-size:11px;font-weight:bold;padding:3px 8px;border-radius:3px;letter-spacing:1px;">FREE</span>
-<strong style="color:#1e3a5f;"> Practice Management Software — on the house</strong> when you use our billing services. Plus a free CPT & billing cost analysis, no strings attached.
+<span style="background-color:#4caf50;color:#fff;font-size:11px;font-weight:bold;padding:3px 8px;border-radius:3px;letter-spacing:1px;">APPROVED OFFER</span>
+<strong style="color:#1e3a5f;"> $250 off each of the first four monthly Track-Med billing-service invoices</strong> ($1,000 in total service credits), plus a free code analysis for qualifying new medical or dental practices.
 </p>
 </td></tr>
 
@@ -120,7 +130,7 @@ ${bodyText.replace(/\n/g, '<br>')}
 <p style="color:#c8dce8;font-size:13px;margin:0;">track-med.com &middot; (615) 482-6768</p>
 </td>
 <td align="right" style="vertical-align:middle;">
-<a href="https://calendly.com/track-med-info/30min" style="background-color:#ffffff;color:#1e3a5f;font-size:13px;font-weight:bold;padding:12px 24px;border-radius:6px;text-decoration:none;letter-spacing:1px;display:inline-block;">GET STARTED &rarr;</a>
+<a href="${bookingURL}" style="background-color:#ffffff;color:#1e3a5f;font-size:13px;font-weight:bold;padding:12px 24px;border-radius:6px;text-decoration:none;letter-spacing:1px;display:inline-block;">GET STARTED &rarr;</a>
 </td>
 </tr>
 </table>
@@ -150,12 +160,12 @@ WHAT WE HANDLE FOR YOU:
 • CodeMAXX Coding Svcs
 • Creative Collections
 
-FREE: Practice Management Software when you use our billing services. Plus a free CPT & billing cost analysis, no strings attached.
+${TRACKMED_APPROVED_OFFER_TERMS}
 
 15+ Specialized services | 100% Dedicated per client | Free Cost analysis always
 
 Ready to solve your billing challenges?
-Book a call: https://calendly.com/track-med-info/30min
+Book a call: ${bookingURL}
 
 Abel Nkawula
 CEO, Track-Med Billing Solutions
@@ -164,7 +174,7 @@ CEO, Track-Med Billing Solutions
   return { subject: subjectLine, htmlBody, plainText };
 }
 
-export const TRACKMED_SEQUENCES = {
+const LEGACY_TRACKMED_SEQUENCES = {
   private_practice: {
     label: "Private Practice",
     touches: [
@@ -478,6 +488,13 @@ Abel`,
   },
 };
 
+export const TRACKMED_SEQUENCES = {
+  private_practice: { label: "Private Practice", touches: getTrackMedApprovedOfferCampaignSteps() },
+  dental: { label: "Dental Offices", touches: getTrackMedApprovedOfferCampaignSteps() },
+  mental_health: { label: "Behavioral Health", touches: getTrackMedApprovedOfferCampaignSteps() },
+  hospital: { label: "Hospitals / Health Systems", touches: getTrackMedApprovedOfferCampaignSteps() },
+} as const;
+
 export function detectSpecialty(lead: any): keyof typeof TRACKMED_SEQUENCES {
   const text = `${lead.company || ""} ${lead.notes || ""} ${lead.intentSignal || ""} ${lead.source || ""}`.toLowerCase();
   if (/dental|dentist|dds|dmd|orthodont|endodont|periodon|oral\s*surg/i.test(text)) return "dental";
@@ -487,51 +504,48 @@ export function detectSpecialty(lead: any): keyof typeof TRACKMED_SEQUENCES {
 }
 
 export function getTouch1ForSpecialty(specialty: keyof typeof TRACKMED_SEQUENCES, leadName: string, practiceName: string): string {
-  const seq = TRACKMED_SEQUENCES[specialty];
-  const touch = seq.touches[0];
-  const firstName = leadName.split(" ")[0];
-  const subject = touch.subject.replace(/\{\{First Name\}\}/g, firstName).replace(/\{\{Practice Name\}\}/g, practiceName).replace(/\{\{Health System Name\}\}/g, practiceName);
-  const body = touch.body.replace(/\{\{First Name\}\}/g, firstName).replace(/\{\{Practice Name\}\}/g, practiceName).replace(/\{\{Health System Name\}\}/g, practiceName);
-  return `Subject: ${subject}\n\n${body}`;
+  return buildTrackMedApprovedOfferEmail({
+    firstName: leadName,
+    practiceName,
+    senderName: "Abel Nkawula",
+    senderTitle: "CEO, Track-Med Billing Solutions",
+    bookingURL: TRACKMED_CALENDAR_URL,
+  }).outreach;
 }
 
 export function getFollowUpForSpecialty(specialty: keyof typeof TRACKMED_SEQUENCES, step: number, leadName: string, practiceName: string): { subject: string; body: string } | null {
-  const seq = TRACKMED_SEQUENCES[specialty];
-  const touch = seq.touches[step];
+  const touch = getTrackMedApprovedOfferCampaignSteps()[step];
   if (!touch) return null;
-  const firstName = leadName.split(" ")[0];
+  const firstName = leadName.replace(/^(?:dr|mr|ms|mrs|miss|prof)\.?\s+/i, "").split(" ")[0] || "there";
+  const firstNameToken = "{{firstName}}";
+  const practiceNameToken = "{{companyName}}";
+  const senderNameToken = "{{senderName}}";
   return {
-    subject: touch.subject.replace(/\{\{First Name\}\}/g, firstName).replace(/\{\{Practice Name\}\}/g, practiceName).replace(/\{\{Health System Name\}\}/g, practiceName),
-    body: touch.body.replace(/\{\{First Name\}\}/g, firstName).replace(/\{\{Practice Name\}\}/g, practiceName).replace(/\{\{Health System Name\}\}/g, practiceName),
+    subject: touch.subject,
+    body: touch.body
+      .replace(new RegExp(firstNameToken.replace(/[{}]/g, "\\$&"), "g"), firstName)
+      .replace(new RegExp(practiceNameToken.replace(/[{}]/g, "\\$&"), "g"), practiceName)
+      .replace(new RegExp(senderNameToken.replace(/[{}]/g, "\\$&"), "g"), "Abel Nkawula")
+      .replace(/\n\nBest,\nAbel Nkawula\nTrack-Med Billing Solutions$/, ""),
   };
 }
 
 export function getTemplateInstructions(): string {
-  let instructions = `## OUTREACH TEMPLATES — Specialty-Specific 4-Touch Sequences
+  const initial = getTrackMedApprovedOfferCampaignSteps()[0];
+  return `## TRACK-MED APPROVED CREDIT OFFER — INITIAL OUTREACH
 
-Select the template based on the lead's specialty/practice type. Use Touch 1 for initial outreach. Follow-ups are handled automatically.
+Use this same initial message for every Track-Med medical or dental practice lead. Do not select a different specialty message and do not invent claims.
 
-IMPORTANT: The AI must detect the lead's specialty from their company name, notes, or intent signals:
-- Dental/DDS/DMD/Orthodontist → Dental sequence
-- Mental health/Therapy/Psychology/Counseling/LCSW → Mental Health sequence
-- Hospital/Health system/Medical center → Hospital sequence
-- All other medical practices → Private Practice sequence
+Subject: ${initial.subject}
 
+${initial.body}
+
+## RULES:
+- Replace {{firstName}} with the lead's first name
+- Replace {{companyName}} with the lead's practice name
+- Replace {{senderName}} with the configured Track-Med sender name
+- Keep the approved offer terms exactly, including the no-stacking rule and polite opt-out
+- Use the full template; do not shorten, summarize, or add the old denial-rate/A/R-audit copy
+- Follow-ups are handled automatically by the system
 `;
-
-  for (const [key, seq] of Object.entries(TRACKMED_SEQUENCES)) {
-    instructions += `### ${seq.label} — Touch 1 (Initial Outreach)\n`;
-    const t = seq.touches[0];
-    instructions += `Subject: ${t.subject}\n\n${t.body}\n\n`;
-  }
-
-  instructions += `## RULES:
-- Replace {{First Name}} with the lead's first name
-- Replace {{Practice Name}} or {{Health System Name}} with the lead's company/practice name
-- Use the FULL template — do NOT shorten or summarize
-- Do NOT add any additional signature beyond what's in the template
-- Select the correct specialty template based on the lead's practice type
-`;
-
-  return instructions;
 }

@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  getTrackMedApprovedOfferCampaignSteps,
+  isTrackMedTenant,
+  TRACKMED_APPROVED_OFFER_CONTEXT,
+  TRACKMED_APPROVED_OFFER_GOALS,
+  TRACKMED_APPROVED_OFFER_TERMS,
+} from "@shared/trackmed-credit-offer";
 import {
   AlertCircle,
   ArrowLeft,
@@ -90,75 +98,7 @@ interface CampaignPreparationDialogProps {
   brief?: CampaignStrategyBrief;
 }
 
-const TRACK_MED_CALENDAR_URL = "https://calendly.com/track-med-info/30min";
-const TRACK_MED_OFFER_TERMS = "Offer terms: One offer per new qualifying medical or dental practice signing a billing-services agreement. $250 off each of the first four monthly Track-Med billing-service invoices; monthly fees must be at least $1,000 before credit. Applies only to Track-Med service fees, not third-party costs, insurance payments, or patient balances. No cash value, transfer, or refund of unused credit. Cancellation ends unused credits without reclaiming correctly applied credits. Includes free code analysis; cannot be combined with the 90-day prior-authorization promotion. No guarantee of recovered revenue or approvals.";
-
-/*
- * Keep the approved offer as an explicit, user-invoked template. The ordinary
- * draft below deliberately has no Track-Med language so that one tenant's
- * approved offer can never become another tenant's default campaign.
- */
-const TRACK_MED_TEMPLATE: CampaignDraftForm = {
-  name: "Track-Med approved credit offer",
-  businessContext:
-    "Track-Med billing services for qualifying new medical or dental billing service clients signing a billing-services agreement. The approved offer is $250 off each of the first four monthly Track-Med billing-service invoices ($1,000 in total service credits), with monthly service fees of at least $1,000 before the credit. Include free code analysis. The 90-day prior-authorization promotion is an alternative, not an additional discount. Credits apply only to Track-Med billing-service fees, not third-party costs, insurance payments, or patient balances. Credits have no cash value and cannot be refunded or transferred. Unused credits stop when service is cancelled, with no clawback of correctly applied credits. Do not promise recovered revenue or approvals.",
-  goals:
-    "Introduce the approved Track-Med credit offer to qualifying new medical or dental billing service clients.\nInvite interested prospects to a 30-minute information call.\nKeep the offer terms, no-stacking rule, and polite opt-out clear.",
-  steps: [
-    {
-      subject: "Track-Med: $250 credit and free code analysis",
-      body: `Hi {{firstName}},
-
-I’m reaching out from Track-Med about billing services for qualifying new medical or dental practice clients signing a billing-services agreement. The approved offer is $250 off each of the first four monthly Track-Med billing-service invoices, for $1,000 in total service credits, when the monthly service fee is at least $1,000 before the credit. We also include a free code analysis.
-
-Credits apply only to Track-Med billing-service fees, not third-party costs, insurance payments, or patient balances. They have no cash value and cannot be refunded or transferred. The 90-day prior-authorization promotion is an alternative, not an additional discount. This offer does not promise recovered revenue or approvals.
-
-If this could be useful, you can choose a 30-minute information call here: ${TRACK_MED_CALENDAR_URL}
-
-If this is not relevant, reply “no” and I won’t follow up.`,
-      delayDays: 0,
-    },
-    {
-      subject: "A quick follow-up on the Track-Med offer",
-      body: `Hi {{firstName}},
-
-Just following up on my note about Track-Med billing services. For qualifying new medical or dental billing service clients, the approved structure is $250 off each of the first four monthly invoices (up to $1,000 in service credits), with a monthly service fee of at least $1,000 before the credit, plus a free code analysis.
-
-The credit is for Track-Med billing-service fees only, with no cash value, refund, or transfer. The 90-day prior-authorization promotion cannot be stacked with it.
-
-Would a short conversation be helpful? You can pick a time here: ${TRACK_MED_CALENDAR_URL}
-
-If you would rather not hear from me, reply “no” and I’ll close this out.`,
-      delayDays: 3,
-    },
-    {
-      subject: "Would a Track-Med information call help?",
-      body: `Hi {{firstName}},
-
-Should I keep a Track-Med billing-services conversation open? The approved offer is for qualifying new medical or dental billing service clients: $250 off each of the first four monthly billing-service invoices, with monthly fees of at least $1,000 before the credit, and a free code analysis.
-
-Unused credits stop on cancellation without reclaiming credits correctly applied. Credits are not cash, refundable, or transferable, and the 90-day prior-authorization promotion is an alternative rather than an additional discount. We do not promise recovered revenue or approvals.
-
-If you’d like to review the details, here is the calendar: ${TRACK_MED_CALENDAR_URL}
-
-If this is not a fit, a quick “no” is perfect and I won’t follow up.`,
-      delayDays: 7,
-    },
-    {
-      subject: "Last note about Track-Med billing services",
-      body: `Hi {{firstName}},
-
-This is my last note about the Track-Med approved offer. Qualifying new medical or dental billing service clients may receive $250 off each of the first four monthly billing-service invoices (up to $1,000 in service credits) when the monthly service fee is at least $1,000 before the credit. A free code analysis is included.
-
-The credit applies only to Track-Med billing-service fees, has no cash value, and is not refundable or transferable. The 90-day prior-authorization promotion is not stackable with this offer. Unused credits stop if service is cancelled, without clawing back credits correctly applied.
-
-If a 30-minute information call makes sense, you can choose one here: ${TRACK_MED_CALENDAR_URL}
-
-If I should stop, reply “no” and I’ll respect that.`,
-      delayDays: 14,
-    },
-  ].map((step) => ({ ...step, body: `${step.body}\n\n${TRACK_MED_OFFER_TERMS}` })),
-};
+const TRACKMED_CAMPAIGN_STEPS = getTrackMedApprovedOfferCampaignSteps();
 
 function createGenericSteps(): CampaignStep[] {
   return [
@@ -209,13 +149,22 @@ function cloneSteps(steps: CampaignStep[]): CampaignStep[] {
   return steps.map((step) => ({ ...step }));
 }
 
-function createInitialDraft(brief?: CampaignStrategyBrief): CampaignDraftForm {
+function createInitialDraft(brief?: CampaignStrategyBrief, useTrackMedOffer = false): CampaignDraftForm {
   const context = brief?.saved && typeof brief.businessContext === "string"
     ? brief.businessContext.trim()
     : "";
   const goals = brief?.saved && Array.isArray(brief.goals)
     ? brief.goals.filter((goal) => typeof goal === "string" && goal.trim()).map((goal) => goal.trim()).join("\n")
     : "";
+
+  if (useTrackMedOffer) {
+    return {
+      name: "Track-Med approved credit offer",
+      businessContext: `${TRACKMED_APPROVED_OFFER_CONTEXT}\n\n${TRACKMED_APPROVED_OFFER_TERMS}`,
+      goals: TRACKMED_APPROVED_OFFER_GOALS.join("\n"),
+      steps: cloneSteps(TRACKMED_CAMPAIGN_STEPS),
+    };
+  }
 
   return {
     name: "",
@@ -248,8 +197,10 @@ export function CampaignPreparationDialog({
   brief,
 }: CampaignPreparationDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const trackMedTenant = isTrackMedTenant(user?.companyName);
   const [view, setView] = useState<"editor" | "review" | "complete">("editor");
-  const [form, setForm] = useState<CampaignDraftForm>(() => createInitialDraft(brief));
+  const [form, setForm] = useState<CampaignDraftForm>(() => createInitialDraft(brief, trackMedTenant));
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   // email_accounts uses UUID/text ids. Keep those ids as strings end-to-end;
   // coercing one with Number() would turn a real account id into NaN.
@@ -396,7 +347,7 @@ export function CampaignPreparationDialog({
   useEffect(() => {
     if (!open) return;
     setView("editor");
-    setForm(createInitialDraft(brief));
+    setForm(createInitialDraft(brief, trackMedTenant));
     setSelectedLeadIds([]);
     setSelectedAccountIds([]);
     setDraftId(null);
@@ -413,7 +364,7 @@ export function CampaignPreparationDialog({
     // A new draft starts from the saved brief only when the user opens this
     // dialog. Loading this page never creates or mutates a campaign.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, trackMedTenant]);
 
   const selectedSenderAccounts = useMemo(
     () => (options?.accounts || []).filter((account) => selectedAccountIds.some((id) => publicAccountIdMatches(id, account.id))),
@@ -447,9 +398,10 @@ export function CampaignPreparationDialog({
 
   const loadTrackMedTemplate = () => {
     setForm({
-      ...TRACK_MED_TEMPLATE,
-      businessContext: `${TRACK_MED_TEMPLATE.businessContext}\n\n${TRACK_MED_OFFER_TERMS}`,
-      steps: cloneSteps(TRACK_MED_TEMPLATE.steps),
+      name: "Track-Med approved credit offer",
+      businessContext: `${TRACKMED_APPROVED_OFFER_CONTEXT}\n\n${TRACKMED_APPROVED_OFFER_TERMS}`,
+      goals: TRACKMED_APPROVED_OFFER_GOALS.join("\n"),
+      steps: cloneSteps(TRACKMED_CAMPAIGN_STEPS),
     });
     setFormError(null);
     setSaveMessage(null);
@@ -561,9 +513,13 @@ export function CampaignPreparationDialog({
             <>
               <div className="flex flex-col gap-3 rounded-lg border border-sky-500/20 bg-sky-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-white">Optional approved offer template</p>
+                  <p className="text-sm font-medium text-white">
+                    {trackMedTenant ? "Approved Track-Med offer template" : "Optional approved offer template"}
+                  </p>
                   <p className="mt-1 text-xs text-gray-400">
-                    This is an opt-in Track-Med template. It is never loaded into ordinary campaign drafts.
+                    {trackMedTenant
+                      ? "New Track-Med campaigns start from the approved offer. Review or edit the draft before saving."
+                      : "This is an opt-in Track-Med template. It is never loaded into ordinary campaign drafts."}
                   </p>
                 </div>
                 <Button
@@ -572,9 +528,9 @@ export function CampaignPreparationDialog({
                   className="shrink-0 border-sky-500/30 text-sky-300 hover:bg-sky-500/10"
                   onClick={loadTrackMedTemplate}
                   data-testid="button-load-track-med-template"
-                >
+                  >
                   <ShieldCheck className="mr-2 h-4 w-4" />
-                  Load Track-Med approved offer template
+                    {trackMedTenant ? "Reset to approved Track-Med offer" : "Load Track-Med approved offer template"}
                 </Button>
               </div>
 

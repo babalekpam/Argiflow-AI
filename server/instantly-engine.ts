@@ -210,6 +210,7 @@ class InstantlyEngine {
         phone: lead.phone || "",
         industry: lead.industry || "",
         city: lead.city || "",
+        senderName: lead.senderName || lead.fromName || "",
       };
       return map[key] || "";
     });
