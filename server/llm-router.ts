@@ -44,9 +44,9 @@ const REGISTRY: Record<string, LLMProviderConfig> = {
     name: "Groq",
     baseUrl: "https://api.groq.com/openai",
     format: "openai",
-    defaultModel: "llama-3.3-70b-versatile",
+    defaultModel: "qwen/qwen3.8-27b",
     getKey: () => process.env.GROQ_API_KEY,
-    modelOptions: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+    modelOptions: ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"],
   },
   together: {
     name: "Together AI",

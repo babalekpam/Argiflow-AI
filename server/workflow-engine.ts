@@ -13,7 +13,7 @@
 import { db } from "./db";
 import { eq, and, desc, sql, lte, isNull } from "drizzle-orm";
 import { storage } from "./storage";
-import Anthropic from "@anthropic-ai/sdk";
+import { callAI as callTenantAI } from "./ai-provider";
 import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
 import { getLeadContactIssue } from "./outreach-quality-gate";
 import {
@@ -826,38 +826,21 @@ async function executeNode(
 }
 
 // --------------------------------------------------------====
-// HELPER: Call Claude AI (uses existing per-user key pattern)
+// HELPER: Use the tenant's selected provider, including its system-key fallback.
 // --------------------------------------------------------====
 
 async function callAI(userId: string, prompt: string): Promise<string> {
   try {
-    const settings = await storage.getSettingsByUser(userId);
-    const userKey = settings?.anthropicApiKey;
-    let client: Anthropic;
-    let model = "claude-sonnet-4-20250514";
-
-    if (userKey && userKey.startsWith("sk-ant-")) {
-      client = new Anthropic({ apiKey: userKey });
-    } else if (process.env.ANTHROPIC_API_KEY?.startsWith("sk-ant-")) {
-      client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    } else {
-      return "[AI not configured]";
-    }
-
-    const response = await client.messages.create({
-      model,
-      max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
+    const response = await callTenantAI({
+      userId,
+      system: "Complete the requested workflow task. Do not invent facts or claim actions were performed.",
+      maxTokens: 1024,
+      userMessage: prompt,
     });
-
-    return response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map(b => b.text)
-      .join("\n")
-      .trim();
+    return response.text.trim();
   } catch (err: any) {
     console.error(`[Workflow AI] Error:`, err?.message);
-    return "[AI temporarily unavailable]";
+    throw new Error("Workflow AI request failed for the selected provider");
   }
 }
 

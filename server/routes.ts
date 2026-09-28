@@ -279,9 +279,7 @@ async function sendSystemEmail(to: string, from: { email: string; name: string }
 
 // --------------------------------------------------------====
 // AI PROVIDER CONFIGURATION
-// OpenAI GPT-4o-mini is the PRIMARY provider for all AI features.
-// Users can optionally override with their own Anthropic key in Settings.
-// Anthropic platform key available as fallback for web search only.
+// Platform defaults are separate from each tenant's explicit provider choice.
 // --------------------------------------------------------====
 
 const isValidAnthropicKey = (key?: string) => key && key.startsWith("sk-ant-");
@@ -443,9 +441,9 @@ const openaiKey = process.env.OPENAI_API_KEY;
 let platformOpenAI: OpenAIAnthropicWrapper | null = null;
 if (openaiKey) {
   platformOpenAI = new OpenAIAnthropicWrapper(openaiKey, OPENAI_MODEL);
-  console.log("[AI] OpenAI configured as primary AI provider (gpt-4o-mini)");
+  console.log("[AI] Platform default: OpenAI (gpt-4o-mini). Tenant requests use their saved provider selection.");
 } else {
-  console.log("[AI] No OpenAI key — using Anthropic as primary AI provider");
+  console.log("[AI] Platform OpenAI key absent. Tenant requests use their saved provider selection.");
 }
 
 export async function getAnthropicForUser(userId: string): Promise<{ client: any; model: string }> {
@@ -1865,7 +1863,7 @@ async function handleAiAction(userId: string, userMessage: string, chatHistory: 
     userAnthropicClient = ai.client;
     userModel = ai.model;
   } catch {
-    return "Your AI API key is not configured. Please go to Settings > Integrations and add your Anthropic API key to use AI features.";
+    return "Your selected AI provider could not be initialized. Check Settings > Integrations > AI Provider, its API key, and your account access.";
   }
   const allLeads = await storage.getLeadsByUser(userId);
   const allAppts = await storage.getAppointmentsByUser(userId);
@@ -10726,18 +10724,26 @@ The ArgiFlow Team`;
   // MULTI-LLM ROUTER + CREDITS + INTENT WATCHLIST + AGENT RUNS
   // --------------------------------------------------------====
 
-  const { callLLM: callMultiLLM, getProviderList, getActiveConfig: getActiveLLMConfig } = await import("./llm-router");
+  const { REGISTRY } = await import("./llm-router");
+  const { callAI: callTenantAI, resolveProvider, getProviderInfo } = await import("./ai-provider");
   const { deductCredits, refundCredits, getCreditsBalance, getCreditHistory, CREDIT_COSTS } = await import("./credits");
   const { intentWatchlistSignals, monitoredDomains, creditsLedger, agentRuns, pipelineSnapshots } = await import("@shared/schema");
 
   app.get("/api/llm/providers", isAuthenticated, async (req, res) => {
     try {
-      const providers = getProviderList();
+      const providers = getProviderInfo().map(provider => ({
+        ...provider,
+        format: REGISTRY[provider.id]?.format,
+        hasKey: provider.hasSystemKey,
+      }));
       let active = null;
-      try { active = getActiveLLMConfig(); } catch {}
+      let configurationError: string | undefined;
+      try { active = await resolveProvider(req.session.userId!); }
+      catch { configurationError = "The selected AI provider is not configured. Check its API key in Settings."; }
       res.json({
         providers,
-        active: active ? { providerId: active.providerId, name: active.name, model: active.model } : null,
+        active: active ? { providerId: active.providerId, name: REGISTRY[active.providerId]?.name || active.providerId, model: active.model } : null,
+        ...(configurationError ? { configurationError } : {}),
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -10848,7 +10854,8 @@ The ArgiFlow Team`;
       let score = 50;
 
       try {
-        const { text } = await callMultiLLM({
+        const { text } = await callTenantAI({
+          userId,
           system: `You are a B2B intent analyst. Given a company domain, generate a plausible initial intent signal JSON:
             { "signal": "1-sentence description of likely buying signal", "strength": "HIGH|MED|LOW", "score": 0-100 }
             Base this on the domain name and typical company behavior.
@@ -11739,7 +11746,8 @@ TONE: Match their energy. Casual if they were casual, formal if formal. Governme
 
       let llmResult;
       try {
-        llmResult = await callMultiLLM({
+        llmResult = await callTenantAI({
+          userId,
           system: agent.system,
           userMessage: prompt,
           maxTokens: 1200,

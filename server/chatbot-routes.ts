@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import OpenAI from "openai";
+import { getAnthropicCompatClient } from "./ai-provider";
 
 const router = Router();
 
@@ -142,38 +142,21 @@ router.post("/message", async (req: Request, res: Response) => {
 
     const history = validated.slice(-12);
 
-    const openaiKey = process.env.OPENAI_API_KEY;
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-
-    if (openaiKey) {
-      const openai = new OpenAI({ apiKey: openaiKey });
-      const openaiMessages: any[] = [
-        { role: "system", content: ARIA_SYSTEM },
-        ...history,
-      ];
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        max_tokens: 350,
-        messages: openaiMessages,
-      });
-      const reply = completion.choices?.[0]?.message?.content ?? "";
-      return res.json({ reply, provider: "OpenAI", model: "gpt-4o-mini" });
-    }
-
-    if (anthropicKey) {
-      const Anthropic = (await import("@anthropic-ai/sdk")).default;
-      const client = new Anthropic({ apiKey: anthropicKey });
-      const result = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 350,
-        system: ARIA_SYSTEM,
-        messages: history,
-      });
-      const reply = result.content?.[0]?.type === "text" ? result.content[0].text : "";
-      return res.json({ reply, provider: "Anthropic", model: "claude-sonnet-4-20250514" });
-    }
-
-    return res.status(500).json({ error: "No AI provider configured" });
+    // Only a verified session can select a tenant's provider/key. Anonymous
+    // visitors retain the platform default; never accept userId from the body.
+    const userId = (req.session as any)?.userId;
+    const { client, model, provider } = await getAnthropicCompatClient(userId);
+    const result = await client.messages.create({
+      model,
+      max_tokens: 350,
+      system: ARIA_SYSTEM,
+      messages: history,
+    });
+    const reply = result.content
+      .filter((block: any) => block.type === "text")
+      .map((block: any) => block.text)
+      .join("\n");
+    return res.json({ reply, provider, model });
   } catch (err: any) {
     console.error("chatbot error:", err.message);
     res.status(500).json({

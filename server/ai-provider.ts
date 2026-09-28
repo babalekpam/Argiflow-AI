@@ -78,7 +78,9 @@ export async function resolveProvider(userId?: string): Promise<ResolvedProvider
       if (preferred !== "auto") {
         if (!REGISTRY[preferred]) throw new Error("Unsupported AI provider selected");
         const preferredModel = settings.preferredAiModel;
-        const modelForProvider = preferredModel && !Object.entries(REGISTRY).some(
+        const retiredGroqModel = preferred === "groq" &&
+          ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"].includes(preferredModel || "");
+        const modelForProvider = preferredModel && !retiredGroqModel && !Object.entries(REGISTRY).some(
           ([id, reg]) => id !== preferred && reg.modelOptions.includes(preferredModel),
         ) ? preferredModel : REGISTRY[preferred].defaultModel;
         const keyField = AI_PROVIDER_KEY_FIELDS[preferred] as keyof typeof settings;

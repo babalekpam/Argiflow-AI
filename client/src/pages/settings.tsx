@@ -746,7 +746,7 @@ export default function SettingsPage() {
                       <SelectItem value="anthropic">Anthropic (Claude Sonnet, Opus, Haiku)</SelectItem>
                       <SelectItem value="gemini">Google Gemini (Gemini 1.5 Pro, Flash)</SelectItem>
                       <SelectItem value="mistral">Mistral AI (Large, Medium, Small)</SelectItem>
-                      <SelectItem value="groq">Groq (Llama 3.3, Mixtral)</SelectItem>
+                      <SelectItem value="groq">Groq (Qwen, GPT-OSS)</SelectItem>
                       <SelectItem value="together">Together AI (Llama 3, Mixtral)</SelectItem>
                       <SelectItem value="cohere">Cohere (Command R+, Command R)</SelectItem>
                       <SelectItem value="openrouter">OpenRouter (Any Model)</SelectItem>
@@ -790,7 +790,7 @@ export default function SettingsPage() {
                     anthropic: ["claude-sonnet-4-5", "claude-opus-4-5", "claude-haiku-4-5"],
                     gemini: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"],
                     mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"],
-                    groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+                    groq: ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"],
                     together: ["meta-llama/Llama-3-70b-chat-hf", "mistralai/Mixtral-8x22B-Instruct-v0.1"],
                     cohere: ["command-r-plus", "command-r", "command-light"],
                     openrouter: ["openai/gpt-4o", "anthropic/claude-sonnet-4-20250514", "google/gemini-pro-1.5", "meta-llama/llama-3.1-405b-instruct"],
