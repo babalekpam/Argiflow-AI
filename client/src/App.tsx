@@ -31,6 +31,7 @@ import PublicPrivacyPage from "@/pages/public-privacy";
 import PublicTermsPage from "@/pages/public-terms";
 import PublicSecurityPage from "@/pages/public-security";
 import NotFound from "@/pages/not-found";
+import DfyEnrollPage from "@/pages/dfy-enroll";
 
 // REQUIRED — copy verbatim. Resolves key from window.location.hostname for custom-domain support.
 const clerkPubKey = publishableKeyFromHost(
@@ -195,6 +196,7 @@ function Router() {
       <Route path="/privacy" component={PublicPrivacyPage} />
       <Route path="/terms" component={PublicTermsPage} />
       <Route path="/security" component={PublicSecurityPage} />
+      <Route path="/dfy-enroll" component={DfyEnrollPage} />
       <Route path="/dashboard/lp/:slug" component={PublicLandingPage} />
       <Route path="/dashboard" component={DashboardLayout} />
       <Route path="/dashboard/:rest*" component={DashboardLayout} />
