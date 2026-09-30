@@ -47,10 +47,10 @@ async function sendSequenceEmail(
   try {
     if (leadRecord.userId !== userId || getLeadContactIssue(leadRecord)) return false;
     const tenantSettings = await storage.getSettingsByUser(userId);
-    const smtpHost = tenantSettings?.smtpHost;
-    const smtpPort = tenantSettings?.smtpPort || 587;
-    const smtpUser = tenantSettings?.smtpUsername;
-    const smtpPass = tenantSettings?.smtpPassword;
+    const smtpHost = tenantSettings?.smtpHost || process.env.SMTP_HOST;
+    const smtpPort = Number(tenantSettings?.smtpPort || process.env.SMTP_PORT) || 587;
+    const smtpUser = tenantSettings?.smtpUsername || process.env.SMTP_USERNAME;
+    const smtpPass = tenantSettings?.smtpPassword || process.env.SMTP_PASSWORD;
     const senderEmail = tenantSettings?.senderEmail || smtpUser;
 
     if (!smtpHost || !smtpUser || !smtpPass || !leadRecord.email) {
