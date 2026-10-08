@@ -9,6 +9,7 @@ import { storage } from "./storage";
 import nodemailer from "nodemailer";
 import { isEmailSuppressed, isValidRecipientEmail } from "./email-suppression";
 import { getLeadContactIssue } from "./outreach-quality-gate";
+import { renderSequenceEmail } from "./sequence-template";
 
 const automationStatus = {
   running: false,
@@ -46,6 +47,8 @@ async function sendSequenceEmail(
 ): Promise<boolean> {
   try {
     if (leadRecord.userId !== userId || getLeadContactIssue(leadRecord)) return false;
+    // Render at the shared send boundary, including the subject and logged subject.
+    ({ subject, content } = renderSequenceEmail(subject, content, leadRecord));
     const tenantSettings = await storage.getSettingsByUser(userId);
     const smtpHost = tenantSettings?.smtpHost || process.env.SMTP_HOST;
     const smtpPort = Number(tenantSettings?.smtpPort || process.env.SMTP_PORT) || 587;
@@ -216,11 +219,7 @@ export async function processSequenceAutomation(): Promise<void> {
         if (!claimed.length) continue;
         if (step.channel === "email") {
           const subject = step.subject || `Re: ${seq.name}`;
-          const personalizedContent = step.content
-            .replace(/\{\{name\}\}/gi, leadRecord.name || "there")
-            .replace(/\{\{company\}\}/gi, leadRecord.company || "your company")
-            .replace(/\{\{email\}\}/gi, leadRecord.email || "");
-          sent = await sendSequenceEmail(seq.userId, leadRecord, subject, personalizedContent);
+          sent = await sendSequenceEmail(seq.userId, leadRecord, subject, step.content);
         }
 
         if (sent) {
