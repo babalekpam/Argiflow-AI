@@ -307,7 +307,7 @@ export default function SettingsPage() {
 
   const getFieldValue = (key: string): string => {
     if (key in integrationValues) return integrationValues[key];
-    if (settings) return (settings as any)[key] || "";
+    if (settings) return String((settings as any)[key] ?? "");
     return "";
   };
 
@@ -1103,15 +1103,15 @@ export default function SettingsPage() {
                     const provider = getFieldValue("emailProvider") || settings?.emailProvider || "sendgrid";
                     const update: Record<string, any> = {
                       emailProvider: provider,
-                      senderEmail: getFieldValue("senderEmail"),
+        senderEmail: getFieldValue("senderEmail") || settings?.senderEmail || "",
                     };
                     if (provider === "sendgrid") {
                       update.sendgridApiKey = getFieldValue("sendgridApiKey");
                     } else {
-                      update.smtpHost = getFieldValue("smtpHost");
-                      update.smtpPort = parseInt(getFieldValue("smtpPort")) || 587;
-                      update.smtpUsername = getFieldValue("smtpUsername");
-                      update.smtpPassword = getFieldValue("smtpPassword");
+        update.smtpHost = getFieldValue("smtpHost") || settings?.smtpHost || "";
+        update.smtpPort = parseInt(getFieldValue("smtpPort")) || settings?.smtpPort || 587;
+        update.smtpUsername = getFieldValue("smtpUsername") || settings?.smtpUsername || "";
+        const smtpPw = getFieldValue("smtpPassword"); if (smtpPw && !smtpPw.includes("...")) update.smtpPassword = smtpPw;
                       const secVal = getFieldValue("smtpSecure");
                       update.smtpSecure = secVal === "" ? (settings?.smtpSecure ?? true) : secVal === "true";
                     }

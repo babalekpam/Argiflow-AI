@@ -8134,11 +8134,12 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       const userId = req.session.userId!;
       const body = { ...req.body };
       const sensitiveKeys = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "mistralApiKey", "groqApiKey", "togetherApiKey", "cohereApiKey", "openrouterApiKey", "youApiKey", "sendgridApiKey", "smtpPassword"];
-      for (const k of sensitiveKeys) {
-        if (body[k] && body[k].includes("...")) delete body[k];
-        if (body[k] === "") body[k] = null;
-      }
-      const settings = await storage.upsertSettings({ ...body, userId });
+    const emailKeepKeys = ["emailProvider", "smtpHost", "smtpUsername", "senderEmail"]; for (const k of emailKeepKeys) { if (body[k] === "") delete body[k]; } if (body.smtpPort === "" || body.smtpPort === null) delete body.smtpPort; if (typeof body.smtpSecure === "string") body.smtpSecure = body.smtpSecure === "true";
+    for (const k of sensitiveKeys) {
+        if (body[k] && typeof body[k] === "string" && body[k].includes("...")) delete body[k];
+        if (body[k] === "") delete body[k];
+    }
+    const settings = await storage.upsertSettings({ ...body, userId });
       const result = { ...settings };
       for (const k of sensitiveKeys) {
         if ((result as any)[k]) {
