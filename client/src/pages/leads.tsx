@@ -83,6 +83,7 @@ function getAddLeadSchema(t: (key: string) => string) {
   return z.object({
     name: z.string().min(1, t("leads.validation.nameRequired")),
     email: z.string().email(t("leads.validation.invalidEmail")),
+    company: z.string().optional(),
     phone: z.string().optional(),
     source: z.string().min(1, t("leads.validation.sourceRequired")),
     status: z.string().default("new"),
@@ -1274,6 +1275,9 @@ export default function LeadsPage() {
     queryKey: ["/api/businesses"],
   });
 
+  const [editLeadId, setEditLeadId] = useState('');
+  const [editCompany, setEditCompany] = useState('');
+  const [editMsg, setEditMsg] = useState('');
   const { data: leads, isLoading } = useQuery<Lead[]>({
     queryKey: ["/api/leads", selectedBusinessId],
     queryFn: async () => {
@@ -1305,7 +1309,7 @@ export default function LeadsPage() {
 
   const form = useForm({
     resolver: zodResolver(addLeadSchema),
-    defaultValues: { name: "", email: "", phone: "", source: "", status: "new" },
+    defaultValues: { name: "", email: "", company: "", phone: "", source: "", status: "new" },
   });
 
   const { data: followUpData, isLoading: followUpLoading } = useQuery<{
@@ -1834,6 +1838,18 @@ export default function LeadsPage() {
             <Crown className="w-4 h-4 mr-2 text-purple-400" />
             Council This
           </Button>
+      <div className={'rounded-lg border p-4 mb-4'}>
+        <h3 className={'font-medium mb-2'}>Edit Lead</h3>
+        <div className={'flex flex-wrap gap-2 items-center'}>
+          <select value={editLeadId} onChange={(e) => { const v = e.target.value; setEditLeadId(v); const ld = (leads || []).find((x) => x.id === v); setEditCompany(ld && ld.company ? ld.company : ''); }} className={'border rounded px-2 py-2'}>
+            <option value={''}>Select a lead</option>
+            {(leads || []).map((ld) => (<option key={ld.id} value={ld.id}>{ld.name} - {ld.email}</option>))}
+          </select>
+          <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} placeholder={'Company'} className={'max-w-xs'} />
+          <Button type={'button'} onClick={async () => { if (editLeadId == '') { setEditMsg('Select a lead first'); return; } await apiRequest('PATCH', '/api/leads/' + editLeadId, { company: editCompany }); setEditMsg('Company saved'); if (typeof invalidateLeads === 'function') invalidateLeads(); }}>Save Company</Button>
+          {editMsg ? <span className={'text-sm'}>{editMsg}</span> : null}
+        </div>
+      </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-lead">
@@ -1871,6 +1887,18 @@ export default function LeadsPage() {
                     </FormItem>
                   )}
                 />
+              <FormField
+                control={form.control}
+                name={'company'}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company</FormLabel>
+                    <FormControl>
+                      <Input placeholder={'Company (optional)'} {...field} value={field.value || ''} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
                 <FormField
                   control={form.control}
                   name="phone"

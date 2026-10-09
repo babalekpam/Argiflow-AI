@@ -204,6 +204,11 @@ export default function SequencesPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [steps, setSteps] = useState<StepDraft[]>([emptyStep()]);
+  const [enrollSeqId, setEnrollSeqId] = useState(null as any);
+  const [enrollSelected, setEnrollSelected] = useState([] as any[]);
+  const [enrollMsg, setEnrollMsg] = useState('');
+  const enrollLeadsQuery = useQuery({ queryKey: ['enroll-leads'], queryFn: async () => { const r = await fetch('/api/leads', { credentials: 'include' }); return r.json(); }, enabled: enrollSeqId != null });
+  const enrollListQuery = useQuery({ queryKey: ['enroll-list', enrollSeqId], queryFn: async () => { const r = await fetch('/api/sequences/' + enrollSeqId + '/enrollments', { credentials: 'include' }); return r.json(); }, enabled: enrollSeqId != null });
 
   const { data: sequencesList = [], isLoading } = useQuery<SequenceWithMeta[]>({
     queryKey: ["/api/sequences"],
@@ -503,6 +508,26 @@ export default function SequencesPage() {
                     >
                       <Pencil className="w-4 h-4" />
                     </Button>
+                    <Button size={'sm'} variant={'outline'} onClick={() => { setEnrollSeqId(seq.id); setEnrollSelected([]); setEnrollMsg(''); }}>Enroll leads</Button>
+                    {enrollSeqId === seq.id ? (
+                      <div className={'w-full border rounded p-3 mt-2'}>
+                        <div className={'font-medium mb-2'}>Enroll leads - not enrolled yet</div>
+                        {(enrollLeadsQuery.data || []).filter((ld: any) => ((enrollListQuery.data || []).some((en: any) => en.leadId === ld.id)) == false).map((ld: any) => (
+                          <label key={ld.id} className={'flex gap-2 items-center py-1'}>
+                            <input type={'checkbox'} checked={enrollSelected.includes(ld.id)} onChange={(e) => setEnrollSelected(e.target.checked ? [...enrollSelected, ld.id] : enrollSelected.filter((x) => x != ld.id))} />
+                            <span>{ld.name} - {ld.email}{ld.company ? ' (' + ld.company + ')' : ''}</span>
+                          </label>
+                        ))}
+                        {(enrollLeadsQuery.data || []).length == 0 ? <div>No leads loaded</div> : null}
+                        <div className={'flex gap-2 mt-2'}>
+                          <Button size={'sm'} onClick={async () => { const r = await fetch('/api/sequences/' + seq.id + '/enroll', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leadIds: enrollSelected }) }); const j = await r.json(); setEnrollMsg('Enrolled: ' + (j.enrolled || 0) + ', skipped: ' + (j.duplicateCount || 0)); queryClient.invalidateQueries({ queryKey: ['/api/sequences'] }); enrollListQuery.refetch(); enrollLeadsQuery.refetch(); }}>Enroll selected</Button>
+                          <Button size={'sm'} variant={'outline'} onClick={() => setEnrollSeqId(null)}>Close</Button>
+                        </div>
+                        {enrollMsg ? <div className={'text-sm mt-2'}>{enrollMsg}</div> : null}
+                        <div className={'text-sm mt-2'}>Enrolled: {(enrollListQuery.data || []).length} total - Step 1 / not started: {(enrollListQuery.data || []).filter((en: any) => en.currentStep == 0).length} - Step 2: {(enrollListQuery.data || []).filter((en: any) => en.currentStep == 1).length} - Step 3: {(enrollListQuery.data || []).filter((en: any) => en.currentStep == 2).length}</div>
+                        {(enrollListQuery.data || []).map((en: any) => (<div key={en.id} className={'text-sm'}>{en.leadName || en.leadEmail} - {en.currentStep == 0 ? 'Step 1 - not started' : 'Step ' + (en.currentStep + 1)} - {en.status}</div>))}
+                      </div>
+                    ) : null}
                     <Button
                       size="icon"
                       variant="ghost"

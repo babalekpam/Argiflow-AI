@@ -3821,7 +3821,8 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
         outreach: z.string().min(1).max(5000).optional(),
         status: z.enum(["new", "warm", "hot", "cold", "qualified"]).optional(),
         scheduledSendAt: z.string().datetime().optional().nullable(),
-      }).refine(data => data.outreach !== undefined || data.status !== undefined || data.scheduledSendAt !== undefined, { message: "No valid fields to update" });
+        company: z.string().trim().max(200).optional().nullable(),
+      }).refine(data => data.outreach !== undefined || data.status !== undefined || data.scheduledSendAt !== undefined || data.company !== undefined, { message: "No valid fields to update" });
       const parsed = updateSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
@@ -3832,6 +3833,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       if (parsed.data.scheduledSendAt !== undefined) {
         updates.scheduledSendAt = parsed.data.scheduledSendAt ? new Date(parsed.data.scheduledSendAt) : null;
       }
+      if ((parsed.data.company == undefined) == False) updates.company = parsed.data.company && parsed.data.company.trim() ? parsed.data.company.trim() : null;
       const oldStatus = lead.status;
       const updated = await storage.updateLead(lead.id, updates);
       if (updates.status && updates.status !== oldStatus && updated) {
