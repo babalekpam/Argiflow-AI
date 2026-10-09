@@ -1846,7 +1846,7 @@ export default function LeadsPage() {
             {(leads || []).map((ld) => (<option key={ld.id} value={ld.id}>{ld.name} - {ld.email}</option>))}
           </select>
           <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} placeholder={'Company'} className={'max-w-xs'} />
-          <Button type={'button'} onClick={async () => { if (editLeadId == '') { setEditMsg('Select a lead first'); return; } await apiRequest('PATCH', '/api/leads/' + editLeadId, { company: editCompany }); setEditMsg('Company saved'); if (typeof invalidateLeads === 'function') invalidateLeads(); }}>Save Company</Button>
+          <Button type={'button'} onClick={async () => { if (editLeadId == '') { setEditMsg('Select a lead first'); return; } try { await apiRequest('PATCH', '/api/leads/' + editLeadId, { company: editCompany }); setEditMsg('Company saved'); if (typeof invalidateLeads === 'function') invalidateLeads(); } catch (err) { setEditMsg(String(err && err.message || err)); } }}>Save Company</Button>
           {editMsg ? <span className={'text-sm'}>{editMsg}</span> : null}
         </div>
       </div>

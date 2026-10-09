@@ -3833,7 +3833,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       if (parsed.data.scheduledSendAt !== undefined) {
         updates.scheduledSendAt = parsed.data.scheduledSendAt ? new Date(parsed.data.scheduledSendAt) : null;
       }
-      if ((parsed.data.company == undefined) == False) updates.company = parsed.data.company && parsed.data.company.trim() ? parsed.data.company.trim() : null;
+      if ((parsed.data.company == undefined) === false) updates.company = parsed.data.company && parsed.data.company.trim() ? parsed.data.company.trim() : null;
       const oldStatus = lead.status;
       const updated = await storage.updateLead(lead.id, updates);
       if (updates.status && updates.status !== oldStatus && updated) {
