@@ -271,7 +271,7 @@ export function registerSequenceRoutes(app: Express) {
         const leadRows = await db.select().from(leads).where(eq(leads.id, leadId));
         const lead = leadRows[0];
         if (lead == null || (lead.userId == userId) == false || existingIds.has(leadId)) { skipped.push(leadId); continue; }
-        await db.insert(sequenceEnrollments).values({ sequenceId: seq.id, leadId: leadId, currentStep: 0, status: "active", nextSendAt: nextSendAt });
+        await db.insert(sequenceEnrollments).values({ userId: userId, sequenceId: seq.id, leadId: leadId, currentStep: 0, status: "active", nextSendAt: nextSendAt });
         enrolled++;
       }
       if (enrolled > 0) await db.update(sequences).set({ totalEnrolled: (seq.totalEnrolled || 0) + enrolled }).where(eq(sequences.id, seq.id));
