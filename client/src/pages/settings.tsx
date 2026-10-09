@@ -1123,7 +1123,7 @@ export default function SettingsPage() {
                       },
                     });
                   }}
-                  disabled={updateMutation.isPending || dirtyFields.size === 0}
+              disabled={updateMutation.isPending}
                   data-testid="button-save-email-provider"
                 >
                   <Save className="w-3.5 h-3.5 mr-1.5" />
