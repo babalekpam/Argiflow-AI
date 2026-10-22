@@ -63,7 +63,12 @@ export const leads = pgTable("leads", {
   index("leads_follow_up_idx").on(table.followUpStatus, table.followUpNextAt),
 ]);
 
-export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
+export const insertLeadSchema = createInsertSchema(leads)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    score: z.number().int().min(0).max(100).optional(),
+    engagementScore: z.number().int().min(0).max(100).optional(),
+  });
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 

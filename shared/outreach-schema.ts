@@ -73,9 +73,12 @@ export const emailLogs = pgTable("email_logs", {
   status: text("status").notNull().default("pending"),
   errorMessage: text("error_message"),
   retryCount: integer("retry_count").notNull().default(0),
+  trackingMessageId: varchar("tracking_message_id"),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("email_logs_tracking_message_idx").on(table.trackingMessageId),
+]);
 
 export const insertEmailLogSchema = createInsertSchema(emailLogs).omit({ id: true, createdAt: true });
 export type EmailLog = typeof emailLogs.$inferSelect;
@@ -133,9 +136,16 @@ export const emailEvents = pgTable("email_events", {
   metadata: text("metadata"),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
+  campaignId: varchar("campaign_id"),
+  messageId: varchar("message_id"),
+  linkUrl: text("link_url"),
+  isBot: boolean("is_bot").notNull().default(false),
+  botReason: text("bot_reason"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("email_events_lead_idx").on(table.leadId),
+  index("email_events_lead_bot_idx").on(table.leadId, table.isBot),
+  index("email_events_message_idx").on(table.messageId),
 ]);
 
 export const insertEmailEventSchema = createInsertSchema(emailEvents).omit({ id: true, createdAt: true });

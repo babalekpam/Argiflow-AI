@@ -2,6 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { pool } from "./db";
 import { randomUUID } from "crypto";
 import { identifyVisitorByIP } from "./visitor-intelligence";
+import { classifyByUaIp } from "./engagement";
 
 const requireAuth: RequestHandler = (req, res, next) => {
   if (!req.session?.userId) {
@@ -16,18 +17,13 @@ const getIP = (req: any): string =>
   req.socket?.remoteAddress ||
   "unknown";
 
-const EMAIL_SCANNER_PATTERNS = [
-  "googlebot", "bingbot", "crawler", "spider", "headless", "phantomjs",
-  "barracuda", "proofpoint", "mimecast", "fireeye", "forcepoint", "symantec",
-  "mcafee", "sophos", "trendmicro", "fortinet", "cisco", "ironport",
-  "messagelabs", "urldefense", "safelinks", "protection.outlook",
-  "wget", "curl", "python-requests", "node-fetch", "axios",
-];
-
+// Bot/scanner classification is shared with the lead engagement
+// pipeline (server/engagement.ts). Events are ALWAYS recorded with
+// their is_bot flag; classification only decides whether the hit
+// increments the opens/clicks counters on track_email_sends.
 const isAutomatedEmailEvent = (req: any): boolean => {
-  const ua = String(req.headers["user-agent"] || "").toLowerCase();
-  if (!ua || ua.length < 20) return true;
-  return EMAIL_SCANNER_PATTERNS.some(pattern => ua.includes(pattern));
+  const ua = String(req.headers["user-agent"] || "");
+  return classifyByUaIp(ua, getIP(req)).isBot;
 };
 
 const parseUA = (ua: string = "") => {
@@ -241,14 +237,15 @@ export function registerTrackerPublicRoutes(app: Express) {
       const ua = req.headers["user-agent"] || "";
       const { browser, device, isMobile } = parseUA(ua);
 
-      if (!isAutomatedEmailEvent(req)) {
-        await pool.query(`
-          INSERT INTO track_email_events
-            (token, event_type, ip, user_agent, browser, device, is_mobile)
-          VALUES ($1,'open',$2,$3,$4,$5,$6)`,
-          [token, ip, ua, browser, device, isMobile]
-        );
+      const bot = isAutomatedEmailEvent(req);
+      await pool.query(`
+        INSERT INTO track_email_events
+          (token, event_type, ip, user_agent, browser, device, is_mobile, is_bot)
+        VALUES ($1,'open',$2,$3,$4,$5,$6,$7)`,
+        [token, ip, ua, browser, device, isMobile, bot]
+      );
 
+      if (!bot) {
         await pool.query(`
           UPDATE track_email_sends
           SET opens = opens + 1,
@@ -278,14 +275,15 @@ export function registerTrackerPublicRoutes(app: Express) {
       const ua = req.headers["user-agent"] || "";
       const { browser, device, isMobile } = parseUA(ua);
 
-      if (!isAutomatedEmailEvent(req)) {
-        await pool.query(`
-          INSERT INTO track_email_events
-            (token, event_type, link_id, ip, user_agent, browser, device, is_mobile)
-          VALUES ($1,'click',$2,$3,$4,$5,$6,$7)`,
-          [token, link_id, ip, ua, browser, device, isMobile]
-        );
+      const bot = isAutomatedEmailEvent(req);
+      await pool.query(`
+        INSERT INTO track_email_events
+          (token, event_type, link_id, ip, user_agent, browser, device, is_mobile, is_bot)
+        VALUES ($1,'click',$2,$3,$4,$5,$6,$7,$8)`,
+        [token, link_id, ip, ua, browser, device, isMobile, bot]
+      );
 
+      if (!bot) {
         await pool.query(`
           UPDATE track_email_sends
           SET clicks = clicks + 1,

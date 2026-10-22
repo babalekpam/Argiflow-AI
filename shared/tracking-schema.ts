@@ -169,5 +169,6 @@ export const trackEmailEvents = pgTable("track_email_events", {
   browser: text("browser"),
   device: text("device"),
   isMobile: boolean("is_mobile").default(false),
+  isBot: boolean("is_bot").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
