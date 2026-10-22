@@ -201,13 +201,16 @@ export function findBurstEventIds(events: BurstEventInput[]): Set<string> {
     groups.set(c.key, g);
   }
 
-  for (const group of groups.values()) {
+  for (const group of Array.from(groups.values())) {
     for (let i = 0; i < group.length; i++) {
       const window = group.filter(
-        (c) => c.t >= group[i].t && c.t - group[i].t <= BURST_WINDOW_MS
+        (c: (typeof clicks)[number]) =>
+          c.t >= group[i].t && c.t - group[i].t <= BURST_WINDOW_MS
       );
       if (window.length < BURST_MIN_CLICKS) continue;
-      const distinct = new Set(window.map((c) => c.url).filter(Boolean));
+      const distinct = new Set(
+        window.map((c: (typeof clicks)[number]) => c.url).filter(Boolean)
+      );
       if (distinct.size < BURST_MIN_DISTINCT_LINKS) continue;
       for (const c of window) flagged.add(c.id);
     }
