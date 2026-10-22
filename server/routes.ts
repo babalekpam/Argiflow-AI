@@ -4299,7 +4299,7 @@ A comprehensive 3-4 paragraph summary of this business that an AI agent could us
       }
 
       const user = await storage.getUserById(userId);
-      const settings = await storage.getSettingsByUser(userId);
+      const [userBusiness] = await storage.getBusinessesByUser(userId);
 
       const prompt = `You are a B2B sales research analyst. Research the following company and provide a detailed intelligence report that will help craft a compelling offer.
 
@@ -4309,7 +4309,7 @@ Email: ${lead.email}
 ${lead.phone ? `Phone: ${lead.phone}` : ""}
 
 Our Company: ${user?.companyName || "Our company"}
-Our Services: ${settings?.industry || "business services"}
+Our Services: ${userBusiness?.industry || "business services"}
 
 ${webContext ? `## Web Research Results:\n${webContext}\n\n` : ""}
 
@@ -8201,12 +8201,12 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
       if (error?.message === "AI_TIMEOUT") {
         const timeoutMsg = "The AI took too long to respond. This usually happens with complex requests like lead generation with web search. Please try again — simpler requests will be faster.";
         const aiMessage = await storage.createChatMessage({ userId: req.session.userId!, role: "assistant", content: timeoutMsg });
-        return res.json({ userMessage: { userId: req.session.userId!, role: "user", content }, aiMessage });
+        return res.json({ userMessage: { userId: req.session.userId!, role: "user", content: req.body.content }, aiMessage });
       }
       if (error?.message === "AI_SUBSCRIPTION_REQUIRED") {
         const subMsg = "AI features require an active subscription. Please upgrade to a Pro or Enterprise plan to access AI-powered lead generation, chat, and automation features.";
         const aiMessage = await storage.createChatMessage({ userId: req.session.userId!, role: "assistant", content: subMsg });
-        return res.json({ userMessage: { userId: req.session.userId!, role: "user", content }, aiMessage });
+        return res.json({ userMessage: { userId: req.session.userId!, role: "user", content: req.body.content }, aiMessage });
       }
       res.status(500).json({ message: "Failed to send message" });
     }
@@ -9467,7 +9467,13 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       (async () => {
         try {
           const agentName = catalogEntry?.name || config.agentType;
-          const settings = config.settings as Record<string, any> || {};
+          let settings: Record<string, any> = {};
+          if (config.agentSettings) {
+            try {
+              const parsedSettings = JSON.parse(config.agentSettings);
+              if (parsedSettings && typeof parsedSettings === "object") settings = parsedSettings;
+            } catch { /* keep {} when the stored settings are not valid JSON */ }
+          }
 
           let aiClient: Anthropic;
           let aiModel: string;
