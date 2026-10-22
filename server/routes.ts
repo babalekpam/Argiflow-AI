@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { registerTrackerPublicRoutes, registerTrackerDashboardRoutes } from "./tracker-routes";
+import { classifyEngagementEvent } from "./engagement";
+import { refreshLeadEngagement } from "./engagement-refresh";
 import { eq, and, sql, desc, or, ilike, isNull, lte, inArray } from "drizzle-orm";
 import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnelStages, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts, emailAccounts } from "@shared/schema";
 import { campaigns, campaignLeads } from "@shared/instantly-schema";
@@ -10,7 +12,7 @@ import { getAuth } from "@clerk/express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
-import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
+import { scrypt, randomBytes, randomUUID, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
@@ -110,7 +112,7 @@ function normalizePhoneNumber(phone: string | undefined | null): string {
   return phone;
 }
 
-async function logEmail(data: { userId: string; leadId?: string; recipientEmail: string; recipientName?: string; subject?: string; provider: string; source: string; status: string; errorMessage?: string }) {
+async function logEmail(data: { userId: string; leadId?: string; recipientEmail: string; recipientName?: string; subject?: string; provider: string; source: string; status: string; errorMessage?: string; trackingMessageId?: string }) {
   try {
     await db.insert(emailLogs).values({
       userId: data.userId,
@@ -122,6 +124,7 @@ async function logEmail(data: { userId: string; leadId?: string; recipientEmail:
       source: data.source,
       status: data.status,
       errorMessage: data.errorMessage || null,
+      trackingMessageId: data.trackingMessageId || null,
       sentAt: data.status === "sent" ? new Date() : null,
     });
     return true;
@@ -139,6 +142,7 @@ type EmailSendClaimInput = {
   subject?: string;
   provider: string;
   source: string;
+  trackingMessageId?: string;
 };
 
 /**
@@ -157,6 +161,7 @@ async function createEmailSendClaim(data: EmailSendClaimInput): Promise<string> 
     source: data.source,
     status: "pending",
     errorMessage: null,
+    trackingMessageId: data.trackingMessageId || null,
     sentAt: null,
   }).returning({ id: emailLogs.id });
   if (!claim?.id) {
@@ -1523,19 +1528,50 @@ function getBaseUrl(): string {
   return "https://argilette.co";
 }
 
-function wrapLinksForTracking(html: string, leadId: string, baseUrl: string): string {
+export interface TrackingAttribution {
+  messageId?: string | null;
+  campaignId?: string | null;
+}
+
+function attributionQuery(attribution?: TrackingAttribution): string {
+  if (!attribution) return "";
+  let q = "";
+  if (attribution.messageId) q += `&m=${encodeURIComponent(attribution.messageId)}`;
+  if (attribution.campaignId) q += `&c=${encodeURIComponent(attribution.campaignId)}`;
+  return q;
+}
+
+function wrapLinksForTracking(html: string, leadId: string, baseUrl: string, attribution?: TrackingAttribution): string {
   return html.replace(
     /href="(https?:\/\/[^"]+)"/gi,
     (_match: string, url: string) => {
-      const trackUrl = `${baseUrl}/t/c/${leadId}?url=${encodeURIComponent(url)}`;
+      const trackUrl = `${baseUrl}/t/c/${leadId}?url=${encodeURIComponent(url)}${attributionQuery(attribution)}`;
       return `href="${trackUrl}"`;
     }
   );
 }
 
-function injectTrackingPixel(html: string, leadId: string, baseUrl: string): string {
-  const pixel = `<img src="${baseUrl}/t/o/${leadId}" width="1" height="1" style="display:none;border:0;" alt="" />`;
+function injectTrackingPixel(html: string, leadId: string, baseUrl: string, attribution?: TrackingAttribution): string {
+  const q = attributionQuery(attribution).replace(/^&/, "?");
+  const pixel = `<img src="${baseUrl}/t/o/${leadId}${q}" width="1" height="1" style="display:none;border:0;" alt="" />`;
   return html + pixel;
+}
+
+/** Resolve when the email carrying a tracking message id was sent,
+ *  so tracking hits can be classified with the timing heuristics
+ *  in engagement.ts (inhuman-speed / prefetch-open). */
+async function getTrackingSendTime(messageId: string): Promise<Date | null> {
+  try {
+    const [row] = await db
+      .select({ sentAt: emailLogs.sentAt, createdAt: emailLogs.createdAt })
+      .from(emailLogs)
+      .where(eq(emailLogs.trackingMessageId, messageId))
+      .limit(1);
+    const t = row?.sentAt || row?.createdAt;
+    return t ? new Date(t) : null;
+  } catch {
+    return null;
+  }
 }
 
 const outreachSendInFlight = new Map<string, Promise<{ success: boolean; error?: string; bounced?: boolean }>>();
@@ -1611,6 +1647,10 @@ async function sendOutreachEmailInternal(lead: any, userSettings: any, user: any
   }
 
   const baseUrl = getBaseUrl();
+  // Per-send attribution id: threaded into the tracking pixel/link
+  // URLs and stored on the durable send claim (email_logs), so every
+  // resulting open/click event can be tied back to this exact send.
+  const trackingMessageId = randomUUID();
 
   let outreachBody = lead.outreach;
   if (subjectMatch) {
@@ -1676,8 +1716,8 @@ async function sendOutreachEmailInternal(lead: any, userSettings: any, user: any
     });
     htmlBody = branded.htmlBody;
     plainText = branded.plainText;
-    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
-    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl, { messageId: trackingMessageId });
+    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl, { messageId: trackingMessageId });
   } else {
     const outreachHasSignature = /Best regards,\s*\n/i.test(outreachBody) ||
       /Looking forward to connecting,\s*\n/i.test(outreachBody) ||
@@ -1706,8 +1746,8 @@ async function sendOutreachEmailInternal(lead: any, userSettings: any, user: any
         : "";
     }
     htmlBody = outreachBody.replace(/\n/g, "<br>") + htmlSignature;
-    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
-    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl, { messageId: trackingMessageId });
+    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl, { messageId: trackingMessageId });
     plainText = outreachBody + textSignature;
   }
 
@@ -1727,6 +1767,7 @@ async function sendOutreachEmailInternal(lead: any, userSettings: any, user: any
       subject: subjectLine,
       provider: usedProvider,
       source: "outreach",
+      trackingMessageId,
     });
   } catch (err: any) {
     const reason = `Could not create a durable outreach delivery claim: ${err?.message || "persistence error"}`;
@@ -5237,9 +5278,10 @@ RULES:
       ? `<br><br><div style="border-top:1px solid #e5e7eb;padding-top:12px;margin-top:16px;font-size:13px;color:#6b7280;">${fSigParts.map(p => p.startsWith("http") ? `<a href="${p}" style="color:#0ea5e9;">${p}</a>` : p.startsWith("Book a call:") ? `<a href="${p.replace("Book a call: ", "")}" style="color:#0ea5e9;">${p}</a>` : p).join("<br>")}</div>`
       : "";
 
+    const followUpTrackingMessageId = randomUUID();
     let htmlBody = emailBody.replace(/\n/g, "<br>") + fHtmlSig;
-    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
-    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl, { messageId: followUpTrackingMessageId });
+    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl, { messageId: followUpTrackingMessageId });
     const fPlainText = emailBody + fTextSig;
 
     const ownerId = lead.userId || user?.id;
@@ -5289,6 +5331,7 @@ RULES:
         subject: subjectLine,
         provider,
         source: "follow-up",
+        trackingMessageId: followUpTrackingMessageId,
       });
     } catch (err: any) {
       const reason = `Could not create a durable follow-up delivery claim: ${err?.message || "persistence error"}`;
@@ -7533,61 +7576,12 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
     "base64"
   );
 
-  const BOT_UA_PATTERNS = [
-    "googlebot", "bingbot", "slurp", "duckduckbot", "baiduspider",
-    "yandexbot", "facebot", "ia_archiver", "mj12bot", "semrushbot",
-    "ahrefsbot", "dotbot", "petalbot", "bytespider",
-    "barracuda", "proofpoint", "mimecast", "fireeye", "forcepoint",
-    "symantec", "mcafee", "sophos", "trendmicro", "fortinet",
-    "cisco", "ironport", "messagelabs", "spamhaus", "returnpath",
-    "validity", "250ok", "mailgun", "postmark", "sparkpost",
-    "urldefense", "safelinks", "protection.outlook",
-    "bot", "crawler", "spider", "scan", "check", "monitor",
-    "wget", "curl", "python-requests", "node-fetch", "axios",
-    "headlesschrome", "phantomjs", "selenium",
-  ];
-  const GOOGLE_IP_PREFIXES = [
-    "66.249.", "74.125.", "209.85.", "216.239.", "64.233.",
-    "72.14.", "108.177.", "142.250.", "172.217.", "173.194.",
-  ];
-  const KNOWN_SCANNER_IPS = ["81.161.59.17", "54.198.58.157", "51.54.38.120"];
-
-  function isEmailBotEvent(ua: string, ip: string): boolean {
-    if (!ua || ua.length < 20) return true;
-    if (BOT_UA_PATTERNS.some(p => ua.includes(p))) return true;
-    if (GOOGLE_IP_PREFIXES.some(p => ip.startsWith(p))) return true;
-    if (KNOWN_SCANNER_IPS.includes(ip)) return true;
-    return false;
-  }
-
-  function isEmailBot(req: any): boolean {
-    const ua = (req.headers["user-agent"] || "").toLowerCase();
-    const ip = ((req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim());
-    return isEmailBotEvent(ua, ip);
-  }
-
-  function calculateEngagement(opens: number, clicks: number): { score: number; level: string; nextStep: string } {
-    let score = 0;
-    if (clicks >= 1) score = 10;
-    if (clicks >= 2) score = 20;
-    score = Math.min(score, 100);
-
-    let level: string;
-    let nextStep: string;
-    if (score >= 10) {
-      level = "interested";
-      nextStep = clicks > 1
-        ? "Multiple link requests recorded — verify interest through a reply before qualifying"
-        : "A link request was recorded — wait for a reply before treating it as buying intent";
-    } else if (opens > 0) {
-      level = "none";
-      nextStep = "Open recorded but not treated as intent because privacy systems may preload email";
-    } else {
-      level = "none";
-      nextStep = "Wait for engagement or try a different channel (SMS/call)";
-    }
-    return { score, level, nextStep };
-  }
+  // Bot/scanner classification and engagement scoring live in
+  // server/engagement.ts (single source of truth, unit-tested).
+  // The local BOT_UA_PATTERNS / isEmailBotEvent / calculateEngagement
+  // copies that used to sit here disagreed with the recalculate and
+  // startup-repair copies; all writers now delegate to the module
+  // and to refreshLeadEngagement (server/engagement-refresh.ts).
 
   app.get("/t/o/:leadId", async (req, res) => {
     res.set({
@@ -7598,35 +7592,48 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
     });
     res.send(TRACKING_PIXEL);
 
-    if (isEmailBot(req)) return;
-
     try {
       const lead = await storage.getLeadById(req.params.leadId);
       if (lead) {
-        const newOpens = (lead.emailOpens || 0) + 1;
-        const { score, level, nextStep } = calculateEngagement(newOpens, lead.emailClicks || 0);
-        const statusUpdate: any = {
-          emailOpens: newOpens,
-          engagementScore: score,
-          engagementLevel: level,
-          lastEngagedAt: new Date(),
-          nextStep,
-        };
-        await storage.updateLead(lead.id, statusUpdate);
-        workflowHooks.onLeadEmailOpened(lead.userId, { ...lead, emailOpens: newOpens, engagementScore: score });
-        await rollUpEngagementToCampaigns(lead.id, "open");
+        const userAgent = req.headers["user-agent"] || "";
+        const ipAddress = (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim();
+        const messageId = typeof req.query.m === "string" ? req.query.m : null;
+        const campaignId = typeof req.query.c === "string" ? req.query.c : null;
+        const sentAt = messageId ? await getTrackingSendTime(messageId) : null;
+        const { isBot, reason } = classifyEngagementEvent({
+          userAgent,
+          ipAddress,
+          eventType: "open",
+          msSinceSend: sentAt ? Date.now() - sentAt.getTime() : null,
+        });
 
+        // Every hit is appended to the event log — bots included,
+        // flagged — so the log stays auditable. Only human events
+        // move counters, hooks, and campaign rollups (via refresh).
         try {
           await storage.createEmailEvent({
             leadId: lead.id,
             userId: lead.userId,
             eventType: "open",
-            ipAddress: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
-            userAgent: req.headers["user-agent"] || null,
+            ipAddress,
+            userAgent: userAgent || null,
             metadata: null,
-          });
+            campaignId,
+            messageId,
+            linkUrl: null,
+            isBot,
+            botReason: reason,
+          } as any);
         } catch (evtErr) {
           console.error("Email event insert error:", evtErr);
+        }
+
+        await refreshLeadEngagement(lead.id);
+
+        if (!isBot) {
+          const fresh = await storage.getLeadById(lead.id);
+          workflowHooks.onLeadEmailOpened(lead.userId, fresh || lead);
+          await rollUpEngagementToCampaigns(lead.id, "open");
         }
       }
     } catch (err) {
@@ -7646,25 +7653,20 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
       } catch {}
     }
 
-    if (isEmailBot(req)) {
-      return res.redirect(302, safeUrl || "https://argilette.co");
-    }
-
     try {
       const lead = await storage.getLeadById(req.params.leadId);
       if (lead) {
-        const newClicks = (lead.emailClicks || 0) + 1;
-        const { score, level, nextStep } = calculateEngagement(lead.emailOpens || 0, newClicks);
-        const statusUpdate: any = {
-          emailClicks: newClicks,
-          engagementScore: score,
-          engagementLevel: level,
-          lastEngagedAt: new Date(),
-          nextStep,
-        };
-        await storage.updateLead(lead.id, statusUpdate);
-        workflowHooks.onLeadEmailClicked(lead.userId, { ...lead, emailClicks: newClicks, engagementScore: score });
-        await rollUpEngagementToCampaigns(lead.id, "click");
+        const userAgent = req.headers["user-agent"] || "";
+        const ipAddress = (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim();
+        const messageId = typeof req.query.m === "string" ? req.query.m : null;
+        const campaignId = typeof req.query.c === "string" ? req.query.c : null;
+        const sentAt = messageId ? await getTrackingSendTime(messageId) : null;
+        const { isBot, reason } = classifyEngagementEvent({
+          userAgent,
+          ipAddress,
+          eventType: "click",
+          msSinceSend: sentAt ? Date.now() - sentAt.getTime() : null,
+        });
 
         try {
           await storage.createEmailEvent({
@@ -7672,20 +7674,30 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
             userId: lead.userId,
             eventType: "click",
             metadata: JSON.stringify({ url: safeUrl || "unknown" }),
-            ipAddress: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
-            userAgent: req.headers["user-agent"] || null,
-          });
+            ipAddress,
+            userAgent: userAgent || null,
+            campaignId,
+            messageId,
+            linkUrl: safeUrl,
+            isBot,
+            botReason: reason,
+          } as any);
         } catch (evtErr) {
           console.error("Click event insert error:", evtErr);
         }
-      }
-      if (safeUrl) {
-        return res.redirect(302, safeUrl);
+
+        await refreshLeadEngagement(lead.id);
+
+        if (!isBot) {
+          const fresh = await storage.getLeadById(lead.id);
+          workflowHooks.onLeadEmailClicked(lead.userId, fresh || lead);
+          await rollUpEngagementToCampaigns(lead.id, "click");
+        }
       }
     } catch (err) {
       console.error("Click tracking error:", err);
     }
-    res.redirect(302, "https://argilette.co");
+    res.redirect(302, safeUrl || "https://argilette.co");
   });
 
   app.get("/api/leads/:id/engagement", isAuthenticated, async (req, res) => {
@@ -7696,8 +7708,11 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         return res.status(404).json({ message: "Lead not found" });
       }
       const events = await storage.getEmailEventsByLead(lead.id);
-      const opens = events.filter(e => e.eventType === "open");
-      const clicks = events.filter(e => e.eventType === "click");
+      // Counts and timeline reflect human engagement only; bot /
+      // scanner events stay visible in the event list with flags.
+      const humanEvents = events.filter(e => !(e as any).isBot);
+      const opens = humanEvents.filter(e => e.eventType === "open");
+      const clicks = humanEvents.filter(e => e.eventType === "click");
 
       res.json({
         leadId: lead.id,
@@ -7712,6 +7727,10 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
           metadata: e.metadata ? JSON.parse(e.metadata) : null,
           timestamp: e.createdAt,
           ipAddress: e.ipAddress,
+          isBot: !!(e as any).isBot,
+          botReason: (e as any).botReason ?? null,
+          campaignId: (e as any).campaignId ?? null,
+          messageId: (e as any).messageId ?? null,
         })),
         timeline: {
           firstOpen: opens.length > 0 ? opens[opens.length - 1].createdAt : null,
@@ -7734,17 +7753,19 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
       const allLeads = await storage.getLeadsByUser(userId);
       const sentLeads = allLeads.filter(l => l.outreachSentAt);
 
+      // Counters are a derived cache of the event log — refresh
+      // each sent lead from the single derivation so this endpoint
+      // can never drift from the tracking endpoints / recalculate.
       for (const lead of sentLeads) {
         if ((lead.emailOpens || 0) > 0 || (lead.emailClicks || 0) > 0) {
-          const { score, level, nextStep } = calculateEngagement(lead.emailOpens || 0, lead.emailClicks || 0);
-          if (lead.engagementLevel !== level || lead.engagementScore !== score) {
-            const statusUpdate: any = { engagementScore: score, engagementLevel: level, nextStep };
-            if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
-            else if (level === "warm" && lead.status === "new") statusUpdate.status = "warm";
-            await storage.updateLead(lead.id, statusUpdate);
-            lead.engagementLevel = level;
-            lead.engagementScore = score;
-            if (statusUpdate.status) lead.status = statusUpdate.status;
+          const summary = await refreshLeadEngagement(lead.id);
+          if (summary) {
+            lead.emailOpens = summary.opens;
+            lead.emailClicks = summary.clicks;
+            lead.engagementScore = summary.score;
+            lead.engagementLevel = summary.level;
+            lead.nextStep = summary.nextStep;
+            lead.lastEngagedAt = summary.lastEngagedAt;
           }
         }
       }
@@ -7838,33 +7859,9 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         const events = await storage.getEmailEventsByLead(lead.id);
         if (events.length === 0) continue;
 
-        const realEvents = events.filter(e => {
-          const ua = (e.userAgent || "").toLowerCase();
-          const ip = (e.ipAddress || "");
-          return !isEmailBotEvent(ua, ip);
-        });
-        const realOpens = realEvents.filter(e => e.eventType === "open").length;
-        const realClicks = realEvents.filter(e => e.eventType === "click").length;
-
-        const { score, level, nextStep } = calculateEngagement(realOpens, realClicks);
-        const statusUpdate: any = {
-          emailOpens: realOpens,
-          emailClicks: realClicks,
-          engagementScore: score,
-          engagementLevel: level,
-          nextStep,
-        };
-        if (!lead.lastEngagedAt && (realOpens > 0 || realClicks > 0)) {
-          statusUpdate.lastEngagedAt = lead.outreachSentAt || new Date();
-        }
-        if (realOpens === 0 && realClicks === 0) {
-          statusUpdate.lastEngagedAt = null;
-        } else if (level === "hot" && lead.status !== "qualified") {
-          statusUpdate.status = "hot";
-        } else if (level === "warm" && lead.status === "new") {
-          statusUpdate.status = "warm";
-        }
-        await storage.updateLead(lead.id, statusUpdate);
+        // Single derivation (human events only, burst-aware) —
+        // see server/engagement-refresh.ts.
+        await refreshLeadEngagement(lead.id);
         updated++;
       }
 
@@ -12549,20 +12546,11 @@ async function repairSentLeads() {
 
       const events = await storage.getEmailEventsByLead(lead.id);
       if (events.length > 0) {
-        const realOpens = events.filter(e => e.eventType === "open").length;
-        const realClicks = events.filter(e => e.eventType === "click").length;
-        if (realOpens !== (lead.emailOpens || 0) || realClicks !== (lead.emailClicks || 0)) {
-          let score = 0;
-          if (realClicks >= 1) score = 10;
-          if (realClicks >= 2) score = 20;
-          score = Math.min(score, 100);
-          let level = "none";
-          let nextStep = "Wait for engagement or try a different channel (SMS/call)";
-          if (score >= 10) { level = "interested"; nextStep = "Link activity recorded — wait for a reply before qualifying"; }
-          else if (realOpens > 0) { nextStep = "Open recorded but not treated as intent because privacy systems may preload email"; }
-          const engUpdate: any = { emailOpens: realOpens, emailClicks: realClicks, engagementScore: score, engagementLevel: level, nextStep };
-          if (realOpens > 0 || realClicks > 0) engUpdate.lastEngagedAt = events[events.length - 1].createdAt;
-          await storage.updateLead(lead.id, engUpdate);
+        // Single derivation (human events only, burst-aware) —
+        // this block previously recounted ALL events including
+        // scanner traffic with its own inline scoring copy.
+        const summary = await refreshLeadEngagement(lead.id);
+        if (summary && (summary.opens !== (lead.emailOpens || 0) || summary.clicks !== (lead.emailClicks || 0))) {
           repairedEngagement++;
         }
       }

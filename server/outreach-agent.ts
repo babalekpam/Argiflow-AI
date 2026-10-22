@@ -30,6 +30,7 @@ import { getLeadContactIssue, getTenantSmtpConfigIssue } from "./outreach-qualit
 import { storage } from "./storage";
 import { workflowHooks } from "./workflow-hooks";
 import { canAgentAutoReply, hasExplicitAgentAutoReplyOptIn } from "./inbox-reliability";
+import { randomUUID } from "crypto";
 
 // Public origin used for open/click tracking URLs embedded in outbound email.
 function trackingBaseUrl(): string {
@@ -1336,8 +1337,12 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
       let htmlBody = body.replace(/\n/g, "<br>");
       // The pixel must be an absolute URL keyed by lead id — a relative path never
       // resolves in an email client, and a timestamp key is not attributable.
-      if (trackOpens && leadId) {
-        htmlBody += `<img src="${trackingBaseUrl()}/t/o/${leadId}" width="1" height="1" style="display:none;border:0;" alt="" />`;
+      // The per-send trackingMessageId (stored on the email log below)
+      // ties resulting open events back to this exact send + campaign.
+      const trackingMessageId = trackOpens && leadId ? randomUUID() : null;
+      if (trackingMessageId && leadId) {
+        const cParam = campaignId ? `&c=${encodeURIComponent(campaignId)}` : "";
+        htmlBody += `<img src="${trackingBaseUrl()}/t/o/${leadId}?m=${trackingMessageId}${cParam}" width="1" height="1" style="display:none;border:0;" alt="" />`;
       }
 
       if (!tenantSmtpSettings) {
@@ -1412,7 +1417,7 @@ Write ONLY the email body — no subject line, no "Subject:", just the reply tex
       });
 
       try {
-        await db.insert(emailLogs).values({ userId, leadId, recipientEmail: toEmail, subject, provider: "smtp", source: "agent", status: "sent", sentAt: new Date() });
+        await db.insert(emailLogs).values({ userId, leadId, recipientEmail: toEmail, subject, provider: "smtp", source: "agent", status: "sent", sentAt: new Date(), trackingMessageId });
       } catch {}
       return true;
     } catch (err: any) {
