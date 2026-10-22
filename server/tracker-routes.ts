@@ -2,6 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { pool } from "./db";
 import { randomUUID } from "crypto";
 import { identifyVisitorByIP } from "./visitor-intelligence";
+import { classifyByUaIp } from "./engagement";
 
 const requireAuth: RequestHandler = (req, res, next) => {
   if (!req.session?.userId) {
@@ -227,23 +228,28 @@ export function registerTrackerPublicRoutes(app: Express) {
       const ua = req.headers["user-agent"] || "";
       const { browser, device, isMobile } = parseUA(ua);
 
+      // Record every hit, but only human opens move the counters
+      // (mail scanners / image proxies prefetch the pixel at delivery).
+      const bot = classifyByUaIp(ua, ip);
       await pool.query(`
         INSERT INTO track_email_events
-          (token, event_type, ip, user_agent, browser, device, is_mobile)
-        VALUES ($1,'open',$2,$3,$4,$5,$6)`,
-        [token, ip, ua, browser, device, isMobile]
+          (token, event_type, ip, user_agent, browser, device, is_mobile, is_bot)
+        VALUES ($1,'open',$2,$3,$4,$5,$6,$7)`,
+        [token, ip, ua, browser, device, isMobile, bot.isBot]
       );
 
-      await pool.query(`
-        UPDATE track_email_sends
-        SET opens = opens + 1,
-            first_opened_at = COALESCE(first_opened_at, NOW()),
-            last_opened_at  = NOW(),
-            open_device     = $2,
-            open_browser    = $3
-        WHERE token = $1`,
-        [token, device, browser]
-      );
+      if (!bot.isBot) {
+        await pool.query(`
+          UPDATE track_email_sends
+          SET opens = opens + 1,
+              first_opened_at = COALESCE(first_opened_at, NOW()),
+              last_opened_at  = NOW(),
+              open_device     = $2,
+              open_browser    = $3
+          WHERE token = $1`,
+          [token, device, browser]
+        );
+      }
 
       const gif = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
       res.set({ "Content-Type": "image/gif", "Cache-Control": "no-store, no-cache" });
@@ -262,21 +268,24 @@ export function registerTrackerPublicRoutes(app: Express) {
       const ua = req.headers["user-agent"] || "";
       const { browser, device, isMobile } = parseUA(ua);
 
+      const bot = classifyByUaIp(ua, ip);
       await pool.query(`
         INSERT INTO track_email_events
-          (token, event_type, link_id, ip, user_agent, browser, device, is_mobile)
-        VALUES ($1,'click',$2,$3,$4,$5,$6,$7)`,
-        [token, link_id, ip, ua, browser, device, isMobile]
+          (token, event_type, link_id, ip, user_agent, browser, device, is_mobile, is_bot)
+        VALUES ($1,'click',$2,$3,$4,$5,$6,$7,$8)`,
+        [token, link_id, ip, ua, browser, device, isMobile, bot.isBot]
       );
 
-      await pool.query(`
-        UPDATE track_email_sends
-        SET clicks = clicks + 1,
-            first_clicked_at = COALESCE(first_clicked_at, NOW()),
-            last_clicked_at  = NOW()
-        WHERE token = $1`,
-        [token]
-      );
+      if (!bot.isBot) {
+        await pool.query(`
+          UPDATE track_email_sends
+          SET clicks = clicks + 1,
+              first_clicked_at = COALESCE(first_clicked_at, NOW()),
+              last_clicked_at  = NOW()
+          WHERE token = $1`,
+          [token]
+        );
+      }
 
       const result = await pool.query(
         `SELECT original_url FROM track_email_links WHERE token=$1 AND link_id=$2`,

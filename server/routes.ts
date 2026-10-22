@@ -1,6 +1,8 @@
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { calculateEngagement, classifyEngagementEvent } from "./engagement";
+import { refreshLeadEngagement } from "./engagement-refresh";
 import { db } from "./db";
 import { registerTrackerPublicRoutes, registerTrackerDashboardRoutes } from "./tracker-routes";
 import { eq, and, sql, desc, or, ilike, isNull } from "drizzle-orm";
@@ -8,7 +10,7 @@ import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, a
 import { campaigns, campaignLeads } from "@shared/instantly-schema";
 import { getSession } from "./replit_integrations/auth/replitAuth";
 import { registerSchema, loginSchema, insertLeadSchema, insertBusinessSchema, onboardingSchema, marketingStrategies } from "@shared/schema";
-import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
+import { scrypt, randomBytes, timingSafeEqual, createHash, randomUUID } from "crypto";
 import { promisify } from "util";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
@@ -72,7 +74,7 @@ function normalizePhoneNumber(phone: string | undefined | null): string {
   return phone;
 }
 
-async function logEmail(data: { userId: string; leadId?: string; recipientEmail: string; recipientName?: string; subject?: string; provider: string; source: string; status: string; errorMessage?: string }) {
+async function logEmail(data: { userId: string; leadId?: string; recipientEmail: string; recipientName?: string; subject?: string; provider: string; source: string; status: string; errorMessage?: string; trackingMessageId?: string }) {
   try {
     await db.insert(emailLogs).values({
       userId: data.userId,
@@ -84,6 +86,7 @@ async function logEmail(data: { userId: string; leadId?: string; recipientEmail:
       source: data.source,
       status: data.status,
       errorMessage: data.errorMessage || null,
+      trackingMessageId: data.trackingMessageId || null,
       sentAt: data.status === "sent" ? new Date() : null,
     });
   } catch (err: any) {
@@ -1253,18 +1256,36 @@ function getBaseUrl(): string {
   return "https://argilette.co";
 }
 
-function wrapLinksForTracking(html: string, leadId: string, baseUrl: string): string {
+// Attribution (added 2026-10-22): every send generates a messageId and,
+// when the send belongs to a campaign, the campaignId. They ride along
+// as the `m` / `c` query params and are persisted on each email_events
+// row, so an open/click can be traced to the exact email that produced
+// it. Both params are optional — links in already-sent mail (leadId
+// only) keep working and simply record NULL attribution.
+export interface TrackingAttribution { campaignId?: string | null; messageId?: string | null }
+
+function attributionQuery(attribution?: TrackingAttribution): string {
+  if (!attribution) return "";
+  const parts: string[] = [];
+  if (attribution.messageId) parts.push(`m=${encodeURIComponent(attribution.messageId)}`);
+  if (attribution.campaignId) parts.push(`c=${encodeURIComponent(attribution.campaignId)}`);
+  return parts.length ? `&${parts.join("&")}` : "";
+}
+
+function wrapLinksForTracking(html: string, leadId: string, baseUrl: string, attribution?: TrackingAttribution): string {
+  const extra = attributionQuery(attribution);
   return html.replace(
     /href="(https?:\/\/[^"]+)"/gi,
     (_match: string, url: string) => {
-      const trackUrl = `${baseUrl}/t/c/${leadId}?url=${encodeURIComponent(url)}`;
+      const trackUrl = `${baseUrl}/t/c/${leadId}?url=${encodeURIComponent(url)}${extra}`;
       return `href="${trackUrl}"`;
     }
   );
 }
 
-function injectTrackingPixel(html: string, leadId: string, baseUrl: string): string {
-  const pixel = `<img src="${baseUrl}/t/o/${leadId}" width="1" height="1" style="display:none;border:0;" alt="" />`;
+function injectTrackingPixel(html: string, leadId: string, baseUrl: string, attribution?: TrackingAttribution): string {
+  const extra = attributionQuery(attribution).replace(/^&/, "?");
+  const pixel = `<img src="${baseUrl}/t/o/${leadId}${extra}" width="1" height="1" style="display:none;border:0;" alt="" />`;
   return html + pixel;
 }
 
@@ -1302,6 +1323,11 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
 
   const isMedBillSender = (user.companyName || "").toLowerCase().includes("track-med");
 
+  // One id per send, threaded into the pixel/click URLs and the
+  // email_logs row so engagement events attribute to this message.
+  const trackingMessageId = randomUUID();
+  const attribution: TrackingAttribution = { messageId: trackingMessageId };
+
   let htmlBody: string;
   let plainText: string;
 
@@ -1316,8 +1342,8 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
     });
     htmlBody = branded.htmlBody;
     plainText = branded.plainText;
-    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
-    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl, attribution);
+    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl, attribution);
   } else {
     const outreachHasSignature = /Best regards,\s*\n/i.test(outreachBody) ||
       /Looking forward to connecting,\s*\n/i.test(outreachBody) ||
@@ -1346,8 +1372,8 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
         : "";
     }
     htmlBody = outreachBody.replace(/\n/g, "<br>") + htmlSignature;
-    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
-    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl, attribution);
+    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl, attribution);
     plainText = outreachBody + textSignature;
   }
 
@@ -1379,7 +1405,7 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
       });
       if (!result.success) throw new Error(result.error || "Send failed");
     }
-    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: usedProvider, source: "outreach", status: "sent" });
+    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: usedProvider, source: "outreach", status: "sent", trackingMessageId });
     return { success: true };
   } catch (err: any) {
     console.error("Email send error:", err?.response?.body || err?.message || err);
@@ -1389,7 +1415,7 @@ export async function sendOutreachEmail(lead: any, userSettings: any, user: any)
       /bounce|rejected|undeliverable|mailbox.*not found|user.*unknown|does not exist|invalid.*recipient|no such user/i.test(errorMsg);
 
     const emailStatus = isBounce ? "bounced" : "failed";
-    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: usedProvider, source: "outreach", status: emailStatus, errorMessage: errorMsg });
+    await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: usedProvider, source: "outreach", status: emailStatus, errorMessage: errorMsg, trackingMessageId });
     return { success: false, error: errorMsg, bounced: isBounce };
   }
 }
@@ -4678,9 +4704,10 @@ RULES:
       ? `<br><br><div style="border-top:1px solid #e5e7eb;padding-top:12px;margin-top:16px;font-size:13px;color:#6b7280;">${fSigParts.map(p => p.startsWith("http") ? `<a href="${p}" style="color:#0ea5e9;">${p}</a>` : p.startsWith("Book a call:") ? `<a href="${p.replace("Book a call: ", "")}" style="color:#0ea5e9;">${p}</a>` : p).join("<br>")}</div>`
       : "";
 
+    const trackingMessageId = randomUUID();
     let htmlBody = emailBody.replace(/\n/g, "<br>") + fHtmlSig;
-    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl);
-    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl);
+    htmlBody = wrapLinksForTracking(htmlBody, lead.id, baseUrl, { messageId: trackingMessageId });
+    htmlBody = injectTrackingPixel(htmlBody, lead.id, baseUrl, { messageId: trackingMessageId });
     const fPlainText = emailBody + fTextSig;
 
     try {
@@ -4709,11 +4736,11 @@ RULES:
         if (!result.success) throw new Error(result.error || "Send failed");
       }
       console.log(`[FOLLOW-UP] Step ${step} sent to ${lead.name} (${lead.email})`);
-      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: hasCustomSmtp ? "smtp" : "ses", source: "follow-up", status: "sent" });
+      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: hasCustomSmtp ? "smtp" : "ses", source: "follow-up", status: "sent", trackingMessageId });
       return { success: true };
     } catch (err: any) {
       console.error(`[FOLLOW-UP] Send failed for ${lead.name}:`, err?.message);
-      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: hasCustomSmtp ? "smtp" : "ses", source: "follow-up", status: "failed", errorMessage: err?.message });
+      await logEmail({ userId: user.id, leadId: lead.id, recipientEmail: lead.email, recipientName: lead.name, subject: subjectLine, provider: hasCustomSmtp ? "smtp" : "ses", source: "follow-up", status: "failed", errorMessage: err?.message, trackingMessageId });
       return { success: false, error: err?.message || "Send failed" };
     }
   }
@@ -6501,70 +6528,37 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
   });
 
   // ---- EMAIL TRACKING (public endpoints — no auth, hit from email clients) ----
+  //
+  // Scoring, bot classification and counter derivation live in
+  // ./engagement (pure, unit-tested) and ./engagement-refresh (the one
+  // derivation from the email_events log). They used to be three
+  // divergent local copies — the endpoints incremented counters in JS,
+  // the startup repair recounted events WITHOUT the bot filter, the
+  // recalculate endpoint recounted WITH it — so the same lead showed
+  // different numbers depending on which path ran last. Do not
+  // re-introduce local copies.
 
   const TRACKING_PIXEL = Buffer.from(
     "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
     "base64"
   );
 
-  const BOT_UA_PATTERNS = [
-    "googlebot", "bingbot", "slurp", "duckduckbot", "baiduspider",
-    "yandexbot", "facebot", "ia_archiver", "mj12bot", "semrushbot",
-    "ahrefsbot", "dotbot", "petalbot", "bytespider",
-    "barracuda", "proofpoint", "mimecast", "fireeye", "forcepoint",
-    "symantec", "mcafee", "sophos", "trendmicro", "fortinet",
-    "cisco", "ironport", "messagelabs", "spamhaus", "returnpath",
-    "validity", "250ok", "mailgun", "postmark", "sparkpost",
-    "urldefense", "safelinks", "protection.outlook",
-    "bot", "crawler", "spider", "scan", "check", "monitor",
-    "wget", "curl", "python-requests", "node-fetch", "axios",
-    "headlesschrome", "phantomjs", "selenium",
-  ];
-  const GOOGLE_IP_PREFIXES = [
-    "66.249.", "74.125.", "209.85.", "216.239.", "64.233.",
-    "72.14.", "108.177.", "142.250.", "172.217.", "173.194.",
-  ];
-  const KNOWN_SCANNER_IPS = ["81.161.59.17", "54.198.58.157", "51.54.38.120"];
-
-  function isEmailBotEvent(ua: string, ip: string): boolean {
-    if (!ua || ua.length < 20) return true;
-    if (BOT_UA_PATTERNS.some(p => ua.includes(p))) return true;
-    if (GOOGLE_IP_PREFIXES.some(p => ip.startsWith(p))) return true;
-    if (KNOWN_SCANNER_IPS.includes(ip)) return true;
-    return false;
-  }
-
-  function isEmailBot(req: any): boolean {
-    const ua = (req.headers["user-agent"] || "").toLowerCase();
-    const ip = ((req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim());
-    return isEmailBotEvent(ua, ip);
-  }
-
-  function calculateEngagement(opens: number, clicks: number): { score: number; level: string; nextStep: string } {
-    let score = 0;
-    if (opens >= 1) score += 25;
-    if (opens >= 2) score += 15;
-    if (opens >= 3) score += 10;
-    if (clicks >= 1) score += 35;
-    if (clicks >= 2) score += 15;
-    score = Math.min(score, 100);
-
-    let level: string;
-    let nextStep: string;
-    if (score >= 40) {
-      level = "hot";
-      nextStep = "Schedule a call immediately — this lead is highly engaged";
-    } else if (score >= 25) {
-      level = "warm";
-      nextStep = "Send a follow-up email with a case study or booking link";
-    } else if (score >= 10) {
-      level = "interested";
-      nextStep = "Send a value-add follow-up in 2-3 days";
-    } else {
-      level = "none";
-      nextStep = "Wait for engagement or try a different channel (SMS/call)";
+  // When did the tracked message go out? Prefer the exact send (via
+  // the messageId threaded into the tracking URLs); fall back to the
+  // lead's last known send timestamps for links from older mail.
+  async function getTrackedSendTime(messageId: string | null, lead: any): Promise<Date | null> {
+    if (messageId) {
+      try {
+        const [row] = await db
+          .select({ sentAt: emailLogs.sentAt })
+          .from(emailLogs)
+          .where(eq(emailLogs.trackingMessageId, messageId))
+          .limit(1);
+        if (row?.sentAt) return new Date(row.sentAt);
+      } catch { /* fall through to lead timestamps */ }
     }
-    return { score, level, nextStep };
+    const fallback = lead.followUpLastSentAt || lead.outreachSentAt;
+    return fallback ? new Date(fallback) : null;
   }
 
   app.get("/t/o/:leadId", async (req, res) => {
@@ -6576,38 +6570,51 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
     });
     res.send(TRACKING_PIXEL);
 
-    if (isEmailBot(req)) return;
-
     try {
       const lead = await storage.getLeadById(req.params.leadId);
-      if (lead) {
-        const newOpens = (lead.emailOpens || 0) + 1;
-        const { score, level, nextStep } = calculateEngagement(newOpens, lead.emailClicks || 0);
-        const statusUpdate: any = {
-          emailOpens: newOpens,
-          engagementScore: score,
-          engagementLevel: level,
-          lastEngagedAt: new Date(),
-          nextStep,
-        };
-        if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
-        else if (level === "warm" && lead.status === "new") statusUpdate.status = "warm";
-        await storage.updateLead(lead.id, statusUpdate);
-        workflowHooks.onLeadEmailOpened(lead.userId, { ...lead, emailOpens: newOpens, engagementScore: score });
-        await rollUpEngagementToCampaigns(lead.id, "open");
+      if (!lead) return;
 
-        try {
-          await storage.createEmailEvent({
-            leadId: lead.id,
-            userId: lead.userId,
-            eventType: "open",
-            ipAddress: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
-            userAgent: req.headers["user-agent"] || null,
-            metadata: null,
-          });
-        } catch (evtErr) {
-          console.error("Email event insert error:", evtErr);
-        }
+      const ip = (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim();
+      const ua = req.headers["user-agent"] || "";
+      const messageId = typeof req.query.m === "string" ? req.query.m : null;
+      const campaignId = typeof req.query.c === "string" ? req.query.c : null;
+      const sentAt = await getTrackedSendTime(messageId, lead);
+      const classification = classifyEngagementEvent({
+        userAgent: ua,
+        ipAddress: ip,
+        eventType: "open",
+        msSinceSend: sentAt ? Date.now() - sentAt.getTime() : null,
+      });
+
+      // Append-only: every hit is recorded. isBot decides counting,
+      // so scanner traffic stays auditable instead of silently
+      // dropped (old behaviour) or silently counted (older behaviour).
+      try {
+        await storage.createEmailEvent({
+          leadId: lead.id,
+          userId: lead.userId,
+          eventType: "open",
+          campaignId,
+          messageId,
+          linkUrl: null,
+          isBot: classification.isBot,
+          botReason: classification.reason,
+          ipAddress: ip,
+          userAgent: ua || null,
+          metadata: null,
+        } as any);
+      } catch (evtErr) {
+        console.error("Email event insert error:", evtErr);
+      }
+
+      const summary = await refreshLeadEngagement(lead.id);
+      if (!classification.isBot) {
+        workflowHooks.onLeadEmailOpened(lead.userId, {
+          ...lead,
+          emailOpens: summary?.opens ?? lead.emailOpens,
+          engagementScore: summary?.score ?? lead.engagementScore,
+        });
+        await rollUpEngagementToCampaigns(lead.id, "open");
       }
     } catch (err) {
       console.error("Tracking pixel error:", err);
@@ -6626,39 +6633,48 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
       } catch {}
     }
 
-    if (isEmailBot(req)) {
-      return res.redirect(302, safeUrl || "https://argilette.co");
-    }
-
     try {
       const lead = await storage.getLeadById(req.params.leadId);
       if (lead) {
-        const newClicks = (lead.emailClicks || 0) + 1;
-        const { score, level, nextStep } = calculateEngagement(lead.emailOpens || 0, newClicks);
-        const statusUpdate: any = {
-          emailClicks: newClicks,
-          engagementScore: score,
-          engagementLevel: level,
-          lastEngagedAt: new Date(),
-          nextStep,
-        };
-        if (level === "hot" && lead.status !== "qualified") statusUpdate.status = "hot";
-        else if (level === "warm" && (lead.status === "new" || lead.status === "cold")) statusUpdate.status = "warm";
-        await storage.updateLead(lead.id, statusUpdate);
-        workflowHooks.onLeadEmailClicked(lead.userId, { ...lead, emailClicks: newClicks, engagementScore: score });
-        await rollUpEngagementToCampaigns(lead.id, "click");
+        const ip = (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim();
+        const ua = req.headers["user-agent"] || "";
+        const messageId = typeof req.query.m === "string" ? req.query.m : null;
+        const campaignId = typeof req.query.c === "string" ? req.query.c : null;
+        const sentAt = await getTrackedSendTime(messageId, lead);
+        const classification = classifyEngagementEvent({
+          userAgent: ua,
+          ipAddress: ip,
+          eventType: "click",
+          msSinceSend: sentAt ? Date.now() - sentAt.getTime() : null,
+        });
 
         try {
           await storage.createEmailEvent({
             leadId: lead.id,
             userId: lead.userId,
             eventType: "click",
+            campaignId,
+            messageId,
+            linkUrl: safeUrl,
+            isBot: classification.isBot,
+            botReason: classification.reason,
+            ipAddress: ip,
+            userAgent: ua || null,
+            // metadata.url kept for the legacy timeline reader.
             metadata: JSON.stringify({ url: safeUrl || "unknown" }),
-            ipAddress: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
-            userAgent: req.headers["user-agent"] || null,
-          });
+          } as any);
         } catch (evtErr) {
           console.error("Click event insert error:", evtErr);
+        }
+
+        const summary = await refreshLeadEngagement(lead.id);
+        if (!classification.isBot) {
+          workflowHooks.onLeadEmailClicked(lead.userId, {
+            ...lead,
+            emailClicks: summary?.clicks ?? lead.emailClicks,
+            engagementScore: summary?.score ?? lead.engagementScore,
+          });
+          await rollUpEngagementToCampaigns(lead.id, "click");
         }
       }
       if (safeUrl) {
@@ -6678,8 +6694,10 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
         return res.status(404).json({ message: "Lead not found" });
       }
       const events = await storage.getEmailEventsByLead(lead.id);
-      const opens = events.filter(e => e.eventType === "open");
-      const clicks = events.filter(e => e.eventType === "click");
+      // Counts and timeline use human events only; bot/scanner events
+      // stay visible in the events list below with their flags.
+      const opens = events.filter(e => e.eventType === "open" && !(e as any).isBot);
+      const clicks = events.filter(e => e.eventType === "click" && !(e as any).isBot);
 
       res.json({
         leadId: lead.id,
@@ -6694,6 +6712,11 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
           metadata: e.metadata ? JSON.parse(e.metadata) : null,
           timestamp: e.createdAt,
           ipAddress: e.ipAddress,
+          isBot: (e as any).isBot || false,
+          botReason: (e as any).botReason || null,
+          campaignId: (e as any).campaignId || null,
+          messageId: (e as any).messageId || null,
+          linkUrl: (e as any).linkUrl || null,
         })),
         timeline: {
           firstOpen: opens.length > 0 ? opens[opens.length - 1].createdAt : null,
@@ -6817,37 +6840,8 @@ Return ONLY a JSON array: [{"name":"exact lead name","outreach":"full email with
       let updated = 0;
 
       for (const lead of sentLeads) {
-        const events = await storage.getEmailEventsByLead(lead.id);
-        if (events.length === 0) continue;
-
-        const realEvents = events.filter(e => {
-          const ua = (e.userAgent || "").toLowerCase();
-          const ip = (e.ipAddress || "");
-          return !isEmailBotEvent(ua, ip);
-        });
-        const realOpens = realEvents.filter(e => e.eventType === "open").length;
-        const realClicks = realEvents.filter(e => e.eventType === "click").length;
-
-        const { score, level, nextStep } = calculateEngagement(realOpens, realClicks);
-        const statusUpdate: any = {
-          emailOpens: realOpens,
-          emailClicks: realClicks,
-          engagementScore: score,
-          engagementLevel: level,
-          nextStep,
-        };
-        if (!lead.lastEngagedAt && (realOpens > 0 || realClicks > 0)) {
-          statusUpdate.lastEngagedAt = lead.outreachSentAt || new Date();
-        }
-        if (realOpens === 0 && realClicks === 0) {
-          statusUpdate.lastEngagedAt = null;
-        } else if (level === "hot" && lead.status !== "qualified") {
-          statusUpdate.status = "hot";
-        } else if (level === "warm" && lead.status === "new") {
-          statusUpdate.status = "warm";
-        }
-        await storage.updateLead(lead.id, statusUpdate);
-        updated++;
+        const summary = await refreshLeadEngagement(lead.id);
+        if (summary) updated++;
       }
 
       res.json({ success: true, updated, total: sentLeads.length });
@@ -11253,26 +11247,12 @@ async function repairSentLeads() {
 
       const events = await storage.getEmailEventsByLead(lead.id);
       if (events.length > 0) {
-        const realOpens = events.filter(e => e.eventType === "open").length;
-        const realClicks = events.filter(e => e.eventType === "click").length;
-        if (realOpens !== (lead.emailOpens || 0) || realClicks !== (lead.emailClicks || 0)) {
-          let score = 0;
-          if (realOpens >= 1) score += 25;
-          if (realOpens >= 2) score += 15;
-          if (realOpens >= 3) score += 10;
-          if (realClicks >= 1) score += 35;
-          if (realClicks >= 2) score += 15;
-          score = Math.min(score, 100);
-          let level = "none";
-          let nextStep = "Wait for engagement or try a different channel (SMS/call)";
-          if (score >= 40) { level = "hot"; nextStep = "Schedule a call immediately — this lead is highly engaged"; }
-          else if (score >= 25) { level = "warm"; nextStep = "Send a follow-up email with a case study or booking link"; }
-          else if (score >= 10) { level = "interested"; nextStep = "Send a value-add follow-up in 2-3 days"; }
-          const engUpdate: any = { emailOpens: realOpens, emailClicks: realClicks, engagementScore: score, engagementLevel: level, nextStep };
-          if (realOpens > 0 || realClicks > 0) engUpdate.lastEngagedAt = events[events.length - 1].createdAt;
-          if (level === "hot" && lead.status !== "qualified") engUpdate.status = "hot";
-          else if (level === "warm" && lead.status === "new") engUpdate.status = "warm";
-          await storage.updateLead(lead.id, engUpdate);
+        // Single derivation (bot-filtered, burst-aware). This repair
+        // previously recounted raw events — bots included — and
+        // overwrote the filtered numbers on every boot, which is why
+        // counts changed between page loads.
+        const summary = await refreshLeadEngagement(lead.id);
+        if (summary && (summary.opens !== (lead.emailOpens || 0) || summary.clicks !== (lead.emailClicks || 0) || summary.score !== (lead.engagementScore || 0))) {
           repairedEngagement++;
         }
       }
