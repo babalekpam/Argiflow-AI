@@ -63,7 +63,17 @@ export const leads = pgTable("leads", {
   index("leads_follow_up_idx").on(table.followUpStatus, table.followUpNextAt),
 ]);
 
-export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
+// Scores are a 0-100 scale. The raw createInsertSchema accepted any
+// integer, and LLM/import write paths stored values like 105 and 120,
+// which the UI then rendered as "120/100". Bound them at the schema
+// boundary (storage also clamps — see server/storage.ts — because not
+// every write path goes through this schema).
+export const insertLeadSchema = createInsertSchema(leads)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    score: z.number().int().min(0).max(100).optional(),
+    engagementScore: z.number().int().min(0).max(100).optional(),
+  });
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 

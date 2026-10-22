@@ -31,6 +31,7 @@ import {
 import { db } from "./db";
 import { eq, desc, and, asc, isNull, sql, lte } from "drizzle-orm";
 import { encrypt, decrypt } from "./encryption";
+import { clampScore } from "./engagement";
 
 // Credential fields in userSettings that are encrypted at rest
 const SETTINGS_CREDENTIAL_FIELDS = [
@@ -228,7 +229,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLead(lead: InsertLead): Promise<Lead> {
-    const [result] = await db.insert(leads).values(lead).returning();
+    // Scores are a 0-100 scale. LLM tool output and imports used to be
+    // stored verbatim (105, 120…). Every lead write funnels through
+    // storage, so clamp here as the last line of defence.
+    const safe = { ...lead } as any;
+    if (safe.score != null) safe.score = clampScore(safe.score);
+    if (safe.engagementScore != null) safe.engagementScore = clampScore(safe.engagementScore);
+    const [result] = await db.insert(leads).values(safe).returning();
     return result;
   }
 
@@ -243,7 +250,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateLead(id: string, data: Partial<Pick<Lead, "name" | "email" | "phone" | "address" | "status" | "score" | "notes" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt" | "companyResearch" | "companyResearchedAt">>): Promise<Lead | undefined> {
-    const [result] = await db.update(leads).set(data).where(eq(leads.id, id)).returning();
+    const safe = { ...data } as any;
+    if (safe.score != null) safe.score = clampScore(safe.score);
+    if (safe.engagementScore != null) safe.engagementScore = clampScore(safe.engagementScore);
+    const [result] = await db.update(leads).set(safe).where(eq(leads.id, id)).returning();
     return result;
   }
 

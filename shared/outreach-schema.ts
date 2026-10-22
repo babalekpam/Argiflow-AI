@@ -73,6 +73,10 @@ export const emailLogs = pgTable("email_logs", {
   status: text("status").notNull().default("pending"),
   errorMessage: text("error_message"),
   retryCount: integer("retry_count").notNull().default(0),
+  // Per-send identifier threaded into the tracking pixel / click URLs
+  // and stored on every resulting email_events row (message_id), so
+  // engagement can be attributed to this exact send. Added 2026-10-22.
+  trackingMessageId: varchar("tracking_message_id"),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -119,9 +123,23 @@ export const emailEvents = pgTable("email_events", {
   metadata: text("metadata"),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
+  // Attribution + bot classification (added 2026-10-22, additive only).
+  // campaignId/messageId are threaded through the tracking pixel and
+  // click-redirect URLs at send time so every event can be traced to
+  // the exact email that produced it. Legacy events keep NULLs.
+  campaignId: varchar("campaign_id"),
+  messageId: varchar("message_id"),
+  linkUrl: text("link_url"),
+  // Events are always recorded; isBot only decides whether they count
+  // toward opens/clicks/score. botReason says which rule fired
+  // (bot-user-agent | bot-ip | inhuman-speed | prefetch-open | link-burst).
+  isBot: boolean("is_bot").notNull().default(false),
+  botReason: text("bot_reason"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("email_events_lead_idx").on(table.leadId),
+  index("email_events_lead_bot_idx").on(table.leadId, table.isBot),
+  index("email_events_message_idx").on(table.messageId),
 ]);
 
 export const insertEmailEventSchema = createInsertSchema(emailEvents).omit({ id: true, createdAt: true });
