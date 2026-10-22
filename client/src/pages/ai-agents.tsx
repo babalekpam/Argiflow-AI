@@ -379,7 +379,7 @@ export default function AiAgentsPage() {
                     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Zap className="w-3 h-3" />
-                        {t("aiAgents.tasks", { count: agent.tasksCompleted })}
+                        {t("aiAgents.tasks", { count: agent.tasksCompleted as number })}
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />

@@ -122,6 +122,7 @@ export async function addClientDomain(userId: string, domain: string, fromName?:
   success: boolean;
   domain?: ClientDomain;
   dnsRecords?: object;
+  sesVerificationToken?: string;
   error?: string;
 }> {
   domain = domain.toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").trim();

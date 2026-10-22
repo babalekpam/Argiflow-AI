@@ -46,7 +46,7 @@ async function getBusinessSnapshot(userId: string) {
   const emailAccountsList = await db.select({
     email: emailAccounts.email,
     warmupEnabled: emailAccounts.warmupEnabled,
-    reputation: emailAccounts.reputation,
+    reputation: emailAccounts.reputationScore,
     dailySendLimit: emailAccounts.dailySendLimit,
   }).from(emailAccounts).where(eq(emailAccounts.userId, userId));
 

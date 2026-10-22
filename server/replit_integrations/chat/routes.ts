@@ -43,7 +43,7 @@ export function registerChatRoutes(app: Express): void {
     try {
       const userId = (req.session as any)?.userId;
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
-      const id = parseInt(req.params.id);
+      const id = parseInt((req.params.id as string));
       const conversation = await chatStorage.getConversation(id);
       if (!conversation) {
         return res.status(404).json({ error: "Conversation not found" });
@@ -75,7 +75,7 @@ export function registerChatRoutes(app: Express): void {
     try {
       const userId = (req.session as any)?.userId;
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
-      const id = parseInt(req.params.id);
+      const id = parseInt((req.params.id as string));
       await chatStorage.deleteConversation(id);
       res.status(204).send();
     } catch (error) {
@@ -89,7 +89,7 @@ export function registerChatRoutes(app: Express): void {
     try {
       const userId = (req.session as any)?.userId;
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
-      const conversationId = parseInt(req.params.id);
+      const conversationId = parseInt((req.params.id as string));
       const { content } = req.body;
 
       // Save user message

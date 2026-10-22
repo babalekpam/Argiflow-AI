@@ -210,7 +210,7 @@ export async function executeWorkflow(
 
   // Execute nodes
   try {
-    let context = {
+    let context: Record<string, any> = {
       ...event.data,
       _workflowTriggerType: event.type,
     };

@@ -877,7 +877,7 @@ export default function WebBuilderPage() {
                     className="flex-1 text-xs"
                     onClick={() => {
                       setEditingProduct(null);
-                      setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", imageUrl: "" });
+                      setProductForm({ productName: "", description: "", category: "General", supplierPrice: "", suggestedRetailPrice: "", images: [""] });
                       setProductDialogOpen(true);
                     }}
                     data-testid="button-add-product"

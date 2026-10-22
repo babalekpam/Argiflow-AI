@@ -115,7 +115,7 @@ export function registerWorkflowRoutes(app: Express) {
       const [workflow] = await db
         .select()
         .from(workflows)
-        .where(and(eq(workflows.id, req.params.id), eq(workflows.userId, userId)));
+        .where(and(eq(workflows.id, (req.params.id as string)), eq(workflows.userId, userId)));
 
       if (!workflow) {
         return res.status(404).json({ message: "Workflow not found" });
@@ -197,7 +197,7 @@ export function registerWorkflowRoutes(app: Express) {
       const [updated] = await db
         .update(workflows)
         .set(data)
-        .where(and(eq(workflows.id, req.params.id), eq(workflows.userId, userId)))
+        .where(and(eq(workflows.id, (req.params.id as string)), eq(workflows.userId, userId)))
         .returning();
 
       if (!updated) {
@@ -215,7 +215,7 @@ export function registerWorkflowRoutes(app: Express) {
   app.delete("/api/workflows/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const workflowId = req.params.id;
+      const workflowId = req.params.id as string;
 
       // Verify ownership
       const [workflow] = await db
@@ -257,7 +257,7 @@ export function registerWorkflowRoutes(app: Express) {
   app.post("/api/workflows/:id/nodes", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const workflowId = req.params.id;
+      const workflowId = req.params.id as string;
 
       // Verify ownership
       const [workflow] = await db
@@ -315,7 +315,7 @@ export function registerWorkflowRoutes(app: Express) {
   app.patch("/api/workflow-nodes/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const [node] = await db.select().from(workflowNodes).where(eq(workflowNodes.id, req.params.id));
+      const [node] = await db.select().from(workflowNodes).where(eq(workflowNodes.id, (req.params.id as string)));
       if (!node) return res.status(404).json({ message: "Node not found" });
       const [wf] = await db.select().from(workflows).where(and(eq(workflows.id, node.workflowId), eq(workflows.userId, userId)));
       if (!wf) return res.status(404).json({ message: "Node not found" });
@@ -332,7 +332,7 @@ export function registerWorkflowRoutes(app: Express) {
       const [updated] = await db
         .update(workflowNodes)
         .set(data)
-        .where(eq(workflowNodes.id, req.params.id))
+        .where(eq(workflowNodes.id, (req.params.id as string)))
         .returning();
 
       res.json(updated);
@@ -345,7 +345,7 @@ export function registerWorkflowRoutes(app: Express) {
   app.delete("/api/workflow-nodes/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const nodeId = req.params.id;
+      const nodeId = req.params.id as string;
       const [node] = await db.select().from(workflowNodes).where(eq(workflowNodes.id, nodeId));
       if (!node) return res.status(404).json({ message: "Node not found" });
       const [wf] = await db.select().from(workflows).where(and(eq(workflows.id, node.workflowId), eq(workflows.userId, userId)));
@@ -366,7 +366,7 @@ export function registerWorkflowRoutes(app: Express) {
   app.put("/api/workflows/:id/nodes/bulk", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const workflowId = req.params.id;
+      const workflowId = req.params.id as string;
 
       const [workflow] = await db
         .select()
@@ -408,7 +408,7 @@ export function registerWorkflowRoutes(app: Express) {
   // Add edge
   app.post("/api/workflows/:id/edges", isAuthenticated, async (req, res) => {
     try {
-      const workflowId = req.params.id;
+      const workflowId = req.params.id as string;
       const schema = z.object({
         sourceNodeId: z.string().min(1),
         targetNodeId: z.string().min(1),
@@ -442,12 +442,12 @@ export function registerWorkflowRoutes(app: Express) {
   app.delete("/api/workflow-edges/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const [edge] = await db.select().from(workflowEdges).where(eq(workflowEdges.id, req.params.id));
+      const [edge] = await db.select().from(workflowEdges).where(eq(workflowEdges.id, (req.params.id as string)));
       if (!edge) return res.status(404).json({ message: "Edge not found" });
       const [wf] = await db.select().from(workflows).where(and(eq(workflows.id, edge.workflowId), eq(workflows.userId, userId)));
       if (!wf) return res.status(404).json({ message: "Edge not found" });
 
-      await db.delete(workflowEdges).where(eq(workflowEdges.id, req.params.id));
+      await db.delete(workflowEdges).where(eq(workflowEdges.id, (req.params.id as string)));
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error deleting edge:", error);
@@ -466,7 +466,7 @@ export function registerWorkflowRoutes(app: Express) {
       const [workflow] = await db
         .select()
         .from(workflows)
-        .where(and(eq(workflows.id, req.params.id), eq(workflows.userId, userId)));
+        .where(and(eq(workflows.id, (req.params.id as string)), eq(workflows.userId, userId)));
 
       if (!workflow) {
         return res.status(404).json({ message: "Workflow not found" });
@@ -504,7 +504,7 @@ export function registerWorkflowRoutes(app: Express) {
   app.get("/api/workflows/:id/executions", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const workflowId = req.params.id;
+      const workflowId = req.params.id as string;
       const limit = parseInt(req.query.limit as string) || 20;
 
       const executions = await db
@@ -535,7 +535,7 @@ export function registerWorkflowRoutes(app: Express) {
         .from(workflowExecutions)
         .where(
           and(
-            eq(workflowExecutions.id, req.params.id),
+            eq(workflowExecutions.id, (req.params.id as string)),
             eq(workflowExecutions.userId, userId)
           )
         );
@@ -551,7 +551,7 @@ export function registerWorkflowRoutes(app: Express) {
         .orderBy(asc(workflowExecutionSteps.createdAt));
 
       // Enrich steps with node labels
-      const nodeIds = [...new Set(steps.map(s => s.nodeId))];
+      const nodeIds = Array.from(new Set(steps.map(s => s.nodeId)));
       const nodeMap = new Map<string, string>();
       if (nodeIds.length > 0) {
         const nodeRecords = await db
@@ -586,7 +586,7 @@ export function registerWorkflowRoutes(app: Express) {
         })
         .where(
           and(
-            eq(workflowExecutions.id, req.params.id),
+            eq(workflowExecutions.id, (req.params.id as string)),
             eq(workflowExecutions.userId, userId)
           )
         )
@@ -668,7 +668,7 @@ export function registerWorkflowRoutes(app: Express) {
   app.post("/api/workflow-templates/:key/create", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const templateKey = req.params.key;
+      const templateKey = req.params.key as string;
       const template = WORKFLOW_TEMPLATES.find(t => t.key === templateKey);
 
       if (!template) {
@@ -738,7 +738,7 @@ export function registerWorkflowRoutes(app: Express) {
   app.post("/api/workflow-templates/:key/ai-generate", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const templateKey = req.params.key;
+      const templateKey = req.params.key as string;
       const template = WORKFLOW_TEMPLATES.find(t => t.key === templateKey);
 
       if (!template) {

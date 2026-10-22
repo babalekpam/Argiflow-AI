@@ -208,7 +208,7 @@ router.get("/actions/pending", async (req: Request, res: Response) => {
 router.post("/actions/:id/approve", async (req: Request, res: Response) => {
   try {
     const userId = (req.session as any).userId;
-    const action = await memory.approveAction(parseInt(req.params.id), userId);
+    const action = await memory.approveAction(parseInt((req.params.id as string)), userId);
     if (!action) return res.status(404).json({ error: "Action not found" });
 
     const execResult = await executeApprovedAction(userId, action);
@@ -221,7 +221,7 @@ router.post("/actions/:id/approve", async (req: Request, res: Response) => {
 router.post("/actions/:id/reject", async (req: Request, res: Response) => {
   try {
     const userId = (req.session as any).userId;
-    const action = await memory.rejectAction(parseInt(req.params.id), userId);
+    const action = await memory.rejectAction(parseInt((req.params.id as string)), userId);
     if (!action) return res.status(404).json({ error: "Action not found" });
     res.json(action);
   } catch (err: any) {

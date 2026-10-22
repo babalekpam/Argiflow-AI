@@ -87,7 +87,7 @@ export interface IStorage {
   getLeadsByUser(userId: string, businessId?: string): Promise<Lead[]>;
   getLeadById(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
-  updateLead(id: string, data: Partial<Pick<Lead, "name" | "email" | "phone" | "address" | "status" | "score" | "notes" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt" | "companyResearch" | "companyResearchedAt">>): Promise<Lead | undefined>;
+  updateLead(id: string, data: Partial<Pick<Lead, "name" | "email" | "phone" | "address" | "status" | "score" | "notes" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt" | "companyResearch" | "companyResearchedAt" | "company">>): Promise<Lead | undefined>;
   resetCampaignForUser(userId: string): Promise<number>;
   clearSmtpOverride(userId: string): Promise<void>;
   getScheduledLeadsToSend(): Promise<Lead[]>;
@@ -250,7 +250,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateLead(id: string, data: Partial<Pick<Lead, "name" | "email" | "phone" | "address" | "status" | "score" | "notes" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt" | "companyResearch" | "companyResearchedAt">>): Promise<Lead | undefined> {
+  async updateLead(id: string, data: Partial<Pick<Lead, "name" | "email" | "phone" | "address" | "status" | "score" | "notes" | "outreach" | "outreachSentAt" | "scheduledSendAt" | "engagementScore" | "engagementLevel" | "lastEngagedAt" | "emailOpens" | "emailClicks" | "nextStep" | "followUpStep" | "followUpStatus" | "followUpNextAt" | "followUpLastSentAt" | "companyResearch" | "companyResearchedAt" | "company">>): Promise<Lead | undefined> {
     const safe = { ...data } as any;
     if (safe.score != null) safe.score = clampScore(safe.score);
     if (safe.engagementScore != null) safe.engagementScore = clampScore(safe.engagementScore);

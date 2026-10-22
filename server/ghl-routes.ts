@@ -183,7 +183,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/landing-pages/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(landingPages).where(and(eq(landingPages.id, req.params.id), eq(landingPages.userId, userId)));
+      const [row] = await db.select().from(landingPages).where(and(eq(landingPages.id, (req.params.id as string)), eq(landingPages.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -194,7 +194,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/landing-pages/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(landingPages).set({ ...req.body, updatedAt: new Date() }).where(and(eq(landingPages.id, req.params.id), eq(landingPages.userId, userId))).returning();
+      const [row] = await db.update(landingPages).set({ ...req.body, updatedAt: new Date() }).where(and(eq(landingPages.id, (req.params.id as string)), eq(landingPages.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -205,7 +205,7 @@ export function registerGhlRoutes(app: Express) {
   app.patch("/api/landing-pages/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(landingPages).set({ ...req.body, updatedAt: new Date() }).where(and(eq(landingPages.id, req.params.id), eq(landingPages.userId, userId))).returning();
+      const [row] = await db.update(landingPages).set({ ...req.body, updatedAt: new Date() }).where(and(eq(landingPages.id, (req.params.id as string)), eq(landingPages.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -217,7 +217,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/landing-pages/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(landingPages).where(and(eq(landingPages.id, req.params.id), eq(landingPages.userId, userId))).returning();
+      const [row] = await db.delete(landingPages).where(and(eq(landingPages.id, (req.params.id as string)), eq(landingPages.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -227,7 +227,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/landing-pages/:id/steps", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(landingPageSteps).where(eq(landingPageSteps.pageId, req.params.id)).orderBy(landingPageSteps.orderIndex);
+      const rows = await db.select().from(landingPageSteps).where(eq(landingPageSteps.pageId, (req.params.id as string))).orderBy(landingPageSteps.orderIndex);
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch steps" });
@@ -245,7 +245,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.delete("/api/landing-pages/:pageId/steps/:id", requireAuth, async (req, res) => {
     try {
-      const [row] = await db.delete(landingPageSteps).where(and(eq(landingPageSteps.id, req.params.id), eq(landingPageSteps.pageId, req.params.pageId))).returning();
+      const [row] = await db.delete(landingPageSteps).where(and(eq(landingPageSteps.id, (req.params.id as string)), eq(landingPageSteps.pageId, (req.params.pageId as string)))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -279,7 +279,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/forms/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(formBuilders).where(and(eq(formBuilders.id, req.params.id), eq(formBuilders.userId, userId)));
+      const [row] = await db.select().from(formBuilders).where(and(eq(formBuilders.id, (req.params.id as string)), eq(formBuilders.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -290,7 +290,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/forms/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(formBuilders).set({ ...req.body, updatedAt: new Date() }).where(and(eq(formBuilders.id, req.params.id), eq(formBuilders.userId, userId))).returning();
+      const [row] = await db.update(formBuilders).set({ ...req.body, updatedAt: new Date() }).where(and(eq(formBuilders.id, (req.params.id as string)), eq(formBuilders.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -301,7 +301,7 @@ export function registerGhlRoutes(app: Express) {
   app.patch("/api/forms/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(formBuilders).set({ ...req.body, updatedAt: new Date() }).where(and(eq(formBuilders.id, req.params.id), eq(formBuilders.userId, userId))).returning();
+      const [row] = await db.update(formBuilders).set({ ...req.body, updatedAt: new Date() }).where(and(eq(formBuilders.id, (req.params.id as string)), eq(formBuilders.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -313,7 +313,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/forms/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(formBuilders).where(and(eq(formBuilders.id, req.params.id), eq(formBuilders.userId, userId))).returning();
+      const [row] = await db.delete(formBuilders).where(and(eq(formBuilders.id, (req.params.id as string)), eq(formBuilders.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -323,7 +323,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/forms/:id/submissions", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(formSubmissions).where(eq(formSubmissions.formId, req.params.id)).orderBy(desc(formSubmissions.submittedAt));
+      const rows = await db.select().from(formSubmissions).where(eq(formSubmissions.formId, (req.params.id as string))).orderBy(desc(formSubmissions.submittedAt));
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch submissions" });
@@ -395,7 +395,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/chat/widgets/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(chatWidgets).where(and(eq(chatWidgets.id, req.params.id), eq(chatWidgets.userId, userId)));
+      const [row] = await db.select().from(chatWidgets).where(and(eq(chatWidgets.id, (req.params.id as string)), eq(chatWidgets.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -406,7 +406,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/chat/widgets/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(chatWidgets).set({ ...req.body, updatedAt: new Date() }).where(and(eq(chatWidgets.id, req.params.id), eq(chatWidgets.userId, userId))).returning();
+      const [row] = await db.update(chatWidgets).set({ ...req.body, updatedAt: new Date() }).where(and(eq(chatWidgets.id, (req.params.id as string)), eq(chatWidgets.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -417,7 +417,7 @@ export function registerGhlRoutes(app: Express) {
   app.patch("/api/chat/widgets/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(chatWidgets).set({ ...req.body, updatedAt: new Date() }).where(and(eq(chatWidgets.id, req.params.id), eq(chatWidgets.userId, userId))).returning();
+      const [row] = await db.update(chatWidgets).set({ ...req.body, updatedAt: new Date() }).where(and(eq(chatWidgets.id, (req.params.id as string)), eq(chatWidgets.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -429,7 +429,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/chat/widgets/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(chatWidgets).where(and(eq(chatWidgets.id, req.params.id), eq(chatWidgets.userId, userId))).returning();
+      const [row] = await db.delete(chatWidgets).where(and(eq(chatWidgets.id, (req.params.id as string)), eq(chatWidgets.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -440,7 +440,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/chat/widgets/:id/conversations", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const rows = await db.select().from(chatConversations).where(and(eq(chatConversations.widgetId, req.params.id), eq(chatConversations.userId, userId))).orderBy(desc(chatConversations.createdAt));
+      const rows = await db.select().from(chatConversations).where(and(eq(chatConversations.widgetId, (req.params.id as string)), eq(chatConversations.userId, userId))).orderBy(desc(chatConversations.createdAt));
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch conversations" });
@@ -459,7 +459,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/chat/conversations/:id/messages", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(chatMessages).where(eq(chatMessages.conversationId, req.params.id)).orderBy(chatMessages.sentAt);
+      const rows = await db.select().from(chatMessages).where(eq(chatMessages.conversationId, (req.params.id as string))).orderBy(chatMessages.sentAt);
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch messages" });
@@ -503,7 +503,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/invoices/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(invoices).where(and(eq(invoices.id, req.params.id), eq(invoices.userId, userId)));
+      const [row] = await db.select().from(invoices).where(and(eq(invoices.id, (req.params.id as string)), eq(invoices.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -515,7 +515,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["issueDate", "dueDate", "paidAt"]);
-      const [row] = await db.update(invoices).set({ ...data, updatedAt: new Date() }).where(and(eq(invoices.id, req.params.id), eq(invoices.userId, userId))).returning();
+      const [row] = await db.update(invoices).set({ ...data, updatedAt: new Date() }).where(and(eq(invoices.id, (req.params.id as string)), eq(invoices.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -527,7 +527,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["issueDate", "dueDate", "paidAt"]);
-      const [row] = await db.update(invoices).set({ ...data, updatedAt: new Date() }).where(and(eq(invoices.id, req.params.id), eq(invoices.userId, userId))).returning();
+      const [row] = await db.update(invoices).set({ ...data, updatedAt: new Date() }).where(and(eq(invoices.id, (req.params.id as string)), eq(invoices.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -538,7 +538,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/invoices/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(invoices).where(and(eq(invoices.id, req.params.id), eq(invoices.userId, userId))).returning();
+      const [row] = await db.delete(invoices).where(and(eq(invoices.id, (req.params.id as string)), eq(invoices.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -572,7 +572,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/social/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(socialAccounts).where(and(eq(socialAccounts.id, req.params.id), eq(socialAccounts.userId, userId)));
+      const [row] = await db.select().from(socialAccounts).where(and(eq(socialAccounts.id, (req.params.id as string)), eq(socialAccounts.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -583,7 +583,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/social/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(socialAccounts).set(req.body).where(and(eq(socialAccounts.id, req.params.id), eq(socialAccounts.userId, userId))).returning();
+      const [row] = await db.update(socialAccounts).set(req.body).where(and(eq(socialAccounts.id, (req.params.id as string)), eq(socialAccounts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -594,7 +594,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/social/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(socialAccounts).where(and(eq(socialAccounts.id, req.params.id), eq(socialAccounts.userId, userId))).returning();
+      const [row] = await db.delete(socialAccounts).where(and(eq(socialAccounts.id, (req.params.id as string)), eq(socialAccounts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -627,7 +627,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/social/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(socialPosts).where(and(eq(socialPosts.id, req.params.id), eq(socialPosts.userId, userId)));
+      const [row] = await db.select().from(socialPosts).where(and(eq(socialPosts.id, (req.params.id as string)), eq(socialPosts.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -639,7 +639,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["scheduledAt", "publishedAt"]);
-      const [row] = await db.update(socialPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(socialPosts.id, req.params.id), eq(socialPosts.userId, userId))).returning();
+      const [row] = await db.update(socialPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(socialPosts.id, (req.params.id as string)), eq(socialPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -652,7 +652,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["scheduledAt", "publishedAt"]);
-      const [row] = await db.update(socialPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(socialPosts.id, req.params.id), eq(socialPosts.userId, userId))).returning();
+      const [row] = await db.update(socialPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(socialPosts.id, (req.params.id as string)), eq(socialPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -664,7 +664,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/social/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(socialPosts).where(and(eq(socialPosts.id, req.params.id), eq(socialPosts.userId, userId))).returning();
+      const [row] = await db.delete(socialPosts).where(and(eq(socialPosts.id, (req.params.id as string)), eq(socialPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -698,7 +698,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/reputation/platforms/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(reviewPlatforms).where(and(eq(reviewPlatforms.id, req.params.id), eq(reviewPlatforms.userId, userId)));
+      const [row] = await db.select().from(reviewPlatforms).where(and(eq(reviewPlatforms.id, (req.params.id as string)), eq(reviewPlatforms.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -709,7 +709,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/reputation/platforms/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(reviewPlatforms).set(req.body).where(and(eq(reviewPlatforms.id, req.params.id), eq(reviewPlatforms.userId, userId))).returning();
+      const [row] = await db.update(reviewPlatforms).set(req.body).where(and(eq(reviewPlatforms.id, (req.params.id as string)), eq(reviewPlatforms.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -720,7 +720,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/reputation/platforms/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(reviewPlatforms).where(and(eq(reviewPlatforms.id, req.params.id), eq(reviewPlatforms.userId, userId))).returning();
+      const [row] = await db.delete(reviewPlatforms).where(and(eq(reviewPlatforms.id, (req.params.id as string)), eq(reviewPlatforms.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -740,7 +740,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/reputation/platforms/:id/reviews", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(reviews).where(eq(reviews.platformId, req.params.id)).orderBy(desc(reviews.createdAt));
+      const rows = await db.select().from(reviews).where(eq(reviews.platformId, (req.params.id as string))).orderBy(desc(reviews.createdAt));
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch reviews" });
@@ -763,7 +763,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["respondedAt", "reviewDate"]);
-      const [row] = await db.update(reviews).set(data).where(and(eq(reviews.id, req.params.id), eq(reviews.userId, userId))).returning();
+      const [row] = await db.update(reviews).set(data).where(and(eq(reviews.id, (req.params.id as string)), eq(reviews.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -776,7 +776,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["respondedAt"]);
-      const [row] = await db.update(reviews).set({ ...data, updatedAt: new Date() }).where(and(eq(reviews.id, req.params.id), eq(reviews.userId, userId))).returning();
+      const [row] = await db.update(reviews).set({ ...data, updatedAt: new Date() }).where(and(eq(reviews.id, (req.params.id as string)), eq(reviews.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -788,7 +788,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/reputation/reviews/:id/respond", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(reviews).set({ response: req.body.response, respondedAt: new Date() }).where(and(eq(reviews.id, req.params.id), eq(reviews.userId, userId))).returning();
+      const [row] = await db.update(reviews).set({ response: req.body.response, respondedAt: new Date() }).where(and(eq(reviews.id, (req.params.id as string)), eq(reviews.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -799,7 +799,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/reputation/reviews/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(reviews).where(and(eq(reviews.id, req.params.id), eq(reviews.userId, userId))).returning();
+      const [row] = await db.delete(reviews).where(and(eq(reviews.id, (req.params.id as string)), eq(reviews.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -833,7 +833,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/whatsapp/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(whatsappAccounts).where(and(eq(whatsappAccounts.id, req.params.id), eq(whatsappAccounts.userId, userId)));
+      const [row] = await db.select().from(whatsappAccounts).where(and(eq(whatsappAccounts.id, (req.params.id as string)), eq(whatsappAccounts.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -844,7 +844,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/whatsapp/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(whatsappAccounts).set(req.body).where(and(eq(whatsappAccounts.id, req.params.id), eq(whatsappAccounts.userId, userId))).returning();
+      const [row] = await db.update(whatsappAccounts).set(req.body).where(and(eq(whatsappAccounts.id, (req.params.id as string)), eq(whatsappAccounts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -855,7 +855,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/whatsapp/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(whatsappAccounts).where(and(eq(whatsappAccounts.id, req.params.id), eq(whatsappAccounts.userId, userId))).returning();
+      const [row] = await db.delete(whatsappAccounts).where(and(eq(whatsappAccounts.id, (req.params.id as string)), eq(whatsappAccounts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -885,7 +885,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/whatsapp/accounts/:id/messages", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(whatsappMessages).where(eq(whatsappMessages.accountId, req.params.id)).orderBy(desc(whatsappMessages.createdAt));
+      const rows = await db.select().from(whatsappMessages).where(eq(whatsappMessages.accountId, (req.params.id as string))).orderBy(desc(whatsappMessages.createdAt));
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch messages" });
@@ -918,7 +918,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/meta/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(metaAccounts).where(and(eq(metaAccounts.id, req.params.id), eq(metaAccounts.userId, userId)));
+      const [row] = await db.select().from(metaAccounts).where(and(eq(metaAccounts.id, (req.params.id as string)), eq(metaAccounts.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -929,7 +929,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/meta/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(metaAccounts).set(req.body).where(and(eq(metaAccounts.id, req.params.id), eq(metaAccounts.userId, userId))).returning();
+      const [row] = await db.update(metaAccounts).set(req.body).where(and(eq(metaAccounts.id, (req.params.id as string)), eq(metaAccounts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -940,7 +940,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/meta/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(metaAccounts).where(and(eq(metaAccounts.id, req.params.id), eq(metaAccounts.userId, userId))).returning();
+      const [row] = await db.delete(metaAccounts).where(and(eq(metaAccounts.id, (req.params.id as string)), eq(metaAccounts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -970,7 +970,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/meta/accounts/:id/messages", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(metaMessages).where(eq(metaMessages.accountId, req.params.id)).orderBy(desc(metaMessages.createdAt));
+      const rows = await db.select().from(metaMessages).where(eq(metaMessages.accountId, (req.params.id as string))).orderBy(desc(metaMessages.createdAt));
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch messages" });
@@ -1005,7 +1005,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/calendar/events/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(calendarEvents).where(and(eq(calendarEvents.id, req.params.id), eq(calendarEvents.userId, userId)));
+      const [row] = await db.select().from(calendarEvents).where(and(eq(calendarEvents.id, (req.params.id as string)), eq(calendarEvents.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1017,7 +1017,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["startTime", "endTime"]);
-      const [row] = await db.update(calendarEvents).set({ ...data, updatedAt: new Date() }).where(and(eq(calendarEvents.id, req.params.id), eq(calendarEvents.userId, userId))).returning();
+      const [row] = await db.update(calendarEvents).set({ ...data, updatedAt: new Date() }).where(and(eq(calendarEvents.id, (req.params.id as string)), eq(calendarEvents.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1030,7 +1030,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["startTime", "endTime"]);
-      const [row] = await db.update(calendarEvents).set({ ...data, updatedAt: new Date() }).where(and(eq(calendarEvents.id, req.params.id), eq(calendarEvents.userId, userId))).returning();
+      const [row] = await db.update(calendarEvents).set({ ...data, updatedAt: new Date() }).where(and(eq(calendarEvents.id, (req.params.id as string)), eq(calendarEvents.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1042,7 +1042,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/calendar/events/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(calendarEvents).where(and(eq(calendarEvents.id, req.params.id), eq(calendarEvents.userId, userId))).returning();
+      const [row] = await db.delete(calendarEvents).where(and(eq(calendarEvents.id, (req.params.id as string)), eq(calendarEvents.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1078,7 +1078,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/documents/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(documents).where(and(eq(documents.id, req.params.id), eq(documents.userId, userId)));
+      const [row] = await db.select().from(documents).where(and(eq(documents.id, (req.params.id as string)), eq(documents.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1090,7 +1090,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["sentAt", "signedAt"]);
-      const [row] = await db.update(documents).set({ ...data, updatedAt: new Date() }).where(and(eq(documents.id, req.params.id), eq(documents.userId, userId))).returning();
+      const [row] = await db.update(documents).set({ ...data, updatedAt: new Date() }).where(and(eq(documents.id, (req.params.id as string)), eq(documents.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1103,7 +1103,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["sentAt", "signedAt"]);
-      const [row] = await db.update(documents).set({ ...data, updatedAt: new Date() }).where(and(eq(documents.id, req.params.id), eq(documents.userId, userId))).returning();
+      const [row] = await db.update(documents).set({ ...data, updatedAt: new Date() }).where(and(eq(documents.id, (req.params.id as string)), eq(documents.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1115,7 +1115,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/documents/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(documents).where(and(eq(documents.id, req.params.id), eq(documents.userId, userId))).returning();
+      const [row] = await db.delete(documents).where(and(eq(documents.id, (req.params.id as string)), eq(documents.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1126,7 +1126,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/documents/:id/send", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(documents).set({ status: "sent", sentAt: new Date(), updatedAt: new Date() }).where(and(eq(documents.id, req.params.id), eq(documents.userId, userId))).returning();
+      const [row] = await db.update(documents).set({ status: "sent", sentAt: new Date(), updatedAt: new Date() }).where(and(eq(documents.id, (req.params.id as string)), eq(documents.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1136,7 +1136,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.put("/api/documents/:id/sign", requireAuth, async (req, res) => {
     try {
-      const [row] = await db.update(documents).set({ status: "signed", signedAt: new Date(), signatureData: req.body.signatureData || null, updatedAt: new Date() }).where(eq(documents.id, req.params.id)).returning();
+      const [row] = await db.update(documents).set({ status: "signed", signedAt: new Date(), signatureData: req.body.signatureData || null, updatedAt: new Date() }).where(eq(documents.id, (req.params.id as string))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1170,7 +1170,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/gbp/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(gbpAccounts).where(and(eq(gbpAccounts.id, req.params.id), eq(gbpAccounts.userId, userId)));
+      const [row] = await db.select().from(gbpAccounts).where(and(eq(gbpAccounts.id, (req.params.id as string)), eq(gbpAccounts.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1181,7 +1181,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/gbp/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(gbpAccounts).set(req.body).where(and(eq(gbpAccounts.id, req.params.id), eq(gbpAccounts.userId, userId))).returning();
+      const [row] = await db.update(gbpAccounts).set(req.body).where(and(eq(gbpAccounts.id, (req.params.id as string)), eq(gbpAccounts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1192,7 +1192,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/gbp/accounts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(gbpAccounts).where(and(eq(gbpAccounts.id, req.params.id), eq(gbpAccounts.userId, userId))).returning();
+      const [row] = await db.delete(gbpAccounts).where(and(eq(gbpAccounts.id, (req.params.id as string)), eq(gbpAccounts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1225,7 +1225,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/gbp/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(gbpPosts).where(and(eq(gbpPosts.id, req.params.id), eq(gbpPosts.userId, userId)));
+      const [row] = await db.select().from(gbpPosts).where(and(eq(gbpPosts.id, (req.params.id as string)), eq(gbpPosts.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1237,7 +1237,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["publishedAt"]);
-      const [row] = await db.update(gbpPosts).set(data).where(and(eq(gbpPosts.id, req.params.id), eq(gbpPosts.userId, userId))).returning();
+      const [row] = await db.update(gbpPosts).set(data).where(and(eq(gbpPosts.id, (req.params.id as string)), eq(gbpPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1250,7 +1250,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["publishedAt"]);
-      const [row] = await db.update(gbpPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(gbpPosts.id, req.params.id), eq(gbpPosts.userId, userId))).returning();
+      const [row] = await db.update(gbpPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(gbpPosts.id, (req.params.id as string)), eq(gbpPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1262,7 +1262,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/gbp/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(gbpPosts).where(and(eq(gbpPosts.id, req.params.id), eq(gbpPosts.userId, userId))).returning();
+      const [row] = await db.delete(gbpPosts).where(and(eq(gbpPosts.id, (req.params.id as string)), eq(gbpPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1272,7 +1272,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/gbp/accounts/:id/posts", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(gbpPosts).where(eq(gbpPosts.accountId, req.params.id)).orderBy(desc(gbpPosts.createdAt));
+      const rows = await db.select().from(gbpPosts).where(eq(gbpPosts.accountId, (req.params.id as string))).orderBy(desc(gbpPosts.createdAt));
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch posts" });
@@ -1305,7 +1305,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/membership/sites/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(membershipSites).where(and(eq(membershipSites.id, req.params.id), eq(membershipSites.userId, userId)));
+      const [row] = await db.select().from(membershipSites).where(and(eq(membershipSites.id, (req.params.id as string)), eq(membershipSites.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1316,7 +1316,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/membership/sites/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(membershipSites).set(req.body).where(and(eq(membershipSites.id, req.params.id), eq(membershipSites.userId, userId))).returning();
+      const [row] = await db.update(membershipSites).set(req.body).where(and(eq(membershipSites.id, (req.params.id as string)), eq(membershipSites.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1327,7 +1327,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/membership/sites/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(membershipSites).where(and(eq(membershipSites.id, req.params.id), eq(membershipSites.userId, userId))).returning();
+      const [row] = await db.delete(membershipSites).where(and(eq(membershipSites.id, (req.params.id as string)), eq(membershipSites.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1347,7 +1347,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/membership/sites/:id/courses", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(membershipCourses).where(eq(membershipCourses.siteId, req.params.id)).orderBy(desc(membershipCourses.createdAt));
+      const rows = await db.select().from(membershipCourses).where(eq(membershipCourses.siteId, (req.params.id as string))).orderBy(desc(membershipCourses.createdAt));
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch courses" });
@@ -1367,7 +1367,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/membership/courses/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(membershipCourses).where(and(eq(membershipCourses.id, req.params.id), eq(membershipCourses.userId, userId)));
+      const [row] = await db.select().from(membershipCourses).where(and(eq(membershipCourses.id, (req.params.id as string)), eq(membershipCourses.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1378,7 +1378,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/membership/courses/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(membershipCourses).set({ ...req.body, updatedAt: new Date() }).where(and(eq(membershipCourses.id, req.params.id), eq(membershipCourses.userId, userId))).returning();
+      const [row] = await db.update(membershipCourses).set({ ...req.body, updatedAt: new Date() }).where(and(eq(membershipCourses.id, (req.params.id as string)), eq(membershipCourses.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1389,7 +1389,7 @@ export function registerGhlRoutes(app: Express) {
   app.patch("/api/membership/courses/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(membershipCourses).set({ ...req.body, updatedAt: new Date() }).where(and(eq(membershipCourses.id, req.params.id), eq(membershipCourses.userId, userId))).returning();
+      const [row] = await db.update(membershipCourses).set({ ...req.body, updatedAt: new Date() }).where(and(eq(membershipCourses.id, (req.params.id as string)), eq(membershipCourses.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1401,7 +1401,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/membership/courses/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(membershipCourses).where(and(eq(membershipCourses.id, req.params.id), eq(membershipCourses.userId, userId))).returning();
+      const [row] = await db.delete(membershipCourses).where(and(eq(membershipCourses.id, (req.params.id as string)), eq(membershipCourses.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1411,7 +1411,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/membership/courses/:id/lessons", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(membershipLessons).where(eq(membershipLessons.courseId, req.params.id)).orderBy(membershipLessons.orderIndex);
+      const rows = await db.select().from(membershipLessons).where(eq(membershipLessons.courseId, (req.params.id as string))).orderBy(membershipLessons.orderIndex);
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch lessons" });
@@ -1429,7 +1429,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.put("/api/membership/lessons/:id", requireAuth, async (req, res) => {
     try {
-      const [row] = await db.update(membershipLessons).set(req.body).where(eq(membershipLessons.id, req.params.id)).returning();
+      const [row] = await db.update(membershipLessons).set(req.body).where(eq(membershipLessons.id, (req.params.id as string))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1439,7 +1439,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.delete("/api/membership/lessons/:id", requireAuth, async (req, res) => {
     try {
-      const [row] = await db.delete(membershipLessons).where(eq(membershipLessons.id, req.params.id)).returning();
+      const [row] = await db.delete(membershipLessons).where(eq(membershipLessons.id, (req.params.id as string))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1473,7 +1473,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/ab-tests/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(abTests).where(and(eq(abTests.id, req.params.id), eq(abTests.userId, userId)));
+      const [row] = await db.select().from(abTests).where(and(eq(abTests.id, (req.params.id as string)), eq(abTests.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1484,7 +1484,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/ab-tests/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(abTests).set({ ...req.body, updatedAt: new Date() }).where(and(eq(abTests.id, req.params.id), eq(abTests.userId, userId))).returning();
+      const [row] = await db.update(abTests).set({ ...req.body, updatedAt: new Date() }).where(and(eq(abTests.id, (req.params.id as string)), eq(abTests.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1495,7 +1495,7 @@ export function registerGhlRoutes(app: Express) {
   app.patch("/api/ab-tests/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(abTests).set({ ...req.body, updatedAt: new Date() }).where(and(eq(abTests.id, req.params.id), eq(abTests.userId, userId))).returning();
+      const [row] = await db.update(abTests).set({ ...req.body, updatedAt: new Date() }).where(and(eq(abTests.id, (req.params.id as string)), eq(abTests.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1506,7 +1506,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/ab-tests/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(abTests).where(and(eq(abTests.id, req.params.id), eq(abTests.userId, userId))).returning();
+      const [row] = await db.delete(abTests).where(and(eq(abTests.id, (req.params.id as string)), eq(abTests.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1542,7 +1542,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/proposals/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(proposals).where(and(eq(proposals.id, req.params.id), eq(proposals.userId, userId)));
+      const [row] = await db.select().from(proposals).where(and(eq(proposals.id, (req.params.id as string)), eq(proposals.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1554,7 +1554,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["validUntil", "sentAt", "acceptedAt"]);
-      const [row] = await db.update(proposals).set({ ...data, updatedAt: new Date() }).where(and(eq(proposals.id, req.params.id), eq(proposals.userId, userId))).returning();
+      const [row] = await db.update(proposals).set({ ...data, updatedAt: new Date() }).where(and(eq(proposals.id, (req.params.id as string)), eq(proposals.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1567,7 +1567,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["validUntil", "sentAt", "acceptedAt"]);
-      const [row] = await db.update(proposals).set({ ...data, updatedAt: new Date() }).where(and(eq(proposals.id, req.params.id), eq(proposals.userId, userId))).returning();
+      const [row] = await db.update(proposals).set({ ...data, updatedAt: new Date() }).where(and(eq(proposals.id, (req.params.id as string)), eq(proposals.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1579,7 +1579,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/proposals/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(proposals).where(and(eq(proposals.id, req.params.id), eq(proposals.userId, userId))).returning();
+      const [row] = await db.delete(proposals).where(and(eq(proposals.id, (req.params.id as string)), eq(proposals.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1590,7 +1590,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/proposals/:id/send", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(proposals).set({ status: "sent", sentAt: new Date(), updatedAt: new Date() }).where(and(eq(proposals.id, req.params.id), eq(proposals.userId, userId))).returning();
+      const [row] = await db.update(proposals).set({ status: "sent", sentAt: new Date(), updatedAt: new Date() }).where(and(eq(proposals.id, (req.params.id as string)), eq(proposals.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1600,7 +1600,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.put("/api/proposals/:id/accept", requireAuth, async (req, res) => {
     try {
-      const [row] = await db.update(proposals).set({ status: "accepted", acceptedAt: new Date(), updatedAt: new Date() }).where(eq(proposals.id, req.params.id)).returning();
+      const [row] = await db.update(proposals).set({ status: "accepted", acceptedAt: new Date(), updatedAt: new Date() }).where(eq(proposals.id, (req.params.id as string))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1634,7 +1634,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/affiliates/programs/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(affiliatePrograms).where(and(eq(affiliatePrograms.id, req.params.id), eq(affiliatePrograms.userId, userId)));
+      const [row] = await db.select().from(affiliatePrograms).where(and(eq(affiliatePrograms.id, (req.params.id as string)), eq(affiliatePrograms.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1645,7 +1645,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/affiliates/programs/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(affiliatePrograms).set(req.body).where(and(eq(affiliatePrograms.id, req.params.id), eq(affiliatePrograms.userId, userId))).returning();
+      const [row] = await db.update(affiliatePrograms).set(req.body).where(and(eq(affiliatePrograms.id, (req.params.id as string)), eq(affiliatePrograms.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1656,7 +1656,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/affiliates/programs/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(affiliatePrograms).where(and(eq(affiliatePrograms.id, req.params.id), eq(affiliatePrograms.userId, userId))).returning();
+      const [row] = await db.delete(affiliatePrograms).where(and(eq(affiliatePrograms.id, (req.params.id as string)), eq(affiliatePrograms.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1676,7 +1676,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/affiliates/programs/:id/members", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(affiliates).where(eq(affiliates.programId, req.params.id)).orderBy(desc(affiliates.createdAt));
+      const rows = await db.select().from(affiliates).where(eq(affiliates.programId, (req.params.id as string))).orderBy(desc(affiliates.createdAt));
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch affiliates" });
@@ -1696,7 +1696,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/affiliates/members/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(affiliates).where(and(eq(affiliates.id, req.params.id), eq(affiliates.userId, userId)));
+      const [row] = await db.select().from(affiliates).where(and(eq(affiliates.id, (req.params.id as string)), eq(affiliates.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1707,7 +1707,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/affiliates/members/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(affiliates).set(req.body).where(and(eq(affiliates.id, req.params.id), eq(affiliates.userId, userId))).returning();
+      const [row] = await db.update(affiliates).set(req.body).where(and(eq(affiliates.id, (req.params.id as string)), eq(affiliates.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1718,7 +1718,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/affiliates/members/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(affiliates).where(and(eq(affiliates.id, req.params.id), eq(affiliates.userId, userId))).returning();
+      const [row] = await db.delete(affiliates).where(and(eq(affiliates.id, (req.params.id as string)), eq(affiliates.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1752,7 +1752,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/blog/sites/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(blogSites).where(and(eq(blogSites.id, req.params.id), eq(blogSites.userId, userId)));
+      const [row] = await db.select().from(blogSites).where(and(eq(blogSites.id, (req.params.id as string)), eq(blogSites.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1763,7 +1763,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/blog/sites/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(blogSites).set(req.body).where(and(eq(blogSites.id, req.params.id), eq(blogSites.userId, userId))).returning();
+      const [row] = await db.update(blogSites).set(req.body).where(and(eq(blogSites.id, (req.params.id as string)), eq(blogSites.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1774,7 +1774,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/blog/sites/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(blogSites).where(and(eq(blogSites.id, req.params.id), eq(blogSites.userId, userId))).returning();
+      const [row] = await db.delete(blogSites).where(and(eq(blogSites.id, (req.params.id as string)), eq(blogSites.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1794,7 +1794,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/blog/sites/:id/posts", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(blogPosts).where(eq(blogPosts.siteId, req.params.id)).orderBy(desc(blogPosts.createdAt));
+      const rows = await db.select().from(blogPosts).where(eq(blogPosts.siteId, (req.params.id as string))).orderBy(desc(blogPosts.createdAt));
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch blog posts" });
@@ -1816,7 +1816,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/blog/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(blogPosts).where(and(eq(blogPosts.id, req.params.id), eq(blogPosts.userId, userId)));
+      const [row] = await db.select().from(blogPosts).where(and(eq(blogPosts.id, (req.params.id as string)), eq(blogPosts.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1828,7 +1828,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["publishedAt"]);
-      const [row] = await db.update(blogPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(blogPosts.id, req.params.id), eq(blogPosts.userId, userId))).returning();
+      const [row] = await db.update(blogPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(blogPosts.id, (req.params.id as string)), eq(blogPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1841,7 +1841,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const data = parseDates(req.body, ["publishedAt"]);
-      const [row] = await db.update(blogPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(blogPosts.id, req.params.id), eq(blogPosts.userId, userId))).returning();
+      const [row] = await db.update(blogPosts).set({ ...data, updatedAt: new Date() }).where(and(eq(blogPosts.id, (req.params.id as string)), eq(blogPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1853,7 +1853,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/blog/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(blogPosts).where(and(eq(blogPosts.id, req.params.id), eq(blogPosts.userId, userId))).returning();
+      const [row] = await db.delete(blogPosts).where(and(eq(blogPosts.id, (req.params.id as string)), eq(blogPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1887,7 +1887,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/communities/spaces/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(communitySpaces).where(and(eq(communitySpaces.id, req.params.id), eq(communitySpaces.userId, userId)));
+      const [row] = await db.select().from(communitySpaces).where(and(eq(communitySpaces.id, (req.params.id as string)), eq(communitySpaces.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1898,7 +1898,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/communities/spaces/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(communitySpaces).set(req.body).where(and(eq(communitySpaces.id, req.params.id), eq(communitySpaces.userId, userId))).returning();
+      const [row] = await db.update(communitySpaces).set(req.body).where(and(eq(communitySpaces.id, (req.params.id as string)), eq(communitySpaces.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1909,7 +1909,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/communities/spaces/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(communitySpaces).where(and(eq(communitySpaces.id, req.params.id), eq(communitySpaces.userId, userId))).returning();
+      const [row] = await db.delete(communitySpaces).where(and(eq(communitySpaces.id, (req.params.id as string)), eq(communitySpaces.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1928,7 +1928,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/communities/spaces/:id/channels", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(communityChannels).where(eq(communityChannels.spaceId, req.params.id)).orderBy(communityChannels.createdAt);
+      const rows = await db.select().from(communityChannels).where(eq(communityChannels.spaceId, (req.params.id as string))).orderBy(communityChannels.createdAt);
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch channels" });
@@ -1946,7 +1946,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/communities/channels/:id", requireAuth, async (req, res) => {
     try {
-      const [row] = await db.select().from(communityChannels).where(eq(communityChannels.id, req.params.id));
+      const [row] = await db.select().from(communityChannels).where(eq(communityChannels.id, (req.params.id as string)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1956,7 +1956,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.put("/api/communities/channels/:id", requireAuth, async (req, res) => {
     try {
-      const [row] = await db.update(communityChannels).set(req.body).where(eq(communityChannels.id, req.params.id)).returning();
+      const [row] = await db.update(communityChannels).set(req.body).where(eq(communityChannels.id, (req.params.id as string))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -1966,7 +1966,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.delete("/api/communities/channels/:id", requireAuth, async (req, res) => {
     try {
-      const [row] = await db.delete(communityChannels).where(eq(communityChannels.id, req.params.id)).returning();
+      const [row] = await db.delete(communityChannels).where(eq(communityChannels.id, (req.params.id as string))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -1986,7 +1986,7 @@ export function registerGhlRoutes(app: Express) {
 
   app.get("/api/communities/channels/:id/posts", requireAuth, async (req, res) => {
     try {
-      const rows = await db.select().from(communityPosts).where(eq(communityPosts.channelId, req.params.id)).orderBy(desc(communityPosts.createdAt));
+      const rows = await db.select().from(communityPosts).where(eq(communityPosts.channelId, (req.params.id as string))).orderBy(desc(communityPosts.createdAt));
       res.json(rows);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch posts" });
@@ -2006,7 +2006,7 @@ export function registerGhlRoutes(app: Express) {
   app.get("/api/communities/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.select().from(communityPosts).where(and(eq(communityPosts.id, req.params.id), eq(communityPosts.userId, userId)));
+      const [row] = await db.select().from(communityPosts).where(and(eq(communityPosts.id, (req.params.id as string)), eq(communityPosts.userId, userId)));
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -2017,7 +2017,7 @@ export function registerGhlRoutes(app: Express) {
   app.put("/api/communities/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.update(communityPosts).set(req.body).where(and(eq(communityPosts.id, req.params.id), eq(communityPosts.userId, userId))).returning();
+      const [row] = await db.update(communityPosts).set(req.body).where(and(eq(communityPosts.id, (req.params.id as string)), eq(communityPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);
     } catch (e: any) {
@@ -2028,7 +2028,7 @@ export function registerGhlRoutes(app: Express) {
   app.delete("/api/communities/posts/:id", requireAuth, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [row] = await db.delete(communityPosts).where(and(eq(communityPosts.id, req.params.id), eq(communityPosts.userId, userId))).returning();
+      const [row] = await db.delete(communityPosts).where(and(eq(communityPosts.id, (req.params.id as string)), eq(communityPosts.userId, userId))).returning();
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
     } catch (e: any) {
@@ -2083,7 +2083,7 @@ export function registerGhlRoutes(app: Express) {
     try {
       const userId = req.session!.userId!;
       const [post] = await db.select().from(socialPosts)
-        .where(and(eq(socialPosts.id, req.params.id), eq(socialPosts.userId, userId)));
+        .where(and(eq(socialPosts.id, (req.params.id as string)), eq(socialPosts.userId, userId)));
       if (!post) return res.status(404).json({ message: "Post not found" });
 
       const now = new Date();

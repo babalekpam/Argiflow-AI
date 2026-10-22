@@ -50,7 +50,7 @@ export function registerSequenceRoutes(app: Express) {
             .from(sequenceSteps)
             .where(eq(sequenceSteps.sequenceId, seq.id));
 
-          const channels = [...new Set(steps.map((s) => s.channel))];
+          const channels = Array.from(new Set(steps.map((s) => s.channel)));
           return { ...seq, stepCount: steps.length, channels };
         })
       );
@@ -107,7 +107,7 @@ export function registerSequenceRoutes(app: Express) {
   app.put("/api/sequences/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
       const { name, description, status } = req.body;
 
       const [existing] = await db
@@ -140,7 +140,7 @@ export function registerSequenceRoutes(app: Express) {
   app.delete("/api/sequences/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
 
       const [existing] = await db
         .select()
@@ -165,7 +165,7 @@ export function registerSequenceRoutes(app: Express) {
   app.get("/api/sequences/:id/steps", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
 
       const [existing] = await db
         .select()
@@ -192,7 +192,7 @@ export function registerSequenceRoutes(app: Express) {
   app.post("/api/sequences/:id/steps", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
       const { steps: stepsData } = req.body;
 
       const [existing] = await db
@@ -237,7 +237,7 @@ export function registerSequenceRoutes(app: Express) {
   app.get("/api/sequences/:id/enrollments", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId;
-      const seqRows = await db.select().from(sequences).where(eq(sequences.id, req.params.id));
+      const seqRows = await db.select().from(sequences).where(eq(sequences.id, (req.params.id as string)));
       const seq = seqRows[0];
       if (seq == null || (seq.userId == userId) == false) return res.status(404).json({ message: "Sequence not found" });
       const rows = await db.select().from(sequenceEnrollments).where(eq(sequenceEnrollments.sequenceId, seq.id));
@@ -253,7 +253,7 @@ export function registerSequenceRoutes(app: Express) {
       const raw = Array.isArray(req.body && req.body.leadIds) ? req.body.leadIds : [];
       const leadIds = raw.map((x: any) => String(x)).filter((v: any, i: any, a: any) => Boolean(v) && a.indexOf(v) === i);
       if (leadIds.length == 0) return res.status(400).json({ message: "No leads selected" });
-      const seqRows = await db.select().from(sequences).where(eq(sequences.id, req.params.id));
+      const seqRows = await db.select().from(sequences).where(eq(sequences.id, (req.params.id as string)));
       const seq = seqRows[0];
       if (seq == null || (seq.userId == userId) == false) return res.status(404).json({ message: "Sequence not found" });
       const steps = await db.select().from(sequenceSteps).where(eq(sequenceSteps.sequenceId, seq.id));

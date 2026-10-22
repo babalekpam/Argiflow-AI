@@ -6,7 +6,7 @@ import { registerTrackerPublicRoutes, registerTrackerDashboardRoutes } from "./t
 import { classifyEngagementEvent } from "./engagement";
 import { refreshLeadEngagement } from "./engagement-refresh";
 import { eq, and, sql, desc, or, ilike, isNull, lte, inArray } from "drizzle-orm";
-import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnelStages, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts, emailAccounts } from "@shared/schema";
+import { users, leads, appointments, aiAgents, dashboardStats, aiChatMessages, autoLeadGenRuns, platformPromotionRuns, funnelDeals, funnelStages, funnels, emailLogs, sites, pipelineSnapshots, agentRuns, supplierProducts, emailAccounts, userSettings } from "@shared/schema";
 import { campaigns, campaignLeads } from "@shared/instantly-schema";
 import { getAuth } from "@clerk/express";
 import session from "express-session";
@@ -380,7 +380,7 @@ class OpenAIAnthropicWrapper {
               parameters: t.input_schema || { type: "object", properties: {} },
             }
           }));
-        if (openaiTools.length === 0) openaiTools = undefined;
+        if (openaiTools!.length === 0) openaiTools = undefined;
       }
 
       try {
@@ -1576,7 +1576,7 @@ async function getTrackingSendTime(messageId: string): Promise<Date | null> {
 
 const outreachSendInFlight = new Map<string, Promise<{ success: boolean; error?: string; bounced?: boolean }>>();
 
-export function sendOutreachEmail(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string; bounced?: boolean }> {
+export function sendOutreachEmail(lead: any, userSettings: any, user: any): Promise<{ success: boolean; error?: string; bounced?: boolean; requiresReview?: boolean; reconciled?: boolean }> {
   const lockKey = lead?.id ? `${lead.userId || user?.id || "unknown"}:${lead.id}` : "";
   if (!lockKey) return sendOutreachEmailInternal(lead, userSettings, user);
   const existing = outreachSendInFlight.get(lockKey);
@@ -6596,7 +6596,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
         },
       ];
 
-      async function claudeCallWithRetry(params: any, retries = 3): Promise<any> {
+      const claudeCallWithRetry = async (params: any, retries = 3): Promise<any> => {
         for (let i = 0; i < retries; i++) {
           try {
             return await userAnthropicClient.messages.create(params);
@@ -6610,7 +6610,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
             }
           }
         }
-      }
+      };
 
       let response = await claudeCallWithRetry({
         model: userModelName,
@@ -7224,7 +7224,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
       const userAnthropicClient = userAi.client;
       const userModelName = userAi.model;
 
-      async function medBillClaudeCall(params: any, retries = 3): Promise<any> {
+      const medBillClaudeCall = async (params: any, retries = 3): Promise<any> => {
         for (let i = 0; i < retries; i++) {
           try {
             return await userAnthropicClient.messages.create(params);
@@ -7236,7 +7236,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
             } else { throw err; }
           }
         }
-      }
+      };
 
       let response = await medBillClaudeCall({
         model: userModelName,
@@ -7915,7 +7915,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
   app.patch("/api/appointments/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const updated = await storage.updateAppointment(req.params.id, userId, req.body);
+      const updated = await storage.updateAppointment((req.params.id as string), userId, req.body);
       if (!updated) {
         return res.status(404).json({ message: "Appointment not found" });
       }
@@ -7935,7 +7935,7 @@ CRITICAL: You MUST call generate_leads with ALL leads in a single call. Use agen
   app.delete("/api/appointments/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const deleted = await storage.deleteAppointment(req.params.id, userId);
+      const deleted = await storage.deleteAppointment((req.params.id as string), userId);
       if (!deleted) {
         return res.status(404).json({ message: "Appointment not found" });
       }
@@ -8043,8 +8043,8 @@ Return ONLY the script then the delimiter then the JSON array. No other text.`;
           });
 
           const fullText = response.content
-            .filter((b): b is Anthropic.TextBlock => b.type === "text")
-            .map((b) => b.text)
+            .filter((b: any): b is Anthropic.TextBlock => b.type === "text")
+            .map((b: Anthropic.TextBlock) => b.text)
             .join("");
 
           const parts = fullText.split("---WORKFLOW_STEPS---");
@@ -8861,12 +8861,12 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
         if (existingUser && existingUser.id !== req.params.id) {
           return res.status(409).json({ message: "Another account already uses this email" });
         }
-        const [updated] = await db.update(users).set({ ...updateData, email, updatedAt: new Date() }).where(eq(users.id, req.params.id)).returning();
+        const [updated] = await db.update(users).set({ ...updateData, email, updatedAt: new Date() }).where(eq(users.id, (req.params.id as string))).returning();
         if (!updated) return res.status(404).json({ message: "Client not found" });
         return res.json(updated);
       }
 
-      const updated = await storage.updateUser(req.params.id, updateData);
+      const updated = await storage.updateUser((req.params.id as string), updateData);
       if (!updated) return res.status(404).json({ message: "Client not found" });
       res.json(updated);
     } catch (error) {
@@ -8950,7 +8950,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
       if (notes !== undefined) data.notes = notes;
       if (currentPeriodEnd !== undefined) data.currentPeriodEnd = new Date(currentPeriodEnd);
       if (status === "cancelled") data.cancelledAt = new Date();
-      const updated = await storage.updateSubscription(req.params.id, data);
+      const updated = await storage.updateSubscription((req.params.id as string), data);
       if (!updated) return res.status(404).json({ message: "Subscription not found" });
       res.json(updated);
     } catch (error) {
@@ -8983,7 +8983,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
 
   app.delete("/api/admin/subscriptions/:id", isAdmin, async (req, res) => {
     try {
-      await storage.deleteSubscription(req.params.id);
+      await storage.deleteSubscription((req.params.id as string));
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete subscription" });
@@ -9417,7 +9417,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   app.patch("/api/agent-configs/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const id = req.params.id;
+      const id = req.params.id as string;
       const { enabled, agentSettings, runFrequency, customScript } = req.body;
       const data: Record<string, unknown> = {};
       if (enabled !== undefined) data.enabled = enabled;
@@ -9435,7 +9435,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
 
   app.delete("/api/agent-configs/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteAgentConfig(req.params.id, req.session.userId!);
+      const deleted = await storage.deleteAgentConfig((req.params.id as string), req.session.userId!);
       if (!deleted) {
         return res.status(404).json({ message: "Agent config not found" });
       }
@@ -9449,7 +9449,7 @@ ${leadName ? `- Address the person as "${leadName}" or "Dr. ${leadName.split(" "
   app.post("/api/agent-configs/:id/run", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const configId = req.params.id;
+      const configId = req.params.id as string;
       const configs = await storage.getAgentConfigsByUser(userId);
       const config = configs.find(c => c.id === configId);
       if (!config) return res.status(404).json({ message: "Config not found" });
@@ -9593,7 +9593,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
             loopCount++;
             currentMessages.push({ role: "assistant", content: response.content as any });
 
-            const toolUseBlocks = response.content.filter(
+            const toolUseBlocks: any[] = response.content.filter(
               (block: any) => block.type === "tool_use"
             );
 
@@ -9882,7 +9882,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
 
   app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
     try {
-      const result = await storage.markNotificationRead(req.params.id, req.session.userId!);
+      const result = await storage.markNotificationRead((req.params.id as string), req.session.userId!);
       if (!result) return res.status(404).json({ message: "Notification not found" });
       res.json(result);
     } catch (error) {
@@ -9901,7 +9901,7 @@ After searching, call generate_leads with agent_type="${config.agentType}" to sa
 
   app.delete("/api/notifications/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteNotification(req.params.id, req.session.userId!);
+      const deleted = await storage.deleteNotification((req.params.id as string), req.session.userId!);
       if (!deleted) {
         return res.status(404).json({ message: "Notification not found" });
       }
@@ -10559,7 +10559,7 @@ The ArgiFlow Team`;
 
   app.get("/api/platform-promoter/run/:id", isAuthenticated, async (req, res) => {
     try {
-      const runId = parseInt(req.params.id);
+      const runId = parseInt((req.params.id as string));
       const [run] = await db.select().from(platformPromotionRuns)
         .where(eq(platformPromotionRuns.id, runId));
       if (!run) return res.status(404).json({ message: "Run not found" });
@@ -10910,7 +10910,7 @@ The ArgiFlow Team`;
     try {
       const userId = req.session!.userId!;
       await db.delete(intentWatchlistSignals)
-        .where(and(eq(intentWatchlistSignals.id, req.params.id), eq(intentWatchlistSignals.userId, userId)));
+        .where(and(eq(intentWatchlistSignals.id, (req.params.id as string)), eq(intentWatchlistSignals.userId, userId)));
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -11785,7 +11785,7 @@ TONE: Match their energy. Casual if they were casual, formal if formal. Governme
   });
 
   app.post("/api/agent-console/:id/run", isAuthenticated, async (req, res) => {
-    return handleAgentRun(req, res, req.params.id);
+    return handleAgentRun(req, res, (req.params.id as string));
   });
 
   app.get("/api/agent-console/:id/runs", isAuthenticated, async (req, res) => {
@@ -11800,7 +11800,7 @@ TONE: Match their energy. Casual if they were casual, formal if formal. Governme
         status: agentRuns.status,
         createdAt: agentRuns.createdAt,
       }).from(agentRuns)
-        .where(and(eq(agentRuns.userId, userId), eq(agentRuns.agentId, req.params.id)))
+        .where(and(eq(agentRuns.userId, userId), eq(agentRuns.agentId, (req.params.id as string))))
         .orderBy(desc(agentRuns.createdAt))
         .limit(20);
       res.json({ runs: result });
@@ -11837,11 +11837,11 @@ TONE: Match their energy. Casual if they were casual, formal if formal. Governme
 
       const pipelineStages = snap ? [
         { label: "Found", count: snap.found, pct: 100, color: "#4B6CF7" },
-        { label: "Enriched", count: snap.enriched, pct: snap.found ? Math.round((snap.enriched / snap.found) * 100) : 0, color: "#6366F1" },
-        { label: "Contacted", count: snap.contacted, pct: snap.found ? Math.round((snap.contacted / snap.found) * 100) : 0, color: "#7B5BFB" },
-        { label: "Replied", count: snap.replied, pct: snap.found ? Math.round((snap.replied / snap.found) * 100) : 0, color: "#0691A1" },
-        { label: "Meeting", count: snap.meeting, pct: snap.found ? Math.round((snap.meeting / snap.found) * 100) : 0, color: "#0DAD74" },
-        { label: "Closed", count: snap.closed, pct: snap.found ? Math.round((snap.closed / snap.found) * 100) : 0, color: "#059669" },
+        { label: "Enriched", count: snap.enriched, pct: snap.found ? Math.round(((snap.enriched as number) / snap.found) * 100) : 0, color: "#6366F1" },
+        { label: "Contacted", count: snap.contacted, pct: snap.found ? Math.round(((snap.contacted as number) / snap.found) * 100) : 0, color: "#7B5BFB" },
+        { label: "Replied", count: snap.replied, pct: snap.found ? Math.round(((snap.replied as number) / snap.found) * 100) : 0, color: "#0691A1" },
+        { label: "Meeting", count: snap.meeting, pct: snap.found ? Math.round(((snap.meeting as number) / snap.found) * 100) : 0, color: "#0DAD74" },
+        { label: "Closed", count: snap.closed, pct: snap.found ? Math.round(((snap.closed as number) / snap.found) * 100) : 0, color: "#059669" },
       ] : [];
 
       const activity = recentRuns.map((r: any) => ({
@@ -11909,7 +11909,7 @@ TONE: Match their energy. Casual if they were casual, formal if formal. Governme
   app.get("/api/sites/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const result = await db.select().from(sites).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
+      const result = await db.select().from(sites).where(and(eq(sites.id, (req.params.id as string)), eq(sites.userId, userId)));
       if (!result[0]) return res.status(404).json({ message: "Site not found" });
       res.json({ site: result[0] });
     } catch (error: any) {
@@ -11924,7 +11924,7 @@ TONE: Match their energy. Casual if they were casual, formal if formal. Governme
       const updates: any = { updatedAt: new Date() };
       if (blocks) updates.blocks = JSON.stringify(blocks);
       if (name) updates.name = name;
-      await db.update(sites).set(updates).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
+      await db.update(sites).set(updates).where(and(eq(sites.id, (req.params.id as string)), eq(sites.userId, userId)));
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -11934,7 +11934,7 @@ TONE: Match their energy. Casual if they were casual, formal if formal. Governme
   app.post("/api/sites/:id/publish", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      const [site] = await db.select().from(sites).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
+      const [site] = await db.select().from(sites).where(and(eq(sites.id, (req.params.id as string)), eq(sites.userId, userId)));
       if (!site) return res.status(404).json({ message: "Site not found" });
 
       let slug = site.slug;
@@ -11999,7 +11999,7 @@ TONE: Match their energy. Casual if they were casual, formal if formal. Governme
   app.delete("/api/sites/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session!.userId!;
-      await db.delete(sites).where(and(eq(sites.id, req.params.id), eq(sites.userId, userId)));
+      await db.delete(sites).where(and(eq(sites.id, (req.params.id as string)), eq(sites.userId, userId)));
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -12089,7 +12089,7 @@ Use compelling copy — not placeholder text.`
     try {
       const userId = req.session!.userId!;
       const products = await db.select().from(supplierProducts)
-        .where(and(eq(supplierProducts.siteId, req.params.id), eq(supplierProducts.userId, userId)))
+        .where(and(eq(supplierProducts.siteId, (req.params.id as string)), eq(supplierProducts.userId, userId)))
         .orderBy(desc(supplierProducts.createdAt));
       res.json({ products });
     } catch (error: any) {
@@ -12173,7 +12173,7 @@ Include specific, searchable product names (not generic). Each product should ha
       for (const p of products) {
         const [row] = await db.insert(supplierProducts).values({
           userId,
-          siteId: req.params.id,
+          siteId: req.params.id as string,
           supplierName,
           supplierUrl: supplierUrls[supplierName] || null,
           productName: p.productName || "Unnamed Product",
@@ -12197,7 +12197,7 @@ Include specific, searchable product names (not generic). Each product should ha
     try {
       const userId = req.session!.userId!;
       const existingProducts = await db.select().from(supplierProducts)
-        .where(and(eq(supplierProducts.siteId, req.params.id), eq(supplierProducts.userId, userId)));
+        .where(and(eq(supplierProducts.siteId, (req.params.id as string)), eq(supplierProducts.userId, userId)));
 
       if (existingProducts.length === 0) {
         return res.status(400).json({ message: "No products to analyze. Import products first." });
@@ -12269,7 +12269,7 @@ Consider: category competition levels, psychological pricing (e.g. $29.99 not $3
       }
 
       const updated = await db.select().from(supplierProducts)
-        .where(and(eq(supplierProducts.siteId, req.params.id), eq(supplierProducts.userId, userId)))
+        .where(and(eq(supplierProducts.siteId, (req.params.id as string)), eq(supplierProducts.userId, userId)))
         .orderBy(desc(supplierProducts.createdAt));
 
       res.json({ products: updated, optimized: optimized.length });
@@ -12292,7 +12292,7 @@ Consider: category competition levels, psychological pricing (e.g. $29.99 not $3
 
       const [product] = await db.insert(supplierProducts).values({
         userId,
-        siteId: req.params.id,
+        siteId: req.params.id as string,
         supplierName: "Manual",
         productName,
         description: description || null,
@@ -12340,7 +12340,7 @@ Consider: category competition levels, psychological pricing (e.g. $29.99 not $3
 
       const [product] = await db.update(supplierProducts)
         .set(updates)
-        .where(and(eq(supplierProducts.id, req.params.productId), eq(supplierProducts.userId, userId)))
+        .where(and(eq(supplierProducts.id, (req.params.productId as string)), eq(supplierProducts.userId, userId)))
         .returning();
 
       if (!product) return res.status(404).json({ message: "Product not found" });
@@ -12354,7 +12354,7 @@ Consider: category competition levels, psychological pricing (e.g. $29.99 not $3
     try {
       const userId = req.session!.userId!;
       await db.delete(supplierProducts).where(
-        and(eq(supplierProducts.id, req.params.productId), eq(supplierProducts.userId, userId))
+        and(eq(supplierProducts.id, (req.params.productId as string)), eq(supplierProducts.userId, userId))
       );
       res.json({ ok: true });
     } catch (error: any) {

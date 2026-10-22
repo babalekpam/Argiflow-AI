@@ -1163,7 +1163,7 @@ SCORING GUIDE:
         .filter(u => u && !skipDomains.some(sd => u.includes(sd)))
         .map(u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } })
         .filter(d => d && d.length > 3 && d.includes("."));
-      const uniqueDomains = [...new Set(companyDomains)].slice(0, 2);
+      const uniqueDomains = Array.from(new Set(companyDomains)).slice(0, 2);
 
       for (const domain of uniqueDomains) {
         try {

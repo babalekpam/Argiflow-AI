@@ -24,7 +24,7 @@ function chatRateLimiter(req: Request, res: Response, next: Function) {
 
 setInterval(() => {
   const now = Date.now();
-  for (const [key, val] of rateLimitMap) {
+  for (const [key, val] of Array.from(rateLimitMap)) {
     if (now > val.resetAt) rateLimitMap.delete(key);
   }
 }, 5 * 60 * 1000);

@@ -243,7 +243,7 @@ async function buildSystemClient(): Promise<AnthropicLikeClient> {
           openaiTools = tools.filter((t: any) => t.type !== "web_search_20250305").map((t: any) => ({
             type: "function", function: { name: t.name, description: t.description || "", parameters: t.input_schema || { type: "object", properties: {} } }
           }));
-          if (openaiTools.length === 0) openaiTools = undefined;
+          if (openaiTools!.length === 0) openaiTools = undefined;
         }
         const response = await openai.chat.completions.create({
           model: systemResolved.model,
@@ -348,7 +348,7 @@ export async function getAnthropicCompatClient(userId?: string): Promise<{ clien
             openaiTools = tools.filter((t: any) => t.type !== "web_search_20250305").map((t: any) => ({
               type: "function", function: { name: t.name, description: t.description || "", parameters: t.input_schema || { type: "object", properties: {} } }
             }));
-            if (openaiTools.length === 0) openaiTools = undefined;
+            if (openaiTools!.length === 0) openaiTools = undefined;
           }
 
           const response = await openai.chat.completions.create({

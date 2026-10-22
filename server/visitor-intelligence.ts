@@ -93,7 +93,7 @@ function computeIntentScore(pages: string[], clicks: any[]): { score: number; si
     signals.push(`Viewed ${pages.length} pages (engaged visitor)`);
   }
 
-  return { score: Math.min(score, 100), signals: [...new Set(signals)] };
+  return { score: Math.min(score, 100), signals: Array.from(new Set(signals)) };
 }
 
 export async function identifyVisitorByIP(
@@ -225,7 +225,7 @@ export async function getRecentVisitorActivity(userId: string, hoursBack: number
     if (sessions.rows.length === 0) return [];
 
     const sessionIds = sessions.rows.map((s: any) => s.session_id);
-    const visitorIds = [...new Set(sessions.rows.map((s: any) => s.visitor_id))];
+    const visitorIds = Array.from(new Set(sessions.rows.map((s: any) => s.visitor_id)));
 
     const [pageResult, clickResult] = await Promise.all([
       client.query(`
@@ -251,7 +251,7 @@ export async function getRecentVisitorActivity(userId: string, hoursBack: number
     }
 
     const identityCache = new Map<string, any>();
-    const uniqueIPs = [...new Set(sessions.rows.map((s: any) => `${s.visitor_id}:${s.ip}`))];
+    const uniqueIPs = Array.from(new Set(sessions.rows.map((s: any) => `${s.visitor_id}:${s.ip}`)));
     for (const key of uniqueIPs.slice(0, 20)) {
       const [vid, ip] = key.split(":");
       try {
@@ -269,7 +269,7 @@ export async function getRecentVisitorActivity(userId: string, hoursBack: number
 
     const emailEngagementMap = new Map<string, EmailEngagement[]>();
     if (identifiedEmails.size > 0) {
-      const emailArr = [...identifiedEmails];
+      const emailArr = Array.from(identifiedEmails);
       const engResult = await client.query(`
         SELECT recipient_email, subject, opens, clicks,
                first_opened_at, first_clicked_at, created_at

@@ -202,7 +202,7 @@ export default function LeadIntelligencePage() {
   }
 
   function saveSelected() {
-    results.filter((r) => selectedLeads.has(r.domain)).forEach(saveLead);
+    results.filter((r: any) => selectedLeads.has(r.domain)).forEach(saveLead);
     setSelectedLeads(new Set());
   }
 
