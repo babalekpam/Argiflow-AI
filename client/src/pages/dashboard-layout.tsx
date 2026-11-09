@@ -22,6 +22,7 @@ import ForumProspectorPage from "./forum-prospector";
 import PlatformPromoterPage from "./platform-promoter";
 import EmailInfrastructurePage from "./email-infrastructure";
 import OutreachAgentPage from "./outreach-agent";
+import OrchestrationPage from "./orchestration";
 import SequencesPage from "./sequences";
 import LinkedInPage from "./linkedin";
 import IntentDataPage from "./intent-data";
@@ -228,6 +229,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/ai-agents" component={UnifiedAgentsPage} />
               <Route path="/dashboard/marketing-suite" component={MarketingSuitePage} />
               <Route path="/dashboard/outreach-agent" component={OutreachAgentPage} />
+        <Route path="/dashboard/orchestration" component={OrchestrationPage} />
               <Route path="/dashboard/sequences" component={SequencesPage} />
               <Route path="/dashboard/email" component={UnifiedEmailPage} />
               <Route path="/dashboard/email-infra" component={EmailInfrastructurePage} />

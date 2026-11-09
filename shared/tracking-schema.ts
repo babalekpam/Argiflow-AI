@@ -169,6 +169,10 @@ export const trackEmailEvents = pgTable("track_email_events", {
   browser: text("browser"),
   device: text("device"),
   isMobile: boolean("is_mobile").default(false),
+  // Bot flag for the website/email tracker, applied to production
+  // 2026-10-22 (migrations/2026-10-22-tracking-scoring.sql section 3);
+  // declared here so the code schema matches production
+  // (reconciliation 2026-11-09).
   isBot: boolean("is_bot").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });

@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, serial, timestamp, boolean, real, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, serial, timestamp, boolean, real, jsonb, index, check } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -61,14 +61,16 @@ export const leads = pgTable("leads", {
   index("leads_user_id_idx").on(table.userId),
   index("leads_scheduled_send_idx").on(table.scheduledSendAt),
   index("leads_follow_up_idx").on(table.followUpStatus, table.followUpNextAt),
+  // Score guard rails, applied to production 2026-10-22 by
+  // migrations/2026-10-22-tracking-scoring.sql section 5 and declared
+  // here so the code schema matches production (reconciliation
+  // 2026-11-09). Without these declarations a publish proposes
+  // dropping both constraints.
+  check("leads_score_range", sql`${table.score} is null or (${table.score} >= 0 and ${table.score} <= 100)`),
+  check("leads_engagement_score_range", sql`${table.engagementScore} is null or (${table.engagementScore} >= 0 and ${table.engagementScore} <= 100)`),
 ]);
 
-export const insertLeadSchema = createInsertSchema(leads)
-  .omit({ id: true, createdAt: true })
-  .extend({
-    score: z.number().int().min(0).max(100).optional(),
-    engagementScore: z.number().int().min(0).max(100).optional(),
-  });
+export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 

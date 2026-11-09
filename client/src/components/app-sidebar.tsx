@@ -60,6 +60,7 @@ import {
   Palette,
   Brain,
   Crown,
+  Network,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -94,6 +95,7 @@ export function AppSidebar() {
     { title: "AI Agents", icon: Bot, url: "/dashboard/ai-agents", badge: t("common.live") },
     { title: "Marketing Suite", icon: Palette, url: "/dashboard/marketing-suite" },
     { title: t("sidebar.outreachAgent", "Outreach Agent"), icon: Target, url: "/dashboard/outreach-agent" },
+    { title: "Orchestration", icon: Network, url: "/dashboard/orchestration", badge: t("common.new") },
     { title: "Sequences", icon: GitBranch, url: "/dashboard/sequences" },
     { title: "Email & Outreach", icon: Mail, url: "/dashboard/email" },
     { title: "Email Infrastructure", icon: MailPlus, url: "/dashboard/email-infra" },
