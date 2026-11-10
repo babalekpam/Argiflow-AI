@@ -70,7 +70,18 @@ export const leads = pgTable("leads", {
   check("leads_engagement_score_range", sql`${table.engagementScore} is null or (${table.engagementScore} >= 0 and ${table.engagementScore} <= 100)`),
 ]);
 
-export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
+// Scores are a 0-100 scale. The raw createInsertSchema accepted any
+// integer, and LLM/import write paths stored values like 105 and 120,
+// which the UI then rendered as "120/100". Bound them at the schema
+// boundary (storage also clamps, because not every write path goes
+// through this schema). Restored 2026-11-10 from main, where PR #5
+// added this bound; the DB check constraints above stay declared.
+export const insertLeadSchema = createInsertSchema(leads)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    score: z.number().int().min(0).max(100).optional(),
+    engagementScore: z.number().int().min(0).max(100).optional(),
+  });
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 
